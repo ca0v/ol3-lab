@@ -1,16 +1,11 @@
-System.register("app", ["openlayers"], function(exports_1) {
+define("app", ["require", "exports"], function (require, exports) {
     "use strict";
-    var ol3;
     function run() {
-        console.log("ol3 playground", ol3);
+        debugger;
+        require(["openlayers"], function (ol3) {
+            debugger;
+            console.log("ol3 playground", ol3);
+        });
     }
-    exports_1("default", run);
-    return {
-        setters:[
-            function (ol3_1) {
-                ol3 = ol3_1;
-            }],
-        execute: function() {
-        }
-    }
+    return run;
 });

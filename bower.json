@@ -1,0 +1,23 @@
+{
+  "name": "ol3-lab",
+  "description": "",
+  "main": "",
+  "authors": [
+    "coreyalix <coreyalix@hotmail.com>"
+  ],
+  "license": "MIT",
+  "homepage": "https://github.com/ca0v/ol3-lab",
+  "moduleType": [],
+  "private": true,
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "ol3": "ol3-bower#~3.12.1",
+    "requirejs": "~2.1.22"
+  }
+}
