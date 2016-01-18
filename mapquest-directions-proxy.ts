@@ -191,12 +191,51 @@ declare module MapQuestDirections {
 
 class Directions {
 
-    directions(url: string, data: any) {
+    private sessionId = "";
+
+    directions(url: string, data: {
+        key: string;
+        from: string;
+        to: string;
+        session?: string;
+        unit?: string;
+        avoids?: string;
+    }) {
 
         let req = $.extend({
+            outFormat: "json",
+            unit: "m",
+            routeType: "fastest",
+            avoidTimedConditions: false,
+            doReverseGeocode: true,
+            narrativeType: "text",
+            enhancedNarrative: false,
+            maxLinkId: 0,
+            locale: "en_US",
+            // no way to handle multiple avoids without hand-coding url?
+            // [toll road, unpaved, ferry, limited access, approximate seasonal closure, country border crossing]
+            inFormat: "kvp",
+            avoids: "unpaved",
+            stateBoundaryDisplay: true,
+            countryBoundaryDisplay: true,
+            sideOfStreetDisplay: false,
+            destinationManeuverDisplay: false,
+            fullShape: false,
+            shapeFormat: "raw",
+            inShapeFormat: "raw",
+            outShapeFormat: "raw",
+            generalize: 10,
+            drivingStyle: "normal",
+            highwayEfficiency: 20,
+            manMaps: false
         }, data);
 
-        return ajax.jsonp<MapQuestDirections.Response>(url, req);
+        if (this.sessionId) req.sessionId = this.sessionId;
+
+        return ajax.jsonp<MapQuestDirections.Response>(url, req).then(response => {
+            this.sessionId = response.route.sessionId;
+            return response;
+        });
     }
 
     static test() {
