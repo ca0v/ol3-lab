@@ -1,53 +1,226 @@
-define("ajax", ["require", "exports", "jquery"], function (require, exports, $) {
-    "use strict";
-    function jsonp(url, args) {
-        if (args === void 0) { args = {}; }
-        var d = $.Deferred();
-        {
-            args["callback"] = "define";
-            var uri = url + "?" + Object.keys(args).map(function (k) { return (k + "=" + args[k]); }).join('&');
-            require([uri], function (data) { return d.resolve(data); });
-        }
-        return d;
-    }
-    exports.jsonp = jsonp;
-});
 /**
  * http://www.mapquestapi.com/directions/v2/route?key=cwm3pF5yuEGNp54sh96TF0irs5kCLd5y&from=Lancaster,PA&to=York,PA&callback=define
  * http://www.mapquestapi.com/directions/v2/route?key=cwm3pF5yuEGNp54sh96TF0irs5kCLd5y?from=Lancaster,PA&to=York,PA&callback=define
  * http://www.mapquestapi.com/directions/v2/route?key=cwm3pF5yuEGNp54sh96TF0irs5kCLd5y?from=Lancaster,PA&to=York,PA&callback=define
  */
-define("mapquest-directions-proxy", ["require", "exports", "ajax"], function (require, exports, ajax) {
-    "use strict";
-    var MapQuestKey = "cwm3pF5yuEGNp54sh96TF0irs5kCLd5y";
-    var Directions = (function () {
-        function Directions() {
-        }
-        Directions.prototype.directions = function (url, data) {
-            var req = $.extend({}, data);
-            return ajax.jsonp(url, req);
+
+import * as ajax from "./ajax";
+
+const MapQuestKey = "cwm3pF5yuEGNp54sh96TF0irs5kCLd5y";
+
+declare module MapQuestDirections {
+
+    export interface Ul {
+        lng: number;
+        lat: number;
+    }
+
+    export interface Lr {
+        lng: number;
+        lat: number;
+    }
+
+    export interface BoundingBox {
+        ul: Ul;
+        lr: Lr;
+    }
+
+    export interface LatLng {
+        lng: number;
+        lat: number;
+    }
+
+    export interface DisplayLatLng {
+        lng: number;
+        lat: number;
+    }
+
+    export interface Location {
+        latLng: LatLng;
+        adminArea4: string;
+        adminArea5Type: string;
+        adminArea4Type: string;
+        adminArea5: string;
+        street: string;
+        adminArea1: string;
+        adminArea3: string;
+        type: string;
+        displayLatLng: DisplayLatLng;
+        linkId: number;
+        postalCode: string;
+        sideOfStreet: string;
+        dragPoint: boolean;
+        adminArea1Type: string;
+        geocodeQuality: string;
+        geocodeQualityCode: string;
+        adminArea3Type: string;
+    }
+
+    export interface Sign {
+        text: string;
+        extraText: string;
+        direction: number;
+        type: number;
+        url: string;
+    }
+
+    export interface StartPoint {
+        lng: number;
+        lat: number;
+    }
+
+    export interface Maneuver {
+        signs: Sign[];
+        index: number;
+        maneuverNotes: any[];
+        direction: number;
+        narrative: string;
+        iconUrl: string;
+        distance: number;
+        time: number;
+        linkIds: any[];
+        streets: string[];
+        attributes: number;
+        transportMode: string;
+        formattedTime: string;
+        directionName: string;
+        mapUrl: string;
+        startPoint: StartPoint;
+        turnType: number;
+    }
+
+    export interface Leg {
+        hasTollRoad: boolean;
+        index: number;
+        roadGradeStrategy: any[][];
+        hasHighway: boolean;
+        hasUnpaved: boolean;
+        distance: number;
+        time: number;
+        origIndex: number;
+        hasSeasonalClosure: boolean;
+        origNarrative: string;
+        hasCountryCross: boolean;
+        formattedTime: string;
+        destNarrative: string;
+        destIndex: number;
+        maneuvers: Maneuver[];
+        hasFerry: boolean;
+    }
+
+    export interface RouteError {
+        message: string;
+        errorCode: number;
+    }
+
+    export interface Options {
+        mustAvoidLinkIds: any[];
+        drivingStyle: number;
+        countryBoundaryDisplay: boolean;
+        generalize: number;
+        narrativeType: string;
+        locale: string;
+        avoidTimedConditions: boolean;
+        destinationManeuverDisplay: boolean;
+        enhancedNarrative: boolean;
+        filterZoneFactor: number;
+        timeType: number;
+        maxWalkingDistance: number;
+        routeType: string;
+        transferPenalty: number;
+        stateBoundaryDisplay: boolean;
+        walkingSpeed: number;
+        maxLinkId: number;
+        arteryWeights: any[];
+        tryAvoidLinkIds: any[];
+        unit: string;
+        routeNumber: number;
+        shapeFormat: string;
+        maneuverPenalty: number;
+        useTraffic: boolean;
+        returnLinkDirections: boolean;
+        avoidTripIds: any[];
+        manmaps: string;
+        highwayEfficiency: number;
+        sideOfStreetDisplay: boolean;
+        cyclingRoadFactor: number;
+        urbanAvoidFactor: number;
+    }
+
+    export interface Route {
+        hasTollRoad: boolean;
+        computedWaypoints: any[];
+        fuelUsed: number;
+        hasUnpaved: boolean;
+        hasHighway: boolean;
+        realTime: number;
+        boundingBox: BoundingBox;
+        distance: number;
+        time: number;
+        locationSequence: number[];
+        hasSeasonalClosure: boolean;
+        sessionId: string;
+        locations: Location[];
+        hasCountryCross: boolean;
+        legs: Leg[];
+        formattedTime: string;
+        routeError: RouteError;
+        options: Options;
+        hasFerry: boolean;
+    }
+
+    export interface Copyright {
+        text: string;
+        imageUrl: string;
+        imageAltText: string;
+    }
+
+    export interface Info {
+        copyright: Copyright;
+        statuscode: number;
+        messages: any[];
+    }
+
+    export interface Response {
+        route: Route;
+        info: Info;
+    }
+
+}
+
+
+class Directions {
+
+    directions(url: string, data: any) {
+
+        let req = $.extend({
+        }, data);
+
+        return ajax.jsonp<MapQuestDirections.Response>(url, req);
+    }
+
+    static test() {
+        let serviceUrl = `http://www.mapquestapi.com/directions/v2/route`;
+        let request = {
+            key: MapQuestKey,
+            from: "50 Datastream Plaza, Greenville, SC",
+            to: "550 S Main St 101, Greenville, SC 29601"
         };
-        Directions.test = function () {
-            var serviceUrl = "http://www.mapquestapi.com/directions/v2/route";
-            var request = {
-                key: MapQuestKey,
-                from: "50 Datastream Plaza, Greenville, SC",
-                to: "550 S Main St 101, Greenville, SC 29601"
-            };
-            new Directions().directions(serviceUrl, request).then(function (result) {
-                console.log("directions", result);
-                result.route.legs.forEach(function (leg) {
-                    console.log(leg.destNarrative, leg.maneuvers.map(function (m) { return m.narrative; }).join("\n\t"));
-                });
-            });
-        };
-        return Directions;
-    }());
-    return Directions;
-});
+
+        new Directions().directions(serviceUrl, request).then(result => {
+            console.log("directions", result);
+            result.route.legs.forEach(leg => {
+                console.log(leg.destNarrative, leg.maneuvers.map(m => m.narrative).join("\n\t"));
+            })
+        });
+    }
+}
+
+export = Directions;
+
 /**
  * Response
- *
+ * 
  define({
     "route": {
         "hasTollRoad": false,
@@ -392,37 +565,4 @@ define("mapquest-directions-proxy", ["require", "exports", "ajax"], function (re
         "messages": []
     }
 });
- */ 
-define("app", ["require", "exports", "openlayers", "mapquest-directions-proxy"], function (require, exports, ol, Directions) {
-    "use strict";
-    var Tests = (function () {
-        function Tests() {
-        }
-        Tests.prototype.heatmap = function () {
-            var map = new ol.Map({
-                target: "map",
-                view: new ol.View({
-                    projection: 'EPSG:4326',
-                    center: [-82.4, 34.85],
-                    zoom: 15
-                }),
-                layers: [new ol.layer.Tile({
-                        source: new ol.source.MapQuest({
-                            layer: "sat"
-                        })
-                    })]
-            });
-        };
-        Tests.prototype.directions = function () {
-            Directions.test();
-        };
-        return Tests;
-    }());
-    function run() {
-        console.log("ol3 playground", ol);
-        var tests = new Tests();
-        tests.directions();
-        //tests.heatmap();
-    }
-    return run;
-});
+ */

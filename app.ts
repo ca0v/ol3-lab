@@ -1,4 +1,5 @@
 import ol = require("openlayers");
+import Directions = require("./mapquest-directions-proxy");
 
 class Tests {
 
@@ -18,12 +19,16 @@ class Tests {
         });
     }
 
+    directions() {
+        Directions.test();
+    }
 }
 
 function run() {
     console.log("ol3 playground", ol);
     let tests = new Tests();
-    tests.heatmap();
+    tests.directions();
+    //tests.heatmap();
 }
 
 export = run;
