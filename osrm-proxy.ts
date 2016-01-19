@@ -48,7 +48,25 @@ class Osrm {
 
     }
 
-    viaroute() {
+    viaroute(data: {
+        loc?: number[][];
+        locs?: string;
+        z?: number;
+        output?: string;
+        instructions?: boolean;
+        alt?: boolean;
+        geometry?: boolean;
+        compression?: boolean;
+        uturns?: boolean;
+        u?: boolean[];
+        hint?: string[];
+        checksum?: number;
+    }) {
+
+        let req = $.extend({}, data);
+        req.loc = data.loc.map(l => `${l[0]},${l[1]}`).join("&loc=");
+
+        return ajax.jsonp<OsrmServices.Trip>(this.url + "/viaroute", req, "jsonp");
     }
 
     nearest(loc: number[]) {
@@ -76,11 +94,26 @@ class Osrm {
 
     static test() {
         let service = new Osrm();
-        service.trip([[34.8, -82.85],[34.8, -82.80]]).then(result => {
+
+        false && service.trip([[34.8, -82.85], [34.8, -82.80]]).then(result => {
             console.log("trip", result);
             let decoder = new Encoder();
-            console.log("geometry", result.trips.map(trip => decoder.decode(trip.route_geometry, 6)));
-    });
+            result.trips.map(trip => {                                
+                console.log("trip", trip.route_name, "route_geometry", decoder.decode(trip.route_geometry, 6).map(v => [v[1], v[0]]));
+            });
+        });
+
+        service.viaroute({
+            loc: [[34.85, -82.4], [34.85, -82.4]]
+        }).then(result => {
+            console.log("viaroute", result);
+            let decoder = new Encoder();
+            console.log("route_geometry", decoder.decode(result.route_geometry, 6).map(v => [v[1], v[0]]));
+        });
+        
+        // "West McBee Avenue"
+        false && service.nearest([34.85, -82.4]).then(result => console.log("nearest", result));
+
     }
 
 }

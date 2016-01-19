@@ -4499,14 +4499,17 @@ define("google-polyline", ["require", "exports"], function (require, exports) {
  * http://{server}/trip?loc={lat,lon}&loc={lat,lon}<&loc={lat,lon} ...>
  * http://router.project-osrm.org/trip?loc=52.52,13.44&loc=52.5,13.45&jsonp=callback
  */
-define("osrm-trip-proxy", ["require", "exports", "ajax", "google-polyline"], function (require, exports, ajax, Encoder) {
+define("osrm-proxy", ["require", "exports", "ajax", "jquery", "google-polyline"], function (require, exports, ajax, $, Encoder) {
     "use strict";
     var Osrm = (function () {
         function Osrm(url) {
             if (url === void 0) { url = "http://router.project-osrm.org"; }
             this.url = url;
         }
-        Osrm.prototype.viaroute = function () {
+        Osrm.prototype.viaroute = function (data) {
+            var req = $.extend({}, data);
+            req.loc = data.loc.map(function (l) { return (l[0] + "," + l[1]); }).join("&loc=");
+            return ajax.jsonp(this.url + "/viaroute", req, "jsonp");
         };
         Osrm.prototype.nearest = function (loc) {
             return ajax.jsonp(this.url + "/nearest", {
@@ -4525,11 +4528,22 @@ define("osrm-trip-proxy", ["require", "exports", "ajax", "google-polyline"], fun
         };
         Osrm.test = function () {
             var service = new Osrm();
-            service.trip([[34.8, -82.85], [34.8, -82.80]]).then(function (result) {
+            false && service.trip([[34.8, -82.85], [34.8, -82.80]]).then(function (result) {
                 console.log("trip", result);
                 var decoder = new Encoder();
-                console.log("geometry", result.trips.map(function (trip) { return decoder.decode(trip.route_geometry, 6); }));
+                result.trips.map(function (trip) {
+                    console.log("trip", trip.route_name, "route_geometry", decoder.decode(trip.route_geometry, 6).map(function (v) { return [v[1], v[0]]; }));
+                });
             });
+            service.viaroute({
+                loc: [[34.85, -82.4], [34.85, -82.4]]
+            }).then(function (result) {
+                console.log("viaroute", result);
+                var decoder = new Encoder();
+                console.log("route_geometry", decoder.decode(result.route_geometry, 6).map(function (v) { return [v[1], v[0]]; }));
+            });
+            // "West McBee Avenue"
+            false && service.nearest([34.85, -82.4]).then(function (result) { return console.log("nearest", result); });
         };
         return Osrm;
     }());
@@ -5015,7 +5029,7 @@ And when the geometry is decoded:
     ]
 ]
  */ 
-define("app", ["require", "exports", "openlayers", "google-polyline", "osrm-trip-proxy"], function (require, exports, ol, PolylineEncoder, Osrm) {
+define("app", ["require", "exports", "openlayers", "google-polyline", "osrm-proxy"], function (require, exports, ol, PolylineEncoder, Osrm) {
     "use strict";
     var Tests = (function () {
         function Tests() {
