@@ -3,6 +3,7 @@ import Directions = require("./mapquest-directions-proxy");
 import Traffic = require("./mapquest-traffic-proxy");
 import Geocoding = require("./mapquest-geocoding-proxy");
 import Search = require("./mapquest-search-proxy");
+import PolylineEncoder = require("./google-polyline");
 
 class Tests {
 
@@ -22,13 +23,19 @@ class Tests {
         });
     }
 
+    polylineEncoder() {
+        let encoder = new PolylineEncoder();
+        console.log("_p~iF~ps|U_ulLnnqC_mqNvxq`@", encoder.encode([[38.5, -120.2], [40.7, -120.95], [43.252, -126.453]]));
+        console.log("decode", encoder.decode("_p~iF~ps|U_ulLnnqC_mqNvxq`@"));
+    }
 }
 
 function run() {
-    console.log("ol3 playground", ol);
-    //let tests = new Tests();
+    console.log("ol3 playground");
+    let tests = new Tests();
+    tests.polylineEncoder();
     //tests.heatmap();
-    Search.test();
+    //Search.test();
     //Geocoding.test();
     //Traffic.test();
     //Directions.test();
