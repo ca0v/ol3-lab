@@ -1,9 +1,9 @@
 import $ = require("jquery");
 
-export function jsonp<T>(url: string, args = <any>{}) {
+export function jsonp<T>(url: string, args = <any>{}, callback="callback") {
     let d = $.Deferred<T>();
     {
-        args["callback"] = "define";
+        args[callback] = "define";
         let uri = url + "?" + Object.keys(args).map(k => `${k}=${args[k]}`).join('&');
         require([uri], (data: T) => d.resolve(data));
     }

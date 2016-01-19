@@ -1,3 +1,7 @@
+/**
+ * https://developers.google.com/maps/documentation/utilities/polylinealgorithm?csw=1
+ * https://github.com/DeMoehn/Cloudant-nyctaxi/blob/2e48cb6c53bd4ac4f58d50d9302f00fc72f6681e/app/js/polyline.js
+ */
 class PolylineEncoder {
 
     private encodeCoordinate(coordinate: number, factor: number) {

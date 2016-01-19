@@ -4,6 +4,7 @@ import Traffic = require("./mapquest-traffic-proxy");
 import Geocoding = require("./mapquest-geocoding-proxy");
 import Search = require("./mapquest-search-proxy");
 import PolylineEncoder = require("./google-polyline");
+import Osrm = require("./osrm-proxy");
 
 class Tests {
 
@@ -32,9 +33,10 @@ class Tests {
 
 function run() {
     console.log("ol3 playground");
-    let tests = new Tests();
-    tests.polylineEncoder();
+    //let tests = new Tests();
+    //tests.polylineEncoder();
     //tests.heatmap();
+    Osrm.test();
     //Search.test();
     //Geocoding.test();
     //Traffic.test();
