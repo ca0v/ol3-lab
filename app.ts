@@ -2,6 +2,7 @@ import ol = require("openlayers");
 import Directions = require("./mapquest-directions-proxy");
 import Traffic = require("./mapquest-traffic-proxy");
 import Geocoding = require("./mapquest-geocoding-proxy");
+import Search = require("./mapquest-search-proxy");
 
 class Tests {
 
@@ -27,7 +28,8 @@ function run() {
     console.log("ol3 playground", ol);
     //let tests = new Tests();
     //tests.heatmap();
-    Geocoding.test();
+    Search.test();
+    //Geocoding.test();
     //Traffic.test();
     //Directions.test();
 }
