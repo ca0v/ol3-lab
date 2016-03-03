@@ -22,6 +22,8 @@ class Tests {
                 })
             })]
         });
+
+        return map;
     }
 
     polylineEncoder() {
@@ -33,14 +35,57 @@ class Tests {
 
 function run() {
     console.log("ol3 playground");
-    //let tests = new Tests();
+    let tests = new Tests();
     //tests.polylineEncoder();
-    //tests.heatmap();
-    Osrm.test();
+    let map = tests.heatmap();
+    //Osrm.test();
     //Search.test();
     //Geocoding.test();
     //Traffic.test();
-    //Directions.test();
+    Directions.test().then(result => {
+        let lr = result.route.boundingBox.lr;
+        let ul = result.route.boundingBox.ul;
+        // lon,lat <==> x,y;
+        // ul => max y, min x; 
+        // lr => min y, max x
+        map.getView().fit([ul.lng, lr.lat, lr.lng, ul.lat], map.getSize());
+
+        let points = <ol.Coordinate[]>[];
+
+        for (let i = 0; i < result.route.shape.shapePoints.length; i += 2) {
+            let [lat, lon] = [result.route.shape.shapePoints[i], result.route.shape.shapePoints[i + 1]];
+            points.push([lon, lat]);
+        }
+
+        console.log("points", points);
+
+        let geom = new ol.geom.LineString(points);
+        
+        let route = new ol.Feature({
+            geometry: geom
+        });
+        
+        route.setStyle(new ol.style.Style({
+            stroke: new ol.style.Stroke({
+                color: "red",
+                width: 5
+            })
+        }));
+
+        let source = new ol.source.Vector({
+            features: [route]
+        });
+
+        let routeLayer = new ol.layer.Vector({
+            source: source
+        });
+
+        map.addLayer(routeLayer);
+
+        result.route.legs.forEach(leg => {
+            console.log(leg.destNarrative, leg.maneuvers.map(m => m.narrative).join("\n\t"));
+        });
+    });
 }
 
 export = run;

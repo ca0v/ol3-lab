@@ -1,0 +1,73 @@
+define(["require", "exports", "openlayers", "./mapquest-directions-proxy", "./google-polyline"], function (require, exports, ol, Directions, PolylineEncoder) {
+    var Tests = (function () {
+        function Tests() {
+        }
+        Tests.prototype.heatmap = function () {
+            var map = new ol.Map({
+                target: "map",
+                view: new ol.View({
+                    projection: 'EPSG:4326',
+                    center: [-82.4, 34.85],
+                    zoom: 15
+                }),
+                layers: [new ol.layer.Tile({
+                        source: new ol.source.MapQuest({
+                            layer: "sat"
+                        })
+                    })]
+            });
+            return map;
+        };
+        Tests.prototype.polylineEncoder = function () {
+            var encoder = new PolylineEncoder();
+            console.log("_p~iF~ps|U_ulLnnqC_mqNvxq`@", encoder.encode([[38.5, -120.2], [40.7, -120.95], [43.252, -126.453]]));
+            console.log("decode", encoder.decode("_p~iF~ps|U_ulLnnqC_mqNvxq`@"));
+        };
+        return Tests;
+    })();
+    function run() {
+        console.log("ol3 playground");
+        var tests = new Tests();
+        //tests.polylineEncoder();
+        var map = tests.heatmap();
+        //Osrm.test();
+        //Search.test();
+        //Geocoding.test();
+        //Traffic.test();
+        Directions.test().then(function (result) {
+            var lr = result.route.boundingBox.lr;
+            var ul = result.route.boundingBox.ul;
+            // lon,lat <==> x,y;
+            // ul => max y, min x; 
+            // lr => min y, max x
+            map.getView().fit([ul.lng, lr.lat, lr.lng, ul.lat], map.getSize());
+            var points = [];
+            for (var i = 0; i < result.route.shape.shapePoints.length; i += 2) {
+                var _a = [result.route.shape.shapePoints[i], result.route.shape.shapePoints[i + 1]], lat = _a[0], lon = _a[1];
+                points.push([lon, lat]);
+            }
+            console.log("points", points);
+            var geom = new ol.geom.LineString(points);
+            var route = new ol.Feature({
+                geometry: geom
+            });
+            route.setStyle(new ol.style.Style({
+                stroke: new ol.style.Stroke({
+                    color: "red",
+                    width: 5
+                })
+            }));
+            var source = new ol.source.Vector({
+                features: [route]
+            });
+            var routeLayer = new ol.layer.Vector({
+                source: source
+            });
+            map.addLayer(routeLayer);
+            result.route.legs.forEach(function (leg) {
+                console.log(leg.destNarrative, leg.maneuvers.map(function (m) { return m.narrative; }).join("\n\t"));
+            });
+        });
+    }
+    return run;
+});
