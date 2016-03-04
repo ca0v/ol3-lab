@@ -1,0 +1,90 @@
+import * as ajax from "./ajax";
+
+const MapQuestKey = "cwm3pF5yuEGNp54sh96TF0irs5kCLd5y";
+
+class Route {
+
+    private sessionId = "";
+
+    /**
+     * Returns
+     * | locationSequence | a sequence array that can be used to determine the index in the original location object list. |
+     * | locations | a collection of locations in the form of an address. The origin and destination locations remain fixed, but the intermediate locations are re-ordered as appropriate. | 
+     */
+    route(url: string, data: {
+        key: string;
+        from: string;
+        to: string;
+        locations: string[];
+        session?: string;
+        unit?: string;
+        avoids?: string;
+    }) {
+        let req = $.extend({
+            outFormat: "json",
+            unit: "m",
+            routeType: "fastest",
+            avoidTimedConditions: false,
+            doReverseGeocode: true,
+            narrativeType: "text",
+            enhancedNarrative: false,
+            maxLinkId: 0,
+            locale: "en_US",
+            // no way to handle multiple avoids without hand-coding url?
+            // [toll road, unpaved, ferry, limited access, approximate seasonal closure, country border crossing]
+            inFormat: "kvp",
+            avoids: "unpaved",
+            stateBoundaryDisplay: true,
+            countryBoundaryDisplay: true,
+            sideOfStreetDisplay: false,
+            destinationManeuverDisplay: false,
+            fullShape: false,
+            shapeFormat: "raw",
+            inShapeFormat: "raw",
+            outShapeFormat: "raw",
+            generalize: 10,
+            drivingStyle: "normal",
+            highwayEfficiency: 20,
+            manMaps: false
+        }, data);
+
+        if (this.sessionId) req.sessionId = this.sessionId;
+
+        /** GET + POST work with from/to but how to set locations? */
+        return ajax.post<MapQuestRoute.Response>(`${url}?key=${req.key}`, {
+            from: data.from,
+            to: data.to,
+            locations: JSON.stringify(data.locations.map(l => ({location: l}))
+        }).then(response => {
+            this.sessionId = response.route.sessionId;
+            return response;
+        });
+    }
+
+    static test(options: {
+        from: string;
+        to: string;
+        locations: string[];
+    }) {
+
+        let serviceUrl = `http://www.mapquestapi.com/directions/v2/optimizedRoute`;
+
+        let request = {
+            key: MapQuestKey,
+            from: options.from,
+            to: options.to,
+            locations: options.locations
+        };
+
+        return new Route().route(serviceUrl, request).then(result => {
+            console.log("directions", result);
+            result.route.legs.forEach(leg => {
+                console.log(leg.destNarrative, leg.maneuvers.map(m => m.narrative).join("\n\t"));
+            });
+            return result;
+        });
+    }
+
+}
+
+export = Route;
