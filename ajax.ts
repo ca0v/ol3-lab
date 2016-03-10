@@ -10,13 +10,23 @@ export function jsonp<T>(url: string, args = <any>{}, callback = "callback") {
     return d;
 }
 
-export function post<T>(url: string, args = <any>{}) {    
+export function post<T>(url: string, args = <any>{}) {
     let d = $.Deferred<T>();
     {
-        $.post(url, args, (data: any, status: string, XHR: JQueryXHR) => {
-           d.resolve(data); 
-        });
+        false && $.post(url, args, (data: any, status: string, XHR: JQueryXHR) => {
+            d.resolve(data);
+        }, "json");
+
+        var xmlHttp = new XMLHttpRequest();
+        xmlHttp.onreadystatechange = function() {
+            if (xmlHttp.readyState == 4 && xmlHttp.status == 200)
+                d.resolve(JSON.parse(xmlHttp.responseText));
+        };
+        xmlHttp.open("POST", url, true); // true for asynchronous 
+        xmlHttp.send(JSON.stringify(args));
+
     }
+
     return d;
 }
 

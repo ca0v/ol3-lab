@@ -69,9 +69,9 @@ class Route {
 
         /** GET + POST work with from/to but how to set locations? */
         return ajax.post<MapQuestRoute.Response>(`${url}?key=${req.key}`, {
-            from: data.from,
-            to: data.to,
-            locations: JSON.stringify(data.locations.map(l => ({location: l}))
+           // from: data.from,
+           // to: data.to,
+            locations: data.locations
         }).then(response => {
             this.sessionId = response.route.sessionId;
             return response;

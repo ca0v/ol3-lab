@@ -16,9 +16,16 @@ define("ajax", ["require", "exports", "jquery"], function (require, exports, $) 
         if (args === void 0) { args = {}; }
         var d = $.Deferred();
         {
-            $.post(url, args, function (data, status, XHR) {
+            false && $.post(url, args, function (data, status, XHR) {
                 d.resolve(data);
-            });
+            }, "json");
+            var xmlHttp = new XMLHttpRequest();
+            xmlHttp.onreadystatechange = function () {
+                if (xmlHttp.readyState == 4 && xmlHttp.status == 200)
+                    d.resolve(JSON.parse(xmlHttp.responseText));
+            };
+            xmlHttp.open("POST", url, true); // true for asynchronous 
+            xmlHttp.send(JSON.stringify(args));
         }
         return d;
     }
@@ -471,6 +478,22 @@ define("mapquest-directions-proxy", ["require", "exports", "ajax"], function (re
     }
 });
  */ 
+/*
+https://www.mapquestapi.com/directions/#optimized
+REQUEST URL:
+
+https://www.mapquestapi.com/directions/v2/optimizedroute?key=YOUR_KEY_HERE
+
+REQUEST BODY:
+{
+   locations:[
+      "Boalsburg, PA",
+      "York, PA",
+      "State College, PA",
+      "Lancaster, PA"
+   ]
+}
+*/
 define("mapquest-optimized-route-proxy", ["require", "exports", "ajax"], function (require, exports, ajax) {
     "use strict";
     var MapQuestKey = "cwm3pF5yuEGNp54sh96TF0irs5kCLd5y";
@@ -516,9 +539,9 @@ define("mapquest-optimized-route-proxy", ["require", "exports", "ajax"], functio
                 req.sessionId = this.sessionId;
             /** GET + POST work with from/to but how to set locations? */
             return ajax.post(url + "?key=" + req.key, {
-                from: data.from,
-                to: data.to,
-                locations: JSON.stringify(data.locations.map(function (l) { return ({ location: l }); }))
+                // from: data.from,
+                // to: data.to,
+                locations: data.locations
             }).then(function (response) {
                 _this.sessionId = response.route.sessionId;
                 return response;
