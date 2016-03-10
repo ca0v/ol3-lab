@@ -1,3 +1,20 @@
+/*
+https://www.mapquestapi.com/directions/#optimized
+REQUEST URL:
+
+https://www.mapquestapi.com/directions/v2/optimizedroute?key=YOUR_KEY_HERE
+
+REQUEST BODY:
+{
+   locations:[
+      "Boalsburg, PA",
+      "York, PA",
+      "State College, PA",
+      "Lancaster, PA"
+   ]
+}
+*/
+
 import * as ajax from "./ajax";
 
 const MapQuestKey = "cwm3pF5yuEGNp54sh96TF0irs5kCLd5y";
