@@ -1,5 +1,21 @@
 /*
 https://www.mapquestapi.com/directions/#optimized
+https://www.mapquestapi.com/common/locations.html
+
+Location objects are either
+
+Strings, which are assumed to be single-line addresses (as described above), or
+Location objects, which are JSON objects containing the parameters described in the table below.
+
+| Format | Example | 
+city (AA5), state (AA3)	Lancaster, PA
+city, state, postalCode	Lancaster, PA, 17603
+postalCode	17603
+street, city, state	1090 N Charlotte St, Lancaster, PA
+street, city, state, postalCode	1090 N Charlotte St, Lancaster, PA 17603
+street, postalCode	1090 N Charlotte St, 17603
+latLng	40.05323,-76.313632
+
 REQUEST URL:
 
 https://www.mapquestapi.com/directions/v2/optimizedroute?key=YOUR_KEY_HERE

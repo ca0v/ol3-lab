@@ -1,9 +1,14 @@
 /**
+ * http://www.mapquestapi.com/search/common-parameters.html
+ * 
  * http://www.mapquestapi.com/search/v2/search?key=cwm3pF5yuEGNp54sh96TF0irs5kCLd5y&shapePoints=34.85,-82.4 
  */
 
 import * as ajax from "./ajax";
 import * as $ from "jquery";
+import G = require("./google-polyline");
+
+const g = new G();
 
 const MapQuestKey = "cwm3pF5yuEGNp54sh96TF0irs5kCLd5y";
 
@@ -115,13 +120,18 @@ class Search {
 
         let req = $.extend({
             key: key,
+            inFormat: "json",
             outFormat: "json",
-            maxMatches: 100
+            ambiguities: "ignore",
+            units: "m",
+            maxMatches: 100,
+            shapeFormat: "cmp6"
         }, data);
 
         let url = this.url + "/" + type;
 
         return ajax.jsonp<MapQuestSearch.SearchResponse>(url, req).then(response => {
+            g.decode; // TODO
             return response;
         });
 
@@ -154,8 +164,14 @@ class Search {
         width?: number;
         bufferWidth?: number;
         maxMatches?: number;
-        shapeFormat?: string;
+        shapeFormat?: "raw" | "cmp6";
     }) {
+        /**
+raw: 39.96488,-76.729949,41.099998,-76.305603,39.899011,-76.164335,39.099998,-78.305603
+simple: LINESTRING(-76.305603 40.099998,-76.305603 41.099998,-77.305603 41.099998,-78.305603 39.099998)
+compressed: os|rFdiisMou|Ee{qAdqiF}qZx`{C|eaL
+         */
+        //g.encode(data.line); // http://www.mapquestapi.com/search/geometry.html
         return this.search($.extend({
             width: 5,
             bufferWidth: 0.25
@@ -167,7 +183,7 @@ class Search {
         search.radius({ origin: [34.85, -82.4] }).then(result => console.log("radius", result));
         search.rectangle({ boundingBox: [34.85, -82.4, 34.9, -82.35] }).then(result => console.log("rectangle", result));
         search.polygon({ polygon: [34.85, -82.4, 34.85, -82.35, 34.9, -82.35, 34.85, -82.4] }).then(result => console.log("polygon", result));
-        search.corridor({ line: [34.85, -82.4, 34.9, -82.4] }).then(result => console.log("corridor", result));
+        search.corridor({ line: [34.85, -82.4, 34.9, -82.4], shapeFormat: "raw" }).then(result => console.log("corridor", result));
     }
 }
 

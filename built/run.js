@@ -480,6 +480,22 @@ define("mapquest-directions-proxy", ["require", "exports", "ajax"], function (re
  */ 
 /*
 https://www.mapquestapi.com/directions/#optimized
+https://www.mapquestapi.com/common/locations.html
+
+Location objects are either
+
+Strings, which are assumed to be single-line addresses (as described above), or
+Location objects, which are JSON objects containing the parameters described in the table below.
+
+| Format | Example |
+city (AA5), state (AA3)	Lancaster, PA
+city, state, postalCode	Lancaster, PA, 17603
+postalCode	17603
+street, city, state	1090 N Charlotte St, Lancaster, PA
+street, city, state, postalCode	1090 N Charlotte St, Lancaster, PA 17603
+street, postalCode	1090 N Charlotte St, 17603
+latLng	40.05323,-76.313632
+
 REQUEST URL:
 
 https://www.mapquestapi.com/directions/v2/optimizedroute?key=YOUR_KEY_HERE
@@ -979,11 +995,75 @@ define("mapquest-geocoding-proxy", ["require", "exports", "ajax", "jquery"], fun
     }]
 })
  */ 
+define("google-polyline", ["require", "exports"], function (require, exports) {
+    "use strict";
+    var PolylineEncoder = (function () {
+        function PolylineEncoder() {
+        }
+        PolylineEncoder.prototype.encodeCoordinate = function (coordinate, factor) {
+            coordinate = Math.round(coordinate * factor);
+            coordinate <<= 1;
+            if (coordinate < 0) {
+                coordinate = ~coordinate;
+            }
+            var output = '';
+            while (coordinate >= 0x20) {
+                output += String.fromCharCode((0x20 | (coordinate & 0x1f)) + 0x3f);
+                coordinate >>= 5;
+            }
+            output += String.fromCharCode(coordinate + 0x3f);
+            return output;
+        };
+        PolylineEncoder.prototype.decode = function (str, precision) {
+            if (precision === void 0) { precision = 5; }
+            var index = 0, lat = 0, lng = 0, coordinates = [], latitude_change, longitude_change, factor = Math.pow(10, precision);
+            while (index < str.length) {
+                var byte = 0;
+                var shift = 0;
+                var result = 0;
+                do {
+                    byte = str.charCodeAt(index++) - 63;
+                    result |= (byte & 0x1f) << shift;
+                    shift += 5;
+                } while (byte >= 0x20);
+                var latitude_change_1 = ((result & 1) ? ~(result >> 1) : (result >> 1));
+                shift = result = 0;
+                do {
+                    byte = str.charCodeAt(index++) - 63;
+                    result |= (byte & 0x1f) << shift;
+                    shift += 5;
+                } while (byte >= 0x20);
+                longitude_change = ((result & 1) ? ~(result >> 1) : (result >> 1));
+                lat += latitude_change_1;
+                lng += longitude_change;
+                coordinates.push([lat / factor, lng / factor]);
+            }
+            return coordinates;
+        };
+        PolylineEncoder.prototype.encode = function (coordinates, precision) {
+            if (precision === void 0) { precision = 5; }
+            if (!coordinates.length)
+                return '';
+            var factor = Math.pow(10, precision), output = this.encodeCoordinate(coordinates[0][0], factor) + this.encodeCoordinate(coordinates[0][1], factor);
+            for (var i = 1; i < coordinates.length; i++) {
+                var a = coordinates[i], b = coordinates[i - 1];
+                output += this.encodeCoordinate(a[0] - b[0], factor);
+                output += this.encodeCoordinate(a[1] - b[1], factor);
+            }
+            return output;
+        };
+        return PolylineEncoder;
+    }());
+    return PolylineEncoder;
+});
 /**
+ * http://www.mapquestapi.com/search/common-parameters.html
+ *
  * http://www.mapquestapi.com/search/v2/search?key=cwm3pF5yuEGNp54sh96TF0irs5kCLd5y&shapePoints=34.85,-82.4
  */
-define("mapquest-search-proxy", ["require", "exports", "ajax", "jquery"], function (require, exports, ajax, $) {
+define("mapquest-search-proxy", ["require", "exports", "ajax", "jquery", "google-polyline"], function (require, exports, ajax, $, G) {
     "use strict";
+    var g = new G();
     var MapQuestKey = "cwm3pF5yuEGNp54sh96TF0irs5kCLd5y";
     var Search = (function () {
         function Search(url) {
@@ -995,11 +1075,16 @@ define("mapquest-search-proxy", ["require", "exports", "ajax", "jquery"], functi
             if (key === void 0) { key = MapQuestKey; }
             var req = $.extend({
                 key: key,
+                inFormat: "json",
                 outFormat: "json",
-                maxMatches: 100
+                ambiguities: "ignore",
+                units: "m",
+                maxMatches: 100,
+                shapeFormat: "cmp6"
             }, data);
             var url = this.url + "/" + type;
             return ajax.jsonp(url, req).then(function (response) {
+                g.decode; // TODO
                 return response;
             });
         };
@@ -1013,6 +1098,12 @@ define("mapquest-search-proxy", ["require", "exports", "ajax", "jquery"], functi
             return this.search(data, "polygon");
         };
         Search.prototype.corridor = function (data) {
+            /**
+    raw: 39.96488,-76.729949,41.099998,-76.305603,39.899011,-76.164335,39.099998,-78.305603
+    simple: LINESTRING(-76.305603 40.099998,-76.305603 41.099998,-77.305603 41.099998,-78.305603 39.099998)
+    compressed: os|rFdiisMou|Ee{qAdqiF}qZx`{C|eaL
+             */
+            //g.encode(data.line); // http://www.mapquestapi.com/search/geometry.html
             return this.search($.extend({
                 width: 5,
                 bufferWidth: 0.25
@@ -1023,7 +1114,7 @@ define("mapquest-search-proxy", ["require", "exports", "ajax", "jquery"], functi
             search.radius({ origin: [34.85, -82.4] }).then(function (result) { return console.log("radius", result); });
             search.rectangle({ boundingBox: [34.85, -82.4, 34.9, -82.35] }).then(function (result) { return console.log("rectangle", result); });
             search.polygon({ polygon: [34.85, -82.4, 34.85, -82.35, 34.9, -82.35, 34.85, -82.4] }).then(function (result) { return console.log("polygon", result); });
-            search.corridor({ line: [34.85, -82.4, 34.9, -82.4] }).then(function (result) { return console.log("corridor", result); });
+            search.corridor({ line: [34.85, -82.4, 34.9, -82.4], shapeFormat: "raw" }).then(function (result) { return console.log("corridor", result); });
         };
         return Search;
     }());
@@ -4573,67 +4664,6 @@ define("mapquest-search-proxy", ["require", "exports", "ajax", "jquery"], functi
         "maxMatches": 100
     }
  */ 
-define("google-polyline", ["require", "exports"], function (require, exports) {
-    "use strict";
-    var PolylineEncoder = (function () {
-        function PolylineEncoder() {
-        }
-        PolylineEncoder.prototype.encodeCoordinate = function (coordinate, factor) {
-            coordinate = Math.round(coordinate * factor);
-            coordinate <<= 1;
-            if (coordinate < 0) {
-                coordinate = ~coordinate;
-            }
-            var output = '';
-            while (coordinate >= 0x20) {
-                output += String.fromCharCode((0x20 | (coordinate & 0x1f)) + 0x3f);
-                coordinate >>= 5;
-            }
-            output += String.fromCharCode(coordinate + 0x3f);
-            return output;
-        };
-        PolylineEncoder.prototype.decode = function (str, precision) {
-            if (precision === void 0) { precision = 5; }
-            var index = 0, lat = 0, lng = 0, coordinates = [], latitude_change, longitude_change, factor = Math.pow(10, precision);
-            while (index < str.length) {
-                var byte = 0;
-                var shift = 0;
-                var result = 0;
-                do {
-                    byte = str.charCodeAt(index++) - 63;
-                    result |= (byte & 0x1f) << shift;
-                    shift += 5;
-                } while (byte >= 0x20);
-                var latitude_change_1 = ((result & 1) ? ~(result >> 1) : (result >> 1));
-                shift = result = 0;
-                do {
-                    byte = str.charCodeAt(index++) - 63;
-                    result |= (byte & 0x1f) << shift;
-                    shift += 5;
-                } while (byte >= 0x20);
-                longitude_change = ((result & 1) ? ~(result >> 1) : (result >> 1));
-                lat += latitude_change_1;
-                lng += longitude_change;
-                coordinates.push([lat / factor, lng / factor]);
-            }
-            return coordinates;
-        };
-        PolylineEncoder.prototype.encode = function (coordinates, precision) {
-            if (precision === void 0) { precision = 5; }
-            if (!coordinates.length)
-                return '';
-            var factor = Math.pow(10, precision), output = this.encodeCoordinate(coordinates[0][0], factor) + this.encodeCoordinate(coordinates[0][1], factor);
-            for (var i = 1; i < coordinates.length; i++) {
-                var a = coordinates[i], b = coordinates[i - 1];
-                output += this.encodeCoordinate(a[0] - b[0], factor);
-                output += this.encodeCoordinate(a[1] - b[1], factor);
-            }
-            return output;
-        };
-        return PolylineEncoder;
-    }());
-    return PolylineEncoder;
-});
 /**
  * http://router.project-osrm.org/nearest?loc=52.4224,13.333086
  * http://{server}/trip?loc={lat,lon}&loc={lat,lon}<&loc={lat,lon} ...>
@@ -5246,13 +5276,17 @@ define("app", ["require", "exports", "openlayers", "mapquest-directions-proxy", 
         //Search.test();
         //Geocoding.test();
         //Traffic.test();
+        var l1 = [
+            "550 S Main St 101, Greenville, SC 29601",
+            "207 N Main St, Greenville, SC 29601",
+            "100 S Main St 101, Greenville, SC 29601"];
+        var l2 = [
+            "34.845546,-82.401672",
+            "34.845547,-82.401674"];
         true && Route.test({
             from: "50 Datastream Plaza, Greenville, SC",
             to: "50 Datastream Plaza, Greenville, SC",
-            locations: [
-                "550 S Main St 101, Greenville, SC 29601",
-                "207 N Main St, Greenville, SC 29601",
-                "100 S Main St 101, Greenville, SC 29601",]
+            locations: l2
         }).then(function (result) { return tests.renderRoute(map, result); });
         false && Directions.test({
             from: "50 Datastream Plaza, Greenville, SC",
@@ -5261,6 +5295,284 @@ define("app", ["require", "exports", "openlayers", "mapquest-directions-proxy", 
     }
     return run;
 });
+/**
+{
+    "route": {
+        "hasTollRoad": false,
+        "computedWaypoints": [],
+        "fuelUsed": 0.09,
+        "hasUnpaved": false,
+        "hasHighway": false,
+        "realTime": 267,
+        "boundingBox": {
+            "ul": {
+                "lng": -82.401672,
+                "lat": 34.852664
+            },
+            "lr": {
+                "lng": -82.398078,
+                "lat": 34.845546
+            }
+        },
+        "distance": 0.757,
+        "time": 231,
+        "locationSequence": [0, 1, 2],
+        "hasSeasonalClosure": false,
+        "sessionId": "56e1ae99-0021-0006-02b7-1818-00163eaddb46",
+        "locations": [{
+            "latLng": {
+                "lng": -82.401674,
+                "lat": 34.845547
+            },
+            "adminArea4": "Greenville",
+            "adminArea5Type": "City",
+            "adminArea4Type": "County",
+            "adminArea5": "Greenville",
+            "street": "550 S Main St, 101",
+            "adminArea1": "US",
+            "adminArea3": "SC",
+            "type": "s",
+            "displayLatLng": {
+                "lng": -82.401672,
+                "lat": 34.845546
+            },
+            "linkId": 48042149,
+            "postalCode": "29601-2503",
+            "sideOfStreet": "R",
+            "dragPoint": false,
+            "adminArea1Type": "Country",
+            "geocodeQuality": "POINT",
+            "geocodeQualityCode": "P1AAA",
+            "adminArea3Type": "State"
+        },
+        {
+            "latLng": {
+                "lng": -82.398078,
+                "lat": 34.852666
+            },
+            "adminArea4": "Greenville",
+            "adminArea5Type": "City",
+            "adminArea4Type": "County",
+            "adminArea5": "Greenville",
+            "street": "207 N Main St",
+            "adminArea1": "US",
+            "adminArea3": "SC",
+            "type": "s",
+            "displayLatLng": {
+                "lng": -82.398078,
+                "lat": 34.852664
+            },
+            "linkId": 48131299,
+            "postalCode": "29601-2115",
+            "sideOfStreet": "L",
+            "dragPoint": false,
+            "adminArea1Type": "Country",
+            "geocodeQuality": "POINT",
+            "geocodeQualityCode": "P1AAA",
+            "adminArea3Type": "State"
+        },
+        {
+            "latLng": {
+                "lng": -82.39947,
+                "lat": 34.849629
+            },
+            "adminArea4": "Greenville",
+            "adminArea5Type": "City",
+            "adminArea4Type": "County",
+            "adminArea5": "Greenville",
+            "street": "100 S Main St, 101",
+            "adminArea1": "US",
+            "adminArea3": "SC",
+            "type": "s",
+            "displayLatLng": {
+                "lng": -82.399467,
+                "lat": 34.849628
+            },
+            "linkId": 47781149,
+            "postalCode": "29601-2748",
+            "sideOfStreet": "R",
+            "dragPoint": false,
+            "adminArea1Type": "Country",
+            "geocodeQuality": "ADDRESS",
+            "geocodeQualityCode": "L1AAA",
+            "adminArea3Type": "State"
+        }],
+        "hasCountryCross": false,
+        "legs": [{
+            "hasTollRoad": false,
+            "index": 0,
+            "roadGradeStrategy": [
+                []
+            ],
+            "hasHighway": false,
+            "hasUnpaved": false,
+            "distance": 0.533,
+            "time": 159,
+            "origIndex": -1,
+            "hasSeasonalClosure": false,
+            "origNarrative": "",
+            "hasCountryCross": false,
+            "formattedTime": "00:02:39",
+            "destNarrative": "",
+            "destIndex": -1,
+            "maneuvers": [{
+                "signs": [],
+                "index": 0,
+                "maneuverNotes": [],
+                "direction": 3,
+                "narrative": "Start out going northeast on S Main St toward E Broad St.",
+                "iconUrl": "http://content.mapquest.com/mqsite/turnsigns/icon-dirs-start_sm.gif",
+                "distance": 0.533,
+                "time": 159,
+                "linkIds": [],
+                "streets": ["S Main St"],
+                "attributes": 0,
+                "transportMode": "AUTO",
+                "formattedTime": "00:02:39",
+                "directionName": "Northeast",
+                "mapUrl": "http://www.mapquestapi.com/staticmap/v4/getmap?key=cwm3pF5yuEGNp54sh96TF0irs5kCLd5y&type=map&size=225,160&pois=purple-1,34.845546,-82.40167199999999,0,0|purple-2,34.852664,-82.398078,0,0|&center=34.849104999999994,-82.399875&zoom=10&rand=1940271945&session=56e1ae99-0021-0006-02b7-1818-00163eaddb46",
+                "startPoint": {
+                    "lng": -82.401672,
+                    "lat": 34.845546
+                },
+                "turnType": 6
+            },
+            {
+                "signs": [],
+                "index": 1,
+                "maneuverNotes": [],
+                "direction": 0,
+                "narrative": "207 N MAIN ST is on the left.",
+                "iconUrl": "http://content.mapquest.com/mqsite/turnsigns/icon-dirs-end_sm.gif",
+                "distance": 0,
+                "time": 0,
+                "linkIds": [],
+                "streets": [],
+                "attributes": 0,
+                "transportMode": "AUTO",
+                "formattedTime": "00:00:00",
+                "directionName": "",
+                "startPoint": {
+                    "lng": -82.398078,
+                    "lat": 34.852664
+                },
+                "turnType": -1
+            }],
+            "hasFerry": false
+        },
+        {
+            "hasTollRoad": false,
+            "index": 1,
+            "roadGradeStrategy": [
+                []
+            ],
+            "hasHighway": false,
+            "hasUnpaved": false,
+            "distance": 0.224,
+            "time": 72,
+            "origIndex": -1,
+            "hasSeasonalClosure": false,
+            "origNarrative": "",
+            "hasCountryCross": false,
+            "formattedTime": "00:01:12",
+            "destNarrative": "",
+            "destIndex": -1,
+            "maneuvers": [{
+                "signs": [],
+                "index": 2,
+                "maneuverNotes": [],
+                "direction": 4,
+                "narrative": "Start out going south on N Main St toward W North St/SC-183.",
+                "iconUrl": "http://content.mapquest.com/mqsite/turnsigns/icon-dirs-start_sm.gif",
+                "distance": 0.224,
+                "time": 72,
+                "linkIds": [],
+                "streets": ["N Main St"],
+                "attributes": 0,
+                "transportMode": "AUTO",
+                "formattedTime": "00:01:12",
+                "directionName": "South",
+                "mapUrl": "http://www.mapquestapi.com/staticmap/v4/getmap?key=cwm3pF5yuEGNp54sh96TF0irs5kCLd5y&type=map&size=225,160&pois=purple-3,34.852664,-82.398078,0,0|purple-4,34.84962,-82.399475,0,0|&center=34.851141999999996,-82.3987765&zoom=11&rand=1940271945&session=56e1ae99-0021-0006-02b7-1818-00163eaddb46",
+                "startPoint": {
+                    "lng": -82.398078,
+                    "lat": 34.852664
+                },
+                "turnType": 2
+            },
+            {
+                "signs": [],
+                "index": 3,
+                "maneuverNotes": [],
+                "direction": 0,
+                "narrative": "100 S MAIN ST, 101 is on the right.",
+                "iconUrl": "http://content.mapquest.com/mqsite/turnsigns/icon-dirs-end_sm.gif",
+                "distance": 0,
+                "time": 0,
+                "linkIds": [],
+                "streets": [],
+                "attributes": 0,
+                "transportMode": "AUTO",
+                "formattedTime": "00:00:00",
+                "directionName": "",
+                "startPoint": {
+                    "lng": -82.399475,
+                    "lat": 34.84962
+                },
+                "turnType": -1
+            }],
+            "hasFerry": false
+        }],
+        "formattedTime": "00:03:51",
+        "routeError": {
+            "message": "",
+            "errorCode": -400
+        },
+        "options": {
+            "mustAvoidLinkIds": [],
+            "drivingStyle": 2,
+            "countryBoundaryDisplay": true,
+            "generalize": -1,
+            "narrativeType": "text",
+            "locale": "en_US",
+            "avoidTimedConditions": false,
+            "destinationManeuverDisplay": true,
+            "enhancedNarrative": false,
+            "filterZoneFactor": -1,
+            "timeType": 0,
+            "maxWalkingDistance": -1,
+            "routeType": "FASTEST",
+            "transferPenalty": -1,
+            "stateBoundaryDisplay": true,
+            "walkingSpeed": -1,
+            "maxLinkId": 0,
+            "arteryWeights": [],
+            "tryAvoidLinkIds": [],
+            "unit": "M",
+            "routeNumber": 0,
+            "shapeFormat": "raw",
+            "maneuverPenalty": -1,
+            "useTraffic": false,
+            "returnLinkDirections": false,
+            "avoidTripIds": [],
+            "manmaps": "true",
+            "highwayEfficiency": 22,
+            "sideOfStreetDisplay": true,
+            "cyclingRoadFactor": 1,
+            "urbanAvoidFactor": -1
+        },
+        "hasFerry": false
+    },
+    "info": {
+        "copyright": {
+            "text": "© 2015 MapQuest, Inc.",
+            "imageUrl": "http://api.mqcdn.com/res/mqlogo.gif",
+            "imageAltText": "© 2015 MapQuest, Inc."
+        },
+        "statuscode": 0,
+        "messages": []
+    }
+}
+ */ 
 define("data/route_01", ["require", "exports"], function (require, exports) {
     "use strict";
     return {
