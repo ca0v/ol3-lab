@@ -5,7 +5,7 @@
         "target": "es5",
         "noImplicitAny": true,
         "sourceMap": false,
-        "out": "./built/run.js",
+        "outFile": "./built/run.js",
         "moduleResolution": "node"
     },
     "exclude": [
