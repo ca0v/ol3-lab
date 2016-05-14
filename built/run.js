@@ -5199,7 +5199,7 @@ And when the geometry is decoded:
     ]
 ]
  */ 
-define("app", ["require", "exports", "openlayers", "mapquest-directions-proxy", "mapquest-optimized-route-proxy", "google-polyline"], function (require, exports, ol, Directions, Route, PolylineEncoder) {
+define("app", ["require", "exports", "openlayers", "mapquest-directions-proxy", "mapquest-optimized-route-proxy", "google-polyline", "jquery", "resize-sensor"], function (require, exports, ol, Directions, Route, PolylineEncoder, $, ResizeSensor) {
     "use strict";
     var Tests = (function () {
         function Tests() {
@@ -5265,6 +5265,19 @@ define("app", ["require", "exports", "openlayers", "mapquest-directions-proxy", 
                 console.log(leg.destNarrative, leg.maneuvers.map(function (m) { return m.narrative; }).join("\n\t"));
             });
         };
+        Tests.prototype.resize = function (map) {
+            console.log("map should become portrait in 3 seconds");
+            setTimeout(function () { return $(".map").addClass("portrait"); }, 3000);
+            console.log("map should become landscape in 5 seconds");
+            setTimeout(function () { return $(".map").removeClass("portrait"); }, 5000);
+            console.log("map should become resize aware in 7 seconds");
+            setTimeout(function () {
+                //$(".map").resize(() => map.updateSize());
+                new ResizeSensor($(".map")[0], function () { return map.updateSize(); });
+            }, 7000);
+            console.log("map should become portrait in 9 seconds");
+            setTimeout(function () { return $(".map").addClass("portrait"); }, 9000);
+        };
         return Tests;
     }());
     function run() {
@@ -5283,7 +5296,7 @@ define("app", ["require", "exports", "openlayers", "mapquest-directions-proxy", 
         var l2 = [
             "34.845546,-82.401672",
             "34.845547,-82.401674"];
-        true && Route.test({
+        false && Route.test({
             from: "50 Datastream Plaza, Greenville, SC",
             to: "50 Datastream Plaza, Greenville, SC",
             locations: l2
@@ -5292,6 +5305,7 @@ define("app", ["require", "exports", "openlayers", "mapquest-directions-proxy", 
             from: "50 Datastream Plaza, Greenville, SC",
             to: ["550 S Main St 101, Greenville, SC 29601", "207 N Main St, Greenville, SC 29601"]
         }).then(function (result) { return tests.renderRoute(map, result); });
+        tests.resize(map);
     }
     return run;
 });

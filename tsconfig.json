@@ -5,13 +5,12 @@
         "target": "es5",
         "noImplicitAny": true,
         "sourceMap": false,
-        "out": "./built/run.js",
+        "outFile": "./built/run.js",
         "moduleResolution": "node"
     },
     "exclude": [
         "node_modules",
         "bower_components",
-        "node_modules",
-        "jspm_packages"
+        "built"
     ]
 }

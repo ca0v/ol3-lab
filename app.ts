@@ -6,6 +6,8 @@ import Geocoding = require("./mapquest-geocoding-proxy");
 import Search = require("./mapquest-search-proxy");
 import PolylineEncoder = require("./google-polyline");
 import Osrm = require("./osrm-proxy");
+import $ = require("jquery");
+import ResizeSensor = require("resize-sensor");
 
 class Tests {
 
@@ -86,6 +88,23 @@ class Tests {
         });
 
     }
+
+    resize(map: ol.Map) {
+        console.log("map should become portrait in 3 seconds");
+        setTimeout(() => $(".map").addClass("portrait"), 3000);
+
+        console.log("map should become landscape in 5 seconds");
+        setTimeout(() => $(".map").removeClass("portrait"), 5000);
+
+        console.log("map should become resize aware in 7 seconds");
+        setTimeout(() => {
+            //$(".map").resize(() => map.updateSize());
+            new ResizeSensor($(".map")[0], () => map.updateSize());
+        }, 7000);
+
+        console.log("map should become portrait in 9 seconds");
+        setTimeout(() => $(".map").addClass("portrait"), 9000);
+    }
 }
 
 function run() {
@@ -106,7 +125,7 @@ function run() {
         "34.845546,-82.401672",
         "34.845547,-82.401674"];
 
-    true && Route.test({
+    false && Route.test({
         from: "50 Datastream Plaza, Greenville, SC",
         to: "50 Datastream Plaza, Greenville, SC",
         locations: l2
@@ -116,6 +135,8 @@ function run() {
         from: "50 Datastream Plaza, Greenville, SC",
         to: ["550 S Main St 101, Greenville, SC 29601", "207 N Main St, Greenville, SC 29601"]
     }).then(result => tests.renderRoute(map, result));
+    
+    tests.resize(map);
 }
 
 export = run;

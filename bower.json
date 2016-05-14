@@ -19,6 +19,7 @@
   "dependencies": {
     "ol3": "ol3-bower#~3.12.1",
     "requirejs": "~2.1.22",
-    "jquery": "~2.2.0"
+    "jquery": "~2.2.0",
+    "css-element-queries": "~0.3.2"
   }
 }
