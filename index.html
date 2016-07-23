@@ -3,7 +3,38 @@
 
 <head>
     <link rel="stylesheet" href="app.css" type="text/css" />
-    <script src="bower_components/requirejs/require.js" data-main="config.js"></script>
+    <script src="bower_components/requirejs/require.js"></script>
+
+    <script>
+        (() => {
+
+        function getParameterByName(name, url = window.location.href) {
+            name = name.replace(/[\[\]]/g, "\\$&");
+            var regex = new RegExp("[?&]" + name + "(=([^&#]*)|&|#|$)"),
+                results = regex.exec(url);
+            if (!results) return null;
+            if (!results[2]) return '';
+            return decodeURIComponent(results[2].replace(/\+/g, " "));
+        }
+
+        let run = getParameterByName("run") || "app";
+
+        requirejs.config({
+            paths: {
+                "resize-sensor": "bower_components/css-element-queries/src/ResizeSensor",
+                "openlayers": "bower_components/ol3/ol",
+                "jquery": "bower_components/jquery/dist/jquery.min"
+            },
+            deps: ["built/run"],
+            callback: () => {
+                require([run], test => {
+                    test.run ? test.run() : test(); 
+                });
+            }
+        });
+
+        })();
+    </script>
 </head>
 
 <body>
