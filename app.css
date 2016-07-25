@@ -1,8 +1,10 @@
 @import url('./bower_components/ol3/ol.css');
 
 .map {
-    width: 640px;
-    height: 480px;
+    min-width: 640px;
+    min-height: 480px;
+    max-height: 640px;
+    max-width: 100%;
 }
 
 .map.portrait {

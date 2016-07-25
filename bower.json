@@ -20,6 +20,7 @@
     "ol3": "ol3-bower#~3.12.1",
     "requirejs": "~2.1.22",
     "jquery": "~2.2.0",
-    "css-element-queries": "~0.3.2"
+    "css-element-queries": "~0.3.2",
+    "ol3-popup": "ol3-paging-popup#^2.0.4"
   }
 }

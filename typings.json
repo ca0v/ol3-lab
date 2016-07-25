@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "ol3-popup": "https://raw.githubusercontent.com/ca0v/ol3-popup/master/index.d.ts"
+  }
+}

@@ -6411,198 +6411,1119 @@ define("data/route_02", ["require", "exports"], function (require, exports) {
         }
     };
 });
-define("ux/style-lab", ["require", "exports", "openlayers"], function (require, exports, ol) {
+define("ux/styles/flower", ["require", "exports"], function (require, exports) {
     "use strict";
-    var center = [-82.4, 34.85];
-    var default_styles = {
-        orange_orb: [
-            {
-                "image": {
-                    "fill": {
-                        "color": "rgba(233,28,15,0.6522512028569203)"
-                    },
-                    "opacity": 1,
-                    "stroke": {
-                        "color": "rgba(247,241,63,0.5428737737274676)",
-                        "width": 3.9007170103692133
-                    },
-                    "radius": 11.861454274819344
+    return [
+        {
+            "star": {
+                "fill": {
+                    "color": "rgba(106,9,251,0.736280404819044)"
+                },
+                "opacity": 1,
+                "stroke": {
+                    "color": "rgba(42,128,244,0.8065839214705285)",
+                    "width": 8.199150828494362
+                },
+                "radius": 13.801178106456376,
+                "radius2": 9.103803658902862,
+                "points": 10
+            }
+        }
+    ];
+});
+define("ux/format", ["require", "exports", "openlayers", "ux/styles/flower"], function (require, exports, ol, coretech_flower_json) {
+    "use strict";
+    var geoJsonSimpleStyle = {
+        "type": "FeatureCollection",
+        "features": [{
+                "type": "Feature",
+                "geometry": {
+                    "type": "Point",
+                    "coordinates": [0, 0]
+                },
+                "properties": {
+                    "title": "A title",
+                    "description": "A description",
+                    // OPTIONAL: default "medium"
+                    // Value must be one of
+                    // "small"
+                    // "medium"
+                    // "large"
+                    "marker-size": "medium",
+                    // OPTIONAL: default ""
+                    "marker-symbol": "bus",
+                    // OPTIONAL: default "7e7e7e"
+                    // the marker's color
+                    //
+                    // value must follow COLOR RULES
+                    "marker-color": "#fff",
+                    // OPTIONAL: default "555555"
+                    // the color of a line as part of a polygon, polyline, or
+                    // multigeometry
+                    //
+                    // value must follow COLOR RULES
+                    "stroke": "#555555",
+                    // OPTIONAL: default 1.0
+                    // the opacity of the line component of a polygon, polyline, or
+                    // multigeometry
+                    //
+                    // value must be a floating point number greater than or equal to
+                    // zero and less or equal to than one
+                    "stroke-opacity": 1.0,
+                    // OPTIONAL: default 2
+                    // the width of the line component of a polygon, polyline, or
+                    // multigeometry
+                    //
+                    // value must be a floating point number greater than or equal to 0
+                    "stroke-width": 2,
+                    // OPTIONAL: default "555555"
+                    // the color of the interior of a polygon
+                    //
+                    // value must follow COLOR RULES
+                    "fill": "#555555",
+                    // OPTIONAL: default 0.6
+                    // the opacity of the interior of a polygon. Implementations
+                    // may choose to set this to 0 for line features.
+                    //
+                    // value must be a floating point number greater than or equal to
+                    // zero and less or equal to than one
+                    "fill-opacity": 0.5
                 }
-            },
-            {
-                "image": {
-                    "fill": {
-                        "color": "rgba(4,252,189,0.014666108233186703)"
-                    },
-                    "opacity": 1,
-                    "stroke": {
-                        "color": "rgba(161,219,102,0.17870206015083068)",
-                        "width": 1.4527415019474796
-                    },
-                    "radius": 7.569151036868188
+            }]
+    };
+    /**
+     * See also, leaflet styles:
+        weight: 2,
+        color: "#999",
+        opacity: 1,
+        fillColor: "#B0DE5C",
+        fillOpacity: 0.8
+    
+     * mapbox styles (https://github.com/mapbox/simplestyle-spec/tree/master/1.1.0)
+     * mapbox svg symbols: https://github.com/mapbox/maki
+     */
+    var CoretechConverter = (function () {
+        function CoretechConverter() {
+        }
+        CoretechConverter.prototype.fromJson = function (json) {
+            return this.deserializeStyle(json);
+        };
+        CoretechConverter.prototype.toJson = function (style) {
+            return this.serializeStyle(style);
+        };
+        CoretechConverter.prototype.assign = function (obj, prop, value) {
+            //let getter = prop[0].toUpperCase() + prop.substring(1);
+            if (value === null)
+                return;
+            if (value === undefined)
+                return;
+            if (typeof value === "object") {
+                if (Object.keys(value).length === 0)
+                    return;
+            }
+            if (prop === "image") {
+                if (value.hasOwnProperty("radius")) {
+                    prop = "circle";
+                }
+                if (value.hasOwnProperty("points")) {
+                    prop = "star";
                 }
             }
-        ]
-    };
-    function asStyle(json) {
-        if (json === void 0) { json = default_styles.orange_orb; }
-        return json.map(function (json) {
-            var s = new ol.style.Style({});
-            if (json.image)
-                s.setImage(asImage(json.image));
+            obj[prop] = value;
+        };
+        CoretechConverter.prototype.serializeStyle = function (style) {
+            var s = {};
+            if (!style)
+                return null;
+            if (typeof style === "string")
+                return style;
+            if (typeof style === "number")
+                return style;
+            if (style.getColor)
+                this.assign(s, "color", this.serializeColor(style.getColor()));
+            if (style.getImage)
+                this.assign(s, "image", this.serializeStyle(style.getImage()));
+            if (style.getFill)
+                this.assign(s, "fill", this.serializeFill(style.getFill()));
+            if (style.getOpacity)
+                this.assign(s, "opacity", style.getOpacity());
+            if (style.getStroke)
+                this.assign(s, "stroke", this.serializeStyle(style.getStroke()));
+            if (style.getText)
+                this.assign(s, "text", this.serializeStyle(style.getText()));
+            if (style.getWidth)
+                this.assign(s, "width", style.getWidth());
+            if (style.getOffsetX)
+                this.assign(s, "offset-x", style.getOffsetX());
+            if (style.getOffsetY)
+                this.assign(s, "offset-y", style.getOffsetY());
+            if (style.getWidth)
+                this.assign(s, "width", style.getWidth());
+            if (style.getFont)
+                this.assign(s, "font", style.getFont());
+            if (style.getRadius)
+                this.assign(s, "radius", style.getRadius());
+            if (style.getRadius2)
+                this.assign(s, "radius2", style.getRadius2());
+            if (style.getPoints)
+                this.assign(s, "points", style.getPoints() / 2);
             return s;
-        });
-    }
-    function asImage(json) {
-        if (json === void 0) { json = default_styles.orange_orb[0].image; }
-        var image = new ol.style.Image();
-        if (json.fill)
-            image.setFill(json.fill);
-        if (json.opacity)
+        };
+        CoretechConverter.prototype.serializeColor = function (color) {
+            return typeof color === "string" ? color : ol.color.asString(ol.color.asArray(color));
+        };
+        CoretechConverter.prototype.serializeFill = function (fill) {
+            return this.serializeStyle(fill);
+        };
+        CoretechConverter.prototype.deserializeStyle = function (json) {
+            var image;
+            var text;
+            if (json.circle)
+                image = this.deserializeCircle(json.circle);
+            else if (json.star)
+                image = this.deserializeStar(json.star);
+            if (json.text)
+                text = this.deserializeText(json.text);
+            var s = new ol.style.Style({
+                image: image,
+                text: text
+            });
+            return s;
+        };
+        CoretechConverter.prototype.deserializeText = function (json) {
+            return new ol.style.Text({
+                fill: this.deserializeFill(json.fill),
+                stroke: this.deserializeStroke(json.stroke),
+                text: json.text,
+                font: json.font,
+                offsetX: json["offset-x"],
+                offsetY: json["offset-y"],
+            });
+        };
+        CoretechConverter.prototype.deserializeCircle = function (json) {
+            var image = new ol.style.Circle({
+                radius: json.radius,
+                fill: this.deserializeFill(json.fill),
+                stroke: this.deserializeStroke(json.stroke)
+            });
             image.setOpacity(json.opacity);
-        if (json.radius)
-            image.setRadius(json.radius);
-        if (json.stroke)
-            image.setStroke(json.stroke);
-        return image;
+            return image;
+        };
+        CoretechConverter.prototype.deserializeStar = function (json) {
+            var image = new ol.style.RegularShape({
+                radius: json.radius,
+                radius2: json.radius2,
+                points: json.points,
+                fill: this.deserializeFill(json.fill),
+                stroke: this.deserializeStroke(json.stroke)
+            });
+            image.setOpacity(json.opacity);
+            return image;
+        };
+        CoretechConverter.prototype.deserializeFill = function (json) {
+            var fill = new ol.style.Fill({
+                color: json.color
+            });
+            return fill;
+        };
+        CoretechConverter.prototype.deserializeStroke = function (json) {
+            var stroke = new ol.style.Stroke();
+            stroke.setColor(json.color);
+            stroke.setWidth(json.width);
+            return stroke;
+        };
+        return CoretechConverter;
+    }());
+    exports.CoretechConverter = CoretechConverter;
+    {
+        var coretechConverter_1 = new CoretechConverter();
+        var expect = JSON.stringify(coretech_flower_json);
+        var actual = JSON.stringify(coretech_flower_json.map(function (json) { return coretechConverter_1.toJson(coretechConverter_1.fromJson(json)); }));
+        if (expect !== actual) {
+            throw "CoretechConverter failure coretech_flower_json";
+        }
+        ;
     }
+});
+define("ux/styles/cold", ["require", "exports"], function (require, exports) {
+    "use strict";
+    return [
+        {
+            "star": {
+                "fill": {
+                    "color": "rgb(127,220,241)"
+                },
+                "opacity": 0.5,
+                "stroke": {
+                    "color": "rgb(160,164,166)",
+                    "width": 3
+                },
+                "radius": 11,
+                "radius2": 5,
+                "points": 12
+            }
+        }
+    ];
+});
+define("ux/styles/4star", ["require", "exports"], function (require, exports) {
+    "use strict";
+    return [
+        {
+            "star": {
+                "fill": {
+                    "color": "rgba(238,162,144,0.4)"
+                },
+                "opacity": 1,
+                "stroke": {
+                    "color": "rgba(169,141,168,0.8)",
+                    "width": 5
+                },
+                "radius": 13,
+                "radius2": 7,
+                "points": 4
+            }
+        }
+    ];
+});
+define("ux/styles/6star", ["require", "exports"], function (require, exports) {
+    "use strict";
+    return [
+        {
+            "star": {
+                "fill": {
+                    "color": "rgba(54,47,234,1)"
+                },
+                "stroke": {
+                    "color": "rgba(75,92,105,0.85)",
+                    "width": 4
+                },
+                "radius": 9,
+                "radius2": 0,
+                "points": 6
+            }
+        }
+    ];
+});
+define("ux/styles/text/text", ["require", "exports"], function (require, exports) {
+    "use strict";
+    return [
+        {
+            "text": {
+                "fill": {
+                    "color": "rgba(75,92,85,0.85)"
+                },
+                "stroke": {
+                    "color": "rgba(255,255,255,1)",
+                    "width": 2
+                },
+                "offset-x": 0,
+                "offset-y": 17,
+                "text": "fantasy light",
+                "font": "lighter 18px fantasy" //weight + size + font
+            }
+        }
+    ];
+});
+define("ux/style-generator", ["require", "exports", "openlayers", "ux/styles/6star", "ux/styles/text/text"], function (require, exports, ol, star6, blueText) {
+    "use strict";
     var range = function (n) {
         var result = new Array(n);
         for (var i = 0; i < n; i++)
             result[i] = i;
         return result;
     };
+    var StyleGenerator = (function () {
+        function StyleGenerator(options) {
+            this.options = options;
+        }
+        StyleGenerator.prototype.asPoints = function () {
+            return 3 + Math.round(10 * Math.random());
+        };
+        StyleGenerator.prototype.asRadius = function () {
+            return 4 + 10 * Math.random();
+        };
+        StyleGenerator.prototype.asWidth = function () {
+            return 1 + 20 * Math.random() * Math.random();
+        };
+        StyleGenerator.prototype.asPastel = function () {
+            var _a = [255, 255, 255].map(function (n) { return Math.round((1 - Math.random() * Math.random()) * n); }), r = _a[0], g = _a[1], b = _a[2];
+            return [r, g, b, 0.5 + 0.5 * Math.random()];
+        };
+        StyleGenerator.prototype.asColor = function () {
+            var _a = [255, 255, 255].map(function (n) { return Math.round((Math.random() * Math.random()) * n); }), r = _a[0], g = _a[1], b = _a[2];
+            return [r, g, b, 0.5 + 0.5 * Math.random()];
+        };
+        StyleGenerator.prototype.asFill = function () {
+            var fill = new ol.style.Fill({
+                color: this.asPastel(),
+            });
+            return fill;
+        };
+        StyleGenerator.prototype.asStroke = function () {
+            var stroke = new ol.style.Stroke({
+                width: this.asWidth(),
+                color: this.asColor()
+            });
+            return stroke;
+        };
+        StyleGenerator.prototype.asCircle = function () {
+            var style = new ol.style.Circle({
+                fill: this.asFill(),
+                radius: this.asRadius(),
+                stroke: this.asStroke(),
+                snapToPixel: false
+            });
+            return style;
+        };
+        StyleGenerator.prototype.asStar = function () {
+            var style = new ol.style.RegularShape({
+                fill: this.asFill(),
+                stroke: this.asStroke(),
+                points: this.asPoints(),
+                radius: this.asRadius(),
+                radius2: this.asRadius()
+            });
+            return style;
+        };
+        StyleGenerator.prototype.asPoly = function () {
+            var style = new ol.style.RegularShape({
+                fill: this.asFill(),
+                stroke: this.asStroke(),
+                points: this.asPoints(),
+                radius: this.asRadius(),
+                width: this.asWidth(),
+                radius2: 0
+            });
+            return style;
+        };
+        StyleGenerator.prototype.asText = function () {
+            var style = new ol.style.Text({
+                font: "18px fantasy",
+                text: "Test",
+                fill: this.asFill(),
+                stroke: this.asStroke(),
+                offsetY: 30 - Math.random() * 20
+            });
+            style.getFill().setColor(this.asColor());
+            style.getStroke().setColor(this.asPastel());
+            return style;
+        };
+        StyleGenerator.prototype.asPoint = function () {
+            var _a = this.options.center, x = _a[0], y = _a[1];
+            x += (Math.random() - 0.5);
+            y += (Math.random() - 0.5);
+            return new ol.geom.Point([x, y]);
+        };
+        StyleGenerator.prototype.asPointFeature = function () {
+            var _this = this;
+            var feature = new ol.Feature();
+            var gens = [function () { return _this.asStar(); }, function () { return _this.asCircle(); }, function () { return _this.asPoly(); }];
+            feature.setGeometry(this.asPoint());
+            var styles = range(1 + Math.round(0 * Math.random())).map(function (x) { return new ol.style.Style({
+                image: gens[1 && Math.round((gens.length - 1) * Math.random())](),
+                text: _this.asText()
+            }); });
+            if (0.9 < Math.random()) {
+                styles = star6.concat(blueText).map(function (json) { return _this.options.fromJson(json); });
+            }
+            feature.setStyle(styles);
+            return feature;
+        };
+        StyleGenerator.prototype.asLineFeature = function () {
+            var feature = new ol.Feature();
+            var p1 = this.asPoint();
+            var p2 = this.asPoint();
+            p2.setCoordinates([p2.getCoordinates()[0], p1.getCoordinates()[1]]);
+            var polyline = new ol.geom.LineString([p1, p2].map(function (p) { return p.getCoordinates(); }));
+            feature.setGeometry(polyline);
+            feature.setStyle([new ol.style.Style({
+                    stroke: this.asStroke(),
+                    text: this.asText()
+                })]);
+            return feature;
+        };
+        StyleGenerator.prototype.asLineLayer = function () {
+            var _this = this;
+            var layer = new ol.layer.Vector();
+            var source = new ol.source.Vector();
+            layer.setSource(source);
+            var features = range(10).map(function (i) { return _this.asLineFeature(); });
+            source.addFeatures(features);
+            return layer;
+        };
+        StyleGenerator.prototype.asMarkerLayer = function () {
+            var _this = this;
+            var layer = new ol.layer.Vector();
+            var source = new ol.source.Vector();
+            layer.setSource(source);
+            var features = range(100).map(function (i) { return _this.asPointFeature(); });
+            source.addFeatures(features);
+            return layer;
+        };
+        return StyleGenerator;
+    }());
+    return StyleGenerator;
+});
+define("ux/style-lab", ["require", "exports", "openlayers", "jquery", "ux/format", "ux/style-generator"], function (require, exports, ol, $, Formatter, StyleGenerator) {
+    "use strict";
+    var center = [-82.4, 34.85];
+    var formatter = new Formatter.CoretechConverter();
+    var generator = new StyleGenerator({
+        center: center,
+        fromJson: function (json) { return formatter.fromJson(json); }
+    });
     function stringify(value) {
         return JSON.stringify(value, null, '\t');
-    }
-    function asRadius() {
-        return 4 + 10 * Math.random();
-    }
-    function asWidth() {
-        return 1 + 4 * Math.random();
-    }
-    function asColor() {
-        var _a = [255, 255, 255].map(function (n) { return Math.floor(Math.random() * n); }), r = _a[0], g = _a[1], b = _a[2];
-        return [r, g, b, Math.random()];
-    }
-    function asFill() {
-        var fill = new ol.style.Fill({
-            color: asColor(),
-        });
-        return fill;
-    }
-    function asStroke() {
-        var stroke = new ol.style.Stroke({
-            width: asWidth(),
-            color: asColor()
-        });
-        return stroke;
-    }
-    function asCircle() {
-        var style = new ol.style.Circle({
-            fill: asFill(),
-            radius: asRadius(),
-            stroke: asStroke(),
-            snapToPixel: false
-        });
-        return style;
-    }
-    function asPoint() {
-        var x = center[0], y = center[1];
-        x += 0.1 * (Math.random() - 0.5);
-        y += 0.1 * (Math.random() - 0.5);
-        return new ol.geom.Point([x, y]);
-    }
-    function asFeature() {
-        var feature = new ol.Feature();
-        feature.setGeometry(asPoint());
-        false && feature.setStyle(asStyle());
-        true && feature.setStyle(range(1 + Math.round(2 * Math.random())).map(function (x) { return new ol.style.Style({
-            image: asCircle()
-        }); }));
-        return feature;
-    }
-    function asVectorLayer() {
-        var layer = new ol.layer.Vector();
-        var source = new ol.source.Vector();
-        layer.setSource(source);
-        for (var i = 0; i < 1000; i++)
-            source.addFeature(asFeature());
-        return layer;
-    }
-    function assign(obj, prop, value) {
-        //let getter = prop[0].toUpperCase() + prop.substring(1);
-        if (value === null)
-            return;
-        if (value === undefined)
-            return;
-        if (typeof value === "object") {
-            if (Object.keys(value).length === 0)
-                return;
-        }
-        if (prop === "image") {
-            if (value.hasOwnProperty("radius")) {
-                prop = "circle";
-            }
-        }
-        obj[prop] = value;
-    }
-    function serializeStyle(style) {
-        var s = {};
-        if (!style)
-            return null;
-        if (style.getColor)
-            assign(s, "color", serializeColor(style.getColor()));
-        if (style.getImage)
-            assign(s, "image", serializeStyle(style.getImage()));
-        if (style.getFill)
-            assign(s, "fill", serializeFill(style.getFill()));
-        if (style.getOpacity)
-            assign(s, "opacity", style.getOpacity());
-        if (style.getStroke)
-            assign(s, "stroke", serializeStyle(style.getStroke()));
-        if (style.getText)
-            assign(s, "text", serializeStyle(style.getText()));
-        if (style.getWidth)
-            assign(s, "width", style.getWidth());
-        if (style.getFont)
-            assign(s, "font", style.getFont());
-        if (style.getRadius)
-            assign(s, "radius", style.getRadius());
-        return s;
-    }
-    function serializeColor(color) {
-        return ol.color.asString(ol.color.asArray(color));
-    }
-    function serializeFill(fill) {
-        return serializeStyle(fill);
     }
     function run() {
         var basemap = new ol.layer.Tile({
             source: new ol.source.OSM()
         });
-        var markers = asVectorLayer();
         var map = new ol.Map({
             target: "map",
             view: new ol.View({
                 projection: 'EPSG:4326',
                 center: center,
-                zoom: 15
+                zoom: 10
             }),
-            layers: [basemap, markers]
+            layers: [generator.asLineLayer(), generator.asMarkerLayer()]
         });
+        var out = $("<textarea style='width:100%;height:400px'>").appendTo(".map");
         map.on("click", function (args) { return map.forEachFeatureAtPixel(args.pixel, function (feature, layer) {
             var style = feature.getStyle();
+            var json = "";
             if (Array.isArray(style)) {
-                var styles = style.map(function (s) { return serializeStyle(s); });
-                console.log(stringify(styles));
+                var styles = style.map(function (s) { return formatter.toJson(s); });
+                json = stringify(styles);
             }
             else {
-                var styles = [style].map(function (s) { return serializeStyle(s); });
-                console.log(stringify(styles[0]));
+                throw "todo";
             }
+            out.text(json);
         }); });
         return map;
     }
     exports.run = run;
+});
+define("ux/styles/alert", ["require", "exports"], function (require, exports) {
+    "use strict";
+    return [
+        {
+            "circle": {
+                "fill": {
+                    "color": "rgba(197,37,84,0.9684230581506159)"
+                },
+                "opacity": 1,
+                "stroke": {
+                    "color": "rgba(227,83,105,0.9911592437357548)",
+                    "width": 4.363895186012079
+                },
+                "radius": 7.311000259153705
+            },
+            "text": {
+                "fill": {
+                    "color": "rgba(205,86,109,0.8918881202751567)"
+                },
+                "stroke": {
+                    "color": "rgba(252,175,131,0.46245606098317293)",
+                    "width": 1.9329284004109581
+                },
+                "text": "Test",
+                "offset-x": 0,
+                "offset-y": 19.909814762842267,
+                "font": "18px fantasy"
+            }
+        }
+    ];
+});
+define("ux/styles/peace", ["require", "exports"], function (require, exports) {
+    "use strict";
+    return [
+        {
+            "star": {
+                "fill": {
+                    "color": "rgba(182,74,9,0.2635968300410687)"
+                },
+                "opacity": 1,
+                "stroke": {
+                    "color": "rgba(49,14,23,0.6699808995760113)",
+                    "width": 3.4639032010315107
+                },
+                "radius": 6.63376222856383,
+                "radius2": 0,
+                "points": 3
+            },
+            "text": {
+                "fill": {
+                    "color": "rgba(207,45,78,0.44950090791791375)"
+                },
+                "stroke": {
+                    "color": "rgba(233,121,254,0.3105821877136521)",
+                    "width": 4.019676388210171
+                },
+                "text": "Test",
+                "offset-x": 0,
+                "offset-y": 14.239434215855646,
+                "font": "18px fantasy"
+            }
+        }
+    ];
+});
+define("ux - Copy/styles/flower", ["require", "exports"], function (require, exports) {
+    "use strict";
+    return [
+        {
+            "star": {
+                "fill": {
+                    "color": "rgba(106,9,251,0.736280404819044)"
+                },
+                "opacity": 1,
+                "stroke": {
+                    "color": "rgba(42,128,244,0.8065839214705285)",
+                    "width": 8.199150828494362
+                },
+                "radius": 13.801178106456376,
+                "radius2": 9.103803658902862,
+                "points": 10
+            }
+        }
+    ];
+});
+define("ux - Copy/format", ["require", "exports", "openlayers", "ux - Copy/styles/flower"], function (require, exports, ol, coretech_flower_json) {
+    "use strict";
+    var geoJsonSimpleStyle = {
+        "type": "FeatureCollection",
+        "features": [{
+                "type": "Feature",
+                "geometry": {
+                    "type": "Point",
+                    "coordinates": [0, 0]
+                },
+                "properties": {
+                    "title": "A title",
+                    "description": "A description",
+                    // OPTIONAL: default "medium"
+                    // Value must be one of
+                    // "small"
+                    // "medium"
+                    // "large"
+                    "marker-size": "medium",
+                    // OPTIONAL: default ""
+                    "marker-symbol": "bus",
+                    // OPTIONAL: default "7e7e7e"
+                    // the marker's color
+                    //
+                    // value must follow COLOR RULES
+                    "marker-color": "#fff",
+                    // OPTIONAL: default "555555"
+                    // the color of a line as part of a polygon, polyline, or
+                    // multigeometry
+                    //
+                    // value must follow COLOR RULES
+                    "stroke": "#555555",
+                    // OPTIONAL: default 1.0
+                    // the opacity of the line component of a polygon, polyline, or
+                    // multigeometry
+                    //
+                    // value must be a floating point number greater than or equal to
+                    // zero and less or equal to than one
+                    "stroke-opacity": 1.0,
+                    // OPTIONAL: default 2
+                    // the width of the line component of a polygon, polyline, or
+                    // multigeometry
+                    //
+                    // value must be a floating point number greater than or equal to 0
+                    "stroke-width": 2,
+                    // OPTIONAL: default "555555"
+                    // the color of the interior of a polygon
+                    //
+                    // value must follow COLOR RULES
+                    "fill": "#555555",
+                    // OPTIONAL: default 0.6
+                    // the opacity of the interior of a polygon. Implementations
+                    // may choose to set this to 0 for line features.
+                    //
+                    // value must be a floating point number greater than or equal to
+                    // zero and less or equal to than one
+                    "fill-opacity": 0.5
+                }
+            }]
+    };
+    /**
+     * See also, leaflet styles:
+        weight: 2,
+        color: "#999",
+        opacity: 1,
+        fillColor: "#B0DE5C",
+        fillOpacity: 0.8
+    
+     * mapbox styles (https://github.com/mapbox/simplestyle-spec/tree/master/1.1.0)
+     * mapbox svg symbols: https://github.com/mapbox/maki
+     */
+    var CoretechConverter = (function () {
+        function CoretechConverter() {
+        }
+        CoretechConverter.prototype.fromJson = function (json) {
+            return this.deserializeStyle(json);
+        };
+        CoretechConverter.prototype.toJson = function (style) {
+            return this.serializeStyle(style);
+        };
+        CoretechConverter.prototype.assign = function (obj, prop, value) {
+            //let getter = prop[0].toUpperCase() + prop.substring(1);
+            if (value === null)
+                return;
+            if (value === undefined)
+                return;
+            if (typeof value === "object") {
+                if (Object.keys(value).length === 0)
+                    return;
+            }
+            if (prop === "image") {
+                if (value.hasOwnProperty("radius")) {
+                    prop = "circle";
+                }
+                if (value.hasOwnProperty("points")) {
+                    prop = "star";
+                }
+            }
+            obj[prop] = value;
+        };
+        CoretechConverter.prototype.serializeStyle = function (style) {
+            var s = {};
+            if (!style)
+                return null;
+            if (typeof style === "string")
+                return style;
+            if (typeof style === "number")
+                return style;
+            if (style.getColor)
+                this.assign(s, "color", this.serializeColor(style.getColor()));
+            if (style.getImage)
+                this.assign(s, "image", this.serializeStyle(style.getImage()));
+            if (style.getFill)
+                this.assign(s, "fill", this.serializeFill(style.getFill()));
+            if (style.getOpacity)
+                this.assign(s, "opacity", style.getOpacity());
+            if (style.getStroke)
+                this.assign(s, "stroke", this.serializeStyle(style.getStroke()));
+            if (style.getText)
+                this.assign(s, "text", this.serializeStyle(style.getText()));
+            if (style.getWidth)
+                this.assign(s, "width", style.getWidth());
+            if (style.getOffsetX)
+                this.assign(s, "offset-x", style.getOffsetX());
+            if (style.getOffsetY)
+                this.assign(s, "offset-y", style.getOffsetY());
+            if (style.getWidth)
+                this.assign(s, "width", style.getWidth());
+            if (style.getFont)
+                this.assign(s, "font", style.getFont());
+            if (style.getRadius)
+                this.assign(s, "radius", style.getRadius());
+            if (style.getRadius2)
+                this.assign(s, "radius2", style.getRadius2());
+            if (style.getPoints)
+                this.assign(s, "points", style.getPoints() / 2);
+            return s;
+        };
+        CoretechConverter.prototype.serializeColor = function (color) {
+            return typeof color === "string" ? color : ol.color.asString(ol.color.asArray(color));
+        };
+        CoretechConverter.prototype.serializeFill = function (fill) {
+            return this.serializeStyle(fill);
+        };
+        CoretechConverter.prototype.deserializeStyle = function (json) {
+            var image;
+            var text;
+            if (json.circle)
+                image = this.deserializeCircle(json.circle);
+            else if (json.star)
+                image = this.deserializeStar(json.star);
+            if (json.text)
+                text = this.deserializeText(json.text);
+            var s = new ol.style.Style({
+                image: image,
+                text: text
+            });
+            return s;
+        };
+        CoretechConverter.prototype.deserializeText = function (json) {
+            return new ol.style.Text({
+                fill: this.deserializeFill(json.fill),
+                stroke: this.deserializeStroke(json.stroke),
+                text: json.text,
+                font: json.font,
+                offsetX: json["offset-x"],
+                offsetY: json["offset-y"],
+            });
+        };
+        CoretechConverter.prototype.deserializeCircle = function (json) {
+            var image = new ol.style.Circle({
+                radius: json.radius,
+                fill: this.deserializeFill(json.fill),
+                stroke: this.deserializeStroke(json.stroke)
+            });
+            image.setOpacity(json.opacity);
+            return image;
+        };
+        CoretechConverter.prototype.deserializeStar = function (json) {
+            var image = new ol.style.RegularShape({
+                radius: json.radius,
+                radius2: json.radius2,
+                points: json.points,
+                fill: this.deserializeFill(json.fill),
+                stroke: this.deserializeStroke(json.stroke)
+            });
+            image.setOpacity(json.opacity);
+            return image;
+        };
+        CoretechConverter.prototype.deserializeFill = function (json) {
+            var fill = new ol.style.Fill({
+                color: json.color
+            });
+            return fill;
+        };
+        CoretechConverter.prototype.deserializeStroke = function (json) {
+            var stroke = new ol.style.Stroke();
+            stroke.setColor(json.color);
+            stroke.setWidth(json.width);
+            return stroke;
+        };
+        return CoretechConverter;
+    }());
+    exports.CoretechConverter = CoretechConverter;
+    {
+        var coretechConverter_2 = new CoretechConverter();
+        var expect = JSON.stringify(coretech_flower_json);
+        var actual = JSON.stringify(coretech_flower_json.map(function (json) { return coretechConverter_2.toJson(coretechConverter_2.fromJson(json)); }));
+        if (expect !== actual) {
+            throw "CoretechConverter failure coretech_flower_json";
+        }
+        ;
+    }
+});
+define("ux - Copy/styles/cold", ["require", "exports"], function (require, exports) {
+    "use strict";
+    return [
+        {
+            "star": {
+                "fill": {
+                    "color": "rgb(127,220,241)"
+                },
+                "opacity": 0.5,
+                "stroke": {
+                    "color": "rgb(160,164,166)",
+                    "width": 3
+                },
+                "radius": 11,
+                "radius2": 5,
+                "points": 12
+            }
+        }
+    ];
+});
+define("ux - Copy/styles/4star", ["require", "exports"], function (require, exports) {
+    "use strict";
+    return [
+        {
+            "star": {
+                "fill": {
+                    "color": "rgba(238,162,144,0.4)"
+                },
+                "opacity": 1,
+                "stroke": {
+                    "color": "rgba(169,141,168,0.8)",
+                    "width": 5
+                },
+                "radius": 13,
+                "radius2": 7,
+                "points": 4
+            }
+        }
+    ];
+});
+define("ux - Copy/styles/6star", ["require", "exports"], function (require, exports) {
+    "use strict";
+    return [
+        {
+            "star": {
+                "fill": {
+                    "color": "rgba(54,47,234,1)"
+                },
+                "stroke": {
+                    "color": "rgba(75,92,105,0.85)",
+                    "width": 4
+                },
+                "radius": 9,
+                "radius2": 0,
+                "points": 6
+            }
+        }
+    ];
+});
+define("ux - Copy/styles/text/text", ["require", "exports"], function (require, exports) {
+    "use strict";
+    return [
+        {
+            "text": {
+                "fill": {
+                    "color": "rgba(75,92,85,0.85)"
+                },
+                "stroke": {
+                    "color": "rgba(255,255,255,1)",
+                    "width": 2
+                },
+                "offset-x": 0,
+                "offset-y": 17,
+                "text": "fantasy light",
+                "font": "lighter 18px fantasy" //weight + size + font
+            }
+        }
+    ];
+});
+define("ux - Copy/style-generator", ["require", "exports", "openlayers", "ux - Copy/styles/6star", "ux - Copy/styles/text/text"], function (require, exports, ol, star6, blueText) {
+    "use strict";
+    var range = function (n) {
+        var result = new Array(n);
+        for (var i = 0; i < n; i++)
+            result[i] = i;
+        return result;
+    };
+    var StyleGenerator = (function () {
+        function StyleGenerator(options) {
+            this.options = options;
+        }
+        StyleGenerator.prototype.asPoints = function () {
+            return 3 + Math.round(10 * Math.random());
+        };
+        StyleGenerator.prototype.asRadius = function () {
+            return 4 + 10 * Math.random();
+        };
+        StyleGenerator.prototype.asWidth = function () {
+            return 1 + 20 * Math.random() * Math.random();
+        };
+        StyleGenerator.prototype.asPastel = function () {
+            var _a = [255, 255, 255].map(function (n) { return Math.round((1 - Math.random() * Math.random()) * n); }), r = _a[0], g = _a[1], b = _a[2];
+            return [r, g, b, 0.5 + 0.5 * Math.random()];
+        };
+        StyleGenerator.prototype.asColor = function () {
+            var _a = [255, 255, 255].map(function (n) { return Math.round((Math.random() * Math.random()) * n); }), r = _a[0], g = _a[1], b = _a[2];
+            return [r, g, b, 0.5 + 0.5 * Math.random()];
+        };
+        StyleGenerator.prototype.asFill = function () {
+            var fill = new ol.style.Fill({
+                color: this.asPastel(),
+            });
+            return fill;
+        };
+        StyleGenerator.prototype.asStroke = function () {
+            var stroke = new ol.style.Stroke({
+                width: this.asWidth(),
+                color: this.asColor()
+            });
+            return stroke;
+        };
+        StyleGenerator.prototype.asCircle = function () {
+            var style = new ol.style.Circle({
+                fill: this.asFill(),
+                radius: this.asRadius(),
+                stroke: this.asStroke(),
+                snapToPixel: false
+            });
+            return style;
+        };
+        StyleGenerator.prototype.asStar = function () {
+            var style = new ol.style.RegularShape({
+                fill: this.asFill(),
+                stroke: this.asStroke(),
+                points: this.asPoints(),
+                radius: this.asRadius(),
+                radius2: this.asRadius()
+            });
+            return style;
+        };
+        StyleGenerator.prototype.asPoly = function () {
+            var style = new ol.style.RegularShape({
+                fill: this.asFill(),
+                stroke: this.asStroke(),
+                points: this.asPoints(),
+                radius: this.asRadius(),
+                width: this.asWidth(),
+                radius2: 0
+            });
+            return style;
+        };
+        StyleGenerator.prototype.asText = function () {
+            var style = new ol.style.Text({
+                font: "18px fantasy",
+                text: "Test",
+                fill: this.asFill(),
+                stroke: this.asStroke(),
+                offsetY: 30 - Math.random() * 20
+            });
+            style.getFill().setColor(this.asColor());
+            style.getStroke().setColor(this.asPastel());
+            return style;
+        };
+        StyleGenerator.prototype.asPoint = function () {
+            var _a = this.options.center, x = _a[0], y = _a[1];
+            x += (Math.random() - 0.5);
+            y += (Math.random() - 0.5);
+            return new ol.geom.Point([x, y]);
+        };
+        StyleGenerator.prototype.asPointFeature = function () {
+            var _this = this;
+            var feature = new ol.Feature();
+            var gens = [function () { return _this.asStar(); }, function () { return _this.asCircle(); }, function () { return _this.asPoly(); }];
+            feature.setGeometry(this.asPoint());
+            var styles = range(1 + Math.round(0 * Math.random())).map(function (x) { return new ol.style.Style({
+                image: gens[1 && Math.round((gens.length - 1) * Math.random())](),
+                text: _this.asText()
+            }); });
+            if (0.9 < Math.random()) {
+                styles = star6.concat(blueText).map(function (json) { return _this.options.fromJson(json); });
+            }
+            feature.setStyle(styles);
+            return feature;
+        };
+        StyleGenerator.prototype.asLineFeature = function () {
+            var feature = new ol.Feature();
+            var p1 = this.asPoint();
+            var p2 = this.asPoint();
+            p2.setCoordinates([p2.getCoordinates()[0], p1.getCoordinates()[1]]);
+            var polyline = new ol.geom.LineString([p1, p2].map(function (p) { return p.getCoordinates(); }));
+            feature.setGeometry(polyline);
+            feature.setStyle([new ol.style.Style({
+                    stroke: this.asStroke(),
+                    text: this.asText()
+                })]);
+            return feature;
+        };
+        StyleGenerator.prototype.asLineLayer = function () {
+            var _this = this;
+            var layer = new ol.layer.Vector();
+            var source = new ol.source.Vector();
+            layer.setSource(source);
+            var features = range(10).map(function (i) { return _this.asLineFeature(); });
+            source.addFeatures(features);
+            return layer;
+        };
+        StyleGenerator.prototype.asMarkerLayer = function () {
+            var _this = this;
+            var layer = new ol.layer.Vector();
+            var source = new ol.source.Vector();
+            layer.setSource(source);
+            var features = range(100).map(function (i) { return _this.asPointFeature(); });
+            source.addFeatures(features);
+            return layer;
+        };
+        return StyleGenerator;
+    }());
+    return StyleGenerator;
+});
+define("ux - Copy/style-lab", ["require", "exports", "openlayers", "jquery", "ux - Copy/format", "ux - Copy/style-generator"], function (require, exports, ol, $, Formatter, StyleGenerator) {
+    "use strict";
+    var center = [-82.4, 34.85];
+    var formatter = new Formatter.CoretechConverter();
+    var generator = new StyleGenerator({
+        center: center,
+        fromJson: function (json) { return formatter.fromJson(json); }
+    });
+    function stringify(value) {
+        return JSON.stringify(value, null, '\t');
+    }
+    function run() {
+        var basemap = new ol.layer.Tile({
+            source: new ol.source.OSM()
+        });
+        var map = new ol.Map({
+            target: "map",
+            view: new ol.View({
+                projection: 'EPSG:4326',
+                center: center,
+                zoom: 10
+            }),
+            layers: [generator.asLineLayer(), generator.asMarkerLayer()]
+        });
+        var out = $("<textarea style='width:100%;height:400px'>").appendTo(".map");
+        map.on("click", function (args) { return map.forEachFeatureAtPixel(args.pixel, function (feature, layer) {
+            var style = feature.getStyle();
+            var json = "";
+            if (Array.isArray(style)) {
+                var styles = style.map(function (s) { return formatter.toJson(s); });
+                json = stringify(styles);
+            }
+            else {
+                throw "todo";
+            }
+            out.text(json);
+        }); });
+        return map;
+    }
+    exports.run = run;
+});
+define("ux - Copy/styles/alert", ["require", "exports"], function (require, exports) {
+    "use strict";
+    return [
+        {
+            "circle": {
+                "fill": {
+                    "color": "rgba(197,37,84,0.9684230581506159)"
+                },
+                "opacity": 1,
+                "stroke": {
+                    "color": "rgba(227,83,105,0.9911592437357548)",
+                    "width": 4.363895186012079
+                },
+                "radius": 7.311000259153705
+            },
+            "text": {
+                "fill": {
+                    "color": "rgba(205,86,109,0.8918881202751567)"
+                },
+                "stroke": {
+                    "color": "rgba(252,175,131,0.46245606098317293)",
+                    "width": 1.9329284004109581
+                },
+                "text": "Test",
+                "offset-x": 0,
+                "offset-y": 19.909814762842267,
+                "font": "18px fantasy"
+            }
+        }
+    ];
+});
+define("ux - Copy/styles/peace", ["require", "exports"], function (require, exports) {
+    "use strict";
+    return [
+        {
+            "star": {
+                "fill": {
+                    "color": "rgba(182,74,9,0.2635968300410687)"
+                },
+                "opacity": 1,
+                "stroke": {
+                    "color": "rgba(49,14,23,0.6699808995760113)",
+                    "width": 3.4639032010315107
+                },
+                "radius": 6.63376222856383,
+                "radius2": 0,
+                "points": 3
+            },
+            "text": {
+                "fill": {
+                    "color": "rgba(207,45,78,0.44950090791791375)"
+                },
+                "stroke": {
+                    "color": "rgba(233,121,254,0.3105821877136521)",
+                    "width": 4.019676388210171
+                },
+                "text": "Test",
+                "offset-x": 0,
+                "offset-y": 14.239434215855646,
+                "font": "18px fantasy"
+            }
+        }
+    ];
 });

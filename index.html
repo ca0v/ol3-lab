@@ -3,6 +3,7 @@
 
 <head>
     <link rel="stylesheet" href="app.css" type="text/css" />
+    <link rel="stylesheet" href="bower_components/ol3-popup/src/ol3-popup.css" type="text/css" />
     <script src="bower_components/requirejs/require.js"></script>
 
     <script>
@@ -23,7 +24,8 @@
             paths: {
                 "resize-sensor": "bower_components/css-element-queries/src/ResizeSensor",
                 "openlayers": "bower_components/ol3/ol",
-                "jquery": "bower_components/jquery/dist/jquery.min"
+                "jquery": "bower_components/jquery/dist/jquery.min",
+                "ol3-popup": "bower_components/ol3-popup/src/ol3-popup"
             },
             deps: ["built/run"],
             callback: () => {
