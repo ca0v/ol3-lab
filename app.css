@@ -1,5 +1,3 @@
-@import url('./bower_components/ol3/ol.css');
-
 .map {
     min-width: 640px;
     min-height: 480px;
