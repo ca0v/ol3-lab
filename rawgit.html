@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <link rel="stylesheet" href="app.css" type="text/css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.2.0/require.min.js"></script>
+
+    <script>
+        (() => {
+
+        function getParameterByName(name, url = window.location.href) {
+            name = name.replace(/[\[\]]/g, "\\$&");
+            var regex = new RegExp("[?&]" + name + "(=([^&#]*)|&|#|$)"),
+                results = regex.exec(url);
+            if (!results) return null;
+            if (!results[2]) return '';
+            return decodeURIComponent(results[2].replace(/\+/g, " "));
+        }
+
+        let run = getParameterByName("run") || "app";
+
+        requirejs.config({
+            paths: {
+                "openlayers": "https://cdnjs.cloudflare.com/ajax/libs/ol3/3.17.1/ol",
+                "jquery": "https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.0/jquery.min"
+            },
+            deps: ["built/run"],
+            callback: () => {
+                require([run], test => {
+                    test.run ? test.run() : test(); 
+                });
+            }
+        });
+
+        })();
+    </script>
+</head>
+
+<body>
+    <div id="map" class="map">[ol3 map goes here]</div>
+</body>
+
+</html>
