@@ -7,7 +7,8 @@ aspects of OpenLayers and related spatial libraries
 
 ## Examples
 
-* [Symbols](https://rawgit.com/ca0v/ol3-lab/master/rawgit.html?run=ux/style-lab)
+* [style-lab](https://rawgit.com/ca0v/ol3-lab/master/rawgit.html?run=ux/style-lab)
+* [ags-symbols](https://rawgit.com/ca0v/ol3-lab/master/rawgit.html?run=ux/ags-symbols)
 
 Build using tsd, bower, tsc:
 

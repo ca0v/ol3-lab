@@ -1,6 +1,6 @@
 import ol = require("openlayers");
 import $ = require("jquery");
-import Formatter = require("./format");
+import Formatter = require("./serializers/coretech");
 import StyleGenerator = require("./style-generator");
 
 const center = [-82.4, 34.85];
@@ -14,50 +14,52 @@ let generator = new StyleGenerator({
 
 let ux = `
 <div class='form'>
-<label for='style-count'>How many styles per symbol?</label>
-<input id='style-count' type="number" value="1" />
-<label for='style-out'>Click marker to see style here:</label>
-<textarea id='style-out'></textarea>
-<label for='apply-style'>Apply this style to some of the features</label>
-<button id='apply-style'>Apply</button>
+    <label for='style-count'>How many styles per symbol?</label>
+    <input id='style-count' type="number" value="1" />
+    <label for='style-out'>Click marker to see style here:</label>
+    <textarea id='style-out'></textarea>
+    <label for='apply-style'>Apply this style to some of the features</label>
+    <button id='apply-style'>Apply</button>
 <div>
 `;
 
 let css = `
-html, body, .map {
-    width: 100%;
-    height: 100%;
-    overflow: hidden;    
-}
+<style>
+    html, body, .map {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;    
+    }
 
-label {
-    display: block;
-}
+    label {
+        display: block;
+    }
 
-.form {
-    padding: 20px;
-    position:absolute;
-    top: 40px;
-    right: 40px;
-    z-index: 1;
-    background-color: rgba(255, 255, 255, 0.8);
-    border: 1px solid black;
-}
+    .form {
+        padding: 20px;
+        position:absolute;
+        top: 40px;
+        right: 40px;
+        z-index: 1;
+        background-color: rgba(255, 255, 255, 0.8);
+        border: 1px solid black;
+    }
 
-#style-count {
-    vertical-align: top;
-}
+    #style-count {
+        vertical-align: top;
+    }
 
-#style-out {
-    min-width: 100px;
-    min-height: 20px;
-}
+    #style-out {
+        min-width: 100px;
+        min-height: 20px;
+    }
+</style>
 `;
 
 export function run() {
 
     $(ux).appendTo(".map");
-    $("<style>").appendTo("head").text(css);
+    $(css).appendTo("head");
 
     let map = new ol.Map({
         target: "map",
@@ -92,7 +94,7 @@ export function run() {
         });
     });
 
-    map.on("click", args => map.forEachFeatureAtPixel(args.pixel, (feature, layer) => {
+    map.on("click", (args: ol.MapBrowserEvent) => map.forEachFeatureAtPixel(args.pixel, (feature, layer) => {
         let style = feature.getStyle();
         let json = "";
         if (Array.isArray(style)) {

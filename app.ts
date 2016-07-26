@@ -20,7 +20,7 @@ class Tests {
                 zoom: 15
             }),
             layers: [new ol.layer.Tile({
-                source: new ol.source.MapQuest({
+                source: new ol.source.OSM({
                     layer: "sat"
                 })
             })]

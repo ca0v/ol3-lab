@@ -17,10 +17,10 @@
     "tests"
   ],
   "dependencies": {
-    "ol3": "ol3-bower#~3.12.1",
+    "openlayers": "https://github.com/openlayers/ol3/releases/download/v3.17.1/v3.17.1-dist.zip",
     "requirejs": "~2.1.22",
     "jquery": "~2.2.0",
-    "css-element-queries": "~0.3.2",
-    "ol3-popup": "ol3-paging-popup#^2.0.4"
+    "ol3-popup": "ol3-paging-popup#^2.0.4",
+    "ResizeSensor": "https://raw.githubusercontent.com/marcj/css-element-queries/master/src/ResizeSensor.js"
   }
 }
