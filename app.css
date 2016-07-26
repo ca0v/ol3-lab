@@ -1,7 +1,7 @@
 .map {
     min-width: 640px;
     min-height: 480px;
-    max-height: 640px;
+    max-height: 100%;
     max-width: 100%;
 }
 
@@ -9,3 +9,4 @@
     width: 480px;
     height: 640px;    
 }
+

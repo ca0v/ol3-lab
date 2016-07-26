@@ -1,8 +1,4 @@
 import ol = require("openlayers");
-import snowFlake = require("./styles/cold");
-import star4 = require("./styles/4star");
-import star6 = require("./styles/6star");
-import blueText = require("./styles/text/text");
 
 let range = (n: number) => {
     var result = new Array(n);
@@ -23,7 +19,7 @@ class StyleGenerator {
     }
 
     asRadius() {
-        return 4 + 10 * Math.random();
+        return 14 + 10 * Math.random();
     }
 
     asWidth() {
@@ -32,12 +28,12 @@ class StyleGenerator {
 
     asPastel() {
         let [r, g, b] = [255, 255, 255].map(n => Math.round((1 - Math.random() * Math.random()) * n));
-        return [r, g, b, 0.5 + 0.5 * Math.random()];
+        return [r, g, b, 0.1 + 0.5 * Math.random()];
     }
 
     asColor() {
         let [r, g, b] = [255, 255, 255].map(n => Math.round((Math.random() * Math.random()) * n));
-        return [r, g, b, 0.5 + 0.5 * Math.random()];
+        return [r, g, b, 0.1 + 0.9 * Math.random()];
     }
 
     asFill() {
@@ -109,21 +105,17 @@ class StyleGenerator {
         return new ol.geom.Point([x, y]);
     }
 
-    asPointFeature() {
+    asPointFeature(styleCount = 1) {
         let feature = new ol.Feature();
 
         let gens = [() => this.asStar(), () => this.asCircle(), () => this.asPoly()];
 
         feature.setGeometry(this.asPoint());
 
-        let styles = range(1 + Math.round(0 * Math.random())).map(x => new ol.style.Style({
-            image: gens[1 && Math.round((gens.length - 1) * Math.random())](),
-            text: this.asText()
+        let styles = range(styleCount).map(x => new ol.style.Style({
+            image: gens[Math.round((gens.length - 1) * Math.random())](),
+            text: null && this.asText()
         }));
-
-        if (0.9 < Math.random()) {
-            styles = star6.concat(<any>blueText).map(json => this.options.fromJson(json));
-        }
 
         feature.setStyle(styles);
 
@@ -157,11 +149,14 @@ class StyleGenerator {
         return layer;
     }
 
-    asMarkerLayer() {
+    asMarkerLayer(args: {
+        markerCount?: number;
+        styleCount?: number;
+    }) {
         let layer = new ol.layer.Vector();
         let source = new ol.source.Vector();
         layer.setSource(source);
-        let features = range(100).map(i => this.asPointFeature());
+        let features = range(args.markerCount || 100).map(i => this.asPointFeature(args.styleCount || 1));
         source.addFeatures(features);
         return layer;
     }
