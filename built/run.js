@@ -1419,7 +1419,7 @@ define("ux/serializers/ags-simplemarkersymbol", ["require", "exports", "openlaye
         };
         SimpleMarkerConverter.prototype.deserializePath = function (json) {
             var canvas = document.createElement("canvas");
-            var size = 2 * json.size;
+            var size = 2 * asWidth(json.size);
             var svgdata = "\n        <svg version=\"1.1\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" \n            x=\"" + json.xoffset + "px\" y=\"" + json.yoffset + "px\" width=\"" + size + "px\" height=\"" + size + "px\" \n            xml:space=\"preserve\">\n\n        <path d=\"" + json.path + "\" \n            fill=\"" + asColor(json.color) + "\" \n            stroke=\"" + asColor(json.outline.color) + "\" \n            stroke-width=\"" + asWidth(json.outline.width) + "\" \n            stroke-linecap=\"butt\" \n            stroke-linejoin=\"miter\" \n            stroke-miterlimit=\"4\"\n            stroke-dasharray=\"none\" \n            fill-rule=\"evenodd\"\n            transform=\"rotate(" + json.angle + " " + (json.xoffset + json.size) + " " + (json.yoffset + json.size) + ")\"\n        />\n\n        </svg>";
             return new ol.style.Style({
                 image: new ol.style.Icon({
@@ -1430,7 +1430,7 @@ define("ux/serializers/ags-simplemarkersymbol", ["require", "exports", "openlaye
         SimpleMarkerConverter.prototype.deserializeCircle = function (json) {
             return new ol.style.Style({
                 image: new ol.style.Circle({
-                    radius: json.size,
+                    radius: asWidth(json.size / 2),
                     fill: new ol.style.Fill({
                         color: asColor(json.color)
                     }),
@@ -1786,32 +1786,34 @@ define("ux/styles/ags/simplemarkersymbol-diamond", ["require", "exports"], funct
 });
 define("ux/styles/ags/simplemarkersymbol-path", ["require", "exports"], function (require, exports) {
     "use strict";
-    return [{
+    return [
+        {
             "color": [
-                0,
-                0,
                 255,
-                128
+                255,
+                255,
+                64
             ],
-            "size": 15,
-            "angle": -11,
-            "xoffset": 2.25,
-            "yoffset": 6.75,
+            "size": 12,
+            "angle": 0,
+            "xoffset": 0,
+            "yoffset": 0,
             "type": "esriSMS",
             "style": "esriSMSPath",
             "outline": {
                 "color": [
-                    255,
+                    0,
                     0,
                     0,
                     255
                 ],
-                "width": 2,
+                "width": 1,
                 "type": "esriSLS",
                 "style": "esriSLSSolid"
             },
             "path": "M16,3.5c-4.142,0-7.5,3.358-7.5,7.5c0,4.143,7.5,18.121,7.5,18.121S23.5,15.143,23.5,11C23.5,6.858,20.143,3.5,16,3.5z M16,14.584c-1.979,0-3.584-1.604-3.584-3.584S14.021,7.416,16,7.416S19.584,9.021,19.584,11S17.979,14.584,16,14.584z"
-        }];
+        }
+    ];
 });
 define("ux/styles/ags/simplemarkersymbol-x", ["require", "exports"], function (require, exports) {
     "use strict";

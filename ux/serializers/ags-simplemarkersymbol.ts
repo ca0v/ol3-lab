@@ -72,7 +72,7 @@ export class SimpleMarkerConverter implements Serializer.IConverter<SimpleMarker
             src: "https://rawgit.com/mapbox/maki/master/icons/aerialway-15.svg"
         });
          */
-        let size = 2 * json.size;
+        let size = 2 * asWidth(json.size);
 
         let svgdata = `
         <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
@@ -88,7 +88,7 @@ export class SimpleMarkerConverter implements Serializer.IConverter<SimpleMarker
             stroke-miterlimit="4"
             stroke-dasharray="none" 
             fill-rule="evenodd"
-            transform="rotate(${json.angle} ${json.xoffset + json.size} ${json.yoffset + json.size})"
+            transform="rotate(${json.angle} ${(json.xoffset + json.size)} ${(json.yoffset + json.size)})"
         />
 
         </svg>`;
@@ -105,7 +105,7 @@ export class SimpleMarkerConverter implements Serializer.IConverter<SimpleMarker
 
         return new ol.style.Style({
             image: new ol.style.Circle({
-                radius: json.size,
+                radius: asWidth(json.size / 2),
                 fill: new ol.style.Fill({
                     color: asColor(json.color)
                 }),
