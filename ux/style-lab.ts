@@ -1,11 +1,12 @@
 import ol = require("openlayers");
 import $ = require("jquery");
-import Formatter = require("./serializers/coretech");
+import CoretechSerializer = require("./serializers/coretech");
+import AgsMarkerSerializer = require("./serializers/ags-simplemarkersymbol");
 import StyleGenerator = require("./style-generator");
 
 const center = [-82.4, 34.85];
 
-let formatter = new Formatter.CoretechConverter();
+let formatter = new CoretechSerializer.CoretechConverter();
 
 let generator = new StyleGenerator({
     center: center,
@@ -50,13 +51,17 @@ let css = `
     }
 
     #style-out {
-        min-width: 100px;
-        min-height: 20px;
+        font-family: cursive;
+        font-size: smaller;
+        min-width: 320px;
+        min-height: 240px;
     }
 </style>
 `;
 
 export function run() {
+
+    //let formatter = new AgsMarkerSerializer.SimpleMarkerConverter();
 
     $(ux).appendTo(".map");
     $(css).appendTo("head");

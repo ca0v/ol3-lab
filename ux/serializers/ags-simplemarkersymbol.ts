@@ -25,6 +25,10 @@ declare module SimpleMarkerSymbol {
 
 }
 
+function doif<T>(v: T, cb: (v: T) => void) {
+    if (typeof v !== "undefined") cb(v);
+}
+
 function asColor(color: number[]) {
     if (color.length == 4 && color[3] > 1) {
         color[3] /= 255.0;
@@ -43,6 +47,14 @@ export function Converter(json: SimpleMarkerSymbol.Style) {
 }
 export class SimpleMarkerConverter implements Serializer.IConverter<SimpleMarkerSymbol.Style> {
 
+    toJson(style: ol.style.Style) {
+        let result = <SimpleMarkerSymbol.Style>{
+            type: "esriSMS"
+        };
+        this.serializeStyle(style, result);
+        return result;
+    }
+
     fromJson(json: SimpleMarkerSymbol.Style) {
 
         if (json.type !== "esriSMS") throw `invalid symbol type: ${json.type}`;
@@ -58,11 +70,110 @@ export class SimpleMarkerConverter implements Serializer.IConverter<SimpleMarker
         throw `unknown symbol style: ${json.style}`;
     }
 
-    toJson(style: ol.style.Style) {
-        let result = <SimpleMarkerSymbol.Style>{};
+    serializeStyle(style: ol.style.Circle | ol.style.Fill | ol.style.Icon | ol.style.Image | ol.style.RegularShape | ol.style.Stroke | ol.style.Text | ol.style.Style, result: SimpleMarkerSymbol.Style) {
 
-        return result;
+        let s = style;
+
+        if (s instanceof ol.style.Circle) {
+            result.style = "esriSMSCircle";
+            doif(s.getFill(), v => this.serializeStyle(v, result));
+            doif(s.getImage(), v => this.serializeStyle(v, result));
+            s.getOpacity();
+            doif(s.getRotation(), v => result.angle = v);
+            s.getScale();
+            doif(s.getStroke(), v => this.serializeStyle(v, result));
+            //s.getText();
+            doif(s.getRadius(), v => result.size = v);
+        }
+
+        if (s instanceof ol.style.Fill) {
+            result.color = ol.color.asArray(<any>s.getColor());
+        }
+
+        if (s instanceof ol.style.Icon) {
+            debugger;
+            result.style = "esriSMSPath";
+            s.getFill();
+            s.getImage();
+            s.getOpacity();
+            s.getRotation();
+            s.getScale();
+            s.getStroke();
+            s.getText();
+        }
+
+        if (s instanceof ol.style.RegularShape) {
+
+            let points = s.getPoints();
+            let r1 = s.getRadius();
+            let r2 = s.getRadius2();
+            let angle = s.getAngle();
+
+            result.style = "unknown";
+
+            if (4 === points) {
+                if (angle === 0) {
+                    if (r2 === 0) {
+                        result.style = "esriSMSCross";
+                    } else if (r1 === r2) {
+                        result.style = "esriSMSX";
+                    }
+                } else if (angle === 45) {
+                    if (r2 === 0) {
+                        result.style = "esriSMSDiamond";
+                    } else if (r1 === r2) {
+                        result.style = "esriSMSSquare";
+                    }
+                }
+            }
+
+            doif(s.getFill(), v => result.color = <any>v.getColor());
+            doif(s.getImage(), v => this.serializeStyle(v, result));
+            s.getOpacity();
+
+            doif(s.getRadius(), v => result.size = v);
+            // need a place for radius2; don't think ESRI has a solution for these shapes
+            doif(s.getRadius2(), v => result.size2 = v);
+
+            s.getScale();
+            doif(s.getStroke(), v => this.serializeStyle(v, result));
+            //s.getText();
+        }
+
+        if (s instanceof ol.style.Stroke) {
+            result.outline = result.outline || <any>{};
+            doif(s.getColor(), v => result.outline.color = <any>v);
+            s.getLineCap();
+            s.getLineDash();
+            s.getLineJoin();
+            //s.getMitterLimit();
+            doif(s.getWidth(), v => result.outline.width = v);
+        }
+
+        if (s instanceof ol.style.Text) {
+            s
+            debugger;
+        }
+
+        if (s instanceof ol.style.Image) {
+            s.getOpacity();
+            result.angle = s.getRotation();
+            s.getScale();
+        }
+
+        if (s instanceof ol.style.Style) {            
+            let fill = s.getFill();
+            if (fill) {
+                result.color = ol.color.asArray(<any>fill.getColor());
+            }
+            let image = s.getImage();
+            if (image) {
+                this.serializeStyle(image, result);
+            }
+        }
+
     }
+
 
     deserializePath(json: SimpleMarkerSymbol.Style) {
 

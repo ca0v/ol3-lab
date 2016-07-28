@@ -1382,6 +1382,10 @@ define("ux/serializers/serializer", ["require", "exports"], function (require, e
 });
 define("ux/serializers/ags-simplemarkersymbol", ["require", "exports", "openlayers"], function (require, exports, ol) {
     "use strict";
+    function doif(v, cb) {
+        if (typeof v !== "undefined")
+            cb(v);
+    }
     function asColor(color) {
         if (color.length == 4 && color[3] > 1) {
             color[3] /= 255.0;
@@ -1400,6 +1404,13 @@ define("ux/serializers/ags-simplemarkersymbol", ["require", "exports", "openlaye
     var SimpleMarkerConverter = (function () {
         function SimpleMarkerConverter() {
         }
+        SimpleMarkerConverter.prototype.toJson = function (style) {
+            var result = {
+                type: "esriSMS"
+            };
+            this.serializeStyle(style, result);
+            return result;
+        };
         SimpleMarkerConverter.prototype.fromJson = function (json) {
             if (json.type !== "esriSMS")
                 throw "invalid symbol type: " + json.type;
@@ -1413,9 +1424,92 @@ define("ux/serializers/ags-simplemarkersymbol", ["require", "exports", "openlaye
             }
             throw "unknown symbol style: " + json.style;
         };
-        SimpleMarkerConverter.prototype.toJson = function (style) {
-            var result = {};
-            return result;
+        SimpleMarkerConverter.prototype.serializeStyle = function (style, result) {
+            var _this = this;
+            var s = style;
+            if (s instanceof ol.style.Circle) {
+                result.style = "esriSMSCircle";
+                doif(s.getFill(), function (v) { return _this.serializeStyle(v, result); });
+                doif(s.getImage(), function (v) { return _this.serializeStyle(v, result); });
+                s.getOpacity();
+                doif(s.getRotation(), function (v) { return result.angle = v; });
+                s.getScale();
+                doif(s.getStroke(), function (v) { return _this.serializeStyle(v, result); });
+                doif(s.getRadius(), function (v) { return result.size = v; });
+            }
+            if (s instanceof ol.style.Fill) {
+                result.color = ol.color.asArray(s.getColor());
+            }
+            if (s instanceof ol.style.Icon) {
+                debugger;
+                result.style = "esriSMSPath";
+                s.getFill();
+                s.getImage();
+                s.getOpacity();
+                s.getRotation();
+                s.getScale();
+                s.getStroke();
+                s.getText();
+            }
+            if (s instanceof ol.style.RegularShape) {
+                var points = s.getPoints();
+                var r1 = s.getRadius();
+                var r2 = s.getRadius2();
+                var angle = s.getAngle();
+                result.style = "unknown";
+                if (4 === points) {
+                    if (angle === 0) {
+                        if (r2 === 0) {
+                            result.style = "esriSMSCross";
+                        }
+                        else if (r1 === r2) {
+                            result.style = "esriSMSX";
+                        }
+                    }
+                    else if (angle === 45) {
+                        if (r2 === 0) {
+                            result.style = "esriSMSDiamond";
+                        }
+                        else if (r1 === r2) {
+                            result.style = "esriSMSSquare";
+                        }
+                    }
+                }
+                doif(s.getFill(), function (v) { return result.color = v.getColor(); });
+                doif(s.getImage(), function (v) { return _this.serializeStyle(v, result); });
+                s.getOpacity();
+                doif(s.getRadius(), function (v) { return result.size = v; });
+                doif(s.getRadius2(), function (v) { return result.size2 = v; });
+                s.getScale();
+                doif(s.getStroke(), function (v) { return _this.serializeStyle(v, result); });
+            }
+            if (s instanceof ol.style.Stroke) {
+                result.outline = result.outline || {};
+                doif(s.getColor(), function (v) { return result.outline.color = v; });
+                s.getLineCap();
+                s.getLineDash();
+                s.getLineJoin();
+                doif(s.getWidth(), function (v) { return result.outline.width = v; });
+            }
+            if (s instanceof ol.style.Text) {
+                s;
+                debugger;
+            }
+            if (s instanceof ol.style.Image) {
+                s.getOpacity();
+                result.angle = s.getRotation();
+                s.getScale();
+            }
+            if (s instanceof ol.style.Style) {
+                var fill = s.getFill();
+                if (fill) {
+                    result.color = ol.color.asArray(fill.getColor());
+                }
+                var image = s.getImage();
+                if (image) {
+                    this.serializeStyle(image, result);
+                }
+            }
         };
         SimpleMarkerConverter.prototype.deserializePath = function (json) {
             var canvas = document.createElement("canvas");
@@ -1544,22 +1638,22 @@ define("ux/style-generator", ["require", "exports", "openlayers"], function (req
             return 3 + Math.round(10 * Math.random());
         };
         StyleGenerator.prototype.asRadius = function () {
-            return 14 + 10 * Math.random();
+            return 14 + (10 * Math.random());
         };
         StyleGenerator.prototype.asWidth = function () {
-            return 1 + 20 * Math.random() * Math.random();
+            return 1 + (20 * Math.random() * Math.random());
         };
         StyleGenerator.prototype.asPastel = function () {
             var _a = [255, 255, 255].map(function (n) { return Math.round((1 - Math.random() * Math.random()) * n); }), r = _a[0], g = _a[1], b = _a[2];
-            return [r, g, b, 0.1 + 0.5 * Math.random()];
+            return [r, g, b, 0.1 + (0.5 * Math.random())];
         };
         StyleGenerator.prototype.asColor = function () {
             var _a = [255, 255, 255].map(function (n) { return Math.round((Math.random() * Math.random()) * n); }), r = _a[0], g = _a[1], b = _a[2];
-            return [r, g, b, 0.1 + 0.9 * Math.random()];
+            return [r, g, b, 0.1 + (0.9 * Math.random())];
         };
         StyleGenerator.prototype.asFill = function () {
             var fill = new ol.style.Fill({
-                color: this.asPastel(),
+                color: this.asPastel()
             });
             return fill;
         };
@@ -2049,16 +2143,16 @@ define("ux/serializers/coretech", ["require", "exports", "openlayers", "ux/style
         ;
     }
 });
-define("ux/style-lab", ["require", "exports", "openlayers", "jquery", "ux/serializers/coretech", "ux/style-generator"], function (require, exports, ol, $, Formatter, StyleGenerator) {
+define("ux/style-lab", ["require", "exports", "openlayers", "jquery", "ux/serializers/coretech", "ux/style-generator"], function (require, exports, ol, $, CoretechSerializer, StyleGenerator) {
     "use strict";
     var center = [-82.4, 34.85];
-    var formatter = new Formatter.CoretechConverter();
+    var formatter = new CoretechSerializer.CoretechConverter();
     var generator = new StyleGenerator({
         center: center,
         fromJson: function (json) { return formatter.fromJson(json); }
     });
     var ux = "\n<div class='form'>\n    <label for='style-count'>How many styles per symbol?</label>\n    <input id='style-count' type=\"number\" value=\"1\" />\n    <label for='style-out'>Click marker to see style here:</label>\n    <textarea id='style-out'></textarea>\n    <label for='apply-style'>Apply this style to some of the features</label>\n    <button id='apply-style'>Apply</button>\n<div>\n";
-    var css = "\n<style>\n    html, body, .map {\n        width: 100%;\n        height: 100%;\n        overflow: hidden;    \n    }\n\n    label {\n        display: block;\n    }\n\n    .form {\n        padding: 20px;\n        position:absolute;\n        top: 40px;\n        right: 40px;\n        z-index: 1;\n        background-color: rgba(255, 255, 255, 0.8);\n        border: 1px solid black;\n    }\n\n    #style-count {\n        vertical-align: top;\n    }\n\n    #style-out {\n        min-width: 100px;\n        min-height: 20px;\n    }\n</style>\n";
+    var css = "\n<style>\n    html, body, .map {\n        width: 100%;\n        height: 100%;\n        overflow: hidden;    \n    }\n\n    label {\n        display: block;\n    }\n\n    .form {\n        padding: 20px;\n        position:absolute;\n        top: 40px;\n        right: 40px;\n        z-index: 1;\n        background-color: rgba(255, 255, 255, 0.8);\n        border: 1px solid black;\n    }\n\n    #style-count {\n        vertical-align: top;\n    }\n\n    #style-out {\n        font-family: cursive;\n        font-size: smaller;\n        min-width: 320px;\n        min-height: 240px;\n    }\n</style>\n";
     function run() {
         $(ux).appendTo(".map");
         $(css).appendTo("head");
@@ -2227,6 +2321,20 @@ define("ux/styles/peace", ["require", "exports"], function (require, exports) {
                 "offset-y": 14.239434215855646,
                 "font": "18px fantasy"
             }
+        }
+    ];
+});
+define("ux/styles/ags/picturemarkersymbol", ["require", "exports"], function (require, exports) {
+    "use strict";
+    return [
+        {
+            "angle": 0,
+            "xoffset": 0,
+            "yoffset": 0,
+            "type": "esriPMS",
+            "url": "https://rawgit.com/mapbox/maki/master/icons/aerialway-11.svg",
+            "width": 30,
+            "height": 30
         }
     ];
 });

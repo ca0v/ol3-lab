@@ -19,27 +19,26 @@ class StyleGenerator {
     }
 
     asRadius() {
-        return 14 + 10 * Math.random();
+        return 14 + (10 * Math.random());
     }
 
     asWidth() {
-        return 1 + 20 * Math.random() * Math.random();
+        return 1 + (20 * Math.random() * Math.random());
     }
 
     asPastel() {
         let [r, g, b] = [255, 255, 255].map(n => Math.round((1 - Math.random() * Math.random()) * n));
-        return [r, g, b, 0.1 + 0.5 * Math.random()];
+        return [r, g, b, 0.1 + (0.5 * Math.random())];
     }
 
     asColor() {
         let [r, g, b] = [255, 255, 255].map(n => Math.round((Math.random() * Math.random()) * n));
-        return [r, g, b, 0.1 + 0.9 * Math.random()];
+        return [r, g, b, 0.1 + (0.9 * Math.random())];
     }
 
     asFill() {
         let fill = new ol.style.Fill({
-            color: this.asPastel(),
-
+            color: this.asPastel()
         });
         return fill;
     }
