@@ -15,14 +15,17 @@ const css = `
 `;
 
 const ux = `
+<p>Demonstrates simplifying a geometry and then encoding it.  Enter an Input Geometry (e.g. [[1,2],[3,4]]) and watch the magic happen</p>
 <label>Input Geometry</label>
 <textarea id='polyline-input'>[paste geometry here]</textarea>
 <canvas id='before'></canvas>
 <label>Simplified Geometry</label>
 <textarea id='polyline-output'>[output]</textarea>
 <canvas id='after'></canvas>
-<label>Simplified and Encoded Geometry (not working)</label>
+<label>Simplified and Encoded Geometry</label>
 <textarea id='encoding'>[encoding]</textarea>
+<label>Deccoded Geometry</label>
+<textarea id='decoding'>[decoded]</textarea>
 `;
 
 const encoder = new PolylineEncoder();
@@ -34,7 +37,12 @@ const sample_input = [
 function updateEncoder(features_id: string) {
     let geom = new ol.geom.LineString(<Array<number[]>>JSON.parse((<HTMLTextAreaElement>document.getElementById(features_id)).value));
     let encoded = encoder.encode(geom.getCoordinates());
-    document.getElementById("encoding").innerText = encoded;
+    $("#encoding").text(encoded).change();
+}
+
+function updateDecoder() {
+    let encoded = document.getElementById("encoding").value;
+    $("#decoding").text(JSON.stringify(encoder.decode(encoded))).change();
 }
 
 function updateCanvas(canvas_id: string, features_id: string) {
@@ -83,10 +91,8 @@ export function run() {
     $(css).appendTo("head");
     $(ux).appendTo(".map");
 
-    sample_input.forEach(p => {
-        for (let i = 0; i < p.length; i++) p[i] = 0.0001 * Math.round(p[i] * 10000);
-    });
-
+    $("#encoding").change(updateDecoder);
+    
     $("#polyline-output").change(args => {
         updateCanvas("after", "polyline-output");
         updateEncoder("polyline-output");
