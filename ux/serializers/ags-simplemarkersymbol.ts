@@ -18,7 +18,7 @@ declare module SimpleMarkerSymbol {
         xoffset?: number;
         yoffset?: number;
         type?: string;
-        style?: string;
+        style?: 'esriSMSCircle' | 'esriSMSCross' | 'esriSMSDiamond' | 'esriSMSPath' | 'esriSMSSquare' | 'esriSMSX';
         outline?: Outline;
         path?: string;
     }
@@ -86,11 +86,11 @@ export class SimpleMarkerConverter implements Serializer.IConverter<SimpleMarker
             doif(s.getRadius(), v => result.size = v);
         }
 
-        if (s instanceof ol.style.Fill) {
+        else if (s instanceof ol.style.Fill) {
             result.color = ol.color.asArray(<any>s.getColor());
         }
 
-        if (s instanceof ol.style.Icon) {
+        else if (s instanceof ol.style.Icon) {
             debugger;
             result.style = "esriSMSPath";
             s.getFill();
@@ -102,14 +102,15 @@ export class SimpleMarkerConverter implements Serializer.IConverter<SimpleMarker
             s.getText();
         }
 
-        if (s instanceof ol.style.RegularShape) {
+        else if (s instanceof ol.style.RegularShape) {
 
             let points = s.getPoints();
             let r1 = s.getRadius();
             let r2 = s.getRadius2();
             let angle = s.getAngle();
 
-            result.style = "unknown";
+            result.size = r1;
+            doif(s.getStroke(), v => this.serializeStyle(v, result));
 
             if (4 === points) {
                 if (angle === 0) {
@@ -125,43 +126,71 @@ export class SimpleMarkerConverter implements Serializer.IConverter<SimpleMarker
                         result.style = "esriSMSSquare";
                     }
                 }
+            } else {
+                // ESRI has no support for ol3 regular shapes, maybe compute a path from radius2 and points?
+                result.style = "esriSMSPath";
+                /*
+                M = moveto
+                L = lineto
+                H = horizontal lineto
+                V = vertical lineto
+                C = curveto
+                S = smooth curveto
+                Q = quadratic Bézier curve
+                T = smooth quadratic Bézier curveto
+                A = elliptical Arc
+                Z = closepath
+                */
+                let strokeWidth = result.outline.width;
+                let size = 2 * (r1 + strokeWidth) + 1;
+
+                let path = <Array<string>>[];
+
+                for (let i = 0; i <= points; i++) {
+                    let angle0 = i * 2 * Math.PI / points - Math.PI / 2 + angle;
+                    let radiusC = i % 2 === 0 ? r1 : r2;
+                    let [x, y] = [size / 2 + radiusC * Math.cos(angle0), size / 2 + radiusC * Math.sin(angle0)];
+                    i === 0 ? path.push(`M${x} ${y}`) : path.push(`L${x} ${y}`);
+                }
+
+                path.push("Z");
+                result.path = path.join(" ");
+                // we could also reach into the canvas and use a picture marker instead
+                /*
+                let canvas = <HTMLCanvasElement>s.canvas_;
+                result.path = canvas.toDataURL();
+                */
             }
 
             doif(s.getFill(), v => result.color = <any>v.getColor());
             doif(s.getImage(), v => this.serializeStyle(v, result));
             s.getOpacity();
 
-            doif(s.getRadius(), v => result.size = v);
-            // need a place for radius2; don't think ESRI has a solution for these shapes
-            doif(s.getRadius2(), v => result.size2 = v);
-
             s.getScale();
-            doif(s.getStroke(), v => this.serializeStyle(v, result));
             //s.getText();
         }
 
-        if (s instanceof ol.style.Stroke) {
+        else if (s instanceof ol.style.Stroke) {
             result.outline = result.outline || <any>{};
             doif(s.getColor(), v => result.outline.color = <any>v);
             s.getLineCap();
             s.getLineDash();
             s.getLineJoin();
-            //s.getMitterLimit();
+            s.getMiterLimit();
             doif(s.getWidth(), v => result.outline.width = v);
         }
 
-        if (s instanceof ol.style.Text) {
-            s
+        else if (s instanceof ol.style.Text) {
             debugger;
         }
 
-        if (s instanceof ol.style.Image) {
+        else if (s instanceof ol.style.Image) {
             s.getOpacity();
             result.angle = s.getRotation();
             s.getScale();
         }
 
-        if (s instanceof ol.style.Style) {            
+        else if (s instanceof ol.style.Style) {
             let fill = s.getFill();
             if (fill) {
                 result.color = ol.color.asArray(<any>fill.getColor());

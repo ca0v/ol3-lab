@@ -1437,10 +1437,10 @@ define("ux/serializers/ags-simplemarkersymbol", ["require", "exports", "openlaye
                 doif(s.getStroke(), function (v) { return _this.serializeStyle(v, result); });
                 doif(s.getRadius(), function (v) { return result.size = v; });
             }
-            if (s instanceof ol.style.Fill) {
+            else if (s instanceof ol.style.Fill) {
                 result.color = ol.color.asArray(s.getColor());
             }
-            if (s instanceof ol.style.Icon) {
+            else if (s instanceof ol.style.Icon) {
                 debugger;
                 result.style = "esriSMSPath";
                 s.getFill();
@@ -1451,12 +1451,13 @@ define("ux/serializers/ags-simplemarkersymbol", ["require", "exports", "openlaye
                 s.getStroke();
                 s.getText();
             }
-            if (s instanceof ol.style.RegularShape) {
+            else if (s instanceof ol.style.RegularShape) {
                 var points = s.getPoints();
                 var r1 = s.getRadius();
                 var r2 = s.getRadius2();
                 var angle = s.getAngle();
-                result.style = "unknown";
+                result.size = r1;
+                doif(s.getStroke(), function (v) { return _this.serializeStyle(v, result); });
                 if (4 === points) {
                     if (angle === 0) {
                         if (r2 === 0) {
@@ -1475,32 +1476,43 @@ define("ux/serializers/ags-simplemarkersymbol", ["require", "exports", "openlaye
                         }
                     }
                 }
+                else {
+                    result.style = "esriSMSPath";
+                    var strokeWidth = result.outline.width;
+                    var size = 2 * (r1 + strokeWidth) + 1;
+                    var path = [];
+                    for (var i = 0; i <= points; i++) {
+                        var angle0 = i * 2 * Math.PI / points - Math.PI / 2 + angle;
+                        var radiusC = i % 2 === 0 ? r1 : r2;
+                        var _a = [size / 2 + radiusC * Math.cos(angle0), size / 2 + radiusC * Math.sin(angle0)], x = _a[0], y = _a[1];
+                        i === 0 ? path.push("M" + x + " " + y) : path.push("L" + x + " " + y);
+                    }
+                    path.push("Z");
+                    result.path = path.join(" ");
+                }
                 doif(s.getFill(), function (v) { return result.color = v.getColor(); });
                 doif(s.getImage(), function (v) { return _this.serializeStyle(v, result); });
                 s.getOpacity();
-                doif(s.getRadius(), function (v) { return result.size = v; });
-                doif(s.getRadius2(), function (v) { return result.size2 = v; });
                 s.getScale();
-                doif(s.getStroke(), function (v) { return _this.serializeStyle(v, result); });
             }
-            if (s instanceof ol.style.Stroke) {
+            else if (s instanceof ol.style.Stroke) {
                 result.outline = result.outline || {};
                 doif(s.getColor(), function (v) { return result.outline.color = v; });
                 s.getLineCap();
                 s.getLineDash();
                 s.getLineJoin();
+                s.getMiterLimit();
                 doif(s.getWidth(), function (v) { return result.outline.width = v; });
             }
-            if (s instanceof ol.style.Text) {
-                s;
+            else if (s instanceof ol.style.Text) {
                 debugger;
             }
-            if (s instanceof ol.style.Image) {
+            else if (s instanceof ol.style.Image) {
                 s.getOpacity();
                 result.angle = s.getRotation();
                 s.getScale();
             }
-            if (s instanceof ol.style.Style) {
+            else if (s instanceof ol.style.Style) {
                 var fill = s.getFill();
                 if (fill) {
                     result.color = ol.color.asArray(fill.getColor());
@@ -2143,7 +2155,7 @@ define("ux/serializers/coretech", ["require", "exports", "openlayers", "ux/style
         ;
     }
 });
-define("ux/style-lab", ["require", "exports", "openlayers", "jquery", "ux/serializers/coretech", "ux/style-generator"], function (require, exports, ol, $, CoretechSerializer, StyleGenerator) {
+define("ux/style-lab", ["require", "exports", "openlayers", "jquery", "ux/serializers/coretech", "ux/serializers/ags-simplemarkersymbol", "ux/style-generator"], function (require, exports, ol, $, CoretechSerializer, AgsMarkerSerializer, StyleGenerator) {
     "use strict";
     var center = [-82.4, 34.85];
     var formatter = new CoretechSerializer.CoretechConverter();
@@ -2151,11 +2163,20 @@ define("ux/style-lab", ["require", "exports", "openlayers", "jquery", "ux/serial
         center: center,
         fromJson: function (json) { return formatter.fromJson(json); }
     });
-    var ux = "\n<div class='form'>\n    <label for='style-count'>How many styles per symbol?</label>\n    <input id='style-count' type=\"number\" value=\"1\" />\n    <label for='style-out'>Click marker to see style here:</label>\n    <textarea id='style-out'></textarea>\n    <label for='apply-style'>Apply this style to some of the features</label>\n    <button id='apply-style'>Apply</button>\n<div>\n";
+    var ux = "\n<div class='form'>\n    <label for='use-ags-serializer'>use-ags-serializer?</label>\n    <input type=\"checkbox\" id=\"use-ags-serializer\"/>\n    <label for='style-count'>How many styles per symbol?</label>\n    <input id='style-count' type=\"number\" value=\"1\" />\n    <label for='style-out'>Click marker to see style here:</label>\n    <textarea id='style-out'></textarea>\n    <label for='apply-style'>Apply this style to some of the features</label>\n    <button id='apply-style'>Apply</button>\n<div>\n";
     var css = "\n<style>\n    html, body, .map {\n        width: 100%;\n        height: 100%;\n        overflow: hidden;    \n    }\n\n    label {\n        display: block;\n    }\n\n    .form {\n        padding: 20px;\n        position:absolute;\n        top: 40px;\n        right: 40px;\n        z-index: 1;\n        background-color: rgba(255, 255, 255, 0.8);\n        border: 1px solid black;\n    }\n\n    #style-count {\n        vertical-align: top;\n    }\n\n    #style-out {\n        font-family: cursive;\n        font-size: smaller;\n        min-width: 320px;\n        min-height: 240px;\n    }\n</style>\n";
     function run() {
+        var formatter;
         $(ux).appendTo(".map");
         $(css).appendTo("head");
+        $("#use-ags-serializer").change(function (args) {
+            if (args.target.checked) {
+                formatter = new AgsMarkerSerializer.SimpleMarkerConverter();
+            }
+            else {
+                formatter = new CoretechSerializer.CoretechConverter();
+            }
+        }).change();
         var map = new ol.Map({
             target: "map",
             view: new ol.View({

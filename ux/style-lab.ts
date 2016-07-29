@@ -15,6 +15,8 @@ let generator = new StyleGenerator({
 
 let ux = `
 <div class='form'>
+    <label for='use-ags-serializer'>use-ags-serializer?</label>
+    <input type="checkbox" id="use-ags-serializer"/>
     <label for='style-count'>How many styles per symbol?</label>
     <input id='style-count' type="number" value="1" />
     <label for='style-out'>Click marker to see style here:</label>
@@ -61,10 +63,18 @@ let css = `
 
 export function run() {
 
-    //let formatter = new AgsMarkerSerializer.SimpleMarkerConverter();
+    let formatter: CoretechSerializer.CoretechConverter;
 
     $(ux).appendTo(".map");
     $(css).appendTo("head");
+
+    $("#use-ags-serializer").change(args => {
+        if (args.target.checked) {
+            formatter = <any>new AgsMarkerSerializer.SimpleMarkerConverter();
+        } else {
+            formatter = new CoretechSerializer.CoretechConverter();
+        }
+    }).change();
 
     let map = new ol.Map({
         target: "map",
