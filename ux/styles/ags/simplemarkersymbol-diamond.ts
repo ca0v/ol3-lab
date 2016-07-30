@@ -1,4 +1,6 @@
-export =
+import {SimpleMarkerSymbol} from "../../serializers/ags-simplemarkersymbol";
+
+export = <SimpleMarkerSymbol.Style[]>
     [
         {
             "color": [

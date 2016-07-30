@@ -2,7 +2,7 @@ import ol = require("openlayers");
 
 import Serializer = require("./serializer");
 
-declare module SimpleMarkerSymbol {
+export module SimpleMarkerSymbol {
 
     export interface Outline {
         color: number[];

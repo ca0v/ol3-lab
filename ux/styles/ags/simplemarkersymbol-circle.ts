@@ -1,7 +1,9 @@
+import {SimpleMarkerSymbol} from "../../serializers/ags-simplemarkersymbol";
+
 /**
  * 
  */
-export =
+const styles: SimpleMarkerSymbol.Style[] =
     [{
         "color": [
             255,
@@ -27,3 +29,5 @@ export =
             "style": "esriSLSSolid"
         }
     }];
+
+export = styles;

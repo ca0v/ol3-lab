@@ -1,7 +1,9 @@
-// from https://developers.arcgis.com/javascript/3/samples/playground/main.html#/config=symbols/SimpleMarkerSymbol.json
-// chose this to learn how to render svg as a marker
-// next up: https://www.mapbox.com/maki-icons/
-export =
+import {SimpleMarkerSymbol} from "../../serializers/ags-simplemarkersymbol";
+
+export = <SimpleMarkerSymbol.Style[]>
+    // from https://developers.arcgis.com/javascript/3/samples/playground/main.html#/config=symbols/SimpleMarkerSymbol.json
+    // chose this to learn how to render svg as a marker
+    // next up: https://www.mapbox.com/maki-icons/
     [
         {
             "color": [

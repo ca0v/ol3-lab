@@ -5,7 +5,7 @@
         "module": "amd",
         "target": "es5",
         "noImplicitAny": true,
-        "sourceMap": false,
+        "sourceMap": true,
         "outFile": "./built/run.js",
         "moduleResolution": "node"
     },
