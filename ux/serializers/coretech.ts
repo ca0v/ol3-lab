@@ -184,12 +184,3 @@ export class CoretechConverter implements Serializer.IConverter<Coretech.Style> 
         return stroke;
     }
 }
-
-{
-    let coretechConverter = new CoretechConverter();
-    let expect = JSON.stringify(coretech_flower_json);
-    let actual = JSON.stringify(coretech_flower_json.map(json => coretechConverter.toJson(coretechConverter.fromJson(json))));
-    if (expect !== actual) {
-        throw "CoretechConverter failure coretech_flower_json";
-    };
-}

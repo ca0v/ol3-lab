@@ -1728,7 +1728,7 @@ define("ux/styles/flower", ["require", "exports"], function (require, exports) {
         }
     ];
 });
-define("ux/serializers/coretech", ["require", "exports", "openlayers", "ux/styles/flower"], function (require, exports, ol, coretech_flower_json) {
+define("ux/serializers/coretech", ["require", "exports", "openlayers"], function (require, exports, ol) {
     "use strict";
     function doif(v, cb) {
         if (typeof v !== "undefined")
@@ -1873,15 +1873,6 @@ define("ux/serializers/coretech", ["require", "exports", "openlayers", "ux/style
         return CoretechConverter;
     }());
     exports.CoretechConverter = CoretechConverter;
-    {
-        var coretechConverter_1 = new CoretechConverter();
-        var expect = JSON.stringify(coretech_flower_json);
-        var actual = JSON.stringify(coretech_flower_json.map(function (json) { return coretechConverter_1.toJson(coretechConverter_1.fromJson(json)); }));
-        if (expect !== actual) {
-            throw "CoretechConverter failure coretech_flower_json";
-        }
-        ;
-    }
 });
 define("ux/style-generator", ["require", "exports", "openlayers", "ux/styles/basic", "ux/serializers/coretech"], function (require, exports, ol, basic_styles, Coretech) {
     "use strict";
