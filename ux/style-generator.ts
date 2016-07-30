@@ -1,4 +1,8 @@
 import ol = require("openlayers");
+import basic_styles = require("./styles/basic");
+import Coretech = require("./serializers/coretech");
+
+let converter = new Coretech.CoretechConverter();
 
 let range = (n: number) => {
     var result = new Array(n);
@@ -49,6 +53,12 @@ class StyleGenerator {
             color: this.asColor()
         });
         return stroke;
+    }
+
+    asBasic() {
+        let basic = [basic_styles.cross, basic_styles.x, basic_styles.square, basic_styles.diamond, basic_styles.star, basic_styles.triangle];
+        let config = basic[Math.round((basic.length - 1) * Math.random())];
+        return converter.fromJson(config[0]).getImage();
     }
 
     asCircle() {
@@ -107,7 +117,7 @@ class StyleGenerator {
     asPointFeature(styleCount = 1) {
         let feature = new ol.Feature();
 
-        let gens = [() => this.asStar(), () => this.asCircle(), () => this.asPoly()];
+        let gens = [() => this.asStar(), () => this.asCircle(), () => this.asPoly(), () => this.asBasic()];
 
         feature.setGeometry(this.asPoint());
 

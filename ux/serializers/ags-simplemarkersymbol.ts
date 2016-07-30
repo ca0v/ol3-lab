@@ -29,6 +29,10 @@ function doif<T>(v: T, cb: (v: T) => void) {
     if (typeof v !== "undefined") cb(v);
 }
 
+function asAngle(radian: number) {
+    return Math.round(180 / Math.PI * radian);
+}
+
 function asColor(color: number[]) {
     if (color.length == 4 && color[3] > 1) {
         color[3] /= 255.0;
@@ -38,6 +42,11 @@ function asColor(color: number[]) {
 
 function asWidth(value: number) {
     return value * 4 / 3;
+}
+
+// esri serializer reduced with by 33% (why?)
+function reverseWidth(value: number) {
+    return value * 3 / 4;
 }
 
 export function Converter(json: SimpleMarkerSymbol.Style) {
@@ -83,7 +92,8 @@ export class SimpleMarkerConverter implements Serializer.IConverter<SimpleMarker
             s.getScale();
             doif(s.getStroke(), v => this.serializeStyle(v, result));
             //s.getText();
-            doif(s.getRadius(), v => result.size = v);
+            // radius -> size, size is 2*radius scaled to 3/4 hence the 1.5
+            doif(s.getRadius(), v => result.size = 1.5 * v);
         }
 
         else if (s instanceof ol.style.Fill) {
@@ -108,25 +118,36 @@ export class SimpleMarkerConverter implements Serializer.IConverter<SimpleMarker
             let r1 = s.getRadius();
             let r2 = s.getRadius2();
             let angle = s.getAngle();
+            let rotation = asAngle(s.getRotation());
 
             result.size = r1;
             doif(s.getStroke(), v => this.serializeStyle(v, result));
 
-            if (4 === points) {
-                if (angle === 0) {
-                    if (r2 === 0) {
-                        result.style = "esriSMSCross";
-                    } else if (r1 === r2) {
-                        result.style = "esriSMSX";
-                    }
-                } else if (angle === 45) {
-                    if (r2 === 0) {
-                        result.style = "esriSMSDiamond";
-                    } else if (r1 === r2) {
-                        result.style = "esriSMSSquare";
-                    }
+            // 4 points, r1=r2 => square/diamond, r2=0 => cross/x
+            if (points === 8 && r2 === 0) {
+                if (rotation === 0) {
+                    // cross
+                    result.style = "esriSMSCross";
+                    result.size *= Math.sqrt(2);
                 }
-            } else {
+                else if (rotation === 45) {
+                    // x
+                    result.style = "esriSMSX";
+                }
+            }
+            else if (points === 4 && r2 === r1) {
+                if (rotation === 0) {
+                    // diamond
+                    result.style = "esriSMSDiamond";
+                    result.size *= Math.sqrt(2);
+                }
+                else if (rotation === 45) {
+                    // square
+                    result.style = "esriSMSSquare";
+                }
+            }
+
+            if (!result.style) {
                 // ESRI has no support for ol3 regular shapes, maybe compute a path from radius2 and points?
                 result.style = "esriSMSPath";
                 /*
@@ -177,7 +198,7 @@ export class SimpleMarkerConverter implements Serializer.IConverter<SimpleMarker
             s.getLineDash();
             s.getLineJoin();
             s.getMiterLimit();
-            doif(s.getWidth(), v => result.outline.width = v);
+            doif(s.getWidth(), v => result.outline.width = reverseWidth(v));
         }
 
         else if (s instanceof ol.style.Text) {

@@ -40,6 +40,10 @@ declare namespace Coretech {
 
 }
 
+function doif<T>(v: T, cb: (v: T) => void) {
+    if (typeof v !== "undefined") cb(v);
+}
+
 /**
  * See also, leaflet styles:
   	weight: 2,
@@ -100,6 +104,8 @@ export class CoretechConverter implements Serializer.IConverter<Coretech.Style> 
         if (style.getRadius) this.assign(s, "radius", style.getRadius());
         if (style.getRadius2) this.assign(s, "radius2", style.getRadius2());
         if (style.getPoints) this.assign(s, "points", style.getPoints() / 2);
+        if (style.getAngle) this.assign(s, "angle", style.getAngle());
+        if (style.getRotation) this.assign(s, "rotation", style.getRotation());
         return s;
     }
 
@@ -155,7 +161,12 @@ export class CoretechConverter implements Serializer.IConverter<Coretech.Style> 
             fill: this.deserializeFill(json.fill),
             stroke: this.deserializeStroke(json.stroke)
         });
-        image.setOpacity(json.opacity);
+
+        doif(json.angle, v => {
+            image.setRotation(v); 
+        });
+        doif(json.opacity, v => image.setOpacity(v));
+
         return image;
     }
 
@@ -168,8 +179,8 @@ export class CoretechConverter implements Serializer.IConverter<Coretech.Style> 
 
     private deserializeStroke(json: any) {
         let stroke = new ol.style.Stroke();
-        stroke.setColor(json.color);
-        stroke.setWidth(json.width);
+        doif(json.color, v => stroke.setColor(v));
+        doif(json.width, v => stroke.setWidth(v));
         return stroke;
     }
 }

@@ -102,7 +102,7 @@ export function run() {
         map.getLayers().forEach(l => {
             if (l instanceof ol.layer.Vector) {
                 let s = l.getSource();
-                let features = s.getFeatures().filter((f, i) => 0.5 > Math.random());
+                let features = s.getFeatures().filter((f, i) => 0.1 > Math.random());
                 features.forEach(f => f.setStyle(styles));
                 l.changed();
             }

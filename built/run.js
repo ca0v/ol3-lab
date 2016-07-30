@@ -1386,6 +1386,9 @@ define("ux/serializers/ags-simplemarkersymbol", ["require", "exports", "openlaye
         if (typeof v !== "undefined")
             cb(v);
     }
+    function asAngle(radian) {
+        return Math.round(180 / Math.PI * radian);
+    }
     function asColor(color) {
         if (color.length == 4 && color[3] > 1) {
             color[3] /= 255.0;
@@ -1394,6 +1397,9 @@ define("ux/serializers/ags-simplemarkersymbol", ["require", "exports", "openlaye
     }
     function asWidth(value) {
         return value * 4 / 3;
+    }
+    function reverseWidth(value) {
+        return value * 3 / 4;
     }
     function Converter(json) {
         switch (json.type) {
@@ -1435,7 +1441,7 @@ define("ux/serializers/ags-simplemarkersymbol", ["require", "exports", "openlaye
                 doif(s.getRotation(), function (v) { return result.angle = v; });
                 s.getScale();
                 doif(s.getStroke(), function (v) { return _this.serializeStyle(v, result); });
-                doif(s.getRadius(), function (v) { return result.size = v; });
+                doif(s.getRadius(), function (v) { return result.size = 1.5 * v; });
             }
             else if (s instanceof ol.style.Fill) {
                 result.color = ol.color.asArray(s.getColor());
@@ -1456,27 +1462,28 @@ define("ux/serializers/ags-simplemarkersymbol", ["require", "exports", "openlaye
                 var r1 = s.getRadius();
                 var r2 = s.getRadius2();
                 var angle = s.getAngle();
+                var rotation = asAngle(s.getRotation());
                 result.size = r1;
                 doif(s.getStroke(), function (v) { return _this.serializeStyle(v, result); });
-                if (4 === points) {
-                    if (angle === 0) {
-                        if (r2 === 0) {
-                            result.style = "esriSMSCross";
-                        }
-                        else if (r1 === r2) {
-                            result.style = "esriSMSX";
-                        }
+                if (points === 8 && r2 === 0) {
+                    if (rotation === 0) {
+                        result.style = "esriSMSCross";
+                        result.size *= Math.sqrt(2);
                     }
-                    else if (angle === 45) {
-                        if (r2 === 0) {
-                            result.style = "esriSMSDiamond";
-                        }
-                        else if (r1 === r2) {
-                            result.style = "esriSMSSquare";
-                        }
+                    else if (rotation === 45) {
+                        result.style = "esriSMSX";
                     }
                 }
-                else {
+                else if (points === 4 && r2 === r1) {
+                    if (rotation === 0) {
+                        result.style = "esriSMSDiamond";
+                        result.size *= Math.sqrt(2);
+                    }
+                    else if (rotation === 45) {
+                        result.style = "esriSMSSquare";
+                    }
+                }
+                if (!result.style) {
                     result.style = "esriSMSPath";
                     var strokeWidth = result.outline.width;
                     var size = 2 * (r1 + strokeWidth) + 1;
@@ -1502,7 +1509,7 @@ define("ux/serializers/ags-simplemarkersymbol", ["require", "exports", "openlaye
                 s.getLineDash();
                 s.getLineJoin();
                 s.getMiterLimit();
-                doif(s.getWidth(), function (v) { return result.outline.width = v; });
+                doif(s.getWidth(), function (v) { return result.outline.width = reverseWidth(v); });
             }
             else if (s instanceof ol.style.Text) {
                 debugger;
@@ -1634,8 +1641,251 @@ define("ux/serializers/ags-simplemarkersymbol", ["require", "exports", "openlaye
     }());
     exports.SimpleMarkerConverter = SimpleMarkerConverter;
 });
-define("ux/style-generator", ["require", "exports", "openlayers"], function (require, exports, ol) {
+define("ux/styles/basic", ["require", "exports"], function (require, exports) {
     "use strict";
+    var stroke = {
+        color: 'black',
+        width: 2
+    };
+    var fill = {
+        color: 'red'
+    };
+    var radius = 10;
+    var opacity = 0.5;
+    var square = {
+        fill: fill,
+        stroke: stroke,
+        points: 4,
+        radius: radius,
+        angle: Math.PI / 4
+    };
+    var diamond = {
+        fill: fill,
+        stroke: stroke,
+        points: 4,
+        radius: radius,
+        angle: 0
+    };
+    var triangle = {
+        fill: fill,
+        stroke: stroke,
+        points: 3,
+        radius: radius,
+        rotation: Math.PI / 4,
+        angle: 0
+    };
+    var star = {
+        fill: fill,
+        stroke: stroke,
+        points: 5,
+        radius: radius,
+        radius2: 4,
+        angle: 0
+    };
+    var cross = {
+        opacity: opacity,
+        fill: fill,
+        stroke: stroke,
+        points: 4,
+        radius: radius,
+        radius2: 0,
+        angle: 0
+    };
+    var x = {
+        fill: fill,
+        stroke: stroke,
+        points: 4,
+        radius: radius,
+        radius2: 0,
+        angle: Math.PI / 4
+    };
+    return {
+        cross: [{ star: cross }],
+        square: [{ star: square }],
+        diamond: [{ star: diamond }],
+        star: [{ star: star }],
+        triangle: [{ star: triangle }],
+        x: [{ star: x }]
+    };
+});
+define("ux/styles/flower", ["require", "exports"], function (require, exports) {
+    "use strict";
+    return [
+        {
+            "star": {
+                "fill": {
+                    "color": "rgba(106,9,251,0.736280404819044)"
+                },
+                "opacity": 1,
+                "stroke": {
+                    "color": "rgba(42,128,244,0.8065839214705285)",
+                    "width": 8.199150828494362
+                },
+                "radius": 13.801178106456376,
+                "radius2": 9.103803658902862,
+                "points": 10
+            }
+        }
+    ];
+});
+define("ux/serializers/coretech", ["require", "exports", "openlayers", "ux/styles/flower"], function (require, exports, ol, coretech_flower_json) {
+    "use strict";
+    function doif(v, cb) {
+        if (typeof v !== "undefined")
+            cb(v);
+    }
+    var CoretechConverter = (function () {
+        function CoretechConverter() {
+        }
+        CoretechConverter.prototype.fromJson = function (json) {
+            return this.deserializeStyle(json);
+        };
+        CoretechConverter.prototype.toJson = function (style) {
+            return this.serializeStyle(style);
+        };
+        CoretechConverter.prototype.assign = function (obj, prop, value) {
+            if (value === null)
+                return;
+            if (value === undefined)
+                return;
+            if (typeof value === "object") {
+                if (Object.keys(value).length === 0)
+                    return;
+            }
+            if (prop === "image") {
+                if (value.hasOwnProperty("radius")) {
+                    prop = "circle";
+                }
+                if (value.hasOwnProperty("points")) {
+                    prop = "star";
+                }
+            }
+            obj[prop] = value;
+        };
+        CoretechConverter.prototype.serializeStyle = function (style) {
+            var s = {};
+            if (!style)
+                return null;
+            if (typeof style === "string")
+                return style;
+            if (typeof style === "number")
+                return style;
+            if (style.getColor)
+                this.assign(s, "color", this.serializeColor(style.getColor()));
+            if (style.getImage)
+                this.assign(s, "image", this.serializeStyle(style.getImage()));
+            if (style.getFill)
+                this.assign(s, "fill", this.serializeFill(style.getFill()));
+            if (style.getOpacity)
+                this.assign(s, "opacity", style.getOpacity());
+            if (style.getStroke)
+                this.assign(s, "stroke", this.serializeStyle(style.getStroke()));
+            if (style.getText)
+                this.assign(s, "text", this.serializeStyle(style.getText()));
+            if (style.getWidth)
+                this.assign(s, "width", style.getWidth());
+            if (style.getOffsetX)
+                this.assign(s, "offset-x", style.getOffsetX());
+            if (style.getOffsetY)
+                this.assign(s, "offset-y", style.getOffsetY());
+            if (style.getWidth)
+                this.assign(s, "width", style.getWidth());
+            if (style.getFont)
+                this.assign(s, "font", style.getFont());
+            if (style.getRadius)
+                this.assign(s, "radius", style.getRadius());
+            if (style.getRadius2)
+                this.assign(s, "radius2", style.getRadius2());
+            if (style.getPoints)
+                this.assign(s, "points", style.getPoints() / 2);
+            if (style.getAngle)
+                this.assign(s, "angle", style.getAngle());
+            if (style.getRotation)
+                this.assign(s, "rotation", style.getRotation());
+            return s;
+        };
+        CoretechConverter.prototype.serializeColor = function (color) {
+            return typeof color === "string" ? color : ol.color.asString(ol.color.asArray(color));
+        };
+        CoretechConverter.prototype.serializeFill = function (fill) {
+            return this.serializeStyle(fill);
+        };
+        CoretechConverter.prototype.deserializeStyle = function (json) {
+            var image;
+            var text;
+            if (json.circle)
+                image = this.deserializeCircle(json.circle);
+            else if (json.star)
+                image = this.deserializeStar(json.star);
+            if (json.text)
+                text = this.deserializeText(json.text);
+            var s = new ol.style.Style({
+                image: image,
+                text: text
+            });
+            return s;
+        };
+        CoretechConverter.prototype.deserializeText = function (json) {
+            return new ol.style.Text({
+                fill: this.deserializeFill(json.fill),
+                stroke: this.deserializeStroke(json.stroke),
+                text: json.text,
+                font: json.font,
+                offsetX: json["offset-x"],
+                offsetY: json["offset-y"],
+            });
+        };
+        CoretechConverter.prototype.deserializeCircle = function (json) {
+            var image = new ol.style.Circle({
+                radius: json.radius,
+                fill: this.deserializeFill(json.fill),
+                stroke: this.deserializeStroke(json.stroke)
+            });
+            image.setOpacity(json.opacity);
+            return image;
+        };
+        CoretechConverter.prototype.deserializeStar = function (json) {
+            var image = new ol.style.RegularShape({
+                radius: json.radius,
+                radius2: json.radius2,
+                points: json.points,
+                fill: this.deserializeFill(json.fill),
+                stroke: this.deserializeStroke(json.stroke)
+            });
+            doif(json.angle, function (v) {
+                image.setRotation(v);
+            });
+            doif(json.opacity, function (v) { return image.setOpacity(v); });
+            return image;
+        };
+        CoretechConverter.prototype.deserializeFill = function (json) {
+            var fill = new ol.style.Fill({
+                color: json.color
+            });
+            return fill;
+        };
+        CoretechConverter.prototype.deserializeStroke = function (json) {
+            var stroke = new ol.style.Stroke();
+            doif(json.color, function (v) { return stroke.setColor(v); });
+            doif(json.width, function (v) { return stroke.setWidth(v); });
+            return stroke;
+        };
+        return CoretechConverter;
+    }());
+    exports.CoretechConverter = CoretechConverter;
+    {
+        var coretechConverter_1 = new CoretechConverter();
+        var expect = JSON.stringify(coretech_flower_json);
+        var actual = JSON.stringify(coretech_flower_json.map(function (json) { return coretechConverter_1.toJson(coretechConverter_1.fromJson(json)); }));
+        if (expect !== actual) {
+            throw "CoretechConverter failure coretech_flower_json";
+        }
+        ;
+    }
+});
+define("ux/style-generator", ["require", "exports", "openlayers", "ux/styles/basic", "ux/serializers/coretech"], function (require, exports, ol, basic_styles, Coretech) {
+    "use strict";
+    var converter = new Coretech.CoretechConverter();
     var range = function (n) {
         var result = new Array(n);
         for (var i = 0; i < n; i++)
@@ -1675,6 +1925,11 @@ define("ux/style-generator", ["require", "exports", "openlayers"], function (req
                 color: this.asColor()
             });
             return stroke;
+        };
+        StyleGenerator.prototype.asBasic = function () {
+            var basic = [basic_styles.cross, basic_styles.x, basic_styles.square, basic_styles.diamond, basic_styles.star, basic_styles.triangle];
+            var config = basic[Math.round((basic.length - 1) * Math.random())];
+            return converter.fromJson(config[0]).getImage();
         };
         StyleGenerator.prototype.asCircle = function () {
             var style = new ol.style.Circle({
@@ -1728,7 +1983,7 @@ define("ux/style-generator", ["require", "exports", "openlayers"], function (req
             var _this = this;
             if (styleCount === void 0) { styleCount = 1; }
             var feature = new ol.Feature();
-            var gens = [function () { return _this.asStar(); }, function () { return _this.asCircle(); }, function () { return _this.asPoly(); }];
+            var gens = [function () { return _this.asStar(); }, function () { return _this.asCircle(); }, function () { return _this.asPoly(); }, function () { return _this.asBasic(); }];
             feature.setGeometry(this.asPoint());
             var styles = range(styleCount).map(function (x) { return new ol.style.Style({
                 image: gens[Math.round((gens.length - 1) * Math.random())](),
@@ -2061,170 +2316,6 @@ define("ux/polyline-encoder", ["require", "exports", "jquery", "openlayers", "go
     }
     exports.run = run;
 });
-define("ux/styles/flower", ["require", "exports"], function (require, exports) {
-    "use strict";
-    return [
-        {
-            "star": {
-                "fill": {
-                    "color": "rgba(106,9,251,0.736280404819044)"
-                },
-                "opacity": 1,
-                "stroke": {
-                    "color": "rgba(42,128,244,0.8065839214705285)",
-                    "width": 8.199150828494362
-                },
-                "radius": 13.801178106456376,
-                "radius2": 9.103803658902862,
-                "points": 10
-            }
-        }
-    ];
-});
-define("ux/serializers/coretech", ["require", "exports", "openlayers", "ux/styles/flower"], function (require, exports, ol, coretech_flower_json) {
-    "use strict";
-    var CoretechConverter = (function () {
-        function CoretechConverter() {
-        }
-        CoretechConverter.prototype.fromJson = function (json) {
-            return this.deserializeStyle(json);
-        };
-        CoretechConverter.prototype.toJson = function (style) {
-            return this.serializeStyle(style);
-        };
-        CoretechConverter.prototype.assign = function (obj, prop, value) {
-            if (value === null)
-                return;
-            if (value === undefined)
-                return;
-            if (typeof value === "object") {
-                if (Object.keys(value).length === 0)
-                    return;
-            }
-            if (prop === "image") {
-                if (value.hasOwnProperty("radius")) {
-                    prop = "circle";
-                }
-                if (value.hasOwnProperty("points")) {
-                    prop = "star";
-                }
-            }
-            obj[prop] = value;
-        };
-        CoretechConverter.prototype.serializeStyle = function (style) {
-            var s = {};
-            if (!style)
-                return null;
-            if (typeof style === "string")
-                return style;
-            if (typeof style === "number")
-                return style;
-            if (style.getColor)
-                this.assign(s, "color", this.serializeColor(style.getColor()));
-            if (style.getImage)
-                this.assign(s, "image", this.serializeStyle(style.getImage()));
-            if (style.getFill)
-                this.assign(s, "fill", this.serializeFill(style.getFill()));
-            if (style.getOpacity)
-                this.assign(s, "opacity", style.getOpacity());
-            if (style.getStroke)
-                this.assign(s, "stroke", this.serializeStyle(style.getStroke()));
-            if (style.getText)
-                this.assign(s, "text", this.serializeStyle(style.getText()));
-            if (style.getWidth)
-                this.assign(s, "width", style.getWidth());
-            if (style.getOffsetX)
-                this.assign(s, "offset-x", style.getOffsetX());
-            if (style.getOffsetY)
-                this.assign(s, "offset-y", style.getOffsetY());
-            if (style.getWidth)
-                this.assign(s, "width", style.getWidth());
-            if (style.getFont)
-                this.assign(s, "font", style.getFont());
-            if (style.getRadius)
-                this.assign(s, "radius", style.getRadius());
-            if (style.getRadius2)
-                this.assign(s, "radius2", style.getRadius2());
-            if (style.getPoints)
-                this.assign(s, "points", style.getPoints() / 2);
-            return s;
-        };
-        CoretechConverter.prototype.serializeColor = function (color) {
-            return typeof color === "string" ? color : ol.color.asString(ol.color.asArray(color));
-        };
-        CoretechConverter.prototype.serializeFill = function (fill) {
-            return this.serializeStyle(fill);
-        };
-        CoretechConverter.prototype.deserializeStyle = function (json) {
-            var image;
-            var text;
-            if (json.circle)
-                image = this.deserializeCircle(json.circle);
-            else if (json.star)
-                image = this.deserializeStar(json.star);
-            if (json.text)
-                text = this.deserializeText(json.text);
-            var s = new ol.style.Style({
-                image: image,
-                text: text
-            });
-            return s;
-        };
-        CoretechConverter.prototype.deserializeText = function (json) {
-            return new ol.style.Text({
-                fill: this.deserializeFill(json.fill),
-                stroke: this.deserializeStroke(json.stroke),
-                text: json.text,
-                font: json.font,
-                offsetX: json["offset-x"],
-                offsetY: json["offset-y"],
-            });
-        };
-        CoretechConverter.prototype.deserializeCircle = function (json) {
-            var image = new ol.style.Circle({
-                radius: json.radius,
-                fill: this.deserializeFill(json.fill),
-                stroke: this.deserializeStroke(json.stroke)
-            });
-            image.setOpacity(json.opacity);
-            return image;
-        };
-        CoretechConverter.prototype.deserializeStar = function (json) {
-            var image = new ol.style.RegularShape({
-                radius: json.radius,
-                radius2: json.radius2,
-                points: json.points,
-                fill: this.deserializeFill(json.fill),
-                stroke: this.deserializeStroke(json.stroke)
-            });
-            image.setOpacity(json.opacity);
-            return image;
-        };
-        CoretechConverter.prototype.deserializeFill = function (json) {
-            var fill = new ol.style.Fill({
-                color: json.color
-            });
-            return fill;
-        };
-        CoretechConverter.prototype.deserializeStroke = function (json) {
-            var stroke = new ol.style.Stroke();
-            stroke.setColor(json.color);
-            stroke.setWidth(json.width);
-            return stroke;
-        };
-        return CoretechConverter;
-    }());
-    exports.CoretechConverter = CoretechConverter;
-    {
-        var coretechConverter_1 = new CoretechConverter();
-        var expect = JSON.stringify(coretech_flower_json);
-        var actual = JSON.stringify(coretech_flower_json.map(function (json) { return coretechConverter_1.toJson(coretechConverter_1.fromJson(json)); }));
-        if (expect !== actual) {
-            throw "CoretechConverter failure coretech_flower_json";
-        }
-        ;
-    }
-});
 define("ux/style-lab", ["require", "exports", "openlayers", "jquery", "ux/serializers/coretech", "ux/serializers/ags-simplemarkersymbol", "ux/style-generator"], function (require, exports, ol, $, CoretechSerializer, AgsMarkerSerializer, StyleGenerator) {
     "use strict";
     var center = [-82.4, 34.85];
@@ -2270,7 +2361,7 @@ define("ux/style-lab", ["require", "exports", "openlayers", "jquery", "ux/serial
             map.getLayers().forEach(function (l) {
                 if (l instanceof ol.layer.Vector) {
                     var s = l.getSource();
-                    var features = s.getFeatures().filter(function (f, i) { return 0.5 > Math.random(); });
+                    var features = s.getFeatures().filter(function (f, i) { return 0.1 > Math.random(); });
                     features.forEach(function (f) { return f.setStyle(styles); });
                     l.changed();
                 }
