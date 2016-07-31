@@ -110,23 +110,38 @@ function updateCanvas(canvas_id: string, features_id: string) {
 
     let c = canvas.getContext("2d");
 
-    // c.fillStyle = "#FFFFFF";
+    //c.fillStyle = "#FF0000";
     // c.fillRect(0, 0, canvas.width, canvas.height);
-    c.strokeStyle = "#000000";
-    c.lineWidth = 1;
 
     c.beginPath();
+    {
+        c.strokeStyle = "#000000";
+        c.lineWidth = 1;
+        geom.getCoordinates().forEach((p, i) => {
+            let [x, y] = scale(p[0], p[1]);
+            console.log(x, y);
+            (i === 0) && c.moveTo(x, y);
+            c.lineTo(x, y);
+        });
 
-    geom.getCoordinates().forEach((p, i) => {
-        let [x, y] = scale(p[0], p[1]);
-        console.log(x, y);
-        (i === 0) && c.moveTo(x, y);
-        c.lineTo(x, y);
-    });
+        c.stroke();
+        c.closePath();
+    }
 
-    c.stroke();
+    c.beginPath();
+    {
+        c.strokeStyle = "#FF0000";
+        c.lineWidth = 1;
+        geom.getCoordinates().forEach((p, i) => {
+            let [x, y] = scale(p[0], p[1]);
+            c.moveTo(x, y);
+            c.rect(x, y, 1, 1);
+        });
 
-    c.closePath();
+        c.stroke();
+
+        c.closePath();
+    }
 }
 
 export function run() {

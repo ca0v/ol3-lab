@@ -1874,9 +1874,39 @@ define("ux/serializers/coretech", ["require", "exports", "openlayers"], function
     }());
     exports.CoretechConverter = CoretechConverter;
 });
+define("ux/styles/gradient", ["require", "exports"], function (require, exports) {
+    "use strict";
+    return [
+        {
+            "circle": {
+                "fill": {
+                    "color": "rgba(197,37,84,0.2)",
+                    "gradient": ["rgba(197,37,84,0.2)", "rgba(197,37,84,0.8)"]
+                },
+                "opacity": 1,
+                "stroke": {
+                    "color": "rgba(227,83,105,0.5)",
+                    "width": 4
+                },
+                "radius": 7
+            }
+        }
+    ];
+});
 define("ux/style-generator", ["require", "exports", "openlayers", "ux/styles/basic", "ux/serializers/coretech"], function (require, exports, ol, basic_styles, Coretech) {
     "use strict";
     var converter = new Coretech.CoretechConverter();
+    function makePattern() {
+        var cnv = document.createElement('canvas');
+        var ctx = cnv.getContext('2d');
+        cnv.width = 6;
+        cnv.height = 6;
+        ctx.fillStyle = 'rgb(255, 0, 0)';
+        for (var i = 0; i < 6; ++i) {
+            ctx.fillRect(i, i, 1, 1);
+        }
+        return ctx.createPattern(cnv, 'repeat');
+    }
     var range = function (n) {
         var result = new Array(n);
         for (var i = 0; i < n; i++)
@@ -1916,6 +1946,27 @@ define("ux/style-generator", ["require", "exports", "openlayers", "ux/styles/bas
                 color: this.asColor()
             });
             return stroke;
+        };
+        StyleGenerator.prototype.asGradient = function () {
+            var radius = this.asRadius();
+            var canvas = document.createElement('canvas');
+            var context = canvas.getContext('2d');
+            var gradient = context.createLinearGradient(Math.random() * radius, 0, Math.random() * radius, 2 * radius);
+            gradient.addColorStop(0, "rgba(" + this.asColor().join(",") + ")");
+            while (0.5 < Math.random()) {
+                gradient.addColorStop(Math.random(), "rgba(" + this.asColor().join(",") + ")");
+            }
+            gradient.addColorStop(1, "rgba(" + this.asColor().join(",") + ")");
+            var fill = new ol.style.Fill({
+                color: gradient
+            });
+            var style = new ol.style.Circle({
+                fill: fill,
+                radius: radius,
+                stroke: this.asStroke(),
+                snapToPixel: false
+            });
+            return style;
         };
         StyleGenerator.prototype.asBasic = function () {
             var basic = [basic_styles.cross, basic_styles.x, basic_styles.square, basic_styles.diamond, basic_styles.star, basic_styles.triangle];
@@ -1974,7 +2025,7 @@ define("ux/style-generator", ["require", "exports", "openlayers", "ux/styles/bas
             var _this = this;
             if (styleCount === void 0) { styleCount = 1; }
             var feature = new ol.Feature();
-            var gens = [function () { return _this.asStar(); }, function () { return _this.asCircle(); }, function () { return _this.asPoly(); }, function () { return _this.asBasic(); }];
+            var gens = [function () { return _this.asStar(); }, function () { return _this.asCircle(); }, function () { return _this.asPoly(); }, function () { return _this.asBasic(); }, function () { return _this.asGradient(); }];
             feature.setGeometry(this.asPoint());
             var styles = range(styleCount).map(function (x) { return new ol.style.Style({
                 image: gens[Math.round((gens.length - 1) * Math.random())](),
@@ -2273,17 +2324,31 @@ define("ux/polyline-encoder", ["require", "exports", "jquery", "openlayers", "go
             };
         })();
         var c = canvas.getContext("2d");
-        c.strokeStyle = "#000000";
-        c.lineWidth = 1;
         c.beginPath();
-        geom.getCoordinates().forEach(function (p, i) {
-            var _a = scale(p[0], p[1]), x = _a[0], y = _a[1];
-            console.log(x, y);
-            (i === 0) && c.moveTo(x, y);
-            c.lineTo(x, y);
-        });
-        c.stroke();
-        c.closePath();
+        {
+            c.strokeStyle = "#000000";
+            c.lineWidth = 1;
+            geom.getCoordinates().forEach(function (p, i) {
+                var _a = scale(p[0], p[1]), x = _a[0], y = _a[1];
+                console.log(x, y);
+                (i === 0) && c.moveTo(x, y);
+                c.lineTo(x, y);
+            });
+            c.stroke();
+            c.closePath();
+        }
+        c.beginPath();
+        {
+            c.strokeStyle = "#FF0000";
+            c.lineWidth = 1;
+            geom.getCoordinates().forEach(function (p, i) {
+                var _a = scale(p[0], p[1]), x = _a[0], y = _a[1];
+                c.moveTo(x, y);
+                c.rect(x, y, 1, 1);
+            });
+            c.stroke();
+            c.closePath();
+        }
     }
     function run() {
         $(css).appendTo("head");

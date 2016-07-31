@@ -21,6 +21,7 @@
     "requirejs": "~2.1.22",
     "jquery": "~2.2.0",
     "ol3-popup": "ol3-paging-popup#^2.0.4",
-    "ResizeSensor": "https://raw.githubusercontent.com/marcj/css-element-queries/master/src/ResizeSensor.js"
+    "ResizeSensor": "https://raw.githubusercontent.com/marcj/css-element-queries/master/src/ResizeSensor.js",
+    "ol3": "https://github.com/openlayers/ol3/releases/download/v3.17.1/v3.17.1-dist.zip"
   }
 }

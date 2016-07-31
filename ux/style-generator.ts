@@ -1,8 +1,23 @@
 import ol = require("openlayers");
 import basic_styles = require("./styles/basic");
 import Coretech = require("./serializers/coretech");
+import gradient_style = require("./styles/gradient");
 
 let converter = new Coretech.CoretechConverter();
+
+function makePattern() {
+    var cnv = document.createElement('canvas');
+    var ctx = cnv.getContext('2d');
+    cnv.width = 6;
+    cnv.height = 6;
+    ctx.fillStyle = 'rgb(255, 0, 0)';
+
+    for (var i = 0; i < 6; ++i) {
+        ctx.fillRect(i, i, 1, 1);
+    }
+
+    return ctx.createPattern(cnv, 'repeat');
+}
 
 let range = (n: number) => {
     var result = new Array(n);
@@ -53,6 +68,42 @@ class StyleGenerator {
             color: this.asColor()
         });
         return stroke;
+    }
+
+    /**
+     * Does not work...the first color is the only one used?
+     */
+    asGradient() {
+
+        let radius = this.asRadius();
+        let canvas = document.createElement('canvas');
+        var context = canvas.getContext('2d');
+
+        var gradient = context.createLinearGradient(Math.random() * radius, 0, Math.random() * radius, 2 * radius);
+        gradient.addColorStop(0, `rgba(${this.asColor().join(",")})`);
+        while (0.5 < Math.random()) {
+            gradient.addColorStop(Math.random(), `rgba(${this.asColor().join(",")})`);
+        }
+        gradient.addColorStop(1, `rgba(${this.asColor().join(",")})`);
+
+        // for (let n = 0; n < 3; n++) {
+        //     let color = this.asColor();
+        //     color[3] = 1;
+        //     gradient.addColorStop(n / 3, `rgba(${color.join(",")})`);
+        // }
+
+        let fill = new ol.style.Fill({
+            color: gradient
+        });
+
+        let style = new ol.style.Circle({
+            fill: fill,
+            radius: radius,
+            stroke: this.asStroke(),
+            snapToPixel: false
+        });
+
+        return style;
     }
 
     asBasic() {
@@ -117,7 +168,7 @@ class StyleGenerator {
     asPointFeature(styleCount = 1) {
         let feature = new ol.Feature();
 
-        let gens = [() => this.asStar(), () => this.asCircle(), () => this.asPoly(), () => this.asBasic()];
+        let gens = [() => this.asStar(), () => this.asCircle(), () => this.asPoly(), () => this.asBasic(), () => this.asGradient()];
 
         feature.setGeometry(this.asPoint());
 
