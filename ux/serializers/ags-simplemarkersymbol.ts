@@ -40,12 +40,12 @@ function asColor(color: number[]) {
     return ol.color.asString(color);
 }
 
-function asWidth(value: number) {
+function toAgs(value: number) {
     return value * 4 / 3;
 }
 
 // esri serializer reduced with by 33% (why?)
-function reverseWidth(value: number) {
+function fromAgs(value: number) {
     return value * 3 / 4;
 }
 
@@ -118,7 +118,9 @@ export class SimpleMarkerConverter implements Serializer.IConverter<SimpleMarker
             let r1 = s.getRadius();
             let r2 = s.getRadius2();
             let angle = s.getAngle();
-            let rotation = asAngle(s.getRotation());
+            let rotation = s.getRotation();
+
+            rotation = asAngle(angle + rotation);
 
             result.size = r1;
             doif(s.getStroke(), v => this.serializeStyle(v, result));
@@ -198,7 +200,7 @@ export class SimpleMarkerConverter implements Serializer.IConverter<SimpleMarker
             s.getLineDash();
             s.getLineJoin();
             s.getMiterLimit();
-            doif(s.getWidth(), v => result.outline.width = reverseWidth(v));
+            doif(s.getWidth(), v => result.outline.width = fromAgs(v));
         }
 
         else if (s instanceof ol.style.Text) {
@@ -207,7 +209,7 @@ export class SimpleMarkerConverter implements Serializer.IConverter<SimpleMarker
 
         else if (s instanceof ol.style.Image) {
             s.getOpacity();
-            result.angle = s.getRotation();
+            //result.angle = s.getRotation();
             s.getScale();
         }
 
@@ -233,7 +235,7 @@ export class SimpleMarkerConverter implements Serializer.IConverter<SimpleMarker
             src: "https://rawgit.com/mapbox/maki/master/icons/aerialway-15.svg"
         });
          */
-        let size = 2 * asWidth(json.size);
+        let size = 2 * toAgs(json.size);
 
         let svgdata = `
         <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
@@ -243,7 +245,7 @@ export class SimpleMarkerConverter implements Serializer.IConverter<SimpleMarker
         <path d="${json.path}" 
             fill="${asColor(json.color)}" 
             stroke="${asColor(json.outline.color)}" 
-            stroke-width="${asWidth(json.outline.width)}" 
+            stroke-width="${toAgs(json.outline.width)}" 
             stroke-linecap="butt" 
             stroke-linejoin="miter" 
             stroke-miterlimit="4"
@@ -266,13 +268,13 @@ export class SimpleMarkerConverter implements Serializer.IConverter<SimpleMarker
 
         return new ol.style.Style({
             image: new ol.style.Circle({
-                radius: asWidth(json.size / 2),
+                radius: toAgs(json.size / 2),
                 fill: new ol.style.Fill({
                     color: asColor(json.color)
                 }),
                 stroke: new ol.style.Stroke({
                     color: asColor(json.outline.color),
-                    width: json.outline.width,
+                    width: toAgs(json.outline.width),
                     lineJoin: "",
                     lineDash: [],
                     miterLimit: 4
@@ -288,14 +290,14 @@ export class SimpleMarkerConverter implements Serializer.IConverter<SimpleMarker
             image: new ol.style.RegularShape({
                 points: 4,
                 angle: 0,
-                radius: asWidth(json.size / 2),
+                radius: toAgs(json.size / 2),
                 radius2: 0,
                 fill: new ol.style.Fill({
                     color: asColor(json.color)
                 }),
                 stroke: new ol.style.Stroke({
                     color: asColor(json.outline.color),
-                    width: asWidth(json.outline.width),
+                    width: toAgs(json.outline.width),
                     lineJoin: "",
                     lineDash: [],
                     miterLimit: 4
@@ -310,15 +312,15 @@ export class SimpleMarkerConverter implements Serializer.IConverter<SimpleMarker
         return new ol.style.Style({
             image: new ol.style.RegularShape({
                 points: 4,
-                radius: asWidth(json.size / 2),
-                radius2: asWidth(json.size / 2),
+                radius: toAgs(json.size / 2),
+                radius2: toAgs(json.size / 2),
                 angle: json.angle,
                 fill: new ol.style.Fill({
                     color: asColor(json.color)
                 }),
                 stroke: new ol.style.Stroke({
                     color: asColor(json.outline.color),
-                    width: asWidth(json.outline.width),
+                    width: toAgs(json.outline.width),
                     lineJoin: "",
                     lineDash: [],
                     miterLimit: 4
@@ -333,15 +335,15 @@ export class SimpleMarkerConverter implements Serializer.IConverter<SimpleMarker
         return new ol.style.Style({
             image: new ol.style.RegularShape({
                 points: 4,
-                radius: asWidth(json.size / Math.sqrt(2)),
-                radius2: asWidth(json.size / Math.sqrt(2)),
+                radius: toAgs(json.size / Math.sqrt(2)),
+                radius2: toAgs(json.size / Math.sqrt(2)),
                 angle: Math.PI / 4,
                 fill: new ol.style.Fill({
                     color: asColor(json.color)
                 }),
                 stroke: new ol.style.Stroke({
                     color: asColor(json.outline.color),
-                    width: asWidth(json.outline.width),
+                    width: toAgs(json.outline.width),
                     lineJoin: "",
                     lineDash: [],
                     miterLimit: 4
@@ -356,7 +358,7 @@ export class SimpleMarkerConverter implements Serializer.IConverter<SimpleMarker
         return new ol.style.Style({
             image: new ol.style.RegularShape({
                 points: 4,
-                radius: asWidth(json.size / Math.sqrt(2)),
+                radius: toAgs(json.size / Math.sqrt(2)),
                 radius2: 0,
                 angle: Math.PI / 4,
                 fill: new ol.style.Fill({
@@ -364,7 +366,7 @@ export class SimpleMarkerConverter implements Serializer.IConverter<SimpleMarker
                 }),
                 stroke: new ol.style.Stroke({
                     color: asColor(json.outline.color),
-                    width: asWidth(json.outline.width),
+                    width: toAgs(json.outline.width),
                     lineJoin: "",
                     lineDash: [],
                     miterLimit: 4

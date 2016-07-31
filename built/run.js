@@ -1395,10 +1395,10 @@ define("ux/serializers/ags-simplemarkersymbol", ["require", "exports", "openlaye
         }
         return ol.color.asString(color);
     }
-    function asWidth(value) {
+    function toAgs(value) {
         return value * 4 / 3;
     }
-    function reverseWidth(value) {
+    function fromAgs(value) {
         return value * 3 / 4;
     }
     function Converter(json) {
@@ -1462,7 +1462,8 @@ define("ux/serializers/ags-simplemarkersymbol", ["require", "exports", "openlaye
                 var r1 = s.getRadius();
                 var r2 = s.getRadius2();
                 var angle = s.getAngle();
-                var rotation = asAngle(s.getRotation());
+                var rotation = s.getRotation();
+                rotation = asAngle(angle + rotation);
                 result.size = r1;
                 doif(s.getStroke(), function (v) { return _this.serializeStyle(v, result); });
                 if (points === 8 && r2 === 0) {
@@ -1509,14 +1510,13 @@ define("ux/serializers/ags-simplemarkersymbol", ["require", "exports", "openlaye
                 s.getLineDash();
                 s.getLineJoin();
                 s.getMiterLimit();
-                doif(s.getWidth(), function (v) { return result.outline.width = reverseWidth(v); });
+                doif(s.getWidth(), function (v) { return result.outline.width = fromAgs(v); });
             }
             else if (s instanceof ol.style.Text) {
                 debugger;
             }
             else if (s instanceof ol.style.Image) {
                 s.getOpacity();
-                result.angle = s.getRotation();
                 s.getScale();
             }
             else if (s instanceof ol.style.Style) {
@@ -1532,8 +1532,8 @@ define("ux/serializers/ags-simplemarkersymbol", ["require", "exports", "openlaye
         };
         SimpleMarkerConverter.prototype.deserializePath = function (json) {
             var canvas = document.createElement("canvas");
-            var size = 2 * asWidth(json.size);
-            var svgdata = "\n        <svg version=\"1.1\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" \n            x=\"" + json.xoffset + "px\" y=\"" + json.yoffset + "px\" width=\"" + size + "px\" height=\"" + size + "px\" \n            xml:space=\"preserve\">\n\n        <path d=\"" + json.path + "\" \n            fill=\"" + asColor(json.color) + "\" \n            stroke=\"" + asColor(json.outline.color) + "\" \n            stroke-width=\"" + asWidth(json.outline.width) + "\" \n            stroke-linecap=\"butt\" \n            stroke-linejoin=\"miter\" \n            stroke-miterlimit=\"4\"\n            stroke-dasharray=\"none\" \n            fill-rule=\"evenodd\"\n            transform=\"rotate(" + json.angle + " " + (json.xoffset + json.size) + " " + (json.yoffset + json.size) + ")\"\n        />\n\n        </svg>";
+            var size = 2 * toAgs(json.size);
+            var svgdata = "\n        <svg version=\"1.1\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" \n            x=\"" + json.xoffset + "px\" y=\"" + json.yoffset + "px\" width=\"" + size + "px\" height=\"" + size + "px\" \n            xml:space=\"preserve\">\n\n        <path d=\"" + json.path + "\" \n            fill=\"" + asColor(json.color) + "\" \n            stroke=\"" + asColor(json.outline.color) + "\" \n            stroke-width=\"" + toAgs(json.outline.width) + "\" \n            stroke-linecap=\"butt\" \n            stroke-linejoin=\"miter\" \n            stroke-miterlimit=\"4\"\n            stroke-dasharray=\"none\" \n            fill-rule=\"evenodd\"\n            transform=\"rotate(" + json.angle + " " + (json.xoffset + json.size) + " " + (json.yoffset + json.size) + ")\"\n        />\n\n        </svg>";
             return new ol.style.Style({
                 image: new ol.style.Icon({
                     src: "data:image/svg+xml;utf8," + svgdata
@@ -1543,13 +1543,13 @@ define("ux/serializers/ags-simplemarkersymbol", ["require", "exports", "openlaye
         SimpleMarkerConverter.prototype.deserializeCircle = function (json) {
             return new ol.style.Style({
                 image: new ol.style.Circle({
-                    radius: asWidth(json.size / 2),
+                    radius: toAgs(json.size / 2),
                     fill: new ol.style.Fill({
                         color: asColor(json.color)
                     }),
                     stroke: new ol.style.Stroke({
                         color: asColor(json.outline.color),
-                        width: json.outline.width,
+                        width: toAgs(json.outline.width),
                         lineJoin: "",
                         lineDash: [],
                         miterLimit: 4
@@ -1562,14 +1562,14 @@ define("ux/serializers/ags-simplemarkersymbol", ["require", "exports", "openlaye
                 image: new ol.style.RegularShape({
                     points: 4,
                     angle: 0,
-                    radius: asWidth(json.size / 2),
+                    radius: toAgs(json.size / 2),
                     radius2: 0,
                     fill: new ol.style.Fill({
                         color: asColor(json.color)
                     }),
                     stroke: new ol.style.Stroke({
                         color: asColor(json.outline.color),
-                        width: asWidth(json.outline.width),
+                        width: toAgs(json.outline.width),
                         lineJoin: "",
                         lineDash: [],
                         miterLimit: 4
@@ -1581,15 +1581,15 @@ define("ux/serializers/ags-simplemarkersymbol", ["require", "exports", "openlaye
             return new ol.style.Style({
                 image: new ol.style.RegularShape({
                     points: 4,
-                    radius: asWidth(json.size / 2),
-                    radius2: asWidth(json.size / 2),
+                    radius: toAgs(json.size / 2),
+                    radius2: toAgs(json.size / 2),
                     angle: json.angle,
                     fill: new ol.style.Fill({
                         color: asColor(json.color)
                     }),
                     stroke: new ol.style.Stroke({
                         color: asColor(json.outline.color),
-                        width: asWidth(json.outline.width),
+                        width: toAgs(json.outline.width),
                         lineJoin: "",
                         lineDash: [],
                         miterLimit: 4
@@ -1601,15 +1601,15 @@ define("ux/serializers/ags-simplemarkersymbol", ["require", "exports", "openlaye
             return new ol.style.Style({
                 image: new ol.style.RegularShape({
                     points: 4,
-                    radius: asWidth(json.size / Math.sqrt(2)),
-                    radius2: asWidth(json.size / Math.sqrt(2)),
+                    radius: toAgs(json.size / Math.sqrt(2)),
+                    radius2: toAgs(json.size / Math.sqrt(2)),
                     angle: Math.PI / 4,
                     fill: new ol.style.Fill({
                         color: asColor(json.color)
                     }),
                     stroke: new ol.style.Stroke({
                         color: asColor(json.outline.color),
-                        width: asWidth(json.outline.width),
+                        width: toAgs(json.outline.width),
                         lineJoin: "",
                         lineDash: [],
                         miterLimit: 4
@@ -1621,7 +1621,7 @@ define("ux/serializers/ags-simplemarkersymbol", ["require", "exports", "openlaye
             return new ol.style.Style({
                 image: new ol.style.RegularShape({
                     points: 4,
-                    radius: asWidth(json.size / Math.sqrt(2)),
+                    radius: toAgs(json.size / Math.sqrt(2)),
                     radius2: 0,
                     angle: Math.PI / 4,
                     fill: new ol.style.Fill({
@@ -1629,7 +1629,7 @@ define("ux/serializers/ags-simplemarkersymbol", ["require", "exports", "openlaye
                     }),
                     stroke: new ol.style.Stroke({
                         color: asColor(json.outline.color),
-                        width: asWidth(json.outline.width),
+                        width: toAgs(json.outline.width),
                         lineJoin: "",
                         lineDash: [],
                         miterLimit: 4
@@ -1671,7 +1671,6 @@ define("ux/styles/basic", ["require", "exports"], function (require, exports) {
         stroke: stroke,
         points: 3,
         radius: radius,
-        rotation: Math.PI / 4,
         angle: 0
     };
     var star = {
@@ -1797,11 +1796,13 @@ define("ux/serializers/coretech", ["require", "exports", "openlayers"], function
             if (style.getRadius2)
                 this.assign(s, "radius2", style.getRadius2());
             if (style.getPoints)
-                this.assign(s, "points", style.getPoints() / 2);
+                this.assign(s, "points", style.getPoints());
             if (style.getAngle)
                 this.assign(s, "angle", style.getAngle());
             if (style.getRotation)
                 this.assign(s, "rotation", style.getRotation());
+            if (s.points && s.radius !== s.radius2)
+                s.points /= 2;
             return s;
         };
         CoretechConverter.prototype.serializeColor = function (color) {
@@ -1849,12 +1850,11 @@ define("ux/serializers/coretech", ["require", "exports", "openlayers"], function
                 radius: json.radius,
                 radius2: json.radius2,
                 points: json.points,
+                angle: json.angle,
                 fill: this.deserializeFill(json.fill),
                 stroke: this.deserializeStroke(json.stroke)
             });
-            doif(json.angle, function (v) {
-                image.setRotation(v);
-            });
+            doif(json.rotation, function (v) { return image.setRotation(v); });
             doif(json.opacity, function (v) { return image.setOpacity(v); });
             return image;
         };

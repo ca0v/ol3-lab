@@ -31,7 +31,6 @@ let triangle = {
     stroke: stroke,
     points: 3,
     radius: radius,
-    rotation: Math.PI / 4,
     angle: 0
 };
 

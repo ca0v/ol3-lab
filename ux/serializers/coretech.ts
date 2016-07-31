@@ -103,9 +103,10 @@ export class CoretechConverter implements Serializer.IConverter<Coretech.Style> 
         if (style.getFont) this.assign(s, "font", style.getFont());
         if (style.getRadius) this.assign(s, "radius", style.getRadius());
         if (style.getRadius2) this.assign(s, "radius2", style.getRadius2());
-        if (style.getPoints) this.assign(s, "points", style.getPoints() / 2);
+        if (style.getPoints) this.assign(s, "points", style.getPoints());
         if (style.getAngle) this.assign(s, "angle", style.getAngle());
         if (style.getRotation) this.assign(s, "rotation", style.getRotation());
+        if (s.points && s.radius !== s.radius2) s.points /= 2; // ol3 defect doubles point count when r1 <> r2  
         return s;
     }
 
@@ -158,13 +159,12 @@ export class CoretechConverter implements Serializer.IConverter<Coretech.Style> 
             radius: json.radius,
             radius2: json.radius2,
             points: json.points,
+            angle: json.angle,
             fill: this.deserializeFill(json.fill),
             stroke: this.deserializeStroke(json.stroke)
         });
 
-        doif(json.angle, v => {
-            image.setRotation(v); 
-        });
+        doif(json.rotation, v => image.setRotation(v));
         doif(json.opacity, v => image.setOpacity(v));
 
         return image;
