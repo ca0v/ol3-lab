@@ -1486,6 +1486,7 @@ define("ux/serializers/ags-simplemarkersymbol", ["require", "exports", "openlaye
                 }
                 if (!result.style) {
                     result.style = "esriSMSPath";
+                    result.size *= Math.sqrt(2);
                     var strokeWidth = result.outline.width;
                     var size = 2 * (r1 + strokeWidth) + 1;
                     var path = [];
@@ -1733,6 +1734,10 @@ define("ux/serializers/coretech", ["require", "exports", "openlayers"], function
         if (typeof v !== "undefined")
             cb(v);
     }
+    function mixin(a, b) {
+        Object.keys(b).forEach(function (k) { return a[k] = b[k]; });
+        return a;
+    }
     var CoretechConverter = (function () {
         function CoretechConverter() {
         }
@@ -1770,7 +1775,7 @@ define("ux/serializers/coretech", ["require", "exports", "openlayers"], function
             if (typeof style === "number")
                 return style;
             if (style.getColor)
-                this.assign(s, "color", this.serializeColor(style.getColor()));
+                mixin(s, this.serializeColor(style.getColor()));
             if (style.getImage)
                 this.assign(s, "image", this.serializeStyle(style.getImage()));
             if (style.getFill)
@@ -1806,7 +1811,27 @@ define("ux/serializers/coretech", ["require", "exports", "openlayers"], function
             return s;
         };
         CoretechConverter.prototype.serializeColor = function (color) {
-            return typeof color === "string" ? color : ol.color.asString(ol.color.asArray(color));
+            if (color instanceof Array) {
+                return {
+                    color: ol.color.asString(color)
+                };
+            }
+            else if (color instanceof CanvasGradient) {
+                return {
+                    gradient: color
+                };
+            }
+            else if (color instanceof CanvasPattern) {
+                return {
+                    pattern: color
+                };
+            }
+            else if (typeof color === "string") {
+                return {
+                    color: color
+                };
+            }
+            throw "unknown color type";
         };
         CoretechConverter.prototype.serializeFill = function (fill) {
             return this.serializeStyle(fill);
@@ -1860,7 +1885,7 @@ define("ux/serializers/coretech", ["require", "exports", "openlayers"], function
         };
         CoretechConverter.prototype.deserializeFill = function (json) {
             var fill = new ol.style.Fill({
-                color: json.color
+                color: this.deserializeColor(json)
             });
             return fill;
         };
@@ -1869,6 +1894,54 @@ define("ux/serializers/coretech", ["require", "exports", "openlayers"], function
             doif(json.color, function (v) { return stroke.setColor(v); });
             doif(json.width, function (v) { return stroke.setWidth(v); });
             return stroke;
+        };
+        CoretechConverter.prototype.deserializeColor = function (fill) {
+            if (fill.color) {
+                return fill.color;
+            }
+            if (fill.gradient) {
+                var type = fill.gradient.type;
+                var gradient_1;
+                if (0 === type.indexOf("linear(")) {
+                    gradient_1 = this.deserializeLinearGradient(fill.gradient);
+                }
+                else if (0 === type.indexOf("radial(")) {
+                    gradient_1 = this.deserializeRadialGradient(fill.gradient);
+                }
+                if (fill.gradient.stops) {
+                    var stops = fill.gradient.stops.split(";");
+                    stops = stops.map(function (v) { return v.trim(); });
+                    var colorStops = stops.forEach(function (colorstop) {
+                        var stop = colorstop.match(/ \d+%/m)[0];
+                        var color = colorstop.substr(0, colorstop.length - stop.length);
+                        gradient_1.addColorStop(parseInt(stop) / 100, color);
+                    });
+                }
+                return gradient_1;
+            }
+            throw "invalid color configuration";
+        };
+        CoretechConverter.prototype.deserializeLinearGradient = function (json) {
+            var rx = /\w+\((.*)\)/m;
+            var _a = JSON.parse(json.type.replace(rx, "[$1]")), x0 = _a[0], y0 = _a[1], x1 = _a[2], y1 = _a[3];
+            var canvas = document.createElement('canvas');
+            canvas.width = Math.max(x0, x1);
+            canvas.height = Math.max(y0, y1);
+            var context = canvas.getContext('2d');
+            var gradient = context.createLinearGradient(x0, y0, x1, y1);
+            gradient.type = "linear(" + [x0, y0, x1, y1].join(",") + ")";
+            return gradient;
+        };
+        CoretechConverter.prototype.deserializeRadialGradient = function (json) {
+            var rx = /radial\((.*)\)/m;
+            var _a = JSON.parse(json.type.replace(rx, "[$1]")), x0 = _a[0], y0 = _a[1], r0 = _a[2], x1 = _a[3], y1 = _a[4], r1 = _a[5];
+            var canvas = document.createElement('canvas');
+            canvas.width = 2 * Math.max(x0, x1);
+            canvas.height = 2 * Math.max(y0, y1);
+            var context = canvas.getContext('2d');
+            var gradient = context.createRadialGradient(x0, y0, r0, x1, y1, r1);
+            gradient.type = "radial(" + [x0, y0, r0, x1, y1, r1].join(",") + ")";
+            return gradient;
         };
         return CoretechConverter;
     }());
@@ -1896,7 +1969,7 @@ define("ux/styles/gradient", ["require", "exports"], function (require, exports)
 define("ux/style-generator", ["require", "exports", "openlayers", "ux/styles/basic", "ux/serializers/coretech"], function (require, exports, ol, basic_styles, Coretech) {
     "use strict";
     var converter = new Coretech.CoretechConverter();
-    var orientations = "diagonal1,diagonal2,horizontal,vertical".split(",");
+    var orientations = "forward,backward,diagonal,horizontal,vertical,cross".split(",");
     var range = function (n) {
         var result = new Array(n);
         for (var i = 0; i < n; i++)
@@ -1919,14 +1992,15 @@ define("ux/style-generator", ["require", "exports", "openlayers", "ux/styles/bas
         };
         StyleGenerator.prototype.asPastel = function () {
             var _a = [255, 255, 255].map(function (n) { return Math.round((1 - Math.random() * Math.random()) * n); }), r = _a[0], g = _a[1], b = _a[2];
-            return [r, g, b, 0.1 + (0.5 * Math.random())];
+            return [r, g, b, (10 + randint(50)) / 100];
         };
         StyleGenerator.prototype.asRgb = function () {
             return [255, 255, 255].map(function (n) { return Math.round((Math.random() * Math.random()) * n); });
         };
-        StyleGenerator.prototype.asColor = function () {
-            var _a = [255, 255, 255].map(function (n) { return Math.round((Math.random() * Math.random()) * n); }), r = _a[0], g = _a[1], b = _a[2];
-            return [r, g, b, 0.1 + (0.9 * Math.random())];
+        StyleGenerator.prototype.asRgba = function () {
+            var color = this.asRgb();
+            color.push((10 + randint(90)) / 100);
+            return color;
         };
         StyleGenerator.prototype.asFill = function () {
             var fill = new ol.style.Fill({
@@ -1937,9 +2011,49 @@ define("ux/style-generator", ["require", "exports", "openlayers", "ux/styles/bas
         StyleGenerator.prototype.asStroke = function () {
             var stroke = new ol.style.Stroke({
                 width: this.asWidth(),
-                color: this.asColor()
+                color: this.asRgba()
             });
             return stroke;
+        };
+        StyleGenerator.prototype.addColorStops = function (gradient) {
+            var stops = [
+                {
+                    stop: 0,
+                    color: "rgba(" + this.asRgba().join(",") + ")"
+                },
+                {
+                    stop: 1,
+                    color: "rgba(" + this.asRgba().join(",") + ")"
+                }
+            ];
+            while (0.5 < Math.random()) {
+                stops.push({
+                    stop: 0.1 + randint(80) / 100,
+                    color: "rgba(" + this.asRgba().join(",") + ")"
+                });
+            }
+            stops = stops.sort(function (a, b) { return a.stop - b.stop; });
+            stops.forEach(function (stop) { return gradient.addColorStop(stop.stop, stop.color); });
+            gradient.stops = stops.map(function (stop) { return (stop.color + " " + Math.round(100 * stop.stop) + "%"); }).join(";");
+        };
+        StyleGenerator.prototype.asRadialGradient = function (context, radius) {
+            var canvas = context.canvas;
+            var _a = [
+                canvas.width / 2, canvas.height / 2, radius,
+                canvas.width / 2, canvas.height / 2, 0
+            ], x0 = _a[0], y0 = _a[1], r0 = _a[2], x1 = _a[3], y1 = _a[4], r1 = _a[5];
+            var gradient = context.createRadialGradient(x0, y0, r0, x1, y1, r1);
+            gradient.type = "radial(" + [x0, y0, r0, x1, y1, r1].join(",") + ")";
+            return gradient;
+        };
+        StyleGenerator.prototype.asLinearGradient = function (context, radius) {
+            var _a = [
+                randint(radius), 0,
+                randint(radius), 2 * radius
+            ], x0 = _a[0], y0 = _a[1], x1 = _a[2], y1 = _a[3];
+            var gradient = context.createLinearGradient(x0, y0, x1, y1);
+            gradient.type = "linear(" + [x0, y0, x1, y1].join(",") + ")";
+            return gradient;
         };
         StyleGenerator.prototype.asGradient = function () {
             var radius = this.asRadius();
@@ -1949,16 +2063,12 @@ define("ux/style-generator", ["require", "exports", "openlayers", "ux/styles/bas
             var context = canvas.getContext('2d');
             var gradient;
             if (0.5 < Math.random()) {
-                gradient = context.createLinearGradient(Math.random() * radius, 0, Math.random() * radius, 2 * radius);
+                gradient = this.asLinearGradient(context, radius);
             }
             else {
-                gradient = context.createRadialGradient(canvas.width / 2, canvas.height / 2, radius, canvas.width / 2, canvas.height / 2, 0);
+                gradient = this.asRadialGradient(context, radius);
             }
-            gradient.addColorStop(0, "rgba(" + this.asColor().join(",") + ")");
-            while (0.5 < Math.random()) {
-                gradient.addColorStop(Math.random(), "rgba(" + this.asColor().join(",") + ")");
-            }
-            gradient.addColorStop(1, "rgba(" + this.asColor().join(",") + ")");
+            this.addColorStops(gradient);
             var fill = new ol.style.Fill({
                 color: gradient
             });
@@ -1980,6 +2090,7 @@ define("ux/style-generator", ["require", "exports", "openlayers", "ux/styles/bas
                 case "horizontal":
                     canvas.width = 1;
                     canvas.height = 1 + randint(10);
+                    context.strokeStyle = ol.color.asString(this.asRgb());
                     context.beginPath();
                     context.lineWidth = 1 + randint(canvas.height);
                     context.strokeStyle = ol.color.asString(this.asRgb());
@@ -1992,24 +2103,46 @@ define("ux/style-generator", ["require", "exports", "openlayers", "ux/styles/bas
                 case "vertical":
                     canvas.width = 6;
                     canvas.height = 6;
-                    context.fillStyle = ol.color.asString(this.asRgb());
+                    context.fillStyle = ol.color.asString(this.asRgba());
                     for (var i = 0; i < 6; i++) {
                         context.fillRect(0, i, 1, 1);
                     }
                     pattern = context.createPattern(canvas, 'repeat');
                     break;
-                case "diagonal1":
+                case "cross":
                     canvas.width = 6;
                     canvas.height = 6;
+                    context.fillStyle = ol.color.asString(this.asRgb());
+                    for (var i = 0; i < 6; i++) {
+                        context.fillRect(i, 0, 1, 1);
+                        context.fillRect(0, i, 1, 1);
+                    }
+                    pattern = context.createPattern(canvas, 'repeat');
+                    break;
+                case "forward":
+                    canvas.width = 6;
+                    canvas.height = 6;
+                    context.fillStyle = ol.color.asString(this.asRgb());
                     for (var i = 0; i < 6; i++) {
                         context.fillRect(i, i, 1, 1);
                     }
                     pattern = context.createPattern(canvas, 'repeat');
                     break;
-                case "diagonal2":
+                case "backward":
                     canvas.width = 6;
                     canvas.height = 6;
+                    context.fillStyle = ol.color.asString(this.asRgb());
                     for (var i = 0; i < 6; i++) {
+                        context.fillRect(5 - i, i, 1, 1);
+                    }
+                    pattern = context.createPattern(canvas, 'repeat');
+                    break;
+                case "diagonal":
+                    canvas.width = 6;
+                    canvas.height = 6;
+                    context.fillStyle = ol.color.asString(this.asRgb());
+                    for (var i = 0; i < 6; i++) {
+                        context.fillRect(i, i, 1, 1);
                         context.fillRect(5 - i, i, 1, 1);
                     }
                     pattern = context.createPattern(canvas, 'repeat');
@@ -2017,6 +2150,8 @@ define("ux/style-generator", ["require", "exports", "openlayers", "ux/styles/bas
                 default:
                     throw "invalid orientation";
             }
+            pattern.image = canvas.toDataURL();
+            pattern.repitition = "repeat";
             var fill = new ol.style.Fill({
                 color: pattern
             });
@@ -2071,7 +2206,7 @@ define("ux/style-generator", ["require", "exports", "openlayers", "ux/styles/bas
                 stroke: this.asStroke(),
                 offsetY: 30 - Math.random() * 20
             });
-            style.getFill().setColor(this.asColor());
+            style.getFill().setColor(this.asRgba());
             style.getStroke().setColor(this.asPastel());
             return style;
         };
@@ -2349,6 +2484,20 @@ define("ux/ags-symbols", ["require", "exports", "openlayers", "ux/serializers/ag
     }
     exports.run = run;
 });
+define("ux/image-data-viewer", ["require", "exports", "jquery"], function (require, exports, $) {
+    "use strict";
+    var data = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAYAAAAGCAYAAADgzO9IAAAAF0lEQVQIW2O0rmLrOtr2q4wBDTAOpAQAuYQYB1lDoxAAAAAASUVORK5CYII=";
+    var css = "\n<style>\n    img {\n        width: auto;\n        height: auto;\n        border: 1px dashed rgba(0, 0, 0, 0.5);\n        padding: 20px;\n    }\n\n    label {\n        display: block;\n    }\n\n    textarea {\n        min-width: 240px;\n        min-height: 240px;\n    }\n</style>\n";
+    var ux = "\n<div class=\"image-data-viewer\">\n    <h3>Tool for viewing image data</h3>\n    <p>Paste image data into Image Data to see the image under Image</p>\n    <label>Image Data</label> \n    <textarea class='image-data-input'></textarea>\n    <label>Image</label> \n    <img class='image'/>\n</div>\n";
+    function run() {
+        $(ux).appendTo(".map");
+        $(css).appendTo("head");
+        $(".image-data-input").change(function () {
+            $(".image").attr("src", $(".image-data-input").val());
+        }).val(data).change();
+    }
+    exports.run = run;
+});
 define("ux/polyline-encoder", ["require", "exports", "jquery", "openlayers", "google-polyline"], function (require, exports, $, ol, PolylineEncoder) {
     "use strict";
     var PRECISION = 6;
@@ -2440,8 +2589,8 @@ define("ux/style-lab", ["require", "exports", "openlayers", "jquery", "ux/serial
         center: center,
         fromJson: function (json) { return formatter.fromJson(json); }
     });
-    var ux = "\n<div class='form'>\n    <label for='use-ags-serializer'>use-ags-serializer?</label>\n    <input type=\"checkbox\" id=\"use-ags-serializer\"/>\n    <label for='style-count'>How many styles per symbol?</label>\n    <input id='style-count' type=\"number\" value=\"1\" />\n    <label for='style-out'>Click marker to see style here:</label>\n    <textarea id='style-out'></textarea>\n    <label for='apply-style'>Apply this style to some of the features</label>\n    <button id='apply-style'>Apply</button>\n<div>\n";
-    var css = "\n<style>\n    html, body, .map {\n        width: 100%;\n        height: 100%;\n        overflow: hidden;    \n    }\n\n    label {\n        display: block;\n    }\n\n    .form {\n        padding: 20px;\n        position:absolute;\n        top: 40px;\n        right: 40px;\n        z-index: 1;\n        background-color: rgba(255, 255, 255, 0.8);\n        border: 1px solid black;\n    }\n\n    #style-count {\n        vertical-align: top;\n    }\n\n    #style-out {\n        font-family: cursive;\n        font-size: smaller;\n        min-width: 320px;\n        min-height: 240px;\n    }\n</style>\n";
+    var ux = "\n<div class='form'>\n    <label for='use-ags-serializer'>use-ags-serializer?</label>\n    <input type=\"checkbox\" id=\"use-ags-serializer\"/>\n    <label for='style-count'>How many styles per symbol?</label>\n    <input id='style-count' type=\"number\" value=\"1\" min=\"1\" max=\"5\"/><button id='more'>More</button>\n    <label for='style-out'>Click marker to see style here:</label>\n    <textarea id='style-out'>[\n\t{\n\t\t\"star\": {\n\t\t\t\"fill\": {\n\t\t\t\t\"color\": \"rgba(228,254,211,0.57)\"\n\t\t\t},\n\t\t\t\"opacity\": 1,\n\t\t\t\"stroke\": {\n\t\t\t\t\"color\": \"rgba(67,8,10,0.61)\",\n\t\t\t\t\"width\": 8\n\t\t\t},\n\t\t\t\"radius\": 22,\n\t\t\t\"radius2\": 16,\n\t\t\t\"points\": 11,\n\t\t\t\"angle\": 0,\n\t\t\t\"rotation\": 0\n\t\t}\n\t}\n]</textarea>\n    <label for='apply-style'>Apply this style to some of the features</label>\n    <button id='apply-style'>Apply</button>\n<div>\n";
+    var css = "\n<style>\n    html, body, .map {\n        width: 100%;\n        height: 100%;\n        padding: 0;\n        overflow: hidden;\n        margin: 0;    \n    }\n\n    .map {\n        background-color: black;\n    }\n\n    label {\n        display: block;\n    }\n\n    .form {\n        padding: 20px;\n        position:absolute;\n        top: 8px;\n        left: 40px;\n        z-index: 1;\n        background-color: rgba(255, 255, 255, 0.8);\n        border: 1px solid black;\n    }\n\n    #style-count {\n        vertical-align: top;\n    }\n\n    #style-out {\n        font-family: cursive;\n        font-size: smaller;\n        min-width: 320px;\n        min-height: 240px;\n    }\n</style>\n";
     function run() {
         var formatter;
         $(ux).appendTo(".map");
@@ -2464,6 +2613,7 @@ define("ux/style-lab", ["require", "exports", "openlayers", "jquery", "ux/serial
             layers: []
         });
         var styleOut = document.getElementById("style-out");
+        $("#more").click(function () { return $("#style-count").change(); });
         $("#style-count").on("change", function (args) {
             map.addLayer(generator.asMarkerLayer({
                 markerCount: 100,

@@ -18,9 +18,27 @@ let ux = `
     <label for='use-ags-serializer'>use-ags-serializer?</label>
     <input type="checkbox" id="use-ags-serializer"/>
     <label for='style-count'>How many styles per symbol?</label>
-    <input id='style-count' type="number" value="1" />
+    <input id='style-count' type="number" value="1" min="1" max="5"/><button id='more'>More</button>
     <label for='style-out'>Click marker to see style here:</label>
-    <textarea id='style-out'></textarea>
+    <textarea id='style-out'>[
+	{
+		"star": {
+			"fill": {
+				"color": "rgba(228,254,211,0.57)"
+			},
+			"opacity": 1,
+			"stroke": {
+				"color": "rgba(67,8,10,0.61)",
+				"width": 8
+			},
+			"radius": 22,
+			"radius2": 16,
+			"points": 11,
+			"angle": 0,
+			"rotation": 0
+		}
+	}
+]</textarea>
     <label for='apply-style'>Apply this style to some of the features</label>
     <button id='apply-style'>Apply</button>
 <div>
@@ -31,7 +49,13 @@ let css = `
     html, body, .map {
         width: 100%;
         height: 100%;
-        overflow: hidden;    
+        padding: 0;
+        overflow: hidden;
+        margin: 0;    
+    }
+
+    .map {
+        background-color: black;
     }
 
     label {
@@ -41,8 +65,8 @@ let css = `
     .form {
         padding: 20px;
         position:absolute;
-        top: 40px;
-        right: 40px;
+        top: 8px;
+        left: 40px;
         z-index: 1;
         background-color: rgba(255, 255, 255, 0.8);
         border: 1px solid black;
@@ -87,6 +111,8 @@ export function run() {
     });
 
     let styleOut = <HTMLTextAreaElement>document.getElementById("style-out");
+
+    $("#more").click(() => $("#style-count").change());
 
     $("#style-count").on("change", args => {
         map.addLayer(generator.asMarkerLayer({

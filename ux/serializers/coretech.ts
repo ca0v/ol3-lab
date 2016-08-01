@@ -44,6 +44,11 @@ function doif<T>(v: T, cb: (v: T) => void) {
     if (typeof v !== "undefined") cb(v);
 }
 
+function mixin<A extends any, B extends any>(a: A, b: B) {
+    Object.keys(b).forEach(k => a[k] = b[k]);
+    return <A & B>a;
+}
+
 /**
  * See also, leaflet styles:
   	weight: 2,
@@ -90,7 +95,7 @@ export class CoretechConverter implements Serializer.IConverter<Coretech.Style> 
         if (typeof style === "string") return style;
         if (typeof style === "number") return style;
 
-        if (style.getColor) this.assign(s, "color", this.serializeColor(style.getColor()));
+        if (style.getColor) mixin(s, this.serializeColor(style.getColor()));
         if (style.getImage) this.assign(s, "image", this.serializeStyle(style.getImage()));
         if (style.getFill) this.assign(s, "fill", this.serializeFill(style.getFill()));
         if (style.getOpacity) this.assign(s, "opacity", style.getOpacity());
@@ -110,8 +115,28 @@ export class CoretechConverter implements Serializer.IConverter<Coretech.Style> 
         return s;
     }
 
-    private serializeColor(color: ol.Color) {
-        return typeof color === "string" ? color : ol.color.asString(ol.color.asArray(color));
+    private serializeColor(color: string | number[] | CanvasGradient | CanvasPattern): Object {
+        if (color instanceof Array) {
+            return {
+                color: ol.color.asString(color)
+            };
+        }
+        else if (color instanceof CanvasGradient) {
+            return {
+                gradient: color
+            };
+        }
+        else if (color instanceof CanvasPattern) {
+            return {
+                pattern: color
+            };
+        }
+        else if (typeof color === "string") {
+            return {
+                color: color
+            };
+        }
+        throw "unknown color type";
     }
 
     private serializeFill(fill: ol.style.Fill) {
@@ -172,7 +197,7 @@ export class CoretechConverter implements Serializer.IConverter<Coretech.Style> 
 
     private deserializeFill(json: any) {
         let fill = new ol.style.Fill({
-            color: json.color
+            color: this.deserializeColor(json)
         });
         return fill;
     }
@@ -183,4 +208,72 @@ export class CoretechConverter implements Serializer.IConverter<Coretech.Style> 
         doif(json.width, v => stroke.setWidth(v));
         return stroke;
     }
+
+    private deserializeColor(fill: any) {
+        if (fill.color) {
+            return fill.color;
+        }
+        if (fill.gradient) {
+            let type = <string>fill.gradient.type;
+            let gradient: CanvasGradient;
+
+            if (0 === type.indexOf("linear(")) {
+                gradient = this.deserializeLinearGradient(fill.gradient);
+            }
+            else if (0 === type.indexOf("radial(")) {
+                gradient = this.deserializeRadialGradient(fill.gradient);
+            }
+
+            if (fill.gradient.stops) {
+                let stops = <string[]>fill.gradient.stops.split(";");
+                stops = stops.map(v => v.trim());
+
+                let colorStops = stops.forEach(colorstop => {
+                    let stop = colorstop.match(/ \d+%/m)[0];
+                    let color = colorstop.substr(0, colorstop.length - stop.length);
+                    gradient.addColorStop(parseInt(stop) / 100, color);
+                });
+            }
+
+            return gradient;            
+        }
+
+        throw "invalid color configuration";
+    }
+
+    private deserializeLinearGradient(json: any) {
+        let rx = /\w+\((.*)\)/m;
+        let [x0, y0, x1, y1] = JSON.parse(json.type.replace(rx, "[$1]"));
+
+        let canvas = document.createElement('canvas');
+
+        // not correct, assumes points reside on edge
+        canvas.width = Math.max(x0, x1);
+        canvas.height = Math.max(y0, y1);
+
+        var context = canvas.getContext('2d');
+
+        let gradient = context.createLinearGradient(x0, y0, x1, y1);
+        gradient.type = `linear(${[x0, y0, x1, y1].join(",")})`;
+        return gradient;
+    }
+
+    private deserializeRadialGradient(json: any) {
+        let rx = /radial\((.*)\)/m;
+        let [x0, y0, r0, x1, y1, r1] = JSON.parse(json.type.replace(rx, "[$1]"));
+
+        let canvas = document.createElement('canvas');
+
+        // not correct, assumes radial centered
+        canvas.width = 2 * Math.max(x0, x1);
+        canvas.height = 2 * Math.max(y0, y1);
+
+        var context = canvas.getContext('2d');
+
+        let gradient = context.createRadialGradient(x0, y0, r0, x1, y1, r1);        
+        gradient.type = `radial(${[x0, y0, r0, x1, y1, r1].join(",")})`;
+
+        return gradient;
+    }
+
 }

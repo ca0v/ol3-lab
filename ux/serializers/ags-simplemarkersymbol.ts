@@ -152,6 +152,7 @@ export class SimpleMarkerConverter implements Serializer.IConverter<SimpleMarker
             if (!result.style) {
                 // ESRI has no support for ol3 regular shapes, maybe compute a path from radius2 and points?
                 result.style = "esriSMSPath";
+                result.size *= Math.sqrt(2);
                 /*
                 M = moveto
                 L = lineto
