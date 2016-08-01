@@ -4,20 +4,25 @@ let data = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAAA9CAYAAAAd1W/BAA
 
 let css = `
 <style>
-    img {
+    .image-data-viewer .area {
+        padding: 20px;
+    }
+
+    .image-data-viewer img {
         width: auto;
         height: auto;
         border: 1px dashed rgba(0, 0, 0, 0.5);
         padding: 20px;
     }
 
-    label {
+    .image-data-viewer label {
         display: block;
     }
 
-    textarea {
-        min-width: 240px;
-        min-height: 240px;
+    .image-data-viewer textarea {
+        width: 100%;
+        height: 40px;
+        white-space: nowrap;
     }
 </style>
 `;
@@ -26,12 +31,35 @@ let ux = `
 <div class="image-data-viewer">
     <h3>Tool for viewing image data</h3>
     <p>Paste an Image into Image Data to view the Image below</p>
-    <label>Image Data</label> 
-    <textarea class='image-data-input'></textarea>
-    <label>Image</label> 
-    <img class='image'/>
+    <div class='area'>
+        <label>Image Data (paste image or text here)</label> 
+        <textarea autocomplete="off" spellcheck="false" class='image-data-input'></textarea>
+    </div>
+    <div class='area'>
+        <label>Image</label> 
+        <img class='image'/>
+    </div>
+    <div class='area'>
+        <label>Select an Image to update the Image Data and then the Image</label>
+        <input class='image-file' type='file' accept='image/*' />
+    </div>
 </div>
 `;
+
+// http://www.javascripture.com/FileReader
+let openFile = function (event: Event) {
+    var input = <HTMLInputElement>event.target;
+    var reader = new FileReader();
+    // $.val is very slow!
+    //reader.onload = () => $(".image-data-input").val(reader.result).change();
+    reader.onload = () => {
+        let textarea = $(".image-data-input");
+        (<HTMLTextAreaElement>textarea[0]).value = reader.result;
+        textarea.change();
+    };
+
+    reader.readAsDataURL(input.files[0]);
+};
 
 // from http://jsfiddle.net/bt7BU/225/
 let pasteHandler = (event: ClipboardEvent) => {
@@ -65,4 +93,6 @@ export function run() {
     }).val(data).change();
 
     $(".image-data-input").on("paste", pasteHandler);
+
+    $(".image-file").change(openFile);
 }
