@@ -14,7 +14,7 @@ let generator = new StyleGenerator({
 });
 
 let ux = `
-<div class='form'>
+<div class='style-lab'>
     <label for='use-ags-serializer'>use-ags-serializer?</label>
     <input type="checkbox" id="use-ags-serializer"/>
     <label for='style-count'>How many styles per symbol?</label>
@@ -41,6 +41,12 @@ let ux = `
 ]</textarea>
     <label for='apply-style'>Apply this style to some of the features</label>
     <button id='apply-style'>Apply</button>
+    <div class='area'>
+        <label>Last image clicked:</label>
+        <img class='last-image-clicked light' />
+        <img class='last-image-clicked bright' />
+        <img class='last-image-clicked dark' />
+    </div>
 <div>
 `;
 
@@ -58,11 +64,19 @@ let css = `
         background-color: black;
     }
 
-    label {
-        display: block;
+    .map.dark {
+        background: black;
     }
 
-    .form {
+    .map.light {
+        background: silver;
+    }
+
+    .map.bright {
+        background: white;
+    }
+
+    .style-lab {
         padding: 20px;
         position:absolute;
         top: 8px;
@@ -72,16 +86,37 @@ let css = `
         border: 1px solid black;
     }
 
-    #style-count {
+    .style-lab .area {
+        padding-top: 20px;
+    }
+
+    .style-lab label {
+        display: block;
+    }
+
+    .style-lab #style-count {
         vertical-align: top;
     }
 
-    #style-out {
+    .style-lab #style-out {
         font-family: cursive;
         font-size: smaller;
         min-width: 320px;
         min-height: 240px;
     }
+
+    .style-lab .dark {
+        background: black;
+    }
+
+    .style-lab .light {
+        background: silver;
+    }
+
+    .style-lab .bright {
+        background: white;
+    }
+
 </style>
 `;
 
@@ -145,6 +180,24 @@ export function run() {
             throw "todo";
         }
         styleOut.value = json;
+
+        {
+            if (Array.isArray(style)) {
+                let s = <HTMLCanvasElement | ol.style.Style>style[0];
+                while (!(s instanceof HTMLCanvasElement)) {
+                    s = s.getImage();
+                }
+                if (s instanceof HTMLCanvasElement) {
+                    let dataUrl = s.toDataURL();
+                    $(".last-image-clicked").attr("src", dataUrl);
+                }
+            }
+        }
     }));
+
+    $(".last-image-clicked").click(evt => {
+        "light,dark,bright".split(",").forEach(c => $("#map").toggleClass(c, $(evt.target).hasClass(c)));
+    });
+
     return map;
 }

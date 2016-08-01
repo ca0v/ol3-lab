@@ -225,6 +225,9 @@ export class CoretechConverter implements Serializer.IConverter<Coretech.Style> 
             }
 
             if (fill.gradient.stops) {
+                // preserve
+                gradient.stops = fill.gradient.stops;
+
                 let stops = <string[]>fill.gradient.stops.split(";");
                 stops = stops.map(v => v.trim());
 
@@ -235,7 +238,7 @@ export class CoretechConverter implements Serializer.IConverter<Coretech.Style> 
                 });
             }
 
-            return gradient;            
+            return gradient;
         }
 
         throw "invalid color configuration";
@@ -270,7 +273,7 @@ export class CoretechConverter implements Serializer.IConverter<Coretech.Style> 
 
         var context = canvas.getContext('2d');
 
-        let gradient = context.createRadialGradient(x0, y0, r0, x1, y1, r1);        
+        let gradient = context.createRadialGradient(x0, y0, r0, x1, y1, r1);
         gradient.type = `radial(${[x0, y0, r0, x1, y1, r1].join(",")})`;
 
         return gradient;
