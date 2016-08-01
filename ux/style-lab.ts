@@ -158,7 +158,6 @@ export function run() {
 
     $("#apply-style").on("click", () => {
         let json = <any[]>JSON.parse(styleOut.value);
-        console.log(json);
         let styles = json.map(json => formatter.fromJson(json));
         map.getLayers().forEach(l => {
             if (l instanceof ol.layer.Vector) {

@@ -8,6 +8,11 @@ let converter = new Coretech.CoretechConverter();
 // TODO: do these have pre-defined names on ol3/ags?
 const orientations = "forward,backward,diagonal,horizontal,vertical,cross".split(",");
 
+function mixin<A extends any, B extends any>(a: A, b: B) {
+    Object.keys(b).forEach(k => a[k] = b[k]);
+    return <A & B>a;
+}
+
 let range = (n: number) => {
     var result = new Array(n);
     for (var i = 0; i < n; i++) result[i] = i;
@@ -86,9 +91,11 @@ class StyleGenerator {
             });
         }
 
-        stops = stops.sort((a, b) => a.stop - b.stop);        
+        stops = stops.sort((a, b) => a.stop - b.stop);
         stops.forEach(stop => gradient.addColorStop(stop.stop, stop.color));
-        gradient.stops = stops.map(stop => `${stop.color} ${Math.round(100 * stop.stop)}%`).join(";");
+        mixin(gradient, {
+            stops: stops.map(stop => `${stop.color} ${Math.round(100 * stop.stop)}%`).join(";")
+        });
     }
 
     private asRadialGradient(context: CanvasRenderingContext2D, radius: number) {
@@ -97,10 +104,11 @@ class StyleGenerator {
             canvas.width / 2, canvas.height / 2, radius,
             canvas.width / 2, canvas.height / 2, 0
         ];
-        let gradient = context.createRadialGradient(x0, y0, r0, x1, y1, r1);        
-        gradient.type = `radial(${[x0, y0, r0, x1, y1, r1].join(",")})`;
+        let gradient = context.createRadialGradient(x0, y0, r0, x1, y1, r1);
 
-        return gradient;
+        return mixin(gradient, {
+            type: `radial(${[x0, y0, r0, x1, y1, r1].join(",")})`
+        });
     }
 
     private asLinearGradient(context: CanvasRenderingContext2D, radius: number) {
@@ -109,9 +117,8 @@ class StyleGenerator {
             randint(radius), 2 * radius // end
         ];
         let gradient = context.createLinearGradient(x0, y0, x1, y1);
-        gradient.type = `linear(${[x0, y0, x1, y1].join(",")})`;
 
-        return gradient;
+        return mixin(gradient, { type: `linear(${[x0, y0, x1, y1].join(",")})` });
     }
 
 
@@ -150,6 +157,9 @@ class StyleGenerator {
 
     asPattern() {
         let radius = this.asRadius();
+        let spacing = 3 + randint(5);
+
+        let color = ol.color.asString(this.asRgb());
 
         let canvas = document.createElement('canvas');
 
@@ -163,11 +173,11 @@ class StyleGenerator {
             case "horizontal":
                 canvas.width = 1;
                 canvas.height = 1 + randint(10);
-                context.strokeStyle = ol.color.asString(this.asRgb());
+                context.strokeStyle = color;
 
                 context.beginPath();
                 context.lineWidth = 1 + randint(canvas.height);
-                context.strokeStyle = ol.color.asString(this.asRgb());
+                context.strokeStyle = color;
                 context.moveTo(0, 0);
                 context.lineTo(canvas.width, 0);
                 context.stroke();
@@ -175,54 +185,54 @@ class StyleGenerator {
                 pattern = context.createPattern(canvas, 'repeat');
                 break;
             case "vertical":
-                canvas.width = 6;
-                canvas.height = 6;
+                canvas.width = spacing;
+                canvas.height = spacing;
                 context.fillStyle = ol.color.asString(this.asRgba());
 
-                for (var i = 0; i < 6; i++) {
+                for (var i = 0; i < spacing; i++) {
                     context.fillRect(0, i, 1, 1);
                 }
                 pattern = context.createPattern(canvas, 'repeat');
                 break;
             case "cross":
-                canvas.width = 6;
-                canvas.height = 6;
-                context.fillStyle = ol.color.asString(this.asRgb());
+                canvas.width = spacing;
+                canvas.height = spacing;
+                context.fillStyle = color;
 
-                for (var i = 0; i < 6; i++) {
+                for (var i = 0; i < spacing; i++) {
                     context.fillRect(i, 0, 1, 1);
                     context.fillRect(0, i, 1, 1);
                 }
                 pattern = context.createPattern(canvas, 'repeat');
                 break;
             case "forward":
-                canvas.width = 6;
-                canvas.height = 6;
-                context.fillStyle = ol.color.asString(this.asRgb());
+                canvas.width = spacing;
+                canvas.height = spacing;
+                context.fillStyle = color;
 
-                for (var i = 0; i < 6; i++) {
+                for (var i = 0; i < spacing; i++) {
                     context.fillRect(i, i, 1, 1);
                 }
                 pattern = context.createPattern(canvas, 'repeat');
                 break;
             case "backward":
-                canvas.width = 6;
-                canvas.height = 6;
-                context.fillStyle = ol.color.asString(this.asRgb());
+                canvas.width = spacing;
+                canvas.height = spacing;
+                context.fillStyle = color;
 
-                for (var i = 0; i < 6; i++) {
-                    context.fillRect(5 - i, i, 1, 1);
+                for (var i = 0; i < spacing; i++) {
+                    context.fillRect(spacing - 1 - i, i, 1, 1);
                 }
                 pattern = context.createPattern(canvas, 'repeat');
                 break;
             case "diagonal":
-                canvas.width = 6;
-                canvas.height = 6;
-                context.fillStyle = ol.color.asString(this.asRgb());
+                canvas.width = spacing;
+                canvas.height = spacing;
+                context.fillStyle = color;
 
-                for (var i = 0; i < 6; i++) {
+                for (var i = 0; i < spacing; i++) {
                     context.fillRect(i, i, 1, 1);
-                    context.fillRect(5 - i, i, 1, 1);
+                    context.fillRect(spacing - 1 - i, i, 1, 1);
                 }
                 pattern = context.createPattern(canvas, 'repeat');
                 break;
@@ -230,8 +240,12 @@ class StyleGenerator {
                 throw "invalid orientation";
         }
 
-        pattern.image = canvas.toDataURL();
-        pattern.repitition = "repeat";
+        mixin(pattern, {
+            orientation: orientation,
+            color: color,
+            spacing: spacing,
+            repitition: "repeat"
+        });
 
         let fill = new ol.style.Fill({
             color: pattern

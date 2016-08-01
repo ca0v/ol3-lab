@@ -1909,7 +1909,9 @@ define("ux/serializers/coretech", ["require", "exports", "openlayers"], function
                     gradient_1 = this.deserializeRadialGradient(fill.gradient);
                 }
                 if (fill.gradient.stops) {
-                    gradient_1.stops = fill.gradient.stops;
+                    mixin(gradient_1, {
+                        stops: fill.gradient.stops
+                    });
                     var stops = fill.gradient.stops.split(";");
                     stops = stops.map(function (v) { return v.trim(); });
                     var colorStops = stops.forEach(function (colorstop) {
@@ -1919,6 +1921,48 @@ define("ux/serializers/coretech", ["require", "exports", "openlayers"], function
                     });
                 }
                 return gradient_1;
+            }
+            if (fill.pattern) {
+                var repitition = fill.pattern.repitition;
+                var canvas = document.createElement('canvas');
+                var spacing = canvas.width = canvas.height = fill.pattern.spacing | 6;
+                var context = canvas.getContext('2d');
+                context.fillStyle = fill.pattern.color;
+                switch (fill.pattern.orientation) {
+                    case "horizontal":
+                        for (var i = 0; i < spacing; i++) {
+                            context.fillRect(i, 0, 1, 1);
+                        }
+                        break;
+                    case "vertical":
+                        for (var i = 0; i < spacing; i++) {
+                            context.fillRect(0, i, 1, 1);
+                        }
+                        break;
+                    case "cross":
+                        for (var i = 0; i < spacing; i++) {
+                            context.fillRect(i, 0, 1, 1);
+                            context.fillRect(0, i, 1, 1);
+                        }
+                        break;
+                    case "forward":
+                        for (var i = 0; i < spacing; i++) {
+                            context.fillRect(i, i, 1, 1);
+                        }
+                        break;
+                    case "backward":
+                        for (var i = 0; i < spacing; i++) {
+                            context.fillRect(spacing - 1 - i, i, 1, 1);
+                        }
+                        break;
+                    case "diagonal":
+                        for (var i = 0; i < spacing; i++) {
+                            context.fillRect(i, i, 1, 1);
+                            context.fillRect(spacing - 1 - i, i, 1, 1);
+                        }
+                        break;
+                }
+                return mixin(context.createPattern(canvas, repitition), fill.pattern);
             }
             throw "invalid color configuration";
         };
@@ -1930,7 +1974,9 @@ define("ux/serializers/coretech", ["require", "exports", "openlayers"], function
             canvas.height = Math.max(y0, y1);
             var context = canvas.getContext('2d');
             var gradient = context.createLinearGradient(x0, y0, x1, y1);
-            gradient.type = "linear(" + [x0, y0, x1, y1].join(",") + ")";
+            mixin(gradient, {
+                type: "linear(" + [x0, y0, x1, y1].join(",") + ")"
+            });
             return gradient;
         };
         CoretechConverter.prototype.deserializeRadialGradient = function (json) {
@@ -1941,7 +1987,9 @@ define("ux/serializers/coretech", ["require", "exports", "openlayers"], function
             canvas.height = 2 * Math.max(y0, y1);
             var context = canvas.getContext('2d');
             var gradient = context.createRadialGradient(x0, y0, r0, x1, y1, r1);
-            gradient.type = "radial(" + [x0, y0, r0, x1, y1, r1].join(",") + ")";
+            mixin(gradient, {
+                type: "radial(" + [x0, y0, r0, x1, y1, r1].join(",") + ")"
+            });
             return gradient;
         };
         return CoretechConverter;
@@ -1971,6 +2019,10 @@ define("ux/style-generator", ["require", "exports", "openlayers", "ux/styles/bas
     "use strict";
     var converter = new Coretech.CoretechConverter();
     var orientations = "forward,backward,diagonal,horizontal,vertical,cross".split(",");
+    function mixin(a, b) {
+        Object.keys(b).forEach(function (k) { return a[k] = b[k]; });
+        return a;
+    }
     var range = function (n) {
         var result = new Array(n);
         for (var i = 0; i < n; i++)
@@ -2035,7 +2087,9 @@ define("ux/style-generator", ["require", "exports", "openlayers", "ux/styles/bas
             }
             stops = stops.sort(function (a, b) { return a.stop - b.stop; });
             stops.forEach(function (stop) { return gradient.addColorStop(stop.stop, stop.color); });
-            gradient.stops = stops.map(function (stop) { return (stop.color + " " + Math.round(100 * stop.stop) + "%"); }).join(";");
+            mixin(gradient, {
+                stops: stops.map(function (stop) { return (stop.color + " " + Math.round(100 * stop.stop) + "%"); }).join(";")
+            });
         };
         StyleGenerator.prototype.asRadialGradient = function (context, radius) {
             var canvas = context.canvas;
@@ -2044,8 +2098,9 @@ define("ux/style-generator", ["require", "exports", "openlayers", "ux/styles/bas
                 canvas.width / 2, canvas.height / 2, 0
             ], x0 = _a[0], y0 = _a[1], r0 = _a[2], x1 = _a[3], y1 = _a[4], r1 = _a[5];
             var gradient = context.createRadialGradient(x0, y0, r0, x1, y1, r1);
-            gradient.type = "radial(" + [x0, y0, r0, x1, y1, r1].join(",") + ")";
-            return gradient;
+            return mixin(gradient, {
+                type: "radial(" + [x0, y0, r0, x1, y1, r1].join(",") + ")"
+            });
         };
         StyleGenerator.prototype.asLinearGradient = function (context, radius) {
             var _a = [
@@ -2053,8 +2108,7 @@ define("ux/style-generator", ["require", "exports", "openlayers", "ux/styles/bas
                 randint(radius), 2 * radius
             ], x0 = _a[0], y0 = _a[1], x1 = _a[2], y1 = _a[3];
             var gradient = context.createLinearGradient(x0, y0, x1, y1);
-            gradient.type = "linear(" + [x0, y0, x1, y1].join(",") + ")";
-            return gradient;
+            return mixin(gradient, { type: "linear(" + [x0, y0, x1, y1].join(",") + ")" });
         };
         StyleGenerator.prototype.asGradient = function () {
             var radius = this.asRadius();
@@ -2083,6 +2137,8 @@ define("ux/style-generator", ["require", "exports", "openlayers", "ux/styles/bas
         };
         StyleGenerator.prototype.asPattern = function () {
             var radius = this.asRadius();
+            var spacing = 3 + randint(5);
+            var color = ol.color.asString(this.asRgb());
             var canvas = document.createElement('canvas');
             var context = canvas.getContext('2d');
             var orientation = orientations[Math.round((orientations.length - 1) * Math.random())];
@@ -2091,10 +2147,10 @@ define("ux/style-generator", ["require", "exports", "openlayers", "ux/styles/bas
                 case "horizontal":
                     canvas.width = 1;
                     canvas.height = 1 + randint(10);
-                    context.strokeStyle = ol.color.asString(this.asRgb());
+                    context.strokeStyle = color;
                     context.beginPath();
                     context.lineWidth = 1 + randint(canvas.height);
-                    context.strokeStyle = ol.color.asString(this.asRgb());
+                    context.strokeStyle = color;
                     context.moveTo(0, 0);
                     context.lineTo(canvas.width, 0);
                     context.stroke();
@@ -2102,57 +2158,61 @@ define("ux/style-generator", ["require", "exports", "openlayers", "ux/styles/bas
                     pattern = context.createPattern(canvas, 'repeat');
                     break;
                 case "vertical":
-                    canvas.width = 6;
-                    canvas.height = 6;
+                    canvas.width = spacing;
+                    canvas.height = spacing;
                     context.fillStyle = ol.color.asString(this.asRgba());
-                    for (var i = 0; i < 6; i++) {
+                    for (var i = 0; i < spacing; i++) {
                         context.fillRect(0, i, 1, 1);
                     }
                     pattern = context.createPattern(canvas, 'repeat');
                     break;
                 case "cross":
-                    canvas.width = 6;
-                    canvas.height = 6;
-                    context.fillStyle = ol.color.asString(this.asRgb());
-                    for (var i = 0; i < 6; i++) {
+                    canvas.width = spacing;
+                    canvas.height = spacing;
+                    context.fillStyle = color;
+                    for (var i = 0; i < spacing; i++) {
                         context.fillRect(i, 0, 1, 1);
                         context.fillRect(0, i, 1, 1);
                     }
                     pattern = context.createPattern(canvas, 'repeat');
                     break;
                 case "forward":
-                    canvas.width = 6;
-                    canvas.height = 6;
-                    context.fillStyle = ol.color.asString(this.asRgb());
-                    for (var i = 0; i < 6; i++) {
+                    canvas.width = spacing;
+                    canvas.height = spacing;
+                    context.fillStyle = color;
+                    for (var i = 0; i < spacing; i++) {
                         context.fillRect(i, i, 1, 1);
                     }
                     pattern = context.createPattern(canvas, 'repeat');
                     break;
                 case "backward":
-                    canvas.width = 6;
-                    canvas.height = 6;
-                    context.fillStyle = ol.color.asString(this.asRgb());
-                    for (var i = 0; i < 6; i++) {
-                        context.fillRect(5 - i, i, 1, 1);
+                    canvas.width = spacing;
+                    canvas.height = spacing;
+                    context.fillStyle = color;
+                    for (var i = 0; i < spacing; i++) {
+                        context.fillRect(spacing - 1 - i, i, 1, 1);
                     }
                     pattern = context.createPattern(canvas, 'repeat');
                     break;
                 case "diagonal":
-                    canvas.width = 6;
-                    canvas.height = 6;
-                    context.fillStyle = ol.color.asString(this.asRgb());
-                    for (var i = 0; i < 6; i++) {
+                    canvas.width = spacing;
+                    canvas.height = spacing;
+                    context.fillStyle = color;
+                    for (var i = 0; i < spacing; i++) {
                         context.fillRect(i, i, 1, 1);
-                        context.fillRect(5 - i, i, 1, 1);
+                        context.fillRect(spacing - 1 - i, i, 1, 1);
                     }
                     pattern = context.createPattern(canvas, 'repeat');
                     break;
                 default:
                     throw "invalid orientation";
             }
-            pattern.image = canvas.toDataURL();
-            pattern.repitition = "repeat";
+            mixin(pattern, {
+                orientation: orientation,
+                color: color,
+                spacing: spacing,
+                repitition: "repeat"
+            });
             var fill = new ol.style.Fill({
                 color: pattern
             });
@@ -2652,7 +2712,6 @@ define("ux/style-lab", ["require", "exports", "openlayers", "jquery", "ux/serial
         }).change();
         $("#apply-style").on("click", function () {
             var json = JSON.parse(styleOut.value);
-            console.log(json);
             var styles = json.map(function (json) { return formatter.fromJson(json); });
             map.getLayers().forEach(function (l) {
                 if (l instanceof ol.layer.Vector) {

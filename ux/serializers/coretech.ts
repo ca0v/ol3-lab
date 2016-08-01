@@ -226,7 +226,9 @@ export class CoretechConverter implements Serializer.IConverter<Coretech.Style> 
 
             if (fill.gradient.stops) {
                 // preserve
-                gradient.stops = fill.gradient.stops;
+                mixin(gradient, {
+                    stops: fill.gradient.stops
+                });
 
                 let stops = <string[]>fill.gradient.stops.split(";");
                 stops = stops.map(v => v.trim());
@@ -239,6 +241,53 @@ export class CoretechConverter implements Serializer.IConverter<Coretech.Style> 
             }
 
             return gradient;
+        }
+
+        if (fill.pattern) {
+            let repitition = fill.pattern.repitition;
+            let canvas = <HTMLCanvasElement>document.createElement('canvas');
+
+            let spacing = canvas.width = canvas.height = fill.pattern.spacing | 6;
+
+            let context = canvas.getContext('2d');
+            context.fillStyle = fill.pattern.color;
+
+            switch (fill.pattern.orientation) {
+                case "horizontal":
+                    for (var i = 0; i < spacing; i++) {
+                        context.fillRect(i, 0, 1, 1);
+                    }
+                    break;
+                case "vertical":
+                    for (var i = 0; i < spacing; i++) {
+                        context.fillRect(0, i, 1, 1);
+                    }
+                    break;
+                case "cross":
+                    for (var i = 0; i < spacing; i++) {
+                        context.fillRect(i, 0, 1, 1);
+                        context.fillRect(0, i, 1, 1);
+                    }
+                    break;
+                case "forward":
+                    for (var i = 0; i < spacing; i++) {
+                        context.fillRect(i, i, 1, 1);
+                    }
+                    break;
+                case "backward":
+                    for (var i = 0; i < spacing; i++) {
+                        context.fillRect(spacing - 1 - i, i, 1, 1);
+                    }
+                    break;
+                case "diagonal":
+                    for (var i = 0; i < spacing; i++) {
+                        context.fillRect(i, i, 1, 1);
+                        context.fillRect(spacing - 1 - i, i, 1, 1);
+                    }
+                    break;
+            }
+
+            return mixin(context.createPattern(canvas, repitition), fill.pattern);
         }
 
         throw "invalid color configuration";
@@ -257,7 +306,9 @@ export class CoretechConverter implements Serializer.IConverter<Coretech.Style> 
         var context = canvas.getContext('2d');
 
         let gradient = context.createLinearGradient(x0, y0, x1, y1);
-        gradient.type = `linear(${[x0, y0, x1, y1].join(",")})`;
+        mixin(gradient, {
+            type: `linear(${[x0, y0, x1, y1].join(",")})`
+        });
         return gradient;
     }
 
@@ -274,7 +325,9 @@ export class CoretechConverter implements Serializer.IConverter<Coretech.Style> 
         var context = canvas.getContext('2d');
 
         let gradient = context.createRadialGradient(x0, y0, r0, x1, y1, r1);
-        gradient.type = `radial(${[x0, y0, r0, x1, y1, r1].join(",")})`;
+        mixin(gradient, {
+            type: `radial(${[x0, y0, r0, x1, y1, r1].join(",")})`
+        });
 
         return gradient;
     }
