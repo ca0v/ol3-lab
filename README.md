@@ -83,7 +83,9 @@ Try the [style-lab](https://rawgit.com/ca0v/ol3-lab/master/rawgit.html?run=ux/st
 
 ![before](./ux/docs/not-simplify.png) 
 ![after](./ux/docs/simplify.png)
-```t`syzE}gm_dAm_@A?r@p@Bp@Hp@Ph@Td@Z`@`@Vb@Nd@xUABmF```
+```
+t`syzE}gm_dAm_@A?r@p@Bp@Hp@Ph@Td@Z`@`@Vb@Nd@xUABmF
+```
 
 Try the [polyline-encoder](https://rawgit.com/ca0v/ol3-lab/master/rawgit.html?run=ux/polyline-encoder) example.
 
