@@ -5,25 +5,16 @@ import gradient_style = require("./styles/gradient");
 
 let converter = new Coretech.CoretechConverter();
 
-function makePattern() {
-    var cnv = document.createElement('canvas');
-    var ctx = cnv.getContext('2d');
-    cnv.width = 6;
-    cnv.height = 6;
-    ctx.fillStyle = 'rgb(255, 0, 0)';
-
-    for (var i = 0; i < 6; ++i) {
-        ctx.fillRect(i, i, 1, 1);
-    }
-
-    return ctx.createPattern(cnv, 'repeat');
-}
+// TODO: do these have pre-defined names on ol3/ags?
+const orientations = "diagonal1,diagonal2,horizontal,vertical".split(",");
 
 let range = (n: number) => {
     var result = new Array(n);
     for (var i = 0; i < n; i++) result[i] = i;
     return result;
 };
+
+let randint = (n: number) => Math.round(n * Math.random());
 
 class StyleGenerator {
     constructor(public options: {
@@ -38,16 +29,20 @@ class StyleGenerator {
     }
 
     asRadius() {
-        return 14 + (10 * Math.random());
+        return 14 + Math.round(10 * Math.random());
     }
 
     asWidth() {
-        return 1 + (20 * Math.random() * Math.random());
+        return 1 + Math.round(20 * Math.random() * Math.random());
     }
 
     asPastel() {
         let [r, g, b] = [255, 255, 255].map(n => Math.round((1 - Math.random() * Math.random()) * n));
         return [r, g, b, 0.1 + (0.5 * Math.random())];
+    }
+
+    asRgb() {
+        return [255, 255, 255].map(n => Math.round((Math.random() * Math.random()) * n));
     }
 
     asColor() {
@@ -70,30 +65,104 @@ class StyleGenerator {
         return stroke;
     }
 
-    /**
-     * Does not work...the first color is the only one used?
-     */
     asGradient() {
 
         let radius = this.asRadius();
+        let stroke = this.asStroke();
+
         let canvas = document.createElement('canvas');
+        canvas.width = canvas.height = 2 * (radius + stroke.getWidth());
         var context = canvas.getContext('2d');
 
-        var gradient = context.createLinearGradient(Math.random() * radius, 0, Math.random() * radius, 2 * radius);
+        let gradient: CanvasGradient;
+
+        if (0.5 < Math.random()) {
+            gradient = context.createLinearGradient(
+                Math.random() * radius, 0, // start
+                Math.random() * radius, 2 * radius // end
+            );
+        } else {
+            gradient = context.createRadialGradient(canvas.width / 2, canvas.height / 2, radius, canvas.width / 2, canvas.height / 2, 0);
+        }
+
         gradient.addColorStop(0, `rgba(${this.asColor().join(",")})`);
+
         while (0.5 < Math.random()) {
             gradient.addColorStop(Math.random(), `rgba(${this.asColor().join(",")})`);
         }
-        gradient.addColorStop(1, `rgba(${this.asColor().join(",")})`);
 
-        // for (let n = 0; n < 3; n++) {
-        //     let color = this.asColor();
-        //     color[3] = 1;
-        //     gradient.addColorStop(n / 3, `rgba(${color.join(",")})`);
-        // }
+        gradient.addColorStop(1, `rgba(${this.asColor().join(",")})`);
 
         let fill = new ol.style.Fill({
             color: gradient
+        });
+
+        let style = new ol.style.Circle({
+            fill: fill,
+            radius: radius,
+            stroke: stroke,
+            snapToPixel: false
+        });
+
+        return style;
+    }
+
+    asPattern() {
+        let radius = this.asRadius();
+
+        let canvas = document.createElement('canvas');
+
+        var context = canvas.getContext('2d');
+
+        let orientation = orientations[Math.round((orientations.length - 1) * Math.random())];
+
+        let pattern: CanvasPattern;
+
+        switch (orientation) {
+            case "horizontal":
+                canvas.width = 1;
+                canvas.height = 1 + randint(10);
+                context.beginPath();
+                context.lineWidth = 1 + randint(canvas.height);
+                context.strokeStyle = ol.color.asString(this.asRgb());
+                context.moveTo(0, 0);
+                context.lineTo(canvas.width, 0);
+                context.stroke();
+                context.closePath();
+                pattern = context.createPattern(canvas, 'repeat');
+                break;
+            case "vertical":
+                canvas.width = 6;
+                canvas.height = 6;
+                context.fillStyle = ol.color.asString(this.asRgb());
+
+                for (var i = 0; i < 6; i++) {
+                    context.fillRect(0, i, 1, 1);
+                }
+                pattern = context.createPattern(canvas, 'repeat');
+                break;
+            case "diagonal1":
+                canvas.width = 6;
+                canvas.height = 6;
+                for (var i = 0; i < 6; i++) {
+                    context.fillRect(i, i, 1, 1);
+                }
+                pattern = context.createPattern(canvas, 'repeat');
+                break;
+            case "diagonal2":
+                canvas.width = 6;
+                canvas.height = 6;
+                for (var i = 0; i < 6; i++) {
+                    context.fillRect(5-i, i, 1, 1);
+                }
+                pattern = context.createPattern(canvas, 'repeat');
+                break;
+            default:
+                throw "invalid orientation";
+        }
+
+        let fill = new ol.style.Fill({
+            color: pattern
         });
 
         let style = new ol.style.Circle({
@@ -104,6 +173,7 @@ class StyleGenerator {
         });
 
         return style;
+
     }
 
     asBasic() {
@@ -168,7 +238,7 @@ class StyleGenerator {
     asPointFeature(styleCount = 1) {
         let feature = new ol.Feature();
 
-        let gens = [() => this.asStar(), () => this.asCircle(), () => this.asPoly(), () => this.asBasic(), () => this.asGradient()];
+        let gens = [() => this.asStar(), () => this.asCircle(), () => this.asPoly(), () => this.asBasic(), () => this.asGradient(), () => this.asPattern()];
 
         feature.setGeometry(this.asPoint());
 

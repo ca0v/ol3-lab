@@ -1896,23 +1896,14 @@ define("ux/styles/gradient", ["require", "exports"], function (require, exports)
 define("ux/style-generator", ["require", "exports", "openlayers", "ux/styles/basic", "ux/serializers/coretech"], function (require, exports, ol, basic_styles, Coretech) {
     "use strict";
     var converter = new Coretech.CoretechConverter();
-    function makePattern() {
-        var cnv = document.createElement('canvas');
-        var ctx = cnv.getContext('2d');
-        cnv.width = 6;
-        cnv.height = 6;
-        ctx.fillStyle = 'rgb(255, 0, 0)';
-        for (var i = 0; i < 6; ++i) {
-            ctx.fillRect(i, i, 1, 1);
-        }
-        return ctx.createPattern(cnv, 'repeat');
-    }
+    var orientations = "diagonal1,diagonal2,horizontal,vertical".split(",");
     var range = function (n) {
         var result = new Array(n);
         for (var i = 0; i < n; i++)
             result[i] = i;
         return result;
     };
+    var randint = function (n) { return Math.round(n * Math.random()); };
     var StyleGenerator = (function () {
         function StyleGenerator(options) {
             this.options = options;
@@ -1921,14 +1912,17 @@ define("ux/style-generator", ["require", "exports", "openlayers", "ux/styles/bas
             return 3 + Math.round(10 * Math.random());
         };
         StyleGenerator.prototype.asRadius = function () {
-            return 14 + (10 * Math.random());
+            return 14 + Math.round(10 * Math.random());
         };
         StyleGenerator.prototype.asWidth = function () {
-            return 1 + (20 * Math.random() * Math.random());
+            return 1 + Math.round(20 * Math.random() * Math.random());
         };
         StyleGenerator.prototype.asPastel = function () {
             var _a = [255, 255, 255].map(function (n) { return Math.round((1 - Math.random() * Math.random()) * n); }), r = _a[0], g = _a[1], b = _a[2];
             return [r, g, b, 0.1 + (0.5 * Math.random())];
+        };
+        StyleGenerator.prototype.asRgb = function () {
+            return [255, 255, 255].map(function (n) { return Math.round((Math.random() * Math.random()) * n); });
         };
         StyleGenerator.prototype.asColor = function () {
             var _a = [255, 255, 255].map(function (n) { return Math.round((Math.random() * Math.random()) * n); }), r = _a[0], g = _a[1], b = _a[2];
@@ -1949,9 +1943,17 @@ define("ux/style-generator", ["require", "exports", "openlayers", "ux/styles/bas
         };
         StyleGenerator.prototype.asGradient = function () {
             var radius = this.asRadius();
+            var stroke = this.asStroke();
             var canvas = document.createElement('canvas');
+            canvas.width = canvas.height = 2 * (radius + stroke.getWidth());
             var context = canvas.getContext('2d');
-            var gradient = context.createLinearGradient(Math.random() * radius, 0, Math.random() * radius, 2 * radius);
+            var gradient;
+            if (0.5 < Math.random()) {
+                gradient = context.createLinearGradient(Math.random() * radius, 0, Math.random() * radius, 2 * radius);
+            }
+            else {
+                gradient = context.createRadialGradient(canvas.width / 2, canvas.height / 2, radius, canvas.width / 2, canvas.height / 2, 0);
+            }
             gradient.addColorStop(0, "rgba(" + this.asColor().join(",") + ")");
             while (0.5 < Math.random()) {
                 gradient.addColorStop(Math.random(), "rgba(" + this.asColor().join(",") + ")");
@@ -1959,6 +1961,64 @@ define("ux/style-generator", ["require", "exports", "openlayers", "ux/styles/bas
             gradient.addColorStop(1, "rgba(" + this.asColor().join(",") + ")");
             var fill = new ol.style.Fill({
                 color: gradient
+            });
+            var style = new ol.style.Circle({
+                fill: fill,
+                radius: radius,
+                stroke: stroke,
+                snapToPixel: false
+            });
+            return style;
+        };
+        StyleGenerator.prototype.asPattern = function () {
+            var radius = this.asRadius();
+            var canvas = document.createElement('canvas');
+            var context = canvas.getContext('2d');
+            var orientation = orientations[Math.round((orientations.length - 1) * Math.random())];
+            var pattern;
+            switch (orientation) {
+                case "horizontal":
+                    canvas.width = 1;
+                    canvas.height = 1 + randint(10);
+                    context.beginPath();
+                    context.lineWidth = 1 + randint(canvas.height);
+                    context.strokeStyle = ol.color.asString(this.asRgb());
+                    context.moveTo(0, 0);
+                    context.lineTo(canvas.width, 0);
+                    context.stroke();
+                    context.closePath();
+                    pattern = context.createPattern(canvas, 'repeat');
+                    break;
+                case "vertical":
+                    canvas.width = 6;
+                    canvas.height = 6;
+                    context.fillStyle = ol.color.asString(this.asRgb());
+                    for (var i = 0; i < 6; i++) {
+                        context.fillRect(0, i, 1, 1);
+                    }
+                    pattern = context.createPattern(canvas, 'repeat');
+                    break;
+                case "diagonal1":
+                    canvas.width = 6;
+                    canvas.height = 6;
+                    for (var i = 0; i < 6; i++) {
+                        context.fillRect(i, i, 1, 1);
+                    }
+                    pattern = context.createPattern(canvas, 'repeat');
+                    break;
+                case "diagonal2":
+                    canvas.width = 6;
+                    canvas.height = 6;
+                    for (var i = 0; i < 6; i++) {
+                        context.fillRect(5 - i, i, 1, 1);
+                    }
+                    pattern = context.createPattern(canvas, 'repeat');
+                    break;
+                default:
+                    throw "invalid orientation";
+            }
+            var fill = new ol.style.Fill({
+                color: pattern
             });
             var style = new ol.style.Circle({
                 fill: fill,
@@ -2025,7 +2085,7 @@ define("ux/style-generator", ["require", "exports", "openlayers", "ux/styles/bas
             var _this = this;
             if (styleCount === void 0) { styleCount = 1; }
             var feature = new ol.Feature();
-            var gens = [function () { return _this.asStar(); }, function () { return _this.asCircle(); }, function () { return _this.asPoly(); }, function () { return _this.asBasic(); }, function () { return _this.asGradient(); }];
+            var gens = [function () { return _this.asStar(); }, function () { return _this.asCircle(); }, function () { return _this.asPoly(); }, function () { return _this.asBasic(); }, function () { return _this.asGradient(); }, function () { return _this.asPattern(); }];
             feature.setGeometry(this.asPoint());
             var styles = range(styleCount).map(function (x) { return new ol.style.Style({
                 image: gens[Math.round((gens.length - 1) * Math.random())](),
