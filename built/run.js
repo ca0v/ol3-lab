@@ -2877,7 +2877,7 @@ define("ux/style-to-canvas", ["require", "exports", "openlayers", "jquery", "ux/
     "use strict";
     var identity = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
     var html = "\n<div class='style-to-canvas'>\n    <canvas id='canvas'></canvas>\n</div>\n";
-    var css = "\n<style>\n    #map {\n        display: none;\n    }\n\n    .style-to-canvas #canvas {\n        border: 1px solid black;\n        padding: 20px;\n        width: 800px;\n        height: 800px;\n        overflow: auto;\n    }\n</style>\n";
+    var css = "\n<style>\n    #map {\n        display: none;\n    }\n\n    .style-to-canvas #canvas {\n        border: 1px solid black;\n        padding: 20px;\n        width: 400px;\n        height: 400px;\n        overflow: auto;\n    }\n</style>\n";
     var getTransform = function (center, resolution, pixelRatio, size) {
         var Mat4 = ol.vec.Mat4;
         return Mat4.makeTransform2D(identity, size[0] / 2, size[1] / 2, pixelRatio / resolution, -pixelRatio / resolution, 0, -center[0], -center[1]);
@@ -2899,7 +2899,7 @@ define("ux/style-to-canvas", ["require", "exports", "openlayers", "jquery", "ux/
         var coordinates = parcel;
         var geom = new ol.geom.Polygon([coordinates]);
         var extent = geom.getExtent();
-        var center = ol.extent.getTopLeft(extent);
+        var center = ol.extent.getCenter(extent);
         var feature = new ol.Feature({
             geometry: geom,
             style: style
@@ -2908,12 +2908,10 @@ define("ux/style-to-canvas", ["require", "exports", "openlayers", "jquery", "ux/
         var ctx = canvas.getContext("2d");
         var Mat4 = ol.vec.Mat4;
         console.log("Mat4", Mat4);
-        var transform = Mat4.makeTransform2D(identity, 0, 0, 500000, -500000, 0, -center[0], -center[1]);
-        console.log("makeTransform2D", transform);
-        var myParcels = parcel.map(function (p) { return Mat4.multVec2(transform, [p[0], p[1]], []); });
-        console.log("myParcels", myParcels);
-        console.log("myParcels extent", ol.extent.boundingExtent(myParcels));
-        console.log("parcels extent", extent);
+        var scale = Math.min(canvas.width / ol.extent.getWidth(extent), canvas.height / ol.extent.getHeight(extent));
+        console.log("scale", scale);
+        var transform = Mat4.makeTransform2D(identity, canvas.width / 2, canvas.height / 2, scale, -scale, 0, -center[0], -center[1]);
+        console.log("transform", transform);
         var renderer = createImmediate(ctx, 1, extent, transform, 1);
         renderer.drawFeature(feature, style);
     }

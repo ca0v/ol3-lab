@@ -30,8 +30,8 @@ const css = `
     .style-to-canvas #canvas {
         border: 1px solid black;
         padding: 20px;
-        width: 800px;
-        height: 800px;
+        width: 400px;
+        height: 400px;
         overflow: auto;
     }
 </style>
@@ -47,7 +47,7 @@ const css = `
  */
 let getTransform = (center: ol.Coordinate, resolution: number, pixelRatio: number, size: ol.Size) => {
     let Mat4 = ol.vec.Mat4;
-    
+
     return Mat4.makeTransform2D(identity,
         size[0] / 2, size[1] / 2,
         pixelRatio / resolution, -pixelRatio / resolution,
@@ -92,7 +92,7 @@ export function run() {
     let coordinates = parcel;
     let geom = new ol.geom.Polygon([coordinates]);
     let extent = geom.getExtent();
-    let center = ol.extent.getTopLeft(extent);
+    let center = ol.extent.getCenter(extent);
 
     let feature = new ol.Feature({
         geometry: geom,
@@ -110,18 +110,16 @@ export function run() {
 
     console.log("Mat4", Mat4);
 
+    let scale = Math.min(canvas.width / ol.extent.getWidth(extent), canvas.height / ol.extent.getHeight(extent));
+    console.log("scale", scale);
+
     let transform = Mat4.makeTransform2D(identity,
-        0, 0, // translate to origin
-        500000, -500000, //scale
+        canvas.width / 2, canvas.height / 2, // translate to origin
+        scale, -scale, //scale
         0, // rotation
         -center[0], -center[1] // translate back
     );
-    console.log("makeTransform2D", transform);
-
-    let myParcels = parcel.map(p => Mat4.multVec2(transform, [p[0], p[1]], []));    
-    console.log("myParcels", myParcels);
-    console.log("myParcels extent", ol.extent.boundingExtent(myParcels));
-    console.log("parcels extent", extent);
+    console.log("transform", transform);
 
     let renderer = createImmediate(ctx, 1, extent, transform, 1);
     renderer.drawFeature(feature, style);
