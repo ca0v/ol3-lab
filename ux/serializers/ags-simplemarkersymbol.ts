@@ -49,11 +49,6 @@ function fromAgs(value: number) {
     return value * 3 / 4;
 }
 
-export function Converter(json: SimpleMarkerSymbol.Style) {
-    switch (json.type) {
-        case "esriSMS": return new SimpleMarkerConverter();
-    }
-}
 export class SimpleMarkerConverter implements Serializer.IConverter<SimpleMarkerSymbol.Style> {
 
     toJson(style: ol.style.Style) {

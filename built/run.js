@@ -1401,12 +1401,6 @@ define("ux/serializers/ags-simplemarkersymbol", ["require", "exports", "openlaye
     function fromAgs(value) {
         return value * 3 / 4;
     }
-    function Converter(json) {
-        switch (json.type) {
-            case "esriSMS": return new SimpleMarkerConverter();
-        }
-    }
-    exports.Converter = Converter;
     var SimpleMarkerConverter = (function () {
         function SimpleMarkerConverter() {
         }
@@ -2545,6 +2539,68 @@ define("ux/ags-symbols", ["require", "exports", "openlayers", "ux/serializers/ag
     }
     exports.run = run;
 });
+define("ux/download", ["require", "exports", "openlayers", "jquery"], function (require, exports, ol, $) {
+    "use strict";
+    var proxy = 'http://localhost:94/proxy/proxy.ashx?';
+    var center = [-82.4, 34.85];
+    var html = "\n<div class='download'>\n    <h3>Print Preview Lab - Capturing Map Canvas</h3>\n    <p>\n    This lab only works locally because it requires a proxy and I'm not aware of a github proxy.\n    (Good luck searching for github+proxy) \n    </p>\n\n    <div class='area'>    \n        <label>Copy Map into toDataURL</label>\n        <div class='map'></div>\n        <button class='download-map'>Download</button>\n    </div>\n\n    <div class='area'>    \n        <label>We want to get the map to render into this canvas so that we can right-click and save the image</label>\n        <canvas class='canvas-preview'></canvas>\n    </div>\n\n    <div class='area'>    \n        <label>We want to get the map into this image so that we can get the image data</label>\n        <img class='image-preview'></img>\n    </div>\n\n    <div class='area'>    \n        <label>toDataURL</label>\n        <input class='data-url' spellcheck='false autocomplete='off' wrap='hard'></input>\n    </div>\n</div>";
+    var css = "\n<style>\n    #map { \n        display: none;\n    }\n    .download {\n        padding: 20px;\n    }\n    .download .map {\n        width: 400px;\n        height: 400px;\n    }\n    .download label {\n        display: block;\n        vertical-align: top;\n    }\n    .download .area {\n        padding: 20px;\n        margin: 20px;\n        border: 1px solid black;\n    }\n    .download .image-preview, .download .canvas-preview {\n        border: 1px solid black;\n        padding: 20px;\n    }\n    .download .data-url {\n        overflow: auto;\n        width: 400px;\n    }\n</style>";
+    var imageUrl = 'http://sampleserver1.arcgisonline.com/arcgis/rest/services/Demographics/ESRI_Census_USA/MapServer/export?F=image&FORMAT=PNG32&TRANSPARENT=true&layers=show%3A4&SIZE=256%2C256&BBOX=-10488383.273178745%2C4148390.399093086%2C-10410111.756214725%2C4226661.916057106&BBOXSR=3857&IMAGESR=3857&DPI=83';
+    function copyTo(image, canvas) {
+        canvas.width = image.naturalWidth;
+        canvas.height = image.naturalHeight;
+        var ctx = canvas.getContext("2d");
+        ctx.drawImage(image, 0, 0);
+    }
+    function makeMap() {
+        var map = new ol.Map({
+            target: $(".download .map")[0],
+            view: new ol.View({
+                projection: 'EPSG:4326',
+                center: center,
+                zoom: 15
+            }),
+            layers: [new ol.layer.Tile({
+                    source: new ol.source.OSM()
+                })]
+        });
+        return map;
+    }
+    function run() {
+        $(html).appendTo("body");
+        $(css).appendTo("head");
+        $(function () {
+            ol.source.Image.defaultImageLoadFunction =
+                function (image, src) {
+                    return image.getImage().src = "" + proxy + src;
+                };
+            var map = makeMap();
+            map.addLayer(new ol.layer.Image({
+                source: new ol.source.ImageArcGISRest({
+                    ratio: 1,
+                    params: {},
+                    url: 'http://sampleserver1.arcgisonline.com/arcgis/rest/services/Demographics/ESRI_Census_USA/MapServer'
+                })
+            }));
+            $('.download-map').click(function () {
+                map.once('postcompose', function (event) {
+                    var canvas = event.context.canvas;
+                    img.src = canvas.toDataURL();
+                });
+                map.updateSize();
+            });
+        });
+        var img = $('.image-preview')[0];
+        var canvas = $('.canvas-preview')[0];
+        img.setAttribute("crossOrigin", "anonymous");
+        img.src = proxy + imageUrl;
+        img.onload = function () {
+            copyTo(img, canvas);
+            document.getElementsByClassName('data-url')[0].value = canvas.toDataURL();
+        };
+    }
+    exports.run = run;
+});
 define("ux/image-data-viewer", ["require", "exports", "jquery"], function (require, exports, $) {
     "use strict";
     var data = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAAA9CAYAAAAd1W/BAAAFf0lEQVRoBe1ZSW/bRhT+uFMSZcmSAnlpHCcokKZo0QU9t7321n/QnnvqHyjQn9Cf0GuvRU89Feg5AdIGDro5tuPd1mItJKWhyOKNRMRwpFjcZAviAATJ4XDee998b97MGwGAhwUu4gLbzk1PAUgZsOAIpC6w4ARAyoCUAQuOwO1xAQEAXTMu8ozlDcUJQ1sFCRBEASK/Dz95A8AdAJ7rwXNH6/QEF+uzBUAAJBmQNRGyJkDPy1BzCjRDgZqVucG9Th9904HdZuh3HTg9D07f46AksWuZDQAjw5WMCOOOhtJGHssbeeRKOiRF4pcoivA8MtTlF7MddE5N1HZbaOx3YNYZHHsERIy0Ja9LkGBDv1Z0AUsrGqoPiyjfLyJXzkLNqJBUCYIw3vHJBViPWNBD58zE8fMazrfb6NYdDPrxqZwoAIIIqFkB5U0Db31UQWmjCD2fgSgHm3udngO7ZeHk7xoOntZwcWhz1/BiwCExALjxOQGr7xax/sEdLK8XoWRVTBjwa0lNjCAQajtN7D0+QW3H5C4RFYRk5gABINqvPCri7sdVFNcKkHUltPGEDkULfSmDytsSf/bcY9RemHyCvBa9NzRIBABFA8qbOaw+KqGwshTZeF9/AkHLqijdK4CiBbMH3B0GzG8R/B7MGafon2J6rqJh9b0SyvdLkWg/ThxnQj6D6jtlVB7koRnEiHEtp6uL8Ot4AZJKo2+guF6AEpH24yUM3UHL6ag+LKOwRpPqpJbX18cKAB/9sobCmoHscvDZ/np1X7WQNRm5SpbLogVVWBbEDsBSNYOlqsFj/Ct1k3kihhXXCWz19gCQK+vIFHSIUqzYjkVQVmUYlSz0vHI7APA8ClVvXuGNtSRkJU2ISkZGpqBC1WlVGbyjWIeJ2R669X4oRYKrPvyDltIiLamlENYD8aXE7o0sOHjamAn9fcDI1XRDgaLTntqvnf4eCwPI+N8A0L1b62Hvydn0GkRtKQiQJJEz4MZc4AcAmwC+Hxnz7JddMMuJatp0/3seHObCdVyE2RdEZsBnAL4cqfo1AHqnvfy/vx9OZ0DEVoOBC7vTh9Pz00fBOowMAI3+5eK/P/91D2bdvvwpkWfaJbojBoQREAmArwB8eEUqvVM9lT9+fjF6SuZG2SNmMljNHpg9YxcoAPBH+6p5VE/fD5/VcPbfxdXPsb07fQet0y6sFgvl/6RIaAZ8C6A4wRSqp+9UHv/0z+gp5psHMIvh4qADq8l4QjWMhFAAULjzZ/xJQuk7taN5IIkJkfKF7ZMOmodd9DrObAH4cZLVV+p9F6EJMc6wSCHPvrBw8lcdrSMLboSIG5gBFOY+v2LopFcKjzwsWg4IhDiKO/BgXZg42jrnWeK+GW7y83UJDMC0o+8L8NuTG0QNi2Q8JUbPt5s42mqgfdqPNPqkY6CsMK32aLETtBAIOwAqDwr49Jv3g/7OTy4o5JmNLs62G3j55AyNlxZ4LjBiajwQAME1f/2PL777BPqSBoGwv27z4oGfFjGbwawPaX/4Zw2dc4YB+X1E40m7CNm0142bVEOHoIouorieRWO/CaNMSQwdlNaiPT0vPhgjo/gix2Kw2zbap10cb9VR223DbtG6f5Kk4PUzYwDl7GQNyJZUlO4aWN4wkCtleOqMnw9KIh/QARvwjQ2NeufUQm2vjeZ+F3aLjsSIEcGNfNMfMwPAV4ISp5TFpVNizZCh5GS+n/dPh+0OA+Onw5T3d+EycLrTUXkSZeYAXDaCWMH38DQdjOIRN5R8nzZ3MY/2Zdn+840C4Ctxk/fA64CbVDYJ2SkASaA6T32mDJin0UpC15QBSaA6T32mDJin0UpC15QBSaA6T32mDJin0UpC15QBSaA6T30uPAP+B8Xv5/OOW6fPAAAAAElFTkSuQmCC";
@@ -2753,6 +2809,124 @@ define("ux/style-lab", ["require", "exports", "openlayers", "jquery", "ux/serial
     }
     exports.run = run;
 });
+define("ux/serializers/ags-simplefillsymbol", ["require", "exports"], function (require, exports) {
+    "use strict";
+    var SimpleFillConverter = (function () {
+        function SimpleFillConverter() {
+        }
+        SimpleFillConverter.prototype.toJson = function () {
+            return null;
+        };
+        SimpleFillConverter.prototype.fromJson = function (json) {
+            return null;
+        };
+        return SimpleFillConverter;
+    }());
+    exports.SimpleFillConverter = SimpleFillConverter;
+});
+define("ux/styles/ags/simplefillsymbol", ["require", "exports"], function (require, exports) {
+    "use strict";
+    var symbol = function () { return ({
+        "color": [
+            0,
+            0,
+            0,
+            64
+        ],
+        "outline": {
+            "color": [
+                0,
+                0,
+                0,
+                255
+            ],
+            "width": 1.5,
+            "type": "esriSLS",
+            "style": "esriSLSDashDotDot"
+        },
+        "type": "esriSFS",
+        "style": "esriSFSBackwardDiagonal"
+    }); };
+    var styles = "BackwardDiagonal,Cross,DiagonalCross,ForwardDiagonal,Horizontal,Solid,Vertical".split(",");
+    var symbols = styles.map(function (style) {
+        var result = symbol();
+        result.style = ("esriSFS" + style);
+        return result;
+    });
+    return symbols;
+});
+define("ux/geom/parcel", ["require", "exports"], function (require, exports) {
+    "use strict";
+    return [
+        [-115.25532322799027, 36.18318333413792],
+        [-115.25480456865377, 36.18318418316166],
+        [-115.25480483306748, 36.1831581364999],
+        [-115.25482974334876, 36.183156591542996],
+        [-115.2548544229261, 36.18315172017415],
+        [-115.25487928533187, 36.18314300077779],
+        [-115.25490054503052, 36.18313174786991],
+        [-115.25491924756955, 36.18311784715259],
+        [-115.25493579649431, 36.183100506595494],
+        [-115.25494767927427, 36.18308236911088],
+        [-115.25495573195485, 36.18306290523016],
+        [-115.2553212003638, 36.183064339787606],
+        [-115.25532322799027, 36.18318333413792]
+    ];
+});
+define("ux/style-to-canvas", ["require", "exports", "openlayers", "jquery", "ux/styles/ags/simplefillsymbol", "ux/serializers/ags-simplefillsymbol", "ux/geom/parcel"], function (require, exports, ol, $, ags_simplefillsymbol, ags_serializer, parcel) {
+    "use strict";
+    var html = "\n<div class='style-to-canvas'>\n    <canvas id='canvas'></canvas>\n</div>\n";
+    var css = "\n<style>\n    #map {\n        display: none;\n    }\n\n    .style-to-canvas #canvas {\n        border: 1px solid black;\n        padding: 20px;\n        width: 800px;\n        height: 800px;\n        overflow: auto;\n    }\n</style>\n";
+    function createImmediate(context, pixelRatio, extent, transform, viewRotation) {
+        var result = new ol.render.canvas.Immediate(context, pixelRatio, extent, transform, viewRotation);
+        return result;
+    }
+    var makeTransform2D = function (mat, translateX1, translateY1, scaleX, scaleY, rotation, translateX2, translateY2) {
+        goog.vec.Mat4.makeIdentity(mat);
+        if (translateX1 !== 0 || translateY1 !== 0) {
+            goog.vec.Mat4.translate(mat, translateX1, translateY1, 0);
+        }
+        if (scaleX != 1 || scaleY != 1) {
+            goog.vec.Mat4.scale(mat, scaleX, scaleY, 1);
+        }
+        if (rotation !== 0) {
+            goog.vec.Mat4.rotateZ(mat, rotation);
+        }
+        if (translateX2 !== 0 || translateY2 !== 0) {
+            goog.vec.Mat4.translate(mat, translateX2, translateY2, 0);
+        }
+        return mat;
+    };
+    function run() {
+        $(html).appendTo("body");
+        $(css).appendTo("head");
+        var converter = new ags_serializer.SimpleFillConverter();
+        var style = converter.fromJson(ags_simplefillsymbol[0]);
+        style = style || new ol.style.Style({
+            fill: new ol.style.Fill({
+                color: "red"
+            })
+        });
+        var coordinates = parcel;
+        var geom = new ol.geom.Polygon([coordinates]);
+        var extent = geom.getExtent();
+        var center = ol.extent.getTopLeft(extent);
+        var feature = new ol.Feature({
+            geometry: geom,
+            style: style
+        });
+        var canvas = document.getElementById("canvas");
+        var ctx = canvas.getContext("2d");
+        var mat4 = goog.vec.Mat4;
+        console.log("goog.vec.Mat4", mat4);
+        var transform = makeTransform2D(mat4.createIdentity(), 0, 0, 500000, -500000, 0, -center[0], -center[1]);
+        console.log("makeTransform2D", transform);
+        console.log(parcel.map(function (p) { return mat4.multVec4(transform, [p[0], p[1], 0, 1], []); }));
+        var renderer = createImmediate(ctx, 1, extent, transform, 1);
+        renderer.drawFeature(feature, style);
+    }
+    exports.run = run;
+});
 define("ux/styles/4star", ["require", "exports"], function (require, exports) {
     "use strict";
     return [
@@ -2876,6 +3050,53 @@ define("ux/styles/peace", ["require", "exports"], function (require, exports) {
         }
     ];
 });
+define("ux/styles/ags/cartographiclinesymbol", ["require", "exports"], function (require, exports) {
+    "use strict";
+    var symbol = function () { return ({
+        "type": "esriSLS",
+        "style": "esriSLSLongDashDot",
+        "color": [
+            152,
+            230,
+            0,
+            255
+        ],
+        "width": 1,
+        "cap": "esriLCSButt",
+        "join": "esriLJSBevel",
+        "miterLimit": 9.75
+    }); };
+    var styles = "Dash,DashDot,DashDotDot,Dot,LongDash,LongDashDot,ShortDash,ShortDashDot,ShortDashDotDot,ShortDot,Solid".split(",");
+    var caps = "Butt,Round,Square".split(",");
+    var joins = "Bevel,Miter,Round".split(",");
+    var symbols = styles.map(function (style, i) {
+        var result = symbol();
+        result.style = "esriSLS" + style;
+        result.cap = "esriLCS" + caps[i % caps.length];
+        result.join = "esriLJS" + joins[i % joins.length];
+        return result;
+    });
+    return symbols;
+});
+define("ux/styles/ags/picturefillsymbol", ["require", "exports"], function (require, exports) {
+    "use strict";
+    return [{
+            "color": [
+                0,
+                0,
+                0,
+                255
+            ],
+            "type": "esriPFS",
+            "url": "http://www.free.designquery.com/01/bg0245.jpg",
+            "width": 112.5,
+            "height": 112.5,
+            "xoffset": 0,
+            "yoffset": 0,
+            "xscale": 1,
+            "yscale": 1
+        }];
+});
 define("ux/styles/ags/picturemarkersymbol", ["require", "exports"], function (require, exports) {
     "use strict";
     return [
@@ -2887,6 +3108,34 @@ define("ux/styles/ags/picturemarkersymbol", ["require", "exports"], function (re
             "url": "https://rawgit.com/mapbox/maki/master/icons/aerialway-11.svg",
             "width": 30,
             "height": 30
+        }
+    ];
+});
+define("ux/styles/ags/textsymbol", ["require", "exports"], function (require, exports) {
+    "use strict";
+    return [
+        {
+            "color": [
+                0,
+                0,
+                0,
+                255
+            ],
+            "type": "esriTS",
+            "horizontalAlignment": "center",
+            "angle": 0,
+            "xoffset": 0,
+            "yoffset": 0,
+            "text": "Sample Text",
+            "rotated": false,
+            "kerning": true,
+            "font": {
+                "size": 10,
+                "style": "normal",
+                "variant": "normal",
+                "weight": "normal",
+                "family": "serif"
+            }
         }
     ];
 });

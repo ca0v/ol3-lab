@@ -1,4 +1,6 @@
-let symbol = () => ({
+import {SimpleFillSymbol} from "../../serializers/ags-simplefillsymbol";
+
+let symbol = () => (<SimpleFillSymbol.Style>{
     "color": [
         0,
         0,
@@ -23,7 +25,7 @@ let symbol = () => ({
 let styles = "BackwardDiagonal,Cross,DiagonalCross,ForwardDiagonal,Horizontal,Solid,Vertical".split(",");
 let symbols = styles.map(style => {
     let result = symbol();
-    result.style = `esriSFS${style}`;
+    result.style = <any>`esriSFS${style}`;
     return result;
 });
 
