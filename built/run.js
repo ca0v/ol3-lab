@@ -2875,28 +2875,17 @@ define("ux/geom/parcel", ["require", "exports"], function (require, exports) {
 });
 define("ux/style-to-canvas", ["require", "exports", "openlayers", "jquery", "ux/styles/ags/simplefillsymbol", "ux/serializers/ags-simplefillsymbol", "ux/geom/parcel"], function (require, exports, ol, $, ags_simplefillsymbol, ags_serializer, parcel) {
     "use strict";
+    var identity = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
     var html = "\n<div class='style-to-canvas'>\n    <canvas id='canvas'></canvas>\n</div>\n";
     var css = "\n<style>\n    #map {\n        display: none;\n    }\n\n    .style-to-canvas #canvas {\n        border: 1px solid black;\n        padding: 20px;\n        width: 800px;\n        height: 800px;\n        overflow: auto;\n    }\n</style>\n";
+    var getTransform = function (center, resolution, pixelRatio, size) {
+        var Mat4 = ol.vec.Mat4;
+        return Mat4.makeTransform2D(identity, size[0] / 2, size[1] / 2, pixelRatio / resolution, -pixelRatio / resolution, 0, -center[0], -center[1]);
+    };
     function createImmediate(context, pixelRatio, extent, transform, viewRotation) {
         var result = new ol.render.canvas.Immediate(context, pixelRatio, extent, transform, viewRotation);
         return result;
     }
-    var makeTransform2D = function (mat, translateX1, translateY1, scaleX, scaleY, rotation, translateX2, translateY2) {
-        goog.vec.Mat4.makeIdentity(mat);
-        if (translateX1 !== 0 || translateY1 !== 0) {
-            goog.vec.Mat4.translate(mat, translateX1, translateY1, 0);
-        }
-        if (scaleX != 1 || scaleY != 1) {
-            goog.vec.Mat4.scale(mat, scaleX, scaleY, 1);
-        }
-        if (rotation !== 0) {
-            goog.vec.Mat4.rotateZ(mat, rotation);
-        }
-        if (translateX2 !== 0 || translateY2 !== 0) {
-            goog.vec.Mat4.translate(mat, translateX2, translateY2, 0);
-        }
-        return mat;
-    };
     function run() {
         $(html).appendTo("body");
         $(css).appendTo("head");
@@ -2917,11 +2906,14 @@ define("ux/style-to-canvas", ["require", "exports", "openlayers", "jquery", "ux/
         });
         var canvas = document.getElementById("canvas");
         var ctx = canvas.getContext("2d");
-        var mat4 = goog.vec.Mat4;
-        console.log("goog.vec.Mat4", mat4);
-        var transform = makeTransform2D(mat4.createIdentity(), 0, 0, 500000, -500000, 0, -center[0], -center[1]);
+        var Mat4 = ol.vec.Mat4;
+        console.log("Mat4", Mat4);
+        var transform = Mat4.makeTransform2D(identity, 0, 0, 500000, -500000, 0, -center[0], -center[1]);
         console.log("makeTransform2D", transform);
-        console.log(parcel.map(function (p) { return mat4.multVec4(transform, [p[0], p[1], 0, 1], []); }));
+        var myParcels = parcel.map(function (p) { return Mat4.multVec2(transform, [p[0], p[1]], []); });
+        console.log("myParcels", myParcels);
+        console.log("myParcels extent", ol.extent.boundingExtent(myParcels));
+        console.log("parcels extent", extent);
         var renderer = createImmediate(ctx, 1, extent, transform, 1);
         renderer.drawFeature(feature, style);
     }
