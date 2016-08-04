@@ -1,11 +1,11 @@
 import ol = require("openlayers");
 import Serializer = require("./serializer");
-import coretech_flower_json = require("../styles/flower");
+import coretech_flower_json = require("../styles/star/flower");
 
 /**
  * TODO: should have formatter for ol3 (serializer/deserializer) 
 */
-declare namespace Coretech {
+export namespace Coretech {
 
     export interface Fill {
         color?: string;
@@ -36,6 +36,8 @@ declare namespace Coretech {
         star?: any;
         circle?: Circle;
         text?: Text;
+        fill?: Fill;
+        stroke?: Stroke;
     }
 
 }
@@ -146,14 +148,20 @@ export class CoretechConverter implements Serializer.IConverter<Coretech.Style> 
     private deserializeStyle(json: Coretech.Style) {
         let image: ol.style.Image;
         let text: ol.style.Text;
+        let fill: ol.style.Fill;
+        let stroke: ol.style.Stroke;
 
         if (json.circle) image = this.deserializeCircle(json.circle);
         else if (json.star) image = this.deserializeStar(json.star);
         if (json.text) text = this.deserializeText(json.text);
+        if (json.fill) fill = this.deserializeFill(json.fill);
+        if (json.stroke) stroke = this.deserializeStroke(json.stroke);
 
         let s = new ol.style.Style({
             image: image,
-            text: text
+            text: text,
+            fill: fill,
+            stroke: stroke
         });
         return s;
     }
@@ -205,6 +213,10 @@ export class CoretechConverter implements Serializer.IConverter<Coretech.Style> 
     private deserializeStroke(json: any) {
         let stroke = new ol.style.Stroke();
         doif(json.color, v => stroke.setColor(v));
+        doif(json.lineCap, v => stroke.setLineCap(v));
+        doif(json.lineDash, v => stroke.setLineDash(v));
+        doif(json.lineJoin, v => stroke.setLineJoin(v));
+        doif(json.miterLimit, v => stroke.setMiterLimit(v));
         doif(json.width, v => stroke.setWidth(v));
         return stroke;
     }
