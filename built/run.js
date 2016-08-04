@@ -2154,8 +2154,8 @@ define("ux/serializers/coretech", ["require", "exports", "openlayers"], function
 });
 define("labs/style-viewer", ["require", "exports", "openlayers", "jquery", "labs/common/snapshot", "ux/serializers/coretech", "data/geom/polygon-with-holes"], function (require, exports, ol, $, Snapshot, Serializer, polygonGeom) {
     "use strict";
-    var html = "\n<div class='style-to-canvas'>\n    <h3>Renders a feature on a canvas</h3>\n    <div class=\"area\">\n        <label>256 x 256 Canvas</label>\n        <canvas id='canvas' width=\"256\" height=\"256\"></canvas>\n    </div>\n    <div class=\"area\">\n        <label>Style</label>\n        <textarea class='style'></textarea>\n    </div>\n</div>\n";
-    var css = "\n<style>\n    #map {\n        display: none;\n    }\n\n    .style-to-canvas {\n    }\n\n    .style-to-canvas .area label {\n        display: block;\n        vertical-align: top;\n    }\n\n    .style-to-canvas .area {\n        border: 1px solid black;\n        padding: 20px;\n        margin: 20px;\n    }\n\n    .style-to-canvas .area .style {\n        width: 100%;\n        height: 400px;\n    }\n\n    .style-to-canvas #canvas {\n        font-family: sans serif;\n        font-size: 20px;\n        border: none;\n        padding: 0;\n        margin: 0;\n    }\n</style>\n";
+    var html = "\n<div class='style-to-canvas'>\n    <h3>Renders a feature on a canvas</h3>\n    <div class=\"area\">\n        <label>256 x 256 Canvas</label>\n        <canvas id='canvas' width=\"256\" height=\"256\"></canvas>\n    </div>\n    <div class=\"area\">\n        <label>Style</label>\n        <textarea class='style'></textarea>\n    </div>\n    <div class=\"area\">\n        <label>Potential control for setting linear gradient start/stop locations</label>\n        <div class=\"colorramp\">\n            <input class=\"top\" type=\"range\" min=\"0\" max=\"100\" value=\"20\"/>\n            <input class=\"bottom\" type=\"range\" min=\"0\" max=\"100\" value=\"80\"/>\n        </div>\n    </div>\n</div>\n";
+    var css = "\n<style>\n    #map {\n        display: none;\n    }\n\n    .style-to-canvas {\n    }\n\n    .style-to-canvas .area label {\n        display: block;\n        vertical-align: top;\n    }\n\n    .style-to-canvas .area {\n        border: 1px solid black;\n        padding: 20px;\n        margin: 20px;\n    }\n\n    .style-to-canvas .area .style {\n        width: 100%;\n        height: 400px;\n    }\n\n    .style-to-canvas #canvas {\n        font-family: sans serif;\n        font-size: 20px;\n        border: none;\n        padding: 0;\n        margin: 0;\n    }\n\n    div.colorramp {\n        display: inline-block;\n        background: linear-gradient(to right, rgba(250,0,0,0), rgba(250,0,0,1) 60%, rgba(250,100,0,1) 85%, rgb(250,250,0) 95%);\n        width:100%;\n    }\n\n    div.colorramp > input[type=range] {\n        -webkit-appearance: slider-horizontal;\n        display:block;\n        width:100%;\n        background-color:transparent;\n    }\n\n    div.colorramp > label {\n        display: inline-block;\n    }\n\n    div.colorramp > input[type='range'] {\n        box-shadow: 0 0 0 white;\n    }\n\n    div.colorramp > input[type=range]::-webkit-slider-runnable-track {\n        height: 0px;     \n    }\n\n    div.colorramp > input[type='range'].top::-webkit-slider-thumb {\n        margin-top: -10px;\n    }\n\n    div.colorramp > input[type='range'].bottom::-webkit-slider-thumb {\n        margin-top: -12px;\n    }\n    \n</style>\n";
     function getParameterByName(name, url) {
         if (url === void 0) { url = window.location.href; }
         name = name.replace(/[\[\]]/g, "\\$&");
@@ -2167,9 +2167,9 @@ define("labs/style-viewer", ["require", "exports", "openlayers", "jquery", "labs
         return decodeURIComponent(results[2].replace(/\+/g, " "));
     }
     function loadStyle(name) {
-        var styles = name.split(",").map(function (style) { return ("../ux/styles/" + style); });
+        var mids = name.split(",").map(function (name) { return ("../ux/styles/" + name); });
         var d = $.Deferred();
-        require(styles, function () {
+        require(mids, function () {
             var styles = [];
             for (var _i = 0; _i < arguments.length; _i++) {
                 styles[_i - 0] = arguments[_i];
@@ -2180,19 +2180,67 @@ define("labs/style-viewer", ["require", "exports", "openlayers", "jquery", "labs
         });
         return d;
     }
+    function loadGeom(name) {
+        var mids = name.split(",").map(function (name) { return ("../data/geom/" + name); });
+        var d = $.Deferred();
+        require(mids, function () {
+            var shapes = [];
+            for (var _i = 0; _i < arguments.length; _i++) {
+                shapes[_i - 0] = arguments[_i];
+            }
+            var geoms = shapes.map(function (shape) {
+                if (typeof shape[0] === "number") {
+                    return new ol.geom.Point(shape);
+                }
+                if (typeof shape[0][0] === "number") {
+                    return new ol.geom.LineString(shape);
+                }
+                if (typeof shape[0][0][0] === "number") {
+                    return new ol.geom.Polygon(shape);
+                }
+                if (typeof shape[0][0][0][0] === "number") {
+                    return new ol.geom.MultiPolygon(shape);
+                }
+                throw "invalid shape: " + shape;
+            });
+            d.resolve(geoms);
+        });
+        return d;
+    }
     function run() {
         var serializer = new Serializer.CoretechConverter();
         $(html).appendTo("body");
         $(css).appendTo("head");
         var canvas = document.getElementById("canvas");
-        var feature = new ol.Feature(new ol.geom.MultiPolygon([polygonGeom]));
+        var feature = new ol.Feature();
+        feature.setGeometry(new ol.geom.MultiPolygon([polygonGeom]));
+        var redraw = function () {
+            var styles = JSON.parse($(".style").val());
+            var style = styles.map(function (style) { return serializer.fromJson(style); });
+            feature.setStyle(style);
+            canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
+            Snapshot.render(canvas, feature);
+        };
+        setInterval(function () {
+            try {
+                redraw();
+            }
+            catch (ex) {
+            }
+        }, 2500);
+        var geom = getParameterByName("geom");
+        if (geom) {
+            loadGeom(geom).then(function (geoms) {
+                feature.setGeometry(geoms[0]);
+                redraw();
+            });
+        }
         var style = getParameterByName("style");
         if (style) {
             loadStyle(style).then(function (styles) {
                 var style = styles.map(function (style) { return serializer.fromJson(style); });
-                feature.setStyle(style);
-                Snapshot.render(canvas, feature);
                 $(".style").val(JSON.stringify(styles, null, 2));
+                redraw();
             });
         }
         else {
@@ -2221,10 +2269,9 @@ define("labs/style-viewer", ["require", "exports", "openlayers", "jquery", "labs
                     "font": "20px 'sans serif'"
                 }
             });
-            console.log("style1", JSON.stringify(serializer.toJson(style1), null, '\t'));
-            console.log("style2", JSON.stringify(serializer.toJson(style2), null, '\t'));
-            feature.setStyle([style1, style2]);
-            Snapshot.render(canvas, feature);
+            var styles = [style1, style2];
+            $(".style").val(JSON.stringify(styles.map(function (s) { return serializer.toJson(s); }), null, 2));
+            redraw();
         }
     }
     exports.run = run;
@@ -3633,8 +3680,10 @@ define("ux/styles/fill/gradient", ["require", "exports"], function (require, exp
     return [
         {
             "fill": {
-                "color": "rgba(197,37,84,0.2)",
-                "`gradient`": ["rgba(197,37,84,0.2)", "rgba(197,37,84,0.8)"]
+                "gradient": {
+                    "type": "linear(7,0,13,46)",
+                    "stops": "rgba(255,0,0,0.38) 0%;rgba(1,143,119,0.78) 100%"
+                }
             }
         }
     ];

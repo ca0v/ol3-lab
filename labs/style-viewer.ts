@@ -28,6 +28,13 @@ const html = `
         <label>Style</label>
         <textarea class='style'></textarea>
     </div>
+    <div class="area">
+        <label>Potential control for setting linear gradient start/stop locations</label>
+        <div class="colorramp">
+            <input class="top" type="range" min="0" max="100" value="20"/>
+            <input class="bottom" type="range" min="0" max="100" value="80"/>
+        </div>
+    </div>
 </div>
 `;
 
@@ -63,6 +70,40 @@ const css = `
         padding: 0;
         margin: 0;
     }
+
+    div.colorramp {
+        display: inline-block;
+        background: linear-gradient(to right, rgba(250,0,0,0), rgba(250,0,0,1) 60%, rgba(250,100,0,1) 85%, rgb(250,250,0) 95%);
+        width:100%;
+    }
+
+    div.colorramp > input[type=range] {
+        -webkit-appearance: slider-horizontal;
+        display:block;
+        width:100%;
+        background-color:transparent;
+    }
+
+    div.colorramp > label {
+        display: inline-block;
+    }
+
+    div.colorramp > input[type='range'] {
+        box-shadow: 0 0 0 white;
+    }
+
+    div.colorramp > input[type=range]::-webkit-slider-runnable-track {
+        height: 0px;     
+    }
+
+    div.colorramp > input[type='range'].top::-webkit-slider-thumb {
+        margin-top: -10px;
+    }
+
+    div.colorramp > input[type='range'].bottom::-webkit-slider-thumb {
+        margin-top: -12px;
+    }
+    
 </style>
 `;
 
@@ -76,12 +117,38 @@ function getParameterByName(name: string, url = window.location.href) {
 }
 
 function loadStyle(name: string) {
-    let styles = name.split(",").map(style => `../ux/styles/${style}`);
-    let d = $.Deferred<Serializer.Coretech.Style[]>();
-    require(styles, (...styles: Serializer.Coretech.Style[][]) => {
-        let style = <Serializer.Coretech.Style[]>[];
+    type T = Serializer.Coretech.Style[];
+    let mids = name.split(",").map(name => `../ux/styles/${name}`);
+    let d = $.Deferred<T>();
+    require(mids, (...styles: T[]) => {
+        let style = <T>[];
         styles.forEach(s => style = style.concat(s));
         d.resolve(style);
+    });
+    return d;
+}
+
+function loadGeom(name: string) {
+    type T = ol.geom.Geometry[];
+    let mids = name.split(",").map(name => `../data/geom/${name}`);
+    let d = $.Deferred<T>();
+    require(mids, (...shapes: any[]) => {
+        let geoms = shapes.map(shape => {
+            if (typeof shape[0] === "number") {
+                return new ol.geom.Point(shape);
+            }
+            if (typeof shape[0][0] === "number") {
+                return new ol.geom.LineString(shape);
+            }
+            if (typeof shape[0][0][0] === "number") {
+                return new ol.geom.Polygon(shape);
+            }
+            if (typeof shape[0][0][0][0] === "number") {
+                return new ol.geom.MultiPolygon(shape);
+            }
+            throw `invalid shape: ${shape}`;
+        });
+        d.resolve(geoms);
     });
     return d;
 }
@@ -94,15 +161,39 @@ export function run() {
     $(css).appendTo("head");
 
     let canvas = <HTMLCanvasElement>document.getElementById("canvas");
-    let feature = new ol.Feature(new ol.geom.MultiPolygon([polygonGeom]));
+    let feature = new ol.Feature();
+    feature.setGeometry(new ol.geom.MultiPolygon([polygonGeom]));
+
+    let redraw = () => {
+        let styles = <any[]>JSON.parse($(".style").val());
+        let style = styles.map(style => serializer.fromJson(style));
+        feature.setStyle(style);
+        canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
+        Snapshot.render(canvas, feature);
+    };
+
+    setInterval(() => {
+        try {
+            redraw();
+        } catch (ex) {
+            // keep trying
+        }
+    }, 2500);
+
+    let geom = getParameterByName("geom");
+    if (geom) {
+        loadGeom(geom).then(geoms => {
+            feature.setGeometry(geoms[0]);
+            redraw();
+        });
+    }
 
     let style = getParameterByName("style");
     if (style) {
         loadStyle(style).then(styles => {
             let style = styles.map(style => serializer.fromJson(style));
-            feature.setStyle(style);
-            Snapshot.render(canvas, feature);
             $(".style").val(JSON.stringify(styles, null, 2));
+            redraw();
         });
     } else {
         let font = `${$("#canvas").css("fontSize")} ${$("#canvas").css("fontFamily")}`;
@@ -133,10 +224,10 @@ export function run() {
             }
         });
 
-        console.log("style1", JSON.stringify(serializer.toJson(style1), null, '\t'));
-        console.log("style2", JSON.stringify(serializer.toJson(style2), null, '\t'));
-        feature.setStyle([style1, style2]);
-        Snapshot.render(canvas, feature);
+        let styles = [style1, style2];
+        $(".style").val(JSON.stringify(styles.map(s => serializer.toJson(s)), null, 2));
+        redraw();
     }
+
 }
 
