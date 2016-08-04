@@ -4,16 +4,14 @@
  * See ol.renderer.vector.GEOMETRY_RENDERERS_ for how it is done with styling
  * See ol.renderer.vector.renderPolygonGeometry_
  * See ol.render.canvas.Immediate.prototype.setFillStrokeStyle
+ * Good Grief!
+ * http://openlayers.org/en/latest/examples/render-geometry.html
  */
 
 import ol = require("openlayers");
 import $ = require("jquery");
 
-import ags_simplefillsymbol = require("./styles/ags/simplefillsymbol");
-import ags_serializer = require("./serializers/ags-simplefillsymbol");
 import parcel = require("./geom/parcel");
-
-const identity = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
 
 const html = `
 <div class='style-to-canvas'>
@@ -37,42 +35,39 @@ const css = `
 </style>
 `;
 
-/**
- * @param {ol.Coordinate} center Center.
- * @param {number} resolution Resolution.
- * @param {number} pixelRatio Pixel ratio.
- * @param {ol.Size} size Size.
- * @return {!goog.vec.Mat4.Number} Transform.
- * @private
- */
-let getTransform = (center: ol.Coordinate, resolution: number, pixelRatio: number, size: ol.Size) => {
-    let Mat4 = ol.vec.Mat4;
+function translate(points: number[][], vector: number[]) {
+    return points.map(p => vector.map((v, i) => v + p[i]));
+}
 
-    return Mat4.makeTransform2D(identity,
-        size[0] / 2, size[1] / 2,
-        pixelRatio / resolution, -pixelRatio / resolution,
-        0,
-        -center[0], -center[1]);
-};
+function rotate(points: number[][], a: number) {
+    return points.map(p => {
+        let [x, y, cos, sin] = [p[0], p[1], Math.cos(a), Math.sin(a)];
+        return [
+            x * cos - y * sin,
+            x * sin + y * cos
+        ];
+    });
+}
 
-/**
- * @param {CanvasRenderingContext2D} context Context.
- * @param {number} pixelRatio Pixel ratio.
- * @param {ol.Extent} extent Extent.
- * @param {goog.vec.Mat4.Number} transform Transform.
- * @param {number} viewRotation View rotation.
- */
-function createImmediate(
-    context: CanvasRenderingContext2D,
-    pixelRatio: number,
-    extent: ol.Extent,
-    transform: any,
-    viewRotation: number) {
-    let result = new ol.render.canvas.Immediate(context, pixelRatio, extent, transform, viewRotation);
-    return <{
-        drawFeature(feature: ol.Feature, style: ol.style.Style);
-        drawGeometry(geom: ol.geom.Geometry);
-    }>result;
+function scale(points: number[][], vector: number[]) {
+    return points.map(p => vector.map((v, i) => v * p[i]));
+}
+
+function render(canvas: HTMLCanvasElement, line: ol.Coordinate[], style: ol.style.Style) {
+    let extent = ol.extent.boundingExtent(line);
+    let [dx, dy] = ol.extent.getCenter(extent);
+    let [sx, sy] = [canvas.width / ol.extent.getWidth(extent), canvas.height / ol.extent.getHeight(extent)];
+    line = translate(line, [-dx, -dy]);
+    line = scale(line, [Math.min(sx, sy), -Math.min(sx, sy)]);
+    line = translate(line, [canvas.width / 2, canvas.height / 2]);
+
+    let feature = new ol.Feature({
+        geometry: new ol.geom.Polygon([line]),
+        style: style
+    });
+
+    let vtx = ol.render.toContext(canvas.getContext("2d"));
+    vtx.drawFeature(feature, style);
 }
 
 export function run() {
@@ -80,47 +75,16 @@ export function run() {
     $(html).appendTo("body");
     $(css).appendTo("head");
 
-    let converter = new ags_serializer.SimpleFillConverter();
-    let style = converter.fromJson(ags_simplefillsymbol[0]);
-
-    style = style || new ol.style.Style({
+    let style = new ol.style.Style({
         fill: new ol.style.Fill({
             color: "red"
+        }),
+        stroke: new ol.style.Stroke({
+            width: 1,
+            color: "blue"
         })
     });
 
-    let coordinates = parcel;
-    let geom = new ol.geom.Polygon([coordinates]);
-    let extent = geom.getExtent();
-    let center = ol.extent.getCenter(extent);
-
-    let feature = new ol.Feature({
-        geometry: geom,
-        style: style
-    });
-
-    // now utilize the style information to render the feature to a canvas
-    // without using a layer
-
     let canvas = <HTMLCanvasElement>document.getElementById("canvas");
-
-    let ctx = canvas.getContext("2d");
-
-    let Mat4 = ol.vec.Mat4;
-
-    console.log("Mat4", Mat4);
-
-    let scale = Math.min(canvas.width / ol.extent.getWidth(extent), canvas.height / ol.extent.getHeight(extent));
-    console.log("scale", scale);
-
-    let transform = Mat4.makeTransform2D(identity,
-        canvas.width / 2, canvas.height / 2, // translate to origin
-        scale, -scale, //scale
-        0, // rotation
-        -center[0], -center[1] // translate back
-    );
-    console.log("transform", transform);
-
-    let renderer = createImmediate(ctx, 1, extent, transform, 1);
-    renderer.drawFeature(feature, style);
+    render(canvas, parcel, style);
 } 
