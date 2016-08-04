@@ -11,11 +11,15 @@
 import ol = require("openlayers");
 import $ = require("jquery");
 
-import parcel = require("./geom/parcel");
+import parcel = require("../data/geom/parcel");
 
 const html = `
 <div class='style-to-canvas'>
-    <canvas id='canvas'></canvas>
+    <h3>Renders a feature on a canvas</h3>
+    <div class="area">
+        <label>256 x 256 Canvas</label>
+        <canvas id='canvas' width="256" height="256"></canvas>
+    </div>
 </div>
 `;
 
@@ -25,66 +29,130 @@ const css = `
         display: none;
     }
 
-    .style-to-canvas #canvas {
+    .style-to-canvas {
+    }
+
+    .style-to-canvas .area label {
+        display: block;
+        vertical-align: top;
+    }
+
+    .style-to-canvas .area {
         border: 1px solid black;
         padding: 20px;
-        width: 400px;
-        height: 400px;
-        overflow: auto;
+        margin: 20px;
+    }
+
+    .style-to-canvas #canvas {
+        font-family: sans serif;
+        font-size: 20px;
+        border: none;
+        padding: 0;
+        margin: 0;
     }
 </style>
 `;
 
-function translate(points: number[][], vector: number[]) {
-    return points.map(p => vector.map((v, i) => v + p[i]));
+/**
+ * https://github.com/openlayers/ol3/issues/5684
+ */
+{
+    ol.geom.SimpleGeometry.prototype.scale = ol.geom.SimpleGeometry.prototype.scale || function (deltaX, deltaY) {
+        var flatCoordinates = this.getFlatCoordinates();
+        if (flatCoordinates) {
+            var stride = this.getStride();
+            ol.geom.flat.transform.scale(
+                flatCoordinates, 0, flatCoordinates.length, stride,
+                deltaX, deltaY, flatCoordinates);
+            this.changed();
+        }
+    }
+
+    ol.geom.flat.transform.scale = ol.geom.flat.transform.scale ||
+        function (flatCoordinates, offset, end, stride, deltaX, deltaY, opt_dest) {
+            var dest = opt_dest ? opt_dest : [];
+            var i = 0;
+            var j, k;
+            for (j = offset; j < end; j += stride) {
+                dest[i++] = flatCoordinates[j] * deltaX;
+                dest[i++] = flatCoordinates[j + 1] * deltaY;
+                for (k = j + 2; k < j + stride; ++k) {
+                    dest[i++] = flatCoordinates[k];
+                }
+            }
+            if (opt_dest && dest.length != i) {
+                dest.length = i;
+            }
+            return dest;
+        };
 }
 
-function rotate(points: number[][], a: number) {
-    return points.map(p => {
-        let [x, y, cos, sin] = [p[0], p[1], Math.cos(a), Math.sin(a)];
-        return [
-            x * cos - y * sin,
-            x * sin + y * cos
-        ];
-    });
+class Snapshot {
+
+    static render(canvas: HTMLCanvasElement, feature: ol.Feature) {
+        feature = feature.clone();
+        let geom = feature.getGeometry();
+        let extent = geom.getExtent();
+
+        let [dx, dy] = ol.extent.getCenter(extent);
+        let scale = Math.min(canvas.width / ol.extent.getWidth(extent), canvas.height / ol.extent.getHeight(extent));
+
+        geom.translate(-dx, -dy);
+        geom.scale(scale, -scale);
+        geom.translate(canvas.width / 2, canvas.height / 2);
+
+        let vtx = ol.render.toContext(canvas.getContext("2d"));
+        let styles = <ol.style.Style[]><any>feature.getStyleFunction()(0);
+        if (!Array.isArray(styles)) styles = <any>[styles];
+        styles.forEach(style => vtx.drawFeature(feature, style));
+    }
+
+    /**
+     * convert features into data:image/png;base64;  
+     */
+    static snapshot(feature: ol.Feature) {
+        let canvas = document.createElement("canvas");
+        let geom = feature.getGeometry();
+        this.render(canvas, feature);
+        return canvas.toDataURL();
+    }
 }
 
-function scale(points: number[][], vector: number[]) {
-    return points.map(p => vector.map((v, i) => v * p[i]));
-}
-
-function render(canvas: HTMLCanvasElement, line: ol.Coordinate[], style: ol.style.Style) {
-    let extent = ol.extent.boundingExtent(line);
-    let [dx, dy] = ol.extent.getCenter(extent);
-    let [sx, sy] = [canvas.width / ol.extent.getWidth(extent), canvas.height / ol.extent.getHeight(extent)];
-    line = translate(line, [-dx, -dy]);
-    line = scale(line, [Math.min(sx, sy), -Math.min(sx, sy)]);
-    line = translate(line, [canvas.width / 2, canvas.height / 2]);
-
-    let feature = new ol.Feature({
-        geometry: new ol.geom.Polygon([line]),
-        style: style
-    });
-
-    let vtx = ol.render.toContext(canvas.getContext("2d"));
-    vtx.drawFeature(feature, style);
-}
 
 export function run() {
 
     $(html).appendTo("body");
     $(css).appendTo("head");
 
-    let style = new ol.style.Style({
+    let font = `${$("#canvas").css("fontSize")} ${$("#canvas").css("fontFamily")}`;
+
+    let style1 = new ol.style.Style({
         fill: new ol.style.Fill({
-            color: "red"
+            color: "rgba(255, 0, 0, 0.5)"
         }),
         stroke: new ol.style.Stroke({
-            width: 1,
+            width: 2,
             color: "blue"
         })
     });
 
+    let style2 = new ol.style.Style({
+        text: new ol.style.Text({
+            text: "style-to-canvas",
+            font: font,
+            fill: new ol.style.Fill({
+                color: "rgba(0, 0, 0, 1)"
+            }),
+            stroke: new ol.style.Stroke({
+                width: 4,
+                color: "rgba(255, 255, 255, 0.8)"
+            })
+        })
+    })
+
     let canvas = <HTMLCanvasElement>document.getElementById("canvas");
-    render(canvas, parcel, style);
+    let feature = new ol.Feature(new ol.geom.Polygon(parcel));
+    feature.setStyle([style1, style2]);
+
+    Snapshot.render(canvas, feature);
 } 

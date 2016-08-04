@@ -62,9 +62,9 @@ let openFile = function (event: Event) {
 };
 
 // from http://jsfiddle.net/bt7BU/225/
-let pasteHandler = (event: ClipboardEvent) => {
-    // use event.originalEvent.clipboard for newer chrome versions
-    let items = <{ type: string }[]>(event.clipboardData || event.originalEvent.clipboardData).items;
+let pasteHandler = (evt: ClipboardEvent) => {
+    let event = <ClipboardEvent>(evt.originalEvent || evt);
+    let items = event.clipboardData.items;
 
     // find pasted image among pasted items
     let blob: File;

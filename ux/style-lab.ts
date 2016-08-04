@@ -183,12 +183,13 @@ export function run() {
         {
             if (Array.isArray(style)) {
                 let s = <HTMLCanvasElement | ol.style.Style>style[0];
-                while (!(s instanceof HTMLCanvasElement)) {
-                    s = s.getImage();
-                }
-                if (s instanceof HTMLCanvasElement) {
-                    let dataUrl = s.toDataURL();
-                    $(".last-image-clicked").attr("src", dataUrl);
+                while (s) {
+                    if (s instanceof HTMLCanvasElement) {
+                        let dataUrl = s.toDataURL();
+                        $(".last-image-clicked").attr("src", dataUrl);
+                        break;
+                    }
+                    s = (<ol.style.Style>s).getImage();
                 }
             }
         }
