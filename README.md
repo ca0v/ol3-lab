@@ -76,8 +76,6 @@ aspects of OpenLayers and related spatial libraries
     }
 }]
 ```
-Try the [style-lab](https://rawgit.com/ca0v/ol3-lab/master/rawgit.html?run=ux/style-lab)
- example
 
 ## Polyline Encoder
 
@@ -87,14 +85,9 @@ Try the [style-lab](https://rawgit.com/ca0v/ol3-lab/master/rawgit.html?run=ux/st
 t`syzE}gm_dAm_@A?r@p@Bp@Hp@Ph@Td@Z`@`@Vb@Nd@xUABmF
 ```
 
-Try the [polyline-encoder](https://rawgit.com/ca0v/ol3-lab/master/rawgit.html?run=ux/polyline-encoder) example.
-
 ## All Examples
 
-* [style-lab](https://rawgit.com/ca0v/ol3-lab/master/rawgit.html?run=ux/style-lab)
-* [ags-symbols](https://rawgit.com/ca0v/ol3-lab/master/rawgit.html?run=ux/ags-symbols)
-* [polyline-encoder](https://rawgit.com/ca0v/ol3-lab/master/rawgit.html?run=ux/polyline-encoder)
-* [image-data-viewer](https://rawgit.com/ca0v/ol3-lab/master/rawgit.html?run=ux/image-data-viewer)
+* [index](https://rawgit.com/ca0v/ol3-lab/master/rawgit.html?run=labs/index)
 
 ## Build using tsd, bower, tsc:
 

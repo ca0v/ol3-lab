@@ -1,8 +1,8 @@
 import ol = require("openlayers");
 import $ = require("jquery");
-import CoretechSerializer = require("./serializers/coretech");
-import AgsMarkerSerializer = require("./serializers/ags-simplemarkersymbol");
-import StyleGenerator = require("./style-generator");
+import CoretechSerializer = require("../ux/serializers/coretech");
+import AgsMarkerSerializer = require("../ux/serializers/ags-simplemarkersymbol");
+import StyleGenerator = require("./common/style-generator");
 
 const center = [-82.4, 34.85];
 

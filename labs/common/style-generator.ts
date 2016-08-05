@@ -1,7 +1,7 @@
 import ol = require("openlayers");
-import basic_styles = require("./styles/basic");
-import Coretech = require("./serializers/coretech");
-import gradient_style = require("./styles/gradient");
+import basic_styles = require("../../ux/styles/basic");
+import Coretech = require("../../ux/serializers/coretech");
+import gradient_style = require("../../ux/styles/fill/gradient");
 
 let converter = new Coretech.CoretechConverter();
 
