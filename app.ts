@@ -1,11 +1,11 @@
 import ol = require("openlayers");
-import Directions = require("./mapquest-directions-proxy");
-import Route = require("./mapquest-optimized-route-proxy");
-import Traffic = require("./mapquest-traffic-proxy");
-import Geocoding = require("./mapquest-geocoding-proxy");
-import Search = require("./mapquest-search-proxy");
+import Directions = require("./ux/mapquest-directions-proxy");
+import Route = require("./ux/mapquest-optimized-route-proxy");
+import Traffic = require("./ux/mapquest-traffic-proxy");
+import Geocoding = require("./ux/mapquest-geocoding-proxy");
+import Search = require("./ux/mapquest-search-proxy");
 import PolylineEncoder = require("./google-polyline");
-import Osrm = require("./osrm-proxy");
+import Osrm = require("./ux/osrm-proxy");
 import $ = require("jquery");
 import ResizeSensor = require("resize-sensor");
 

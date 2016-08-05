@@ -31,7 +31,7 @@ REQUEST BODY:
 }
 */
 
-import * as ajax from "./ajax";
+import * as ajax from "../ajax";
 
 const MapQuestKey = "cwm3pF5yuEGNp54sh96TF0irs5kCLd5y";
 

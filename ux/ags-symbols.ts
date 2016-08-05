@@ -1,6 +1,6 @@
 import ol = require("openlayers");
 import Formatter = require("./serializers/ags-simplemarkersymbol");
-import StyleGenerator = require("./style-generator");
+import StyleGenerator = require("../labs/common/style-generator");
 
 import circleSymbol = require("./styles/ags/simplemarkersymbol-circle");
 import crossSymbol = require("./styles/ags/simplemarkersymbol-cross");

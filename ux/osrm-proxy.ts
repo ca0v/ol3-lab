@@ -4,9 +4,9 @@
  * http://router.project-osrm.org/trip?loc=52.52,13.44&loc=52.5,13.45&jsonp=callback
  */
 
-import * as ajax from "./ajax";
+import * as ajax from "../ajax";
 import * as $ from "jquery";
-import Encoder = require("./google-polyline");
+import Encoder = require("../google-polyline");
 
 declare module OsrmServices {
 

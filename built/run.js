@@ -54,7 +54,7 @@ define("ajax", ["require", "exports", "jquery"], function (require, exports, $) 
     }
     exports.mapquest = mapquest;
 });
-define("mapquest-directions-proxy", ["require", "exports", "ajax"], function (require, exports, ajax) {
+define("ux/mapquest-directions-proxy", ["require", "exports", "ajax"], function (require, exports, ajax) {
     "use strict";
     var MapQuestKey = "cwm3pF5yuEGNp54sh96TF0irs5kCLd5y";
     var Directions = (function () {
@@ -120,7 +120,7 @@ define("mapquest-directions-proxy", ["require", "exports", "ajax"], function (re
     }());
     return Directions;
 });
-define("mapquest-optimized-route-proxy", ["require", "exports", "ajax"], function (require, exports, ajax) {
+define("ux/mapquest-optimized-route-proxy", ["require", "exports", "ajax"], function (require, exports, ajax) {
     "use strict";
     var MapQuestKey = "cwm3pF5yuEGNp54sh96TF0irs5kCLd5y";
     var Route = (function () {
@@ -183,7 +183,7 @@ define("mapquest-optimized-route-proxy", ["require", "exports", "ajax"], functio
     }());
     return Route;
 });
-define("mapquest-traffic-proxy", ["require", "exports", "ajax"], function (require, exports, ajax) {
+define("ux/mapquest-traffic-proxy", ["require", "exports", "ajax"], function (require, exports, ajax) {
     "use strict";
     var MapQuestKey = "cwm3pF5yuEGNp54sh96TF0irs5kCLd5y";
     var Traffic = (function () {
@@ -216,7 +216,7 @@ define("mapquest-traffic-proxy", ["require", "exports", "ajax"], function (requi
     }());
     return Traffic;
 });
-define("mapquest-geocoding-proxy", ["require", "exports", "ajax", "jquery"], function (require, exports, ajax, $) {
+define("ux/mapquest-geocoding-proxy", ["require", "exports", "ajax", "jquery"], function (require, exports, ajax, $) {
     "use strict";
     var MapQuestKey = "cwm3pF5yuEGNp54sh96TF0irs5kCLd5y";
     var Geocoding = (function () {
@@ -328,7 +328,7 @@ define("google-polyline", ["require", "exports"], function (require, exports) {
     }());
     return PolylineEncoder;
 });
-define("mapquest-search-proxy", ["require", "exports", "ajax", "jquery", "google-polyline"], function (require, exports, ajax, $, G) {
+define("ux/mapquest-search-proxy", ["require", "exports", "ajax", "jquery", "google-polyline"], function (require, exports, ajax, $, G) {
     "use strict";
     var g = new G();
     var MapQuestKey = "cwm3pF5yuEGNp54sh96TF0irs5kCLd5y";
@@ -381,7 +381,7 @@ define("mapquest-search-proxy", ["require", "exports", "ajax", "jquery", "google
     }());
     return Search;
 });
-define("osrm-proxy", ["require", "exports", "ajax", "jquery", "google-polyline"], function (require, exports, ajax, $, Encoder) {
+define("ux/osrm-proxy", ["require", "exports", "ajax", "jquery", "google-polyline"], function (require, exports, ajax, $, Encoder) {
     "use strict";
     var Osrm = (function () {
         function Osrm(url) {
@@ -430,7 +430,7 @@ define("osrm-proxy", ["require", "exports", "ajax", "jquery", "google-polyline"]
     }());
     return Osrm;
 });
-define("app", ["require", "exports", "openlayers", "mapquest-directions-proxy", "mapquest-optimized-route-proxy", "google-polyline", "jquery", "resize-sensor"], function (require, exports, ol, Directions, Route, PolylineEncoder, $, ResizeSensor) {
+define("app", ["require", "exports", "openlayers", "ux/mapquest-directions-proxy", "ux/mapquest-optimized-route-proxy", "google-polyline", "jquery", "resize-sensor"], function (require, exports, ol, Directions, Route, PolylineEncoder, $, ResizeSensor) {
     "use strict";
     var Tests = (function () {
         function Tests() {
@@ -3393,7 +3393,7 @@ define("ux/styles/ags/simplemarkersymbol-x", ["require", "exports"], function (r
         }
     ];
 });
-define("ux/ags-symbols", ["require", "exports", "openlayers", "ux/serializers/ags-simplemarkersymbol", "./style-generator", "ux/styles/ags/simplemarkersymbol-circle", "ux/styles/ags/simplemarkersymbol-cross", "ux/styles/ags/simplemarkersymbol-square", "ux/styles/ags/simplemarkersymbol-diamond", "ux/styles/ags/simplemarkersymbol-path", "ux/styles/ags/simplemarkersymbol-x"], function (require, exports, ol, Formatter, StyleGenerator, circleSymbol, crossSymbol, squareSymbol, diamondSymbol, pathSymbol, xSymbol) {
+define("ux/ags-symbols", ["require", "exports", "openlayers", "ux/serializers/ags-simplemarkersymbol", "labs/common/style-generator", "ux/styles/ags/simplemarkersymbol-circle", "ux/styles/ags/simplemarkersymbol-cross", "ux/styles/ags/simplemarkersymbol-square", "ux/styles/ags/simplemarkersymbol-diamond", "ux/styles/ags/simplemarkersymbol-path", "ux/styles/ags/simplemarkersymbol-x"], function (require, exports, ol, Formatter, StyleGenerator, circleSymbol, crossSymbol, squareSymbol, diamondSymbol, pathSymbol, xSymbol) {
     "use strict";
     var center = [-82.4, 34.85];
     function run() {
