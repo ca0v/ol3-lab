@@ -1825,7 +1825,7 @@ define("labs/index", ["require", "exports"], function (require, exports) {
             .map(function (v) { return v.trim(); })
             .filter(function (v) { return !!v; })
             .sort()
-            .map(function (lab) { return ("<a href=" + path + lab + ">" + lab + "</a>"); })
+            .map(function (lab) { return ("<a href=" + path + lab + "&debug=1>" + lab + "</a>"); })
             .join("<br/>"));
     }
     exports.run = run;

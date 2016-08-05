@@ -20,7 +20,7 @@ export function run() {
         .map(v => v.trim())
         .filter(v => !!v)
         .sort()
-        .map(lab => `<a href=${path}${lab}>${lab}</a>`)
+        .map(lab => `<a href=${path}${lab}&debug=1>${lab}</a>`)
         .join("<br/>"));
     
 };
