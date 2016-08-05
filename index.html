@@ -21,7 +21,7 @@
             return decodeURIComponent(results[2].replace(/\+/g, " "));
         }
 
-        let run = getParameterByName("run") || "app";
+        let run = getParameterByName("run") || "labs/index";
 
         requirejs.config({
             paths: {
