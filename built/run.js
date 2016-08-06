@@ -575,7 +575,7 @@ define("labs/index", ["require", "exports"], function (require, exports) {
     function run() {
         var l = window.location;
         var path = "" + l.origin + l.pathname + "?run=labs/";
-        var labs = "\n    style-lab\n    style-viewer\n    style-viewer&geom=parcel\n    style-viewer&geom=polygon-with-holes\n    style-viewer&style=fill/gradient,text/text\n    style-viewer&geom=parcel&style=fill/gradient,text/text\n    style-to-canvas\n    polyline-encoder\n    image-data-viewer\n    mapmaker\n    index\n    ";
+        var labs = "\n    style-lab\n    style-viewer\n    style-viewer&geom=parcel\n    style-viewer&geom=polygon-with-holes\n    style-viewer&style=fill/gradient,text/text\n    style-viewer&geom=parcel&style=fill/gradient,text/text\n    style-to-canvas\n    polyline-encoder\n    image-data-viewer\n    mapmaker\n    mapmaker&background=light\n    mapmaker&geom=t`syzE}gm_dAm_@A?r@p@Bp@Hp@Ph@Td@Z`@`@Vb@Nd@xUABmF\n    mapmaker&geom=t`syzE}gm_dAm_@A?r@p@Bp@Hp@Ph@Td@Z`@`@Vb@Nd@xUABmF&color=yellow&background=dark\n    index\n    ";
         var styles = document.createElement("style");
         document.head.appendChild(styles);
         styles.innerText += "\n    #map {\n        display: none;\n    }\n    ";
@@ -595,147 +595,67 @@ define("labs/index", ["require", "exports"], function (require, exports) {
     exports.run = run;
     ;
 });
-define("labs/mapmaker", ["require", "exports", "openlayers"], function (require, exports, ol) {
+define("labs/common/common", ["require", "exports"], function (require, exports) {
     "use strict";
-    function run() {
-        var map = new ol.Map({
-            target: "map",
-            view: new ol.View({
-                projection: 'EPSG:4326',
-                center: [-82.4, 34.85],
-                zoom: 15
-            }),
-            layers: [new ol.layer.Tile({
-                    source: new ol.source.OSM({
-                        layer: "sat"
-                    })
-                })]
-        });
-        return map;
+    function getParameterByName(name, url) {
+        if (url === void 0) { url = window.location.href; }
+        name = name.replace(/[\[\]]/g, "\\$&");
+        var regex = new RegExp("[?&]" + name + "(=([^&#]*)|&|#|$)"), results = regex.exec(url);
+        if (!results)
+            return null;
+        if (!results[2])
+            return '';
+        return decodeURIComponent(results[2].replace(/\+/g, " "));
     }
-    exports.run = run;
+    exports.getParameterByName = getParameterByName;
+    function doif(v, cb) {
+        if (v !== undefined && v !== null)
+            cb(v);
+    }
+    exports.doif = doif;
+    function mixin(a, b) {
+        Object.keys(b).forEach(function (k) { return a[k] = b[k]; });
+        return a;
+    }
+    exports.mixin = mixin;
 });
 define("labs/common/ol3-polyline", ["require", "exports", "openlayers"], function (require, exports, ol) {
     "use strict";
+    var Polyline = ol.format.Polyline;
     var PolylineEncoder = (function () {
-        function PolylineEncoder() {
+        function PolylineEncoder(precision, stride) {
+            if (precision === void 0) { precision = 5; }
+            if (stride === void 0) { stride = 2; }
+            this.precision = precision;
+            this.stride = stride;
         }
-        PolylineEncoder.prototype.flatten = function (coordinates) {
-            var nums = new Array(coordinates.length * 2);
+        PolylineEncoder.prototype.flatten = function (points) {
+            var nums = new Array(points.length * this.stride);
             var i = 0;
-            coordinates.forEach(function (p) {
-                nums[i++] = p[0];
-                nums[i++] = p[1];
-            });
+            points.forEach(function (p) { return p.map(function (p) { return nums[i++] = p; }); });
             return nums;
         };
         PolylineEncoder.prototype.unflatten = function (nums) {
-            var coordinates = new Array(nums.length / 2);
-            for (var i = 0; i < nums.length; i += 2) {
-                coordinates[i / 2] = [nums[i], nums[i + 1]];
+            var points = new Array(nums.length / this.stride);
+            for (var i = 0; i < nums.length / this.stride; i++) {
+                points[i] = nums.slice(i * this.stride, (i + 1) * this.stride);
             }
-            return coordinates;
+            return points;
         };
-        PolylineEncoder.prototype.decode = function (str, precision) {
-            if (precision === void 0) { precision = 5; }
-            var factor = Math.pow(10, precision);
-            var nums = ol.format.Polyline.decodeDeltas(str, 2, factor);
-            return this.unflatten(nums.map(function (n) { return Math.round(n * factor) / factor; }));
+        PolylineEncoder.prototype.round = function (nums) {
+            var factor = Math.pow(10, this.precision);
+            return nums.map(function (n) { return Math.round(n * factor) / factor; });
         };
-        PolylineEncoder.prototype.encode = function (coordinates, precision) {
-            if (precision === void 0) { precision = 5; }
-            return (ol.format.Polyline.encodeDeltas(this.flatten(coordinates), 2, Math.pow(10, precision)));
+        PolylineEncoder.prototype.decode = function (str) {
+            var nums = Polyline.decodeDeltas(str, this.stride, Math.pow(10, this.precision));
+            return this.unflatten(this.round(nums));
+        };
+        PolylineEncoder.prototype.encode = function (points) {
+            return Polyline.encodeDeltas(this.flatten(points), this.stride, Math.pow(10, this.precision));
         };
         return PolylineEncoder;
     }());
     return PolylineEncoder;
-});
-define("labs/polyline-encoder", ["require", "exports", "jquery", "openlayers", "labs/common/ol3-polyline", "labs/common/google-polyline"], function (require, exports, $, ol, PolylineEncoder, GoogleEncoder) {
-    "use strict";
-    var PRECISION = 6;
-    var css = "\n<style>\n    .polyline-encoder .area {\n        margin: 20px;\n    }\n\n    .polyline-encoder .area p {\n        font-size: smaller;\n    }\n\n    .polyline-encoder .area canvas {\n        vertical-align: top;\n    }\n\n    .polyline-encoder .area label {\n        display: block;\n        margin: 10px;\n        border-bottom: 1px solid black;\n    }\n\n    .polyline-encoder .area textarea {\n        min-width: 400px;\n        min-height: 200px;\n    }\n</style>\n";
-    var ux = "\n<div class='polyline-encoder'>\n    <p>\n    Demonstrates simplifying a geometry and then encoding it.  Enter an Input Geometry (e.g. [[1,2],[3,4]]) and watch the magic happen\n    </p>\n\n    <div class='input area'>\n        <label>Input Geometry</label>\n        <p>Enter a geometry here as an array of points in the form [[x1,y1], [x2,y2], ..., [xn, yn]]</p>\n        <textarea></textarea>\n        <canvas></canvas>\n    </div>\n\n    <div class='simplified area'>\n        <label>Simplified Geometry</label>\n        <p>This is a 'simplified' version of the Input Geometry.  \n        You can also enter a geometry here as an array of points in the form [[x1,y1], [x2,y2], ..., [xn, yn]]</p>\n        <textarea></textarea>\n        <canvas></canvas>\n    </div>\n\n    <div class='encoded area'>\n        <label>Encoded Simplified Geometry</label>\n        <p>This is an encoding of the Simplified Geometry.  You can also enter an encoded value here</p>\n        <textarea>[encoding]</textarea>\n        <div>Use google encoder?</div>\n        <input type='checkbox' id='use-google' />\n        <p>Ported to Typescript from https://github.com/DeMoehn/Cloudant-nyctaxi/blob/master/app/js/polyline.js</p>\n    </div>\n\n    <div class='decoded area'>\n        <label>Decoded Simplified Geometry</label>\n        <p>This is the decoding of the Encoded Geometry</p>\n        <textarea>[decoded]</textarea>\n        <canvas></canvas>\n    </div>\n\n</div>\n";
-    var encoder;
-    var sample_input = [
-        [-115.25532322799027, 36.18318333413792], [-115.25480459088912, 36.18318418322269], [-115.25480456865377, 36.18318418316166], [-115.25480483306748, 36.1831581364999], [-115.25480781267404, 36.18315812665095], [-115.2548095138256, 36.183158095267615], [-115.25481120389723, 36.183158054840916], [-115.2548128940441, 36.18315799638853], [-115.2548145842662, 36.18315791991047], [-115.25481628564361, 36.18315783445006], [-115.25481797597863, 36.18315773093339], [-115.25481965527126, 36.18315760936059], [-115.25482134571912, 36.18315747880541], [-115.2548230362423, 36.18315733022459], [-115.25482471568543, 36.183157172600346], [-115.25482639524148, 36.183156987937565], [-115.25482807479749, 36.183156803274784], [-115.25482974334876, 36.183156591542996], [-115.2548314230553, 36.18315637082881], [-115.25483309171943, 36.18315613205847], [-115.25483476042122, 36.183155884275266], [-115.25483641808054, 36.18315561843585], [-115.25483807581516, 36.18315533457071], [-115.25483973358743, 36.18315504169277], [-115.25484138031726, 36.183154730758616], [-115.25484302712233, 36.18315440179879], [-115.25484467396501, 36.183154063826066], [-115.25484630976528, 36.1831537077972], [-115.2548479456032, 36.18315334275542], [-115.25484957043632, 36.183152950644654], [-115.25485119526944, 36.183152558533834], [-115.25485280906014, 36.183152148366815], [-115.2548544229261, 36.18315172017415], [-115.2548560257496, 36.18315127392525], [-115.25485762861075, 36.18315081866349], [-115.25485922039188, 36.18315035435842], [-115.25486081224824, 36.18314987202764], [-115.25486239306215, 36.183149371640624], [-115.25486396279601, 36.1831488622103], [-115.25486553260517, 36.18314833475428], [-115.2548670913342, 36.18314779825488], [-115.25486863902088, 36.183147243699295], [-115.25487018674515, 36.18314668013086], [-115.25487172342703, 36.18314609850624], [-115.25487324902879, 36.18314550783829], [-115.25487476358818, 36.18314489911408], [-115.25487627818518, 36.18314428137708], [-115.25487778173971, 36.18314364558384], [-115.25487928533187, 36.18314300077779], [-115.25488076676396, 36.18314233788503], [-115.25488224823366, 36.183141665979406], [-115.25488370754327, 36.1831409759871], [-115.25488516689049, 36.18314027698193], [-115.25488661519529, 36.183139559920576], [-115.25488805238238, 36.183138842828726], [-115.25488948968233, 36.183138098698365], [-115.2548909047846, 36.18313734549412], [-115.25489231992445, 36.18313658327705], [-115.25489371286662, 36.18313581198606], [-115.25489510588402, 36.18313502266943], [-115.25489647670366, 36.183134224279], [-115.25489784759858, 36.18313340786281], [-115.25489919629575, 36.18313258237279], [-115.25490054503052, 36.18313174786991], [-115.25490187156761, 36.18313090429319], [-115.25490319817993, 36.18313004269079], [-115.25490450259451, 36.183129172014546], [-115.25490580704671, 36.183128292325435], [-115.25490708933879, 36.18312739454964], [-115.25490836055086, 36.18312648773055], [-115.25490962068287, 36.183125571868075], [-115.25491086973481, 36.18312464696224], [-115.25491210774435, 36.183123704000224], [-115.25491332355611, 36.18312275196436], [-115.25491453940552, 36.183121790915635], [-115.25491573305723, 36.18312082079315], [-115.25491691562885, 36.183119841627246], [-115.25491808715805, 36.18311884440516], [-115.25491924756955, 36.18311784715259], [-115.25492038582102, 36.18311683181332], [-115.2549215129924, 36.18311580743071], [-115.25492262908377, 36.183114774004764], [-115.25492373409503, 36.18311373153546], [-115.25492481690861, 36.183112679992306], [-115.2549258886421, 36.18311161940585], [-115.25492694929561, 36.183110549776046], [-115.25492798775133, 36.183109471072356], [-115.25492901516465, 36.183108374312525], [-115.25493003146033, 36.1831072775222], [-115.25493102555829, 36.18310617165801], [-115.25493200857615, 36.18310505675048], [-115.25493298051404, 36.183103932799625], [-115.25493393025415, 36.18310279977493], [-115.25493486891426, 36.18310165770687], [-115.25493579649431, 36.183100506595494], [-115.25493670187666, 36.18309934641027], [-115.25493759614129, 36.18309818619454], [-115.25493846824591, 36.183097007892144], [-115.25493931811518, 36.18309582952875], [-115.25494016802205, 36.183094642152525], [-115.25494099573123, 36.18309344570244], [-115.25494180124268, 36.18309224017851], [-115.25494259567414, 36.183091025611276], [-115.25494336787024, 36.18308981098305], [-115.25494412898631, 36.183088587311474], [-115.2549448790223, 36.183087354596566], [-115.25494560682303, 36.18308612182065], [-115.25494631246364, 36.18308487095804], [-115.25494700698661, 36.18308362006498], [-115.25494767927427, 36.18308236911088], [-115.2549483404819, 36.18308110911343], [-115.25494897949177, 36.183079840042225], [-115.25494960742166, 36.183078561927644], [-115.25495021311626, 36.183077283752056], [-115.25495080769318, 36.183076005545956], [-115.25495138011001, 36.18307470925323], [-115.25495193025388, 36.183073421912326], [-115.25495246935542, 36.18307211651528], [-115.25495298618397, 36.18307082007], [-115.25495349197016, 36.183069505568625], [-115.2549539754834, 36.183068200019065], [-115.25495443679894, 36.18306688539569], [-115.25495488703444, 36.183065561728924], [-115.25495531503466, 36.183064238001236], [-115.25495573195485, 36.18306290523016], [-115.2553212003638, 36.183064339787606], [-115.25532322799027, 36.18318333413792]
-    ];
-    function updateEncoder() {
-        var input = $(".simplified textarea")[0];
-        var geom = new ol.geom.LineString(JSON.parse(input.value));
-        var encoded = encoder.encode(geom.getCoordinates(), PRECISION);
-        $(".encoded textarea").val(encoded).change();
-    }
-    function updateDecoder() {
-        var input = $(".encoded textarea")[0];
-        $(".decoded textarea").val(JSON.stringify(encoder.decode(input.value, PRECISION))).change();
-        updateCanvas(".decoded canvas", ".decoded textarea");
-    }
-    function updateCanvas(canvas_id, features_id) {
-        var canvas = $(canvas_id)[0];
-        canvas.width = canvas.height = 200;
-        var geom = new ol.geom.LineString(JSON.parse($(features_id)[0].value));
-        var extent = geom.getExtent();
-        var scale = (function () {
-            var _a = [ol.extent.getWidth(extent), ol.extent.getHeight(extent)], w = _a[0], h = _a[1];
-            var _b = ol.extent.getCenter(extent), x0 = _b[0], y0 = _b[1];
-            var _c = [canvas.width / 2, canvas.height / 2], dx = _c[0], dy = _c[1];
-            var _d = [dx / w, dy / h], sx = _d[0], sy = _d[1];
-            return function (x, y) {
-                return [sx * (x - x0) + dx, -sy * (y - y0) + dy];
-            };
-        })();
-        var c = canvas.getContext("2d");
-        c.beginPath();
-        {
-            c.strokeStyle = "#000000";
-            c.lineWidth = 1;
-            geom.getCoordinates().forEach(function (p, i) {
-                var _a = scale(p[0], p[1]), x = _a[0], y = _a[1];
-                console.log(x, y);
-                (i === 0) && c.moveTo(x, y);
-                c.lineTo(x, y);
-            });
-            c.stroke();
-            c.closePath();
-        }
-        c.beginPath();
-        {
-            c.strokeStyle = "#FF0000";
-            c.lineWidth = 1;
-            geom.getCoordinates().forEach(function (p, i) {
-                var _a = scale(p[0], p[1]), x = _a[0], y = _a[1];
-                c.moveTo(x, y);
-                c.rect(x, y, 1, 1);
-            });
-            c.stroke();
-            c.closePath();
-        }
-    }
-    function run() {
-        $(css).appendTo("head");
-        $(ux).appendTo(".map");
-        $("#use-google").change(function (args) {
-            encoder = $("#use-google")[0].checked ? new GoogleEncoder() : new PolylineEncoder();
-            $(".simplified textarea").change();
-        }).change();
-        $(".encoded textarea").change(updateDecoder);
-        $(".simplified textarea").change(function () {
-            updateCanvas(".simplified canvas", ".simplified textarea");
-            updateEncoder();
-        });
-        $(".input textarea")
-            .val(JSON.stringify(sample_input))
-            .change(function (args) {
-            var input = $(".input textarea")[0];
-            var coords = JSON.parse("" + input.value);
-            var geom = new ol.geom.LineString(coords);
-            geom = geom.simplify(Math.pow(10, -PRECISION));
-            $(".simplified textarea").val(JSON.stringify(geom.getCoordinates())).change();
-            updateCanvas(".input canvas", ".input textarea");
-        })
-            .change();
-    }
-    exports.run = run;
 });
 define("ux/serializers/serializer", ["require", "exports"], function (require, exports) {
     "use strict";
@@ -1061,6 +981,173 @@ define("ux/serializers/coretech", ["require", "exports", "openlayers"], function
         return CoretechConverter;
     }());
     exports.CoretechConverter = CoretechConverter;
+});
+define("ux/styles/stroke/dashdotdot", ["require", "exports"], function (require, exports) {
+    "use strict";
+    return [
+        {
+            "stroke": {
+                "color": "blue",
+                "width": 2,
+                "lineDash": [15, 2, 5, 2, 5, 2]
+            }
+        }
+    ];
+});
+define("labs/mapmaker", ["require", "exports", "jquery", "openlayers", "labs/common/common", "labs/common/ol3-polyline", "ux/serializers/coretech", "ux/styles/stroke/dashdotdot"], function (require, exports, $, ol, common_1, reduce, styler, stroke) {
+    "use strict";
+    function parse(v, type) {
+        if (typeof type === "string")
+            return v;
+        if (typeof type === "number")
+            return parseFloat(v);
+        if (Array.isArray(type)) {
+            return (v.split(",").map(function (v) { return parse(v, type[0]); }));
+        }
+        throw "unknown type: " + type;
+    }
+    var css = "\n<style>\n    html, body, .map {\n        width: 100%;\n        height: 100%;\n        padding: 0;\n        overflow: hidden;\n        margin: 0;    \n    }\n\n    .map {\n        background-color: black;\n    }\n\n    .map.dark {\n        background: black;\n    }\n\n    .map.light {\n        background: silver;\n    }\n\n    .map.bright {\n        background: white;\n    }\n</style>\n";
+    function run() {
+        $(css).appendTo("head");
+        var options = {
+            projection: 'EPSG:4326',
+            center: [-82.4, 34.85],
+            zoom: 15,
+            background: "bright",
+            geom: "",
+            color: "red"
+        };
+        {
+            var opts_1 = options;
+            Object.keys(opts_1).forEach(function (k) {
+                common_1.doif(common_1.getParameterByName(k), function (v) { return opts_1[k] = parse(v, opts_1[k]); });
+            });
+            console.log("querystring", Object.keys(opts_1).map(function (k) { return (k + "=" + opts_1[k]); }).join("&"));
+        }
+        $(".map").addClass(options.background);
+        var map = new ol.Map({
+            target: "map",
+            keyboardEventTarget: document,
+            loadTilesWhileAnimating: true,
+            loadTilesWhileInteracting: true,
+            view: new ol.View({
+                projection: options.projection,
+                center: options.center,
+                zoom: options.zoom
+            }),
+            layers: [
+                new ol.layer.Tile({
+                    opacity: 0.8,
+                    source: new ol.source.OSM()
+                })]
+        });
+        if (options.geom) {
+            var layer = new ol.layer.Vector({
+                source: new ol.source.Vector()
+            });
+            map.addLayer(layer);
+            if (options.color) {
+                debugger;
+                stroke[0].stroke.color = options.color;
+                var style = new styler.CoretechConverter().fromJson(stroke[0]);
+                layer.setStyle(style);
+            }
+            var points = new reduce(6, 2).decode(options.geom);
+            var geom = new ol.geom.Polygon([points]);
+            var feature = new ol.Feature(geom);
+            layer.getSource().addFeature(feature);
+            map.getView().fit(geom, map.getSize());
+        }
+        return map;
+    }
+    exports.run = run;
+});
+define("labs/polyline-encoder", ["require", "exports", "jquery", "openlayers", "labs/common/ol3-polyline", "labs/common/google-polyline"], function (require, exports, $, ol, PolylineEncoder, GoogleEncoder) {
+    "use strict";
+    var PRECISION = 6;
+    var css = "\n<style>\n    .polyline-encoder .area {\n        margin: 20px;\n    }\n\n    .polyline-encoder .area p {\n        font-size: smaller;\n    }\n\n    .polyline-encoder .area canvas {\n        vertical-align: top;\n    }\n\n    .polyline-encoder .area label {\n        display: block;\n        margin: 10px;\n        border-bottom: 1px solid black;\n    }\n\n    .polyline-encoder .area textarea {\n        min-width: 400px;\n        min-height: 200px;\n    }\n</style>\n";
+    var ux = "\n<div class='polyline-encoder'>\n    <p>\n    Demonstrates simplifying a geometry and then encoding it.  Enter an Input Geometry (e.g. [[1,2],[3,4]]) and watch the magic happen\n    </p>\n\n    <div class='input area'>\n        <label>Input Geometry</label>\n        <p>Enter a geometry here as an array of points in the form [[x1,y1], [x2,y2], ..., [xn, yn]]</p>\n        <textarea></textarea>\n        <canvas></canvas>\n    </div>\n\n    <div class='simplified area'>\n        <label>Simplified Geometry</label>\n        <p>This is a 'simplified' version of the Input Geometry.  \n        You can also enter a geometry here as an array of points in the form [[x1,y1], [x2,y2], ..., [xn, yn]]</p>\n        <textarea></textarea>\n        <canvas></canvas>\n    </div>\n\n    <div class='encoded area'>\n        <label>Encoded Simplified Geometry</label>\n        <p>This is an encoding of the Simplified Geometry.  You can also enter an encoded value here</p>\n        <textarea>[encoding]</textarea>\n        <div>Use google encoder?</div>\n        <input type='checkbox' id='use-google' />\n        <p>Ported to Typescript from https://github.com/DeMoehn/Cloudant-nyctaxi/blob/master/app/js/polyline.js</p>\n    </div>\n\n    <div class='decoded area'>\n        <label>Decoded Simplified Geometry</label>\n        <p>This is the decoding of the Encoded Geometry</p>\n        <textarea>[decoded]</textarea>\n        <canvas></canvas>\n    </div>\n\n</div>\n";
+    var encoder;
+    var sample_input = [
+        [-115.25532322799027, 36.18318333413792], [-115.25480459088912, 36.18318418322269], [-115.25480456865377, 36.18318418316166], [-115.25480483306748, 36.1831581364999], [-115.25480781267404, 36.18315812665095], [-115.2548095138256, 36.183158095267615], [-115.25481120389723, 36.183158054840916], [-115.2548128940441, 36.18315799638853], [-115.2548145842662, 36.18315791991047], [-115.25481628564361, 36.18315783445006], [-115.25481797597863, 36.18315773093339], [-115.25481965527126, 36.18315760936059], [-115.25482134571912, 36.18315747880541], [-115.2548230362423, 36.18315733022459], [-115.25482471568543, 36.183157172600346], [-115.25482639524148, 36.183156987937565], [-115.25482807479749, 36.183156803274784], [-115.25482974334876, 36.183156591542996], [-115.2548314230553, 36.18315637082881], [-115.25483309171943, 36.18315613205847], [-115.25483476042122, 36.183155884275266], [-115.25483641808054, 36.18315561843585], [-115.25483807581516, 36.18315533457071], [-115.25483973358743, 36.18315504169277], [-115.25484138031726, 36.183154730758616], [-115.25484302712233, 36.18315440179879], [-115.25484467396501, 36.183154063826066], [-115.25484630976528, 36.1831537077972], [-115.2548479456032, 36.18315334275542], [-115.25484957043632, 36.183152950644654], [-115.25485119526944, 36.183152558533834], [-115.25485280906014, 36.183152148366815], [-115.2548544229261, 36.18315172017415], [-115.2548560257496, 36.18315127392525], [-115.25485762861075, 36.18315081866349], [-115.25485922039188, 36.18315035435842], [-115.25486081224824, 36.18314987202764], [-115.25486239306215, 36.183149371640624], [-115.25486396279601, 36.1831488622103], [-115.25486553260517, 36.18314833475428], [-115.2548670913342, 36.18314779825488], [-115.25486863902088, 36.183147243699295], [-115.25487018674515, 36.18314668013086], [-115.25487172342703, 36.18314609850624], [-115.25487324902879, 36.18314550783829], [-115.25487476358818, 36.18314489911408], [-115.25487627818518, 36.18314428137708], [-115.25487778173971, 36.18314364558384], [-115.25487928533187, 36.18314300077779], [-115.25488076676396, 36.18314233788503], [-115.25488224823366, 36.183141665979406], [-115.25488370754327, 36.1831409759871], [-115.25488516689049, 36.18314027698193], [-115.25488661519529, 36.183139559920576], [-115.25488805238238, 36.183138842828726], [-115.25488948968233, 36.183138098698365], [-115.2548909047846, 36.18313734549412], [-115.25489231992445, 36.18313658327705], [-115.25489371286662, 36.18313581198606], [-115.25489510588402, 36.18313502266943], [-115.25489647670366, 36.183134224279], [-115.25489784759858, 36.18313340786281], [-115.25489919629575, 36.18313258237279], [-115.25490054503052, 36.18313174786991], [-115.25490187156761, 36.18313090429319], [-115.25490319817993, 36.18313004269079], [-115.25490450259451, 36.183129172014546], [-115.25490580704671, 36.183128292325435], [-115.25490708933879, 36.18312739454964], [-115.25490836055086, 36.18312648773055], [-115.25490962068287, 36.183125571868075], [-115.25491086973481, 36.18312464696224], [-115.25491210774435, 36.183123704000224], [-115.25491332355611, 36.18312275196436], [-115.25491453940552, 36.183121790915635], [-115.25491573305723, 36.18312082079315], [-115.25491691562885, 36.183119841627246], [-115.25491808715805, 36.18311884440516], [-115.25491924756955, 36.18311784715259], [-115.25492038582102, 36.18311683181332], [-115.2549215129924, 36.18311580743071], [-115.25492262908377, 36.183114774004764], [-115.25492373409503, 36.18311373153546], [-115.25492481690861, 36.183112679992306], [-115.2549258886421, 36.18311161940585], [-115.25492694929561, 36.183110549776046], [-115.25492798775133, 36.183109471072356], [-115.25492901516465, 36.183108374312525], [-115.25493003146033, 36.1831072775222], [-115.25493102555829, 36.18310617165801], [-115.25493200857615, 36.18310505675048], [-115.25493298051404, 36.183103932799625], [-115.25493393025415, 36.18310279977493], [-115.25493486891426, 36.18310165770687], [-115.25493579649431, 36.183100506595494], [-115.25493670187666, 36.18309934641027], [-115.25493759614129, 36.18309818619454], [-115.25493846824591, 36.183097007892144], [-115.25493931811518, 36.18309582952875], [-115.25494016802205, 36.183094642152525], [-115.25494099573123, 36.18309344570244], [-115.25494180124268, 36.18309224017851], [-115.25494259567414, 36.183091025611276], [-115.25494336787024, 36.18308981098305], [-115.25494412898631, 36.183088587311474], [-115.2549448790223, 36.183087354596566], [-115.25494560682303, 36.18308612182065], [-115.25494631246364, 36.18308487095804], [-115.25494700698661, 36.18308362006498], [-115.25494767927427, 36.18308236911088], [-115.2549483404819, 36.18308110911343], [-115.25494897949177, 36.183079840042225], [-115.25494960742166, 36.183078561927644], [-115.25495021311626, 36.183077283752056], [-115.25495080769318, 36.183076005545956], [-115.25495138011001, 36.18307470925323], [-115.25495193025388, 36.183073421912326], [-115.25495246935542, 36.18307211651528], [-115.25495298618397, 36.18307082007], [-115.25495349197016, 36.183069505568625], [-115.2549539754834, 36.183068200019065], [-115.25495443679894, 36.18306688539569], [-115.25495488703444, 36.183065561728924], [-115.25495531503466, 36.183064238001236], [-115.25495573195485, 36.18306290523016], [-115.2553212003638, 36.183064339787606], [-115.25532322799027, 36.18318333413792]
+    ];
+    function updateEncoder() {
+        var input = $(".simplified textarea")[0];
+        var geom = new ol.geom.LineString(JSON.parse(input.value));
+        var encoded = encoder.encode(geom.getCoordinates(), PRECISION);
+        $(".encoded textarea").val(encoded).change();
+    }
+    function updateDecoder() {
+        var input = $(".encoded textarea")[0];
+        $(".decoded textarea").val(JSON.stringify(encoder.decode(input.value, PRECISION))).change();
+        updateCanvas(".decoded canvas", ".decoded textarea");
+    }
+    function updateCanvas(canvas_id, features_id) {
+        var canvas = $(canvas_id)[0];
+        canvas.width = canvas.height = 200;
+        var geom = new ol.geom.LineString(JSON.parse($(features_id)[0].value));
+        var extent = geom.getExtent();
+        var scale = (function () {
+            var _a = [ol.extent.getWidth(extent), ol.extent.getHeight(extent)], w = _a[0], h = _a[1];
+            var _b = ol.extent.getCenter(extent), x0 = _b[0], y0 = _b[1];
+            var _c = [canvas.width / 2, canvas.height / 2], dx = _c[0], dy = _c[1];
+            var _d = [dx / w, dy / h], sx = _d[0], sy = _d[1];
+            return function (x, y) {
+                return [sx * (x - x0) + dx, -sy * (y - y0) + dy];
+            };
+        })();
+        var c = canvas.getContext("2d");
+        c.beginPath();
+        {
+            c.strokeStyle = "#000000";
+            c.lineWidth = 1;
+            geom.getCoordinates().forEach(function (p, i) {
+                var _a = scale(p[0], p[1]), x = _a[0], y = _a[1];
+                console.log(x, y);
+                (i === 0) && c.moveTo(x, y);
+                c.lineTo(x, y);
+            });
+            c.stroke();
+            c.closePath();
+        }
+        c.beginPath();
+        {
+            c.strokeStyle = "#FF0000";
+            c.lineWidth = 1;
+            geom.getCoordinates().forEach(function (p, i) {
+                var _a = scale(p[0], p[1]), x = _a[0], y = _a[1];
+                c.moveTo(x, y);
+                c.rect(x, y, 1, 1);
+            });
+            c.stroke();
+            c.closePath();
+        }
+    }
+    function run() {
+        $(css).appendTo("head");
+        $(ux).appendTo(".map");
+        $("#use-google").change(function (args) {
+            encoder = $("#use-google:checked").length ? new GoogleEncoder() : new PolylineEncoder(6, 2);
+            $(".simplified textarea").change();
+        }).change();
+        $(".encoded textarea").change(updateDecoder);
+        $(".simplified textarea").change(function () {
+            updateCanvas(".simplified canvas", ".simplified textarea");
+            updateEncoder();
+        });
+        $(".input textarea")
+            .val(JSON.stringify(sample_input))
+            .change(function (args) {
+            var input = $(".input textarea")[0];
+            var coords = JSON.parse("" + input.value);
+            var geom = new ol.geom.LineString(coords);
+            geom = geom.simplify(Math.pow(10, -PRECISION));
+            $(".simplified textarea").val(JSON.stringify(geom.getCoordinates())).change();
+            updateCanvas(".input canvas", ".input textarea");
+        })
+            .change();
+    }
+    exports.run = run;
 });
 define("ux/serializers/ags-simplemarkersymbol", ["require", "exports", "openlayers"], function (require, exports, ol) {
     "use strict";
@@ -2307,20 +2394,10 @@ define("tests/data/geom/point", ["require", "exports"], function (require, expor
     "use strict";
     return [-115.2553, 36.1832];
 });
-define("labs/style-viewer", ["require", "exports", "openlayers", "jquery", "labs/common/snapshot", "ux/serializers/coretech", "tests/data/geom/polygon-with-holes"], function (require, exports, ol, $, Snapshot, Serializer, polygonGeom) {
+define("labs/style-viewer", ["require", "exports", "openlayers", "jquery", "labs/common/snapshot", "labs/common/common", "ux/serializers/coretech", "tests/data/geom/polygon-with-holes"], function (require, exports, ol, $, Snapshot, common_2, Serializer, polygonGeom) {
     "use strict";
     var html = "\n<div class='style-to-canvas'>\n    <h3>Renders a feature on a canvas</h3>\n    <div class=\"area\">\n        <label>256 x 256 Canvas</label>\n        <canvas id='canvas' width=\"256\" height=\"256\"></canvas>\n    </div>\n    <div class=\"area\">\n        <label>Style</label>\n        <textarea class='style'></textarea>\n    </div>\n    <div class=\"area\">\n        <label>Potential control for setting linear gradient start/stop locations</label>\n        <div class=\"colorramp\">\n            <input class=\"top\" type=\"range\" min=\"0\" max=\"100\" value=\"20\"/>\n            <input class=\"bottom\" type=\"range\" min=\"0\" max=\"100\" value=\"80\"/>\n        </div>\n    </div>\n</div>\n";
     var css = "\n<style>\n    #map {\n        display: none;\n    }\n\n    .style-to-canvas {\n    }\n\n    .style-to-canvas .area label {\n        display: block;\n        vertical-align: top;\n    }\n\n    .style-to-canvas .area {\n        border: 1px solid black;\n        padding: 20px;\n        margin: 20px;\n    }\n\n    .style-to-canvas .area .style {\n        width: 100%;\n        height: 400px;\n    }\n\n    .style-to-canvas #canvas {\n        font-family: sans serif;\n        font-size: 20px;\n        border: none;\n        padding: 0;\n        margin: 0;\n    }\n\n    div.colorramp {\n        display: inline-block;\n        background: linear-gradient(to right, rgba(250,0,0,0), rgba(250,0,0,1) 60%, rgba(250,100,0,1) 85%, rgb(250,250,0) 95%);\n        width:100%;\n    }\n\n    div.colorramp > input[type=range] {\n        -webkit-appearance: slider-horizontal;\n        display:block;\n        width:100%;\n        background-color:transparent;\n    }\n\n    div.colorramp > label {\n        display: inline-block;\n    }\n\n    div.colorramp > input[type='range'] {\n        box-shadow: 0 0 0 white;\n    }\n\n    div.colorramp > input[type=range]::-webkit-slider-runnable-track {\n        height: 0px;     \n    }\n\n    div.colorramp > input[type='range'].top::-webkit-slider-thumb {\n        margin-top: -10px;\n    }\n\n    div.colorramp > input[type='range'].bottom::-webkit-slider-thumb {\n        margin-top: -12px;\n    }\n    \n</style>\n";
-    function getParameterByName(name, url) {
-        if (url === void 0) { url = window.location.href; }
-        name = name.replace(/[\[\]]/g, "\\$&");
-        var regex = new RegExp("[?&]" + name + "(=([^&#]*)|&|#|$)"), results = regex.exec(url);
-        if (!results)
-            return null;
-        if (!results[2])
-            return '';
-        return decodeURIComponent(results[2].replace(/\+/g, " "));
-    }
     function loadStyle(name) {
         var mids = name.split(",").map(function (name) { return ("../ux/styles/" + name); });
         var d = $.Deferred();
@@ -2383,14 +2460,14 @@ define("labs/style-viewer", ["require", "exports", "openlayers", "jquery", "labs
             catch (ex) {
             }
         }, 2500);
-        var geom = getParameterByName("geom");
+        var geom = common_2.getParameterByName("geom");
         if (geom) {
             loadGeom(geom).then(function (geoms) {
                 feature.setGeometry(geoms[0]);
                 redraw();
             });
         }
-        var style = getParameterByName("style");
+        var style = common_2.getParameterByName("style");
         if (style) {
             loadStyle(style).then(function (styles) {
                 var style = styles.map(function (style) { return serializer.fromJson(style); });
@@ -2430,6 +2507,105 @@ define("labs/style-viewer", ["require", "exports", "openlayers", "jquery", "labs
         }
     }
     exports.run = run;
+});
+define("tests/ags-format", ["require", "exports", "openlayers"], function (require, exports, ol) {
+    "use strict";
+    function run() {
+        var formatter = (new ol.format.EsriJSON());
+        var olFeature = new ol.Feature(new ol.geom.Point([0, 0]));
+        var esriFeature = formatter.writeFeatureObject(olFeature);
+        olFeature = formatter.readFeature(esriFeature);
+        console.log("esriFeature", esriFeature);
+        {
+            var geom = esriFeature.geometry;
+            console.assert(geom.x === 0);
+            console.assert(geom.y === 0);
+        }
+        olFeature.setGeometry(new ol.geom.LineString([[0, 0], [0, 0]]));
+        esriFeature = formatter.writeFeatureObject(olFeature);
+        olFeature = formatter.readFeature(esriFeature);
+        console.log("esriFeature", esriFeature);
+        {
+            var geom = esriFeature.geometry;
+            console.assert(geom.paths[0][0][0] === 0);
+        }
+        olFeature.setGeometry(new ol.geom.MultiLineString([[[0, 0], [0, 0]], [[0, 0], [0, 0]]]));
+        esriFeature = formatter.writeFeatureObject(olFeature);
+        olFeature = formatter.readFeature(esriFeature);
+        console.log("esriFeature", esriFeature);
+        {
+            var geom = esriFeature.geometry;
+            console.assert(geom.paths[0][0][0] === 0);
+        }
+        olFeature.setGeometry(new ol.geom.Polygon([[[0, 0], [0, 0]]]));
+        esriFeature = formatter.writeFeatureObject(olFeature);
+        olFeature = formatter.readFeature(esriFeature);
+        console.log("esriFeature", esriFeature);
+        {
+            var geom = esriFeature.geometry;
+            console.assert(geom.rings[0][0][0] === 0);
+        }
+        olFeature.setGeometry(new ol.geom.MultiPolygon([[[[0, 0], [0, 0]]], [[[0, 0], [0, 0]]]]));
+        esriFeature = formatter.writeFeatureObject(olFeature);
+        olFeature = formatter.readFeature(esriFeature);
+        console.log("esriFeature", esriFeature);
+        {
+            var geom = esriFeature.geometry;
+            console.assert(geom.rings[0][0][0] === 0);
+        }
+        olFeature.setGeometry(new ol.geom.MultiPoint([[0, 0], [0, 0]]));
+        esriFeature = formatter.writeFeatureObject(olFeature);
+        olFeature = formatter.readFeature(esriFeature);
+        console.log("esriFeature", esriFeature);
+        {
+            var geom = esriFeature.geometry;
+            console.assert(geom.points[0][0] === 0);
+        }
+        olFeature.setProperties({ foo: "bar" });
+        esriFeature = formatter.writeFeatureObject(olFeature);
+        olFeature = formatter.readFeature(esriFeature);
+        console.log("esriFeature", esriFeature);
+        {
+            console.assert(olFeature.get("foo") === "bar");
+        }
+    }
+    exports.run = run;
+});
+define("tests/google-polyline", ["require", "exports", "labs/common/ol3-polyline", "labs/common/google-polyline"], function (require, exports, OlEncoder, Encoder) {
+    "use strict";
+    var polyline = [[38.5, -120.2], [40.7, -120.95], [43.252, -126.453]];
+    var encoding = "_p~iF~ps|U_ulLnnqC_mqNvxq`@";
+    function run() {
+        {
+            var encoder = new Encoder();
+            console.assert(encoder.encode(encoder.decode(encoding)) === encoding);
+            console.assert(encoding === encoder.encode(polyline));
+        }
+        {
+            var olEncoder = new OlEncoder();
+            console.assert(olEncoder.encode(olEncoder.decode(encoding)) === encoding);
+            console.assert(encoding === olEncoder.encode(polyline));
+        }
+    }
+    exports.run = run;
+});
+define("tests/index", ["require", "exports"], function (require, exports) {
+    "use strict";
+    function run() {
+        var l = window.location;
+        var path = "" + l.origin + l.pathname + "?run=tests/";
+        var labs = "\n    ags-format\n    google-polyline\n    index\n    ";
+        document.writeln("\n    <p>\n    Watch the console output for failed assertions (blank is good).\n    </p>\n    ");
+        document.writeln(labs
+            .split(/ /)
+            .map(function (v) { return v.trim(); })
+            .filter(function (v) { return !!v; })
+            .sort()
+            .map(function (lab) { return ("<a href=" + path + lab + "&debug=1>" + lab + "</a>"); })
+            .join("<br/>"));
+    }
+    exports.run = run;
+    ;
 });
 define("ux/styles/ags/simplemarkersymbol-circle", ["require", "exports"], function (require, exports) {
     "use strict";
@@ -3025,18 +3201,6 @@ define("ux/styles/stroke/dash", ["require", "exports"], function (require, expor
                 "color": "blue",
                 "width": 2,
                 "lineDash": [4]
-            }
-        }
-    ];
-});
-define("ux/styles/stroke/dashdotdot", ["require", "exports"], function (require, exports) {
-    "use strict";
-    return [
-        {
-            "stroke": {
-                "color": "blue",
-                "width": 2,
-                "lineDash": [15, 2, 5, 2, 5, 2]
             }
         }
     ];

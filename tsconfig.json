@@ -13,6 +13,7 @@
         "node_modules",
         "bower_components",
         "built",
-        "tests"
+        "tests/data",
+        "tests/routing.ts"
     ]
 }

@@ -4,9 +4,9 @@ import Directions = require("../ux/mapquest-directions-proxy");
 import Route = require("../ux/mapquest-optimized-route-proxy");
 
 import {run as mapmaker} from '../labs/mapmaker';
-import route1 = require('../tests/data/route_01');
-import route2 = require('../tests/data/route_02');
-import route3 = require('../tests/data/route_03');
+import route1 = require('../tests/data/routes/route_01');
+import route2 = require('../tests/data/routes/route_02');
+import route3 = require('../tests/data/routes/route_03');
 
 function renderRoute(map: ol.Map, result: MapQuestDirections.Response) {
 

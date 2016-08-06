@@ -4,34 +4,45 @@
 
 import ol = require("openlayers");
 
+interface Polyline extends ol.format.Polyline {
+    decodeDeltas(code: string, stride: number, factor: number): number[];
+    encodeDeltas(points: number[], stride: number, factor: number): string;
+}
+
+const Polyline = <Polyline><any>ol.format.Polyline;
+
 class PolylineEncoder {
 
-    private flatten(coordinates: number[][]) {
-        let nums = new Array(coordinates.length * 2);
+    constructor(public precision = 5, public stride = 2) {
+    }
+
+    private flatten(points: number[][]) {
+        let nums = new Array(points.length * this.stride);
         let i = 0;
-        coordinates.forEach(p => {
-            nums[i++] = p[0];
-            nums[i++] = p[1];
-        });
+        points.forEach(p => p.map(p => nums[i++] = p));
         return nums;
     }
 
     private unflatten(nums: number[]) {
-        let coordinates = <number[][]>new Array(nums.length / 2);
-        for (let i = 0; i < nums.length; i += 2) {
-            coordinates[i / 2] = [nums[i], nums[i + 1]]
+        let points = <number[][]>new Array(nums.length / this.stride);
+        for (let i = 0; i < nums.length / this.stride; i++) {
+            points[i] = nums.slice(i * this.stride, (i + 1) * this.stride);
         }
-        return coordinates;
+        return points;
     }
 
-    decode(str: string, precision = 5) {
-        let factor = Math.pow(10, precision);
-        let nums = <number[]>ol.format.Polyline.decodeDeltas(str, 2, factor);
-        return this.unflatten(nums.map(n => Math.round(n * factor) / factor));
+    private round(nums: number[]) {
+        let factor = Math.pow(10, this.precision);
+        return nums.map(n => Math.round(n * factor) / factor);
     }
 
-    encode(coordinates: number[][], precision = 5) {
-        return <string>(ol.format.Polyline.encodeDeltas(this.flatten(coordinates), 2, Math.pow(10, precision)));
+    decode(str: string) {
+        let nums = Polyline.decodeDeltas(str, this.stride, Math.pow(10, this.precision));
+        return this.unflatten(this.round(nums));
+    }
+
+    encode(points: number[][]) {
+        return Polyline.encodeDeltas(this.flatten(points), this.stride, Math.pow(10, this.precision));
     }
 
 }

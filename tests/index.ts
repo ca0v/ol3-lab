@@ -1,12 +1,20 @@
+/// <reference path="../typings/index.d.ts" />
 export function run() {
     let l = window.location;
     let path = `${l.origin}${l.pathname}?run=tests/`;
     let labs = `
+    ags-format
     google-polyline
     index
     `;
     
-    document.write(labs
+    document.writeln(`
+    <p>
+    Watch the console output for failed assertions (blank is good).
+    </p>
+    `);
+
+    document.writeln(labs
         .split(/ /)
         .map(v => v.trim())
         .filter(v => !!v)

@@ -11,7 +11,7 @@
 import ol = require("openlayers");
 import $ = require("jquery");
 import Snapshot = require("./common/snapshot");
-
+import {getParameterByName} from "./common/common";
 import Serializer = require("../ux/serializers/coretech");
 import polygonGeom = require("../tests/data/geom/polygon-with-holes");
 import parcelGeom = require("../tests/data/geom/parcel");
@@ -106,15 +106,6 @@ const css = `
     
 </style>
 `;
-
-function getParameterByName(name: string, url = window.location.href) {
-    name = name.replace(/[\[\]]/g, "\\$&");
-    var regex = new RegExp("[?&]" + name + "(=([^&#]*)|&|#|$)"),
-        results = regex.exec(url);
-    if (!results) return null;
-    if (!results[2]) return '';
-    return decodeURIComponent(results[2].replace(/\+/g, " "));
-}
 
 function loadStyle(name: string) {
     type T = Serializer.Coretech.Style[];
