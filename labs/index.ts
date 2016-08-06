@@ -14,13 +14,30 @@ export function run() {
     mapmaker
     index
     `;
-    
-    document.write(labs
+
+    let styles = document.createElement("style");
+    document.head.appendChild(styles);
+
+    styles.innerText += `
+    #map {
+        display: none;
+    }
+    `;
+
+    let labDiv = document.createElement("div");
+    document.body.appendChild(labDiv);
+
+    labDiv.innerHTML = labs
         .split(/ /)
         .map(v => v.trim())
         .filter(v => !!v)
         .sort()
-        .map(lab => `<a href=${path}${lab}&debug=1>${lab}</a>`)
-        .join("<br/>"));
-    
+        .map(lab => `<a href='${path}${lab}&debug=1'>${lab}</a>`)
+        .join("<br/>");
+
+
+    let testDiv = document.createElement("div");
+    document.body.appendChild(testDiv);
+
+    testDiv.innerHTML = `<a href='${l.origin}${l.pathname}?run=tests/index'>tests</a>`;
 };
