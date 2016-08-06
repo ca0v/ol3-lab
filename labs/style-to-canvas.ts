@@ -12,7 +12,7 @@ import ol = require("openlayers");
 import $ = require("jquery");
 import Snapshot = require("../labs/common/snapshot");
 
-import parcel = require("../data/geom/parcel");
+import parcel = require("../tests/data/geom/parcel");
 
 const html = `
 <div class='style-to-canvas'>

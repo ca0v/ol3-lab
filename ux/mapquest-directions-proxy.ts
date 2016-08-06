@@ -4,7 +4,7 @@
  * http://www.mapquestapi.com/directions/v2/route?key=cwm3pF5yuEGNp54sh96TF0irs5kCLd5y?from=Lancaster,PA&to=York,PA&callback=define
  */
 
-import * as ajax from "../ajax";
+import * as ajax from "../labs/common/ajax";
 
 const MapQuestKey = "cwm3pF5yuEGNp54sh96TF0irs5kCLd5y";
 

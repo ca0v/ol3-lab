@@ -4,7 +4,6 @@ import Route = require("./ux/mapquest-optimized-route-proxy");
 import Traffic = require("./ux/mapquest-traffic-proxy");
 import Geocoding = require("./ux/mapquest-geocoding-proxy");
 import Search = require("./ux/mapquest-search-proxy");
-import PolylineEncoder = require("./google-polyline");
 import Osrm = require("./ux/osrm-proxy");
 import $ = require("jquery");
 import ResizeSensor = require("resize-sensor");
@@ -27,12 +26,6 @@ class Tests {
         });
 
         return map;
-    }
-
-    polylineEncoder() {
-        let encoder = new PolylineEncoder();
-        console.log("_p~iF~ps|U_ulLnnqC_mqNvxq`@", encoder.encode([[38.5, -120.2], [40.7, -120.95], [43.252, -126.453]]));
-        console.log("decode", encoder.decode("_p~iF~ps|U_ulLnnqC_mqNvxq`@"));
     }
 
     renderRoute(map: ol.Map, result: MapQuestDirections.Response) {

@@ -3,7 +3,7 @@
  * http://www.mapquestapi.com/traffic/v2/incidents?key=cwm3pF5yuEGNp54sh96TF0irs5kCLd5y&callback=handleIncidentsResponse&boundingBox=34.85,-82.4,35,-82&filters=construction,incidents&inFormat=kvp&outFormat=json
  * http://www.mapquestapi.com/directions/v2/incidents?inFormat=kvp&outFormat=json&key=cwm3pF5yuEGNp54sh96TF0irs5kCLd5y&filters=construction,incidents&boundingBox=34.85,-82.4,35,-82&callback=define
  */
-import * as ajax from "../ajax";
+import * as ajax from "../labs/common/ajax";
 
 const MapQuestKey = "cwm3pF5yuEGNp54sh96TF0irs5kCLd5y";
 

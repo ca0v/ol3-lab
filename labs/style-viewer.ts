@@ -13,9 +13,9 @@ import $ = require("jquery");
 import Snapshot = require("./common/snapshot");
 
 import Serializer = require("../ux/serializers/coretech");
-import polygonGeom = require("../data/geom/polygon-with-holes");
-import parcelGeom = require("../data/geom/parcel");
-import pointGeom = require("../data/geom/point");
+import polygonGeom = require("../tests/data/geom/polygon-with-holes");
+import parcelGeom = require("../tests/data/geom/parcel");
+import pointGeom = require("../tests/data/geom/point");
 
 const html = `
 <div class='style-to-canvas'>

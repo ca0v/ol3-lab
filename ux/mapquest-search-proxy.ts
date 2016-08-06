@@ -4,9 +4,9 @@
  * http://www.mapquestapi.com/search/v2/search?key=cwm3pF5yuEGNp54sh96TF0irs5kCLd5y&shapePoints=34.85,-82.4 
  */
 
-import * as ajax from "../ajax";
+import * as ajax from "../labs/common/ajax";
 import * as $ from "jquery";
-import G = require("../google-polyline");
+import G = require("../labs/common/google-polyline");
 
 const g = new G();
 
