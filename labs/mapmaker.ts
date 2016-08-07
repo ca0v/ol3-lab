@@ -2,8 +2,12 @@ import $ = require("jquery");
 import ol = require("openlayers");
 import {doif, getParameterByName, mixin} from "./common/common";
 import reduce = require("./common/ol3-polyline");
-import styler = require("../ux/serializers/coretech");
-import stroke = require("../ux/styles/stroke/dashdotdot");
+import {CoretechConverter} from "../ux/serializers/coretech";
+import dashdotdot = require("../ux/styles/stroke/dashdotdot");
+import stroke = require("../ux/styles/stroke/solid");
+import fill = require("../ux/styles/fill/gradient");
+
+let styler = new CoretechConverter();
 
 function parse<T>(v: string, type: T): T {
     if (typeof type === "string") return <any>v;
@@ -17,7 +21,10 @@ function parse<T>(v: string, type: T): T {
 
 let html = `
 <div class='mapmaker'>
-<button class='share'>Share</button>
+    <div class='toolbar'>
+        <button class='share'>Share</button>
+        <button class='clone'>Add</button>
+    </div>
 </div>
 `;
 
@@ -56,12 +63,18 @@ let css = `
         background: transparent;
         z-index: 1;
     }
-    .mapmaker button.share {
+    .mapmaker .toolbar {
         position: relative;
         top: 10px;
         left: 42px;
+        width: 240px;
+    }
+    .mapmaker .toolbar button {
         border: none;
         background: transparent;
+    }
+    button.clone {
+        display:none;
     }
 </style>
 `;
@@ -108,63 +121,73 @@ export function run() {
             })]
     });
 
-    {
-        let geom: ol.geom.Polygon;
+    let features = new ol.Collection<ol.Feature>();
+    let layer = new ol.layer.Vector({
+        source: new ol.source.Vector({
+            features: features
+        })
+    });
+    map.addLayer(layer);
 
-        if (options.geom) {
-            let layer = new ol.layer.Vector({
-                source: new ol.source.Vector()
-            });
-            map.addLayer(layer);
+    stroke[0].stroke.color = options.color;
+    layer.setStyle(stroke.map(s => styler.fromJson(s)));
 
-            if (options.color) {
-                stroke[0].stroke.color = options.color;
-                let style = new styler.CoretechConverter().fromJson(stroke[0]);
-                layer.setStyle(style);
-            }
 
-            let points = new reduce(6, 2).decode(options.geom);
+    if (options.geom) {
+        options.geom.split(",").forEach(encoded => {
+            let geom: ol.geom.Polygon;
+            let points = new reduce(6, 2).decode(encoded);
             geom = new ol.geom.Polygon([points]);
             let feature = new ol.Feature(geom);
-            layer.getSource().addFeature(feature);
-
-            if (!getParameterByName("center") || !getParameterByName("zoom")) {
-                map.getView().fit(geom, map.getSize());
-            }
-
-            if (!!options.modify) {
-                let features = new ol.Collection([feature]);
-                var modify = new ol.interaction.Modify({
-                    features: features,
-                    deleteCondition: event => ol.events.condition.shiftKeyOnly(event) && ol.events.condition.singleClick(event)
-                });
-                map.addInteraction(modify);
-
-            }
-
-        }
-
-        $("button.share").click(() => {
-            let href = window.location.href;
-            href = href.substring(0, href.length - window.location.search.length);
-
-            options.center = map.getView().getCenter().map(v => parseFloat(v.toPrecision(5)));
-            options.zoom = map.getView().getZoom();
-
-            if (geom || options.modify) {
-                let [a,b,c,d] = map.getView().calculateExtent([100, 100]);
-                let box = [[a,b], [c,b], [c,d], [a,d]];
-                let encoded = new reduce(6, 2).encode(geom ? geom.getCoordinates()[0] : box);
-                options.geom = encoded;
-            }
-
-            let opts = <any>options;
-            let querystring = Object.keys(options).map(k => `${k}=${opts[k]}`).join("&");
-
-            let url = encodeURI(`${href}?run=labs/mapmaker&${querystring}`);
-            window.open(url, "_blank");
+            features.push(feature);
         });
     }
 
+    if (options.modify) {
+        let modify = new ol.interaction.Modify({
+            features: features,
+            deleteCondition: event => ol.events.condition.shiftKeyOnly(event) && ol.events.condition.singleClick(event)
+        });
+        map.addInteraction(modify);
+
+        $("button.clone").show().click(() => {
+            let [a, b, c, d] = map.getView().calculateExtent([100, 100]);
+            let geom = new ol.geom.Polygon([[[a, b], [c, b], [c, d], [a, d]]]);
+            let feature = new ol.Feature(geom);
+            feature.setStyle(styler.fromJson(dashdotdot[0]));
+            features.push(feature);
+            modify && map.removeInteraction(modify);
+            modify = new ol.interaction.Modify({
+                features: new ol.Collection([feature]),
+                deleteCondition: event => ol.events.condition.shiftKeyOnly(event) && ol.events.condition.singleClick(event)
+            });
+            map.addInteraction(modify);
+        });
+
+    }
+
+    $("button.share").click(() => {
+        let href = window.location.href;
+        href = href.substring(0, href.length - window.location.search.length);
+
+        options.center = map.getView().getCenter().map(v => parseFloat(v.toPrecision(5)));
+        options.zoom = map.getView().getZoom();
+
+        if (options.modify) {
+            options.geom = features.getArray().map(feature => {
+                let geom = <ol.geom.Polygon>(feature && feature.getGeometry());
+                let points = geom.getCoordinates()[0];
+                return new reduce(6, 2).encode(points);
+            }).join(",");
+        }
+
+        let opts = <any>options;
+        let querystring = Object.keys(options).map(k => `${k}=${opts[k]}`).join("&");
+
+        let url = encodeURI(`${href}?run=labs/mapmaker&${querystring}`);
+        window.open(url, "_blank");
+    });
+
     return map;
+
 }

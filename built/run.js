@@ -994,8 +994,41 @@ define("ux/styles/stroke/dashdotdot", ["require", "exports"], function (require,
         }
     ];
 });
-define("labs/mapmaker", ["require", "exports", "jquery", "openlayers", "labs/common/common", "labs/common/ol3-polyline", "ux/serializers/coretech", "ux/styles/stroke/dashdotdot"], function (require, exports, $, ol, common_1, reduce, styler, stroke) {
+define("ux/styles/stroke/solid", ["require", "exports"], function (require, exports) {
     "use strict";
+    return [
+        {
+            "stroke": {
+                "color": "blue",
+                "width": 2
+            }
+        }
+    ];
+});
+define("ux/styles/fill/gradient", ["require", "exports"], function (require, exports) {
+    "use strict";
+    return [
+        {
+            "fill": {
+                "gradient": {
+                    "type": "linear(200,0,201,0)",
+                    "stops": "rgba(255,0,0,.1) 0%;rgba(255,0,0,0.8) 100%"
+                }
+            }
+        },
+        {
+            "fill": {
+                "gradient": {
+                    "type": "linear(0,200,0,201)",
+                    "stops": "rgba(0,255,0,0.1) 0%;rgba(0,255,0,0.8) 100%"
+                }
+            }
+        }
+    ];
+});
+define("labs/mapmaker", ["require", "exports", "jquery", "openlayers", "labs/common/common", "labs/common/ol3-polyline", "ux/serializers/coretech", "ux/styles/stroke/dashdotdot", "ux/styles/stroke/solid"], function (require, exports, $, ol, common_1, reduce, coretech_1, dashdotdot, stroke) {
+    "use strict";
+    var styler = new coretech_1.CoretechConverter();
     function parse(v, type) {
         if (typeof type === "string")
             return v;
@@ -1008,8 +1041,8 @@ define("labs/mapmaker", ["require", "exports", "jquery", "openlayers", "labs/com
         }
         throw "unknown type: " + type;
     }
-    var html = "\n<div class='mapmaker'>\n<button class='share'>Share</button>\n</div>\n";
-    var css = "\n<style>\n    html, body, .map {\n        width: 100%;\n        height: 100%;\n        padding: 0;\n        overflow: hidden;\n        margin: 0;    \n    }\n\n    .map {\n        background-color: black;\n    }\n\n    .map.dark {\n        background: black;\n    }\n\n    .map.light {\n        background: silver;\n    }\n\n    .map.bright {\n        background: white;\n    }\n\n    .mapmaker {\n        position: absolute;\n        top: 0;\n        left: 0;\n        width: 0;\n        height: 0;\n        background: transparent;\n        z-index: 1;\n    }\n    .mapmaker button.share {\n        position: relative;\n        top: 10px;\n        left: 42px;\n        border: none;\n        background: transparent;\n    }\n</style>\n";
+    var html = "\n<div class='mapmaker'>\n    <div class='toolbar'>\n        <button class='share'>Share</button>\n        <button class='clone'>Add</button>\n    </div>\n</div>\n";
+    var css = "\n<style>\n    html, body, .map {\n        width: 100%;\n        height: 100%;\n        padding: 0;\n        overflow: hidden;\n        margin: 0;    \n    }\n\n    .map {\n        background-color: black;\n    }\n\n    .map.dark {\n        background: black;\n    }\n\n    .map.light {\n        background: silver;\n    }\n\n    .map.bright {\n        background: white;\n    }\n\n    .mapmaker {\n        position: absolute;\n        top: 0;\n        left: 0;\n        width: 0;\n        height: 0;\n        background: transparent;\n        z-index: 1;\n    }\n    .mapmaker .toolbar {\n        position: relative;\n        top: 10px;\n        left: 42px;\n        width: 240px;\n    }\n    .mapmaker .toolbar button {\n        border: none;\n        background: transparent;\n    }\n    button.clone {\n        display:none;\n    }\n</style>\n";
     function run() {
         $(html).appendTo(".map");
         $(css).appendTo("head");
@@ -1045,51 +1078,61 @@ define("labs/mapmaker", ["require", "exports", "jquery", "openlayers", "labs/com
                     source: new ol.source.OSM()
                 })]
         });
-        {
-            var geom_1;
-            if (options.geom) {
-                var layer = new ol.layer.Vector({
-                    source: new ol.source.Vector()
-                });
-                map.addLayer(layer);
-                if (options.color) {
-                    stroke[0].stroke.color = options.color;
-                    var style = new styler.CoretechConverter().fromJson(stroke[0]);
-                    layer.setStyle(style);
-                }
-                var points = new reduce(6, 2).decode(options.geom);
-                geom_1 = new ol.geom.Polygon([points]);
-                var feature = new ol.Feature(geom_1);
-                layer.getSource().addFeature(feature);
-                if (!common_1.getParameterByName("center") || !common_1.getParameterByName("zoom")) {
-                    map.getView().fit(geom_1, map.getSize());
-                }
-                if (!!options.modify) {
-                    var features = new ol.Collection([feature]);
-                    var modify = new ol.interaction.Modify({
-                        features: features,
-                        deleteCondition: function (event) { return ol.events.condition.shiftKeyOnly(event) && ol.events.condition.singleClick(event); }
-                    });
-                    map.addInteraction(modify);
-                }
-            }
-            $("button.share").click(function () {
-                var href = window.location.href;
-                href = href.substring(0, href.length - window.location.search.length);
-                options.center = map.getView().getCenter().map(function (v) { return parseFloat(v.toPrecision(5)); });
-                options.zoom = map.getView().getZoom();
-                if (geom_1 || options.modify) {
-                    var _a = map.getView().calculateExtent([100, 100]), a = _a[0], b = _a[1], c = _a[2], d = _a[3];
-                    var box = [[a, b], [c, b], [c, d], [a, d]];
-                    var encoded = new reduce(6, 2).encode(geom_1 ? geom_1.getCoordinates()[0] : box);
-                    options.geom = encoded;
-                }
-                var opts = options;
-                var querystring = Object.keys(options).map(function (k) { return (k + "=" + opts[k]); }).join("&");
-                var url = encodeURI(href + "?run=labs/mapmaker&" + querystring);
-                window.open(url, "_blank");
+        var features = new ol.Collection();
+        var layer = new ol.layer.Vector({
+            source: new ol.source.Vector({
+                features: features
+            })
+        });
+        map.addLayer(layer);
+        stroke[0].stroke.color = options.color;
+        layer.setStyle(stroke.map(function (s) { return styler.fromJson(s); }));
+        if (options.geom) {
+            options.geom.split(",").forEach(function (encoded) {
+                var geom;
+                var points = new reduce(6, 2).decode(encoded);
+                geom = new ol.geom.Polygon([points]);
+                var feature = new ol.Feature(geom);
+                features.push(feature);
             });
         }
+        if (options.modify) {
+            var modify_1 = new ol.interaction.Modify({
+                features: features,
+                deleteCondition: function (event) { return ol.events.condition.shiftKeyOnly(event) && ol.events.condition.singleClick(event); }
+            });
+            map.addInteraction(modify_1);
+            $("button.clone").show().click(function () {
+                var _a = map.getView().calculateExtent([100, 100]), a = _a[0], b = _a[1], c = _a[2], d = _a[3];
+                var geom = new ol.geom.Polygon([[[a, b], [c, b], [c, d], [a, d]]]);
+                var feature = new ol.Feature(geom);
+                feature.setStyle(styler.fromJson(dashdotdot[0]));
+                features.push(feature);
+                modify_1 && map.removeInteraction(modify_1);
+                modify_1 = new ol.interaction.Modify({
+                    features: new ol.Collection([feature]),
+                    deleteCondition: function (event) { return ol.events.condition.shiftKeyOnly(event) && ol.events.condition.singleClick(event); }
+                });
+                map.addInteraction(modify_1);
+            });
+        }
+        $("button.share").click(function () {
+            var href = window.location.href;
+            href = href.substring(0, href.length - window.location.search.length);
+            options.center = map.getView().getCenter().map(function (v) { return parseFloat(v.toPrecision(5)); });
+            options.zoom = map.getView().getZoom();
+            if (options.modify) {
+                options.geom = features.getArray().map(function (feature) {
+                    var geom = (feature && feature.getGeometry());
+                    var points = geom.getCoordinates()[0];
+                    return new reduce(6, 2).encode(points);
+                }).join(",");
+            }
+            var opts = options;
+            var querystring = Object.keys(options).map(function (k) { return (k + "=" + opts[k]); }).join("&");
+            var url = encodeURI(href + "?run=labs/mapmaker&" + querystring);
+            window.open(url, "_blank");
+        });
         return map;
     }
     exports.run = run;
@@ -1502,27 +1545,6 @@ define("ux/styles/basic", ["require", "exports"], function (require, exports) {
         triangle: [{ star: triangle }],
         x: [{ star: x }]
     };
-});
-define("ux/styles/fill/gradient", ["require", "exports"], function (require, exports) {
-    "use strict";
-    return [
-        {
-            "fill": {
-                "gradient": {
-                    "type": "linear(200,0,201,0)",
-                    "stops": "rgba(255,0,0,.1) 0%;rgba(255,0,0,0.8) 100%"
-                }
-            }
-        },
-        {
-            "fill": {
-                "gradient": {
-                    "type": "linear(0,200,0,201)",
-                    "stops": "rgba(0,255,0,0.1) 0%;rgba(0,255,0,0.8) 100%"
-                }
-            }
-        }
-    ];
 });
 define("labs/common/style-generator", ["require", "exports", "openlayers", "ux/styles/basic", "ux/serializers/coretech"], function (require, exports, ol, basic_styles, Coretech) {
     "use strict";
@@ -3245,17 +3267,6 @@ define("ux/styles/stroke/dot", ["require", "exports"], function (require, export
                 "color": "blue",
                 "width": 2,
                 "lineDash": [2]
-            }
-        }
-    ];
-});
-define("ux/styles/stroke/solid", ["require", "exports"], function (require, exports) {
-    "use strict";
-    return [
-        {
-            "stroke": {
-                "color": "blue",
-                "width": 2
             }
         }
     ];
