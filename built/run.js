@@ -1001,28 +1001,32 @@ define("labs/mapmaker", ["require", "exports", "jquery", "openlayers", "labs/com
             return v;
         if (typeof type === "number")
             return parseFloat(v);
+        if (typeof type === "boolean")
+            return (v === "1" || v === "true");
         if (Array.isArray(type)) {
             return (v.split(",").map(function (v) { return parse(v, type[0]); }));
         }
         throw "unknown type: " + type;
     }
-    var css = "\n<style>\n    html, body, .map {\n        width: 100%;\n        height: 100%;\n        padding: 0;\n        overflow: hidden;\n        margin: 0;    \n    }\n\n    .map {\n        background-color: black;\n    }\n\n    .map.dark {\n        background: black;\n    }\n\n    .map.light {\n        background: silver;\n    }\n\n    .map.bright {\n        background: white;\n    }\n</style>\n";
+    var html = "\n<div class='mapmaker'>\n<button class='share'>Share</button>\n</div>\n";
+    var css = "\n<style>\n    html, body, .map {\n        width: 100%;\n        height: 100%;\n        padding: 0;\n        overflow: hidden;\n        margin: 0;    \n    }\n\n    .map {\n        background-color: black;\n    }\n\n    .map.dark {\n        background: black;\n    }\n\n    .map.light {\n        background: silver;\n    }\n\n    .map.bright {\n        background: white;\n    }\n\n    .mapmaker {\n        position: absolute;\n        top: 0;\n        left: 0;\n        width: 0;\n        height: 0;\n        background: transparent;\n        z-index: 1;\n    }\n    .mapmaker button.share {\n        position: relative;\n        top: 10px;\n        left: 42px;\n        border: none;\n        background: transparent;\n    }\n</style>\n";
     function run() {
+        $(html).appendTo(".map");
         $(css).appendTo("head");
         var options = {
-            projection: 'EPSG:4326',
+            srs: 'EPSG:4326',
             center: [-82.4, 34.85],
             zoom: 15,
             background: "bright",
             geom: "",
-            color: "red"
+            color: "red",
+            modify: false
         };
         {
             var opts_1 = options;
             Object.keys(opts_1).forEach(function (k) {
                 common_1.doif(common_1.getParameterByName(k), function (v) { return opts_1[k] = parse(v, opts_1[k]); });
             });
-            console.log("querystring", Object.keys(opts_1).map(function (k) { return (k + "=" + opts_1[k]); }).join("&"));
         }
         $(".map").addClass(options.background);
         var map = new ol.Map({
@@ -1031,7 +1035,7 @@ define("labs/mapmaker", ["require", "exports", "jquery", "openlayers", "labs/com
             loadTilesWhileAnimating: true,
             loadTilesWhileInteracting: true,
             view: new ol.View({
-                projection: options.projection,
+                projection: options.srs,
                 center: options.center,
                 zoom: options.zoom
             }),
@@ -1041,22 +1045,50 @@ define("labs/mapmaker", ["require", "exports", "jquery", "openlayers", "labs/com
                     source: new ol.source.OSM()
                 })]
         });
-        if (options.geom) {
-            var layer = new ol.layer.Vector({
-                source: new ol.source.Vector()
-            });
-            map.addLayer(layer);
-            if (options.color) {
-                debugger;
-                stroke[0].stroke.color = options.color;
-                var style = new styler.CoretechConverter().fromJson(stroke[0]);
-                layer.setStyle(style);
+        {
+            var geom_1;
+            if (options.geom) {
+                var layer = new ol.layer.Vector({
+                    source: new ol.source.Vector()
+                });
+                map.addLayer(layer);
+                if (options.color) {
+                    stroke[0].stroke.color = options.color;
+                    var style = new styler.CoretechConverter().fromJson(stroke[0]);
+                    layer.setStyle(style);
+                }
+                var points = new reduce(6, 2).decode(options.geom);
+                geom_1 = new ol.geom.Polygon([points]);
+                var feature = new ol.Feature(geom_1);
+                layer.getSource().addFeature(feature);
+                if (!common_1.getParameterByName("center") || !common_1.getParameterByName("zoom")) {
+                    map.getView().fit(geom_1, map.getSize());
+                }
+                if (!!options.modify) {
+                    var features = new ol.Collection([feature]);
+                    var modify = new ol.interaction.Modify({
+                        features: features,
+                        deleteCondition: function (event) { return ol.events.condition.shiftKeyOnly(event) && ol.events.condition.singleClick(event); }
+                    });
+                    map.addInteraction(modify);
+                }
             }
-            var points = new reduce(6, 2).decode(options.geom);
-            var geom = new ol.geom.Polygon([points]);
-            var feature = new ol.Feature(geom);
-            layer.getSource().addFeature(feature);
-            map.getView().fit(geom, map.getSize());
+            $("button.share").click(function () {
+                var href = window.location.href;
+                href = href.substring(0, href.length - window.location.search.length);
+                options.center = map.getView().getCenter().map(function (v) { return parseFloat(v.toPrecision(5)); });
+                options.zoom = map.getView().getZoom();
+                if (geom_1 || options.modify) {
+                    var _a = map.getView().calculateExtent([100, 100]), a = _a[0], b = _a[1], c = _a[2], d = _a[3];
+                    var box = [[a, b], [c, b], [c, d], [a, d]];
+                    var encoded = new reduce(6, 2).encode(geom_1 ? geom_1.getCoordinates()[0] : box);
+                    options.geom = encoded;
+                }
+                var opts = options;
+                var querystring = Object.keys(options).map(function (k) { return (k + "=" + opts[k]); }).join("&");
+                var url = encodeURI(href + "?run=labs/mapmaker&" + querystring);
+                window.open(url, "_blank");
+            });
         }
         return map;
     }
