@@ -71,7 +71,8 @@ interface FB {
     logout(): void;
     login(): void;
 
-
+    // events
+    Event: { subscribe: (name: string, cb: Function) => void };
 }
 
 const css = `
@@ -88,9 +89,6 @@ const css = `
         bottom: 30px;
         right: 20px;
     }
-    .authentication .facebook-toolbar .login-button {
-        display: none;
-    }
 </style>
 `;
 
@@ -100,7 +98,7 @@ const html = `
 
     <div class='facebook-toolbar'>
     <div class="fb-like" 
-        data-href="http://localhost:94/code/ol3-lab/index.html?run=labs/authentication" 
+        data-href="${window.location}" 
         data-layout="button_count" 
         data-action="recommend" 
         data-size="small" 
@@ -148,29 +146,29 @@ class Facebook {
         return d;
     }
 
-    getUserInfo() {
-        type Response = {
-            id: string;
-            name: string;
-        };
-        let d = $.Deferred<Response>();
-        this.FB.api<Response>('/me', 'get', {
-            fields: 'last_name'
-        }, response => {
-            this.user_id = response.id;
-            d.resolve(response);
+    api<T>(name: string, args = {}) {
+        let d = $.Deferred<T>();
+        this.FB.api(`${name}`, 'get', args, (args: T) => {
+            d.resolve(args);
         });
         return d;
     }
 
-    getPlaces(user_id = this.user_id) {
-        type response = FacebookPlaces.Response;
-
-        let d = $.Deferred<response>();
-        this.FB.api(`${this.user_id}/tagged_places`, 'get', {}, (args: response) => {
-            d.resolve(args);
+    getUserInfo() {
+        return this.api<{
+            id: string;
+            name: string;
+        }>('me').done(v => {
+            this.user_id = v.id;
         });
-        return d;
+    }
+
+    getPlaces(user_id = this.user_id) {
+        return this.api<FacebookPlaces.Response>(`${this.user_id}/tagged_places`);
+    }
+
+    getPicture() {
+        return this.api<{ data: { url: string } }>(`${this.user_id}/picture`);
     }
 
 }
@@ -227,6 +225,11 @@ function createMap(fb: Facebook) {
     });
 
     fb.getUserInfo().then(args => {
+
+        fb.getPicture().then(picture => {
+            $(`<img src='${picture.data.url}'/>'`).prependTo('.facebook-toolbar');
+        });
+
         fb.getPlaces(args.id).then(places => {
             places.data.forEach(data => {
                 let loc = data.place.location;
@@ -261,36 +264,40 @@ function createMap(fb: Facebook) {
 
 export function run() {
 
-    $(html).appendTo("body");
     $(css).appendTo("head");
+    $(html).appendTo("body");
 
     let fb = new Facebook();
 
     fb.load('639680389534759').then(FB => {
 
-        $('.logout-button').click(() => {
+        FB.Event.subscribe('auth.login', () => {
+            console.log("logged in");
+            $('.login-button').hide();
+            $('.logout-button').show();
+        });
+
+        FB.Event.subscribe('auth.logout', () => {
+            console.log("logged out");
             $('.login-button').show();
             $('.logout-button').hide();
+        });
+
+        $('.logout-button').click(() => {
             FB.logout();
         });
 
         FB.getLoginStatus(response => {
             switch (response.status) {
                 case 'connected':
-                    $('.login-button').hide();
-                    $('.logout-button').show();
                     createMap(fb);
                     break;
                 case 'not_authorized':
                     break;
                 default:
                     $('#events').on("fb-login", () => {
-                        $('.login-button').hide();
-                        $('.logout-button').show();
                         createMap(fb);
                     });
-                    $('.login-button').show();
-                    $('.logout-button').hide();
             }
         });
     });
