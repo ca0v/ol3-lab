@@ -1005,28 +1005,27 @@ define("ux/styles/stroke/solid", ["require", "exports"], function (require, expo
         }
     ];
 });
-define("ux/styles/fill/gradient", ["require", "exports"], function (require, exports) {
+define("ux/styles/text/text", ["require", "exports"], function (require, exports) {
     "use strict";
     return [
         {
-            "fill": {
-                "gradient": {
-                    "type": "linear(200,0,201,0)",
-                    "stops": "rgba(255,0,0,.1) 0%;rgba(255,0,0,0.8) 100%"
-                }
-            }
-        },
-        {
-            "fill": {
-                "gradient": {
-                    "type": "linear(0,200,0,201)",
-                    "stops": "rgba(0,255,0,0.1) 0%;rgba(0,255,0,0.8) 100%"
-                }
+            "text": {
+                "fill": {
+                    "color": "rgba(75,92,85,0.85)"
+                },
+                "stroke": {
+                    "color": "rgba(255,255,255,1)",
+                    "width": 5
+                },
+                "offset-x": 0,
+                "offset-y": 0,
+                "text": "fantasy light",
+                "font": "18px serif"
             }
         }
     ];
 });
-define("labs/mapmaker", ["require", "exports", "jquery", "openlayers", "labs/common/common", "labs/common/ol3-polyline", "ux/serializers/coretech", "ux/styles/stroke/dashdotdot", "ux/styles/stroke/solid"], function (require, exports, $, ol, common_1, reduce, coretech_1, dashdotdot, stroke) {
+define("labs/mapmaker", ["require", "exports", "jquery", "openlayers", "labs/common/common", "labs/common/ol3-polyline", "ux/serializers/coretech", "ux/styles/stroke/dashdotdot", "ux/styles/stroke/solid", "ux/styles/text/text"], function (require, exports, $, ol, common_1, reduce, coretech_1, dashdotdot, strokeStyle, textStyle) {
     "use strict";
     var styler = new coretech_1.CoretechConverter();
     function parse(v, type) {
@@ -1089,14 +1088,17 @@ define("labs/mapmaker", ["require", "exports", "jquery", "openlayers", "labs/com
             })
         });
         map.addLayer(layer);
-        stroke[0].stroke.color = options.color;
-        layer.setStyle(stroke.map(function (s) { return styler.fromJson(s); }));
+        strokeStyle[0].stroke.color = options.color;
+        layer.setStyle(strokeStyle.map(function (s) { return styler.fromJson(s); }));
         if (options.geom) {
-            options.geom.split(",").forEach(function (encoded) {
+            options.geom.split(",").forEach(function (encoded, i) {
                 var geom;
                 var points = new reduce(6, 2).decode(encoded);
                 geom = new ol.geom.Polygon([points]);
                 var feature = new ol.Feature(geom);
+                textStyle[0].text.text = "" + (i + 1);
+                var style = textStyle.concat(strokeStyle).map(function (s) { return styler.fromJson(s); });
+                feature.setStyle(style);
                 features.push(feature);
             });
         }
@@ -1549,6 +1551,27 @@ define("ux/styles/basic", ["require", "exports"], function (require, exports) {
         triangle: [{ star: triangle }],
         x: [{ star: x }]
     };
+});
+define("ux/styles/fill/gradient", ["require", "exports"], function (require, exports) {
+    "use strict";
+    return [
+        {
+            "fill": {
+                "gradient": {
+                    "type": "linear(200,0,201,0)",
+                    "stops": "rgba(255,0,0,.1) 0%;rgba(255,0,0,0.8) 100%"
+                }
+            }
+        },
+        {
+            "fill": {
+                "gradient": {
+                    "type": "linear(0,200,0,201)",
+                    "stops": "rgba(0,255,0,0.1) 0%;rgba(0,255,0,0.8) 100%"
+                }
+            }
+        }
+    ];
 });
 define("labs/common/style-generator", ["require", "exports", "openlayers", "ux/styles/basic", "ux/serializers/coretech"], function (require, exports, ol, basic_styles, Coretech) {
     "use strict";
@@ -3271,26 +3294,6 @@ define("ux/styles/stroke/dot", ["require", "exports"], function (require, export
                 "color": "blue",
                 "width": 2,
                 "lineDash": [2]
-            }
-        }
-    ];
-});
-define("ux/styles/text/text", ["require", "exports"], function (require, exports) {
-    "use strict";
-    return [
-        {
-            "text": {
-                "fill": {
-                    "color": "rgba(75,92,85,0.85)"
-                },
-                "stroke": {
-                    "color": "rgba(255,255,255,1)",
-                    "width": 2
-                },
-                "offset-x": 0,
-                "offset-y": 17,
-                "text": "fantasy light",
-                "font": "lighter 18px fantasy"
             }
         }
     ];

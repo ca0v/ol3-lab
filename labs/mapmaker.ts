@@ -4,8 +4,8 @@ import {doif, getParameterByName, mixin} from "./common/common";
 import reduce = require("./common/ol3-polyline");
 import {CoretechConverter} from "../ux/serializers/coretech";
 import dashdotdot = require("../ux/styles/stroke/dashdotdot");
-import stroke = require("../ux/styles/stroke/solid");
-import fill = require("../ux/styles/fill/gradient");
+import strokeStyle = require("../ux/styles/stroke/solid");
+import textStyle = require("../ux/styles/text/text");
 
 let styler = new CoretechConverter();
 
@@ -135,16 +135,19 @@ export function run() {
     });
     map.addLayer(layer);
 
-    stroke[0].stroke.color = options.color;
-    layer.setStyle(stroke.map(s => styler.fromJson(s)));
+    strokeStyle[0].stroke.color = options.color;
+    layer.setStyle(strokeStyle.map(s => styler.fromJson(s)));
 
 
     if (options.geom) {
-        options.geom.split(",").forEach(encoded => {
+        options.geom.split(",").forEach((encoded, i) => {
             let geom: ol.geom.Polygon;
             let points = new reduce(6, 2).decode(encoded);
             geom = new ol.geom.Polygon([points]);
             let feature = new ol.Feature(geom);
+            textStyle[0].text.text = `${i + 1}`;
+            let style = textStyle.concat(<any>strokeStyle).map(s => styler.fromJson(s)); 
+            feature.setStyle(style);
             features.push(feature);
         });
     }
