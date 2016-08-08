@@ -1053,7 +1053,8 @@ define("labs/mapmaker", ["require", "exports", "jquery", "openlayers", "labs/com
             background: "bright",
             geom: "",
             color: "red",
-            modify: false
+            modify: false,
+            basemap: "osm"
         };
         {
             var opts_1 = options;
@@ -1075,7 +1076,10 @@ define("labs/mapmaker", ["require", "exports", "jquery", "openlayers", "labs/com
             layers: [
                 new ol.layer.Tile({
                     opacity: 0.8,
-                    source: new ol.source.OSM()
+                    source: options.basemap !== "bing" ? new ol.source.OSM() : new ol.source.BingMaps({
+                        key: 'AuPHWkNxvxVAL_8Z4G8Pcq_eOKGm5eITH_cJMNAyYoIC1S_29_HhE893YrUUbIGl',
+                        imagerySet: 'Aerial'
+                    })
                 })]
         });
         var features = new ol.Collection();

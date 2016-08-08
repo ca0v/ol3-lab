@@ -91,7 +91,8 @@ export function run() {
         background: "bright",
         geom: "",//t`syzE}gm_dAm_@A?r@p@Bp@Hp@Ph@Td@Z`@`@Vb@Nd@xUABmF",
         color: "red",
-        modify: false
+        modify: false,
+        basemap: "osm"
     }
 
     {
@@ -103,6 +104,8 @@ export function run() {
 
 
     $(".map").addClass(options.background);
+
+
 
     let map = new ol.Map({
         target: "map",
@@ -117,7 +120,10 @@ export function run() {
         layers: [
             new ol.layer.Tile({
                 opacity: 0.8,
-                source: new ol.source.OSM()
+                source: options.basemap !== "bing" ? new ol.source.OSM() : new ol.source.BingMaps({
+                    key: 'AuPHWkNxvxVAL_8Z4G8Pcq_eOKGm5eITH_cJMNAyYoIC1S_29_HhE893YrUUbIGl',
+                    imagerySet: 'Aerial'
+                })
             })]
     });
 
