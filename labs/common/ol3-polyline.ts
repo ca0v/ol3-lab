@@ -31,7 +31,7 @@ class PolylineEncoder {
         return points;
     }
 
-    private round(nums: number[]) {
+    round(nums: number[]) {
         let factor = Math.pow(10, this.precision);
         return nums.map(n => Math.round(n * factor) / factor);
     }

@@ -685,6 +685,61 @@ define("labs/facebook", ["require", "exports", "openlayers", "jquery"], function
     }
     exports.run = run;
 });
+define("labs/google-identity", ["require", "exports", "jquery", "openlayers"], function (require, exports, $, ol) {
+    "use strict";
+    var html = "\n    <div class=\"g-signin2\" data-onsuccess=\"giAsyncInit\" data-theme=\"dark\"></div>\n    <button class='logout-button'>Logout</button>\n";
+    function createMap() {
+        var basemap = new ol.layer.Tile({
+            source: new ol.source.OSM()
+        });
+        var map = new ol.Map({
+            target: "map",
+            view: new ol.View({
+                projection: "EPSG:4326",
+                center: [-82.4, 34.85],
+                zoom: 10
+            }),
+            layers: [basemap]
+        });
+    }
+    var GoogleIdentity = (function () {
+        function GoogleIdentity() {
+        }
+        GoogleIdentity.prototype.load = function (client_id) {
+            var _this = this;
+            var d = $.Deferred();
+            $("\n            <meta name=\"google-signin-scope\" content=\"profile email\">\n            <meta name=\"google-signin-client_id\" content=\"" + client_id + "\">\n            <script src=\"https://apis.google.com/js/platform.js\" async defer></script>\n        ").appendTo('head');
+            window.giAsyncInit = function (args) {
+                _this.id_token = args.getAuthResponse().id_token;
+                d.resolve(args);
+                delete window.giAsyncInit;
+            };
+            return d;
+        };
+        GoogleIdentity.prototype.showInfo = function (googleUser) {
+            createMap();
+            var profile = googleUser.getBasicProfile();
+            $("<img src='" + profile.getImageUrl() + "'>" + profile.getName() + "</img>").appendTo('body');
+        };
+        ;
+        GoogleIdentity.prototype.logout = function () {
+            var auth2 = gapi.auth2.getAuthInstance();
+            auth2.signOut().then(function () {
+                console.log('User signed out.');
+            });
+        };
+        return GoogleIdentity;
+    }());
+    function run() {
+        $(html).appendTo('body');
+        var gi = new GoogleIdentity();
+        gi.load('987911803084-a6cafnu52d7lkr8vfrtl4modrpinr1os.apps.googleusercontent.com').then(function (args) { return gi.showInfo(args); });
+        $('button.logout-button').click(function () {
+            gi.logout();
+        });
+    }
+    exports.run = run;
+});
 define("labs/image-data-viewer", ["require", "exports", "jquery"], function (require, exports, $) {
     "use strict";
     var data = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAAA9CAYAAAAd1W/BAAAFf0lEQVRoBe1ZSW/bRhT+uFMSZcmSAnlpHCcokKZo0QU9t7321n/QnnvqHyjQn9Cf0GuvRU89Feg5AdIGDro5tuPd1mItJKWhyOKNRMRwpFjcZAviAATJ4XDee998b97MGwGAhwUu4gLbzk1PAUgZsOAIpC6w4ARAyoCUAQuOwO1xAQEAXTMu8ozlDcUJQ1sFCRBEASK/Dz95A8AdAJ7rwXNH6/QEF+uzBUAAJBmQNRGyJkDPy1BzCjRDgZqVucG9Th9904HdZuh3HTg9D07f46AksWuZDQAjw5WMCOOOhtJGHssbeeRKOiRF4pcoivA8MtTlF7MddE5N1HZbaOx3YNYZHHsERIy0Ja9LkGBDv1Z0AUsrGqoPiyjfLyJXzkLNqJBUCYIw3vHJBViPWNBD58zE8fMazrfb6NYdDPrxqZwoAIIIqFkB5U0Db31UQWmjCD2fgSgHm3udngO7ZeHk7xoOntZwcWhz1/BiwCExALjxOQGr7xax/sEdLK8XoWRVTBjwa0lNjCAQajtN7D0+QW3H5C4RFYRk5gABINqvPCri7sdVFNcKkHUltPGEDkULfSmDytsSf/bcY9RemHyCvBa9NzRIBABFA8qbOaw+KqGwshTZeF9/AkHLqijdK4CiBbMH3B0GzG8R/B7MGafon2J6rqJh9b0SyvdLkWg/ThxnQj6D6jtlVB7koRnEiHEtp6uL8Ot4AZJKo2+guF6AEpH24yUM3UHL6ag+LKOwRpPqpJbX18cKAB/9sobCmoHscvDZ/np1X7WQNRm5SpbLogVVWBbEDsBSNYOlqsFj/Ct1k3kihhXXCWz19gCQK+vIFHSIUqzYjkVQVmUYlSz0vHI7APA8ClVvXuGNtSRkJU2ISkZGpqBC1WlVGbyjWIeJ2R669X4oRYKrPvyDltIiLamlENYD8aXE7o0sOHjamAn9fcDI1XRDgaLTntqvnf4eCwPI+N8A0L1b62Hvydn0GkRtKQiQJJEz4MZc4AcAmwC+Hxnz7JddMMuJatp0/3seHObCdVyE2RdEZsBnAL4cqfo1AHqnvfy/vx9OZ0DEVoOBC7vTh9Pz00fBOowMAI3+5eK/P/91D2bdvvwpkWfaJbojBoQREAmArwB8eEUqvVM9lT9+fjF6SuZG2SNmMljNHpg9YxcoAPBH+6p5VE/fD5/VcPbfxdXPsb07fQet0y6sFgvl/6RIaAZ8C6A4wRSqp+9UHv/0z+gp5psHMIvh4qADq8l4QjWMhFAAULjzZ/xJQuk7taN5IIkJkfKF7ZMOmodd9DrObAH4cZLVV+p9F6EJMc6wSCHPvrBw8lcdrSMLboSIG5gBFOY+v2LopFcKjzwsWg4IhDiKO/BgXZg42jrnWeK+GW7y83UJDMC0o+8L8NuTG0QNi2Q8JUbPt5s42mqgfdqPNPqkY6CsMK32aLETtBAIOwAqDwr49Jv3g/7OTy4o5JmNLs62G3j55AyNlxZ4LjBiajwQAME1f/2PL777BPqSBoGwv27z4oGfFjGbwawPaX/4Zw2dc4YB+X1E40m7CNm0142bVEOHoIouorieRWO/CaNMSQwdlNaiPT0vPhgjo/gix2Kw2zbap10cb9VR223DbtG6f5Kk4PUzYwDl7GQNyJZUlO4aWN4wkCtleOqMnw9KIh/QARvwjQ2NeufUQm2vjeZ+F3aLjsSIEcGNfNMfMwPAV4ISp5TFpVNizZCh5GS+n/dPh+0OA+Onw5T3d+EycLrTUXkSZeYAXDaCWMH38DQdjOIRN5R8nzZ3MY/2Zdn+840C4Ctxk/fA64CbVDYJ2SkASaA6T32mDJin0UpC15QBSaA6T32mDJin0UpC15QBSaA6T32mDJin0UpC15QBSaA6T30uPAP+B8Xv5/OOW6fPAAAAAElFTkSuQmCC";
@@ -734,7 +789,7 @@ define("labs/index", ["require", "exports"], function (require, exports) {
     function run() {
         var l = window.location;
         var path = "" + l.origin + l.pathname + "?run=labs/";
-        var labs = "\n    style-lab\n    style-viewer\n    style-viewer&geom=parcel\n    style-viewer&geom=polygon-with-holes\n    style-viewer&style=fill/gradient,text/text\n    style-viewer&geom=parcel&style=fill/gradient,text/text\n    style-to-canvas\n    polyline-encoder\n    image-data-viewer\n    mapmaker\n    mapmaker&background=light\n    mapmaker&geom=t`syzE}gm_dAm_@A?r@p@Bp@Hp@Ph@Td@Z`@`@Vb@Nd@xUABmF\n    mapmaker&geom=t`syzE}gm_dAm_@A?r@p@Bp@Hp@Ph@Td@Z`@`@Vb@Nd@xUABmF&color=yellow&background=dark\n    facebook\n    index\n    ";
+        var labs = "\n    style-lab\n    style-viewer\n    style-viewer&geom=parcel\n    style-viewer&geom=polygon-with-holes\n    style-viewer&style=fill/gradient,text/text\n    style-viewer&geom=parcel&style=fill/gradient,text/text\n    style-to-canvas\n    polyline-encoder\n    image-data-viewer\n    mapmaker\n    mapmaker&background=light\n    mapmaker&geom=t`syzE}gm_dAm_@A?r@p@Bp@Hp@Ph@Td@Z`@`@Vb@Nd@xUABmF\n    mapmaker&geom=t`syzE}gm_dAm_@A?r@p@Bp@Hp@Ph@Td@Z`@`@Vb@Nd@xUABmF&color=yellow&background=dark&modify=1\n    facebook\n    google-identity\n    index\n    ";
         var styles = document.createElement("style");
         document.head.appendChild(styles);
         styles.innerText += "\n    #map {\n        display: none;\n    }\n    ";
@@ -1212,7 +1267,7 @@ define("labs/mapmaker", ["require", "exports", "jquery", "openlayers", "labs/com
             geom: "",
             color: "red",
             modify: false,
-            basemap: "osm"
+            basemap: "bing"
         };
         {
             var opts_1 = options;
@@ -1260,6 +1315,9 @@ define("labs/mapmaker", ["require", "exports", "jquery", "openlayers", "labs/com
                 feature.setStyle(style);
                 features.push(feature);
             });
+            if (!common_1.getParameterByName("center")) {
+                map.getView().fit(layer.getSource().getExtent(), map.getSize());
+            }
         }
         if (options.modify) {
             var modify_1 = new ol.interaction.Modify({
@@ -1284,7 +1342,7 @@ define("labs/mapmaker", ["require", "exports", "jquery", "openlayers", "labs/com
         $("button.share").click(function () {
             var href = window.location.href;
             href = href.substring(0, href.length - window.location.search.length);
-            options.center = map.getView().getCenter().map(function (v) { return parseFloat(v.toPrecision(5)); });
+            options.center = new reduce(6, 2).round(map.getView().getCenter());
             options.zoom = map.getView().getZoom();
             if (options.modify) {
                 options.geom = features.getArray().map(function (feature) {

@@ -92,7 +92,7 @@ export function run() {
         geom: "",//t`syzE}gm_dAm_@A?r@p@Bp@Hp@Ph@Td@Z`@`@Vb@Nd@xUABmF",
         color: "red",
         modify: false,
-        basemap: "osm"
+        basemap: "bing"
     }
 
     {
@@ -150,6 +150,10 @@ export function run() {
             feature.setStyle(style);
             features.push(feature);
         });
+
+        if (!getParameterByName("center")) {
+            map.getView().fit(layer.getSource().getExtent(), map.getSize());
+        }
     }
 
     if (options.modify) {
@@ -179,7 +183,7 @@ export function run() {
         let href = window.location.href;
         href = href.substring(0, href.length - window.location.search.length);
 
-        options.center = map.getView().getCenter().map(v => parseFloat(v.toPrecision(5)));
+        options.center = new reduce(6, 2).round(map.getView().getCenter());
         options.zoom = map.getView().getZoom();
 
         if (options.modify) {
