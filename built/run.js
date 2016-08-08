@@ -526,6 +526,165 @@ define("app", ["require", "exports", "openlayers", "ux/mapquest-directions-proxy
     }
     return run;
 });
+define("labs/facebook", ["require", "exports", "openlayers", "jquery"], function (require, exports, ol, $) {
+    "use strict";
+    var css = "\n<style id='authentication_css'>\n    html, body, .map {\n        margin: 0;\n        padding: 0;\n        width: 100%;\n        height: 100%;\n        overflow: hidden;\n    }\n    .authentication .facebook-toolbar {\n        position: absolute;\n        bottom: 30px;\n        right: 20px;\n    }\n    .authentication .facebook-toolbar .login-button {\n        display: none;\n    }\n</style>\n";
+    var html = "\n<div class='authentication'>\n    <div id=\"events\"></div>\n\n    <div class='facebook-toolbar'>\n    <div class=\"fb-like\" \n        data-href=\"http://localhost:94/code/ol3-lab/index.html?run=labs/authentication\" \n        data-layout=\"button_count\" \n        data-action=\"recommend\" \n        data-size=\"small\" \n        data-show-faces=\"true\" \n        data-share=\"true\">\n    </div>\n\n    <fb:login-button class='login-button' scope=\"public_profile,user_tagged_places,email\" onlogin=\"$('#events').trigger('fb-login');\"/>\n    <button class='logout-button'>Logout</button>\n    </div>\n</div>\n";
+    var Facebook = (function () {
+        function Facebook() {
+        }
+        Facebook.prototype.load = function (appId) {
+            var _this = this;
+            var d = $.Deferred();
+            window.fbAsyncInit = function () {
+                _this.FB = window.FB;
+                _this.FB.init({
+                    appId: appId,
+                    cookie: true,
+                    xfbml: true,
+                    version: 'v2.7'
+                });
+                d.resolve(window.FB);
+                delete window.fbAsyncInit;
+            };
+            (function (d, s, id) {
+                var fjs = d.getElementsByTagName(s)[0];
+                if (d.getElementById(id)) {
+                    return;
+                }
+                var js = d.createElement(s);
+                js.id = id;
+                js.src = "//connect.facebook.net/en_US/sdk.js";
+                fjs.parentNode.insertBefore(js, fjs);
+            })(document, 'script', 'facebook-jssdk');
+            return d;
+        };
+        Facebook.prototype.getUserInfo = function () {
+            var _this = this;
+            var d = $.Deferred();
+            this.FB.api('/me', 'get', {
+                fields: 'last_name'
+            }, function (response) {
+                _this.user_id = response.id;
+                d.resolve(response);
+            });
+            return d;
+        };
+        Facebook.prototype.getPlaces = function (user_id) {
+            if (user_id === void 0) { user_id = this.user_id; }
+            var d = $.Deferred();
+            this.FB.api(this.user_id + "/tagged_places", 'get', {}, function (args) {
+                d.resolve(args);
+            });
+            return d;
+        };
+        return Facebook;
+    }());
+    function createMap(fb) {
+        var features = new ol.Collection();
+        var source = new ol.source.Vector({
+            features: features
+        });
+        var vectorLayer = new ol.layer.Vector({
+            source: source
+        });
+        var style = new ol.style.Style({
+            image: new ol.style.Circle({
+                radius: 12,
+                fill: new ol.style.Fill({ color: "#4267b2" }),
+                stroke: new ol.style.Stroke({
+                    width: 3,
+                    color: "#29487d"
+                })
+            }),
+            text: new ol.style.Text({
+                fill: new ol.style.Fill({
+                    color: "#ffffff"
+                }),
+                stroke: new ol.style.Stroke({
+                    width: 3,
+                    color: "#4267b2"
+                }),
+                font: "15pt arial",
+                text: "f"
+            })
+        });
+        vectorLayer.setStyle(style);
+        var basemap = new ol.layer.Tile({
+            source: new ol.source.OSM()
+        });
+        var map = new ol.Map({
+            target: "map",
+            view: new ol.View({
+                projection: "EPSG:4326",
+                center: [-82.4, 34.85],
+                zoom: 10
+            }),
+            layers: [basemap, vectorLayer]
+        });
+        fb.getUserInfo().then(function (args) {
+            fb.getPlaces(args.id).then(function (places) {
+                places.data.forEach(function (data) {
+                    var loc = data.place.location;
+                    var geom = new ol.geom.Point([loc.longitude, loc.latitude]);
+                    var feature = new ol.Feature(geom);
+                    feature.setProperties({
+                        name: data.place.name
+                    });
+                    feature.setStyle([style, new ol.style.Style({
+                            text: new ol.style.Text({
+                                fill: new ol.style.Fill({
+                                    color: "#ffffff"
+                                }),
+                                stroke: new ol.style.Stroke({
+                                    width: 3,
+                                    color: "#4267b2"
+                                }),
+                                font: "12pt arial",
+                                text: data.place.name,
+                                offsetY: 30
+                            })
+                        })]);
+                    features.push(feature);
+                });
+                var extent = source.getExtent();
+                map.getView().fit(extent, map.getSize());
+            });
+        });
+    }
+    function run() {
+        $(html).appendTo("body");
+        $(css).appendTo("head");
+        var fb = new Facebook();
+        fb.load('639680389534759').then(function (FB) {
+            $('.logout-button').click(function () {
+                $('.login-button').show();
+                $('.logout-button').hide();
+                FB.logout();
+            });
+            FB.getLoginStatus(function (response) {
+                switch (response.status) {
+                    case 'connected':
+                        $('.login-button').hide();
+                        $('.logout-button').show();
+                        createMap(fb);
+                        break;
+                    case 'not_authorized':
+                        break;
+                    default:
+                        $('#events').on("fb-login", function () {
+                            $('.login-button').hide();
+                            $('.logout-button').show();
+                            createMap(fb);
+                        });
+                        $('.login-button').show();
+                        $('.logout-button').hide();
+                }
+            });
+        });
+    }
+    exports.run = run;
+});
 define("labs/image-data-viewer", ["require", "exports", "jquery"], function (require, exports, $) {
     "use strict";
     var data = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAAA9CAYAAAAd1W/BAAAFf0lEQVRoBe1ZSW/bRhT+uFMSZcmSAnlpHCcokKZo0QU9t7321n/QnnvqHyjQn9Cf0GuvRU89Feg5AdIGDro5tuPd1mItJKWhyOKNRMRwpFjcZAviAATJ4XDee998b97MGwGAhwUu4gLbzk1PAUgZsOAIpC6w4ARAyoCUAQuOwO1xAQEAXTMu8ozlDcUJQ1sFCRBEASK/Dz95A8AdAJ7rwXNH6/QEF+uzBUAAJBmQNRGyJkDPy1BzCjRDgZqVucG9Th9904HdZuh3HTg9D07f46AksWuZDQAjw5WMCOOOhtJGHssbeeRKOiRF4pcoivA8MtTlF7MddE5N1HZbaOx3YNYZHHsERIy0Ja9LkGBDv1Z0AUsrGqoPiyjfLyJXzkLNqJBUCYIw3vHJBViPWNBD58zE8fMazrfb6NYdDPrxqZwoAIIIqFkB5U0Db31UQWmjCD2fgSgHm3udngO7ZeHk7xoOntZwcWhz1/BiwCExALjxOQGr7xax/sEdLK8XoWRVTBjwa0lNjCAQajtN7D0+QW3H5C4RFYRk5gABINqvPCri7sdVFNcKkHUltPGEDkULfSmDytsSf/bcY9RemHyCvBa9NzRIBABFA8qbOaw+KqGwshTZeF9/AkHLqijdK4CiBbMH3B0GzG8R/B7MGafon2J6rqJh9b0SyvdLkWg/ThxnQj6D6jtlVB7koRnEiHEtp6uL8Ot4AZJKo2+guF6AEpH24yUM3UHL6ag+LKOwRpPqpJbX18cKAB/9sobCmoHscvDZ/np1X7WQNRm5SpbLogVVWBbEDsBSNYOlqsFj/Ct1k3kihhXXCWz19gCQK+vIFHSIUqzYjkVQVmUYlSz0vHI7APA8ClVvXuGNtSRkJU2ISkZGpqBC1WlVGbyjWIeJ2R669X4oRYKrPvyDltIiLamlENYD8aXE7o0sOHjamAn9fcDI1XRDgaLTntqvnf4eCwPI+N8A0L1b62Hvydn0GkRtKQiQJJEz4MZc4AcAmwC+Hxnz7JddMMuJatp0/3seHObCdVyE2RdEZsBnAL4cqfo1AHqnvfy/vx9OZ0DEVoOBC7vTh9Pz00fBOowMAI3+5eK/P/91D2bdvvwpkWfaJbojBoQREAmArwB8eEUqvVM9lT9+fjF6SuZG2SNmMljNHpg9YxcoAPBH+6p5VE/fD5/VcPbfxdXPsb07fQet0y6sFgvl/6RIaAZ8C6A4wRSqp+9UHv/0z+gp5psHMIvh4qADq8l4QjWMhFAAULjzZ/xJQuk7taN5IIkJkfKF7ZMOmodd9DrObAH4cZLVV+p9F6EJMc6wSCHPvrBw8lcdrSMLboSIG5gBFOY+v2LopFcKjzwsWg4IhDiKO/BgXZg42jrnWeK+GW7y83UJDMC0o+8L8NuTG0QNi2Q8JUbPt5s42mqgfdqPNPqkY6CsMK32aLETtBAIOwAqDwr49Jv3g/7OTy4o5JmNLs62G3j55AyNlxZ4LjBiajwQAME1f/2PL777BPqSBoGwv27z4oGfFjGbwawPaX/4Zw2dc4YB+X1E40m7CNm0142bVEOHoIouorieRWO/CaNMSQwdlNaiPT0vPhgjo/gix2Kw2zbap10cb9VR223DbtG6f5Kk4PUzYwDl7GQNyJZUlO4aWN4wkCtleOqMnw9KIh/QARvwjQ2NeufUQm2vjeZ+F3aLjsSIEcGNfNMfMwPAV4ISp5TFpVNizZCh5GS+n/dPh+0OA+Onw5T3d+EycLrTUXkSZeYAXDaCWMH38DQdjOIRN5R8nzZ3MY/2Zdn+840C4Ctxk/fA64CbVDYJ2SkASaA6T32mDJin0UpC15QBSaA6T32mDJin0UpC15QBSaA6T32mDJin0UpC15QBSaA6T30uPAP+B8Xv5/OOW6fPAAAAAElFTkSuQmCC";
@@ -575,7 +734,7 @@ define("labs/index", ["require", "exports"], function (require, exports) {
     function run() {
         var l = window.location;
         var path = "" + l.origin + l.pathname + "?run=labs/";
-        var labs = "\n    style-lab\n    style-viewer\n    style-viewer&geom=parcel\n    style-viewer&geom=polygon-with-holes\n    style-viewer&style=fill/gradient,text/text\n    style-viewer&geom=parcel&style=fill/gradient,text/text\n    style-to-canvas\n    polyline-encoder\n    image-data-viewer\n    mapmaker\n    mapmaker&background=light\n    mapmaker&geom=t`syzE}gm_dAm_@A?r@p@Bp@Hp@Ph@Td@Z`@`@Vb@Nd@xUABmF\n    mapmaker&geom=t`syzE}gm_dAm_@A?r@p@Bp@Hp@Ph@Td@Z`@`@Vb@Nd@xUABmF&color=yellow&background=dark\n    index\n    ";
+        var labs = "\n    style-lab\n    style-viewer\n    style-viewer&geom=parcel\n    style-viewer&geom=polygon-with-holes\n    style-viewer&style=fill/gradient,text/text\n    style-viewer&geom=parcel&style=fill/gradient,text/text\n    style-to-canvas\n    polyline-encoder\n    image-data-viewer\n    mapmaker\n    mapmaker&background=light\n    mapmaker&geom=t`syzE}gm_dAm_@A?r@p@Bp@Hp@Ph@Td@Z`@`@Vb@Nd@xUABmF\n    mapmaker&geom=t`syzE}gm_dAm_@A?r@p@Bp@Hp@Ph@Td@Z`@`@Vb@Nd@xUABmF&color=yellow&background=dark\n    facebook\n    index\n    ";
         var styles = document.createElement("style");
         document.head.appendChild(styles);
         styles.innerText += "\n    #map {\n        display: none;\n    }\n    ";
