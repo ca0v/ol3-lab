@@ -528,55 +528,61 @@ define("app", ["require", "exports", "openlayers", "ux/mapquest-directions-proxy
 });
 define("labs/facebook", ["require", "exports", "openlayers", "jquery"], function (require, exports, ol, $) {
     "use strict";
-    var css = "\n<style id='authentication_css'>\n    html, body, .map {\n        margin: 0;\n        padding: 0;\n        width: 100%;\n        height: 100%;\n        overflow: hidden;\n    }\n    .authentication .facebook-toolbar {\n        position: absolute;\n        bottom: 30px;\n        right: 20px;\n    }\n    .authentication .facebook-toolbar .login-button {\n        display: none;\n    }\n</style>\n";
-    var html = "\n<div class='authentication'>\n    <div id=\"events\"></div>\n\n    <div class='facebook-toolbar'>\n    <div class=\"fb-like\" \n        data-href=\"http://localhost:94/code/ol3-lab/index.html?run=labs/authentication\" \n        data-layout=\"button_count\" \n        data-action=\"recommend\" \n        data-size=\"small\" \n        data-show-faces=\"true\" \n        data-share=\"true\">\n    </div>\n\n    <fb:login-button class='login-button' scope=\"public_profile,user_tagged_places,email\" onlogin=\"$('#events').trigger('fb-login');\"/>\n    <button class='logout-button'>Logout</button>\n    </div>\n</div>\n";
+    requirejs.config({
+        shim: {
+            'facebook': {
+                exports: 'FB'
+            }
+        },
+        paths: {
+            'facebook': '//connect.facebook.net/en_US/sdk'
+        }
+    });
+    var css = "\n<style id='authentication_css'>\n    html, body, .map {\n        margin: 0;\n        padding: 0;\n        width: 100%;\n        height: 100%;\n        overflow: hidden;\n    }\n    .authentication .facebook-toolbar {\n        position: absolute;\n        bottom: 30px;\n        right: 20px;\n    }\n\n    .logout-button {\n        background-color: #365899;\n        border: 1px solid #365899;\n        color: white;\n        border-radius: 3px;\n        font-size: 8pt !important;\n        height: 20px;\n        vertical-align: bottom;\n    }\n</style>\n";
+    var html = "\n<div class='authentication'>\n    <div id=\"events\"></div>\n\n    <div class='facebook-toolbar'>\n    <div class=\"fb-like\" \n        data-href=\"" + window.location + "\" \n        data-layout=\"button_count\" \n        data-action=\"recommend\" \n        data-size=\"small\" \n        data-show-faces=\"true\" \n        data-share=\"true\">\n    </div>\n\n    <fb:login-button class='login-button' scope=\"public_profile,user_tagged_places,email\" onlogin=\"$('#events').trigger('fb-login');\"/>\n    <button class='logout-button'>Logout</button>\n    </div>\n</div>\n";
     var Facebook = (function () {
         function Facebook() {
         }
         Facebook.prototype.load = function (appId) {
             var _this = this;
             var d = $.Deferred();
-            window.fbAsyncInit = function () {
-                _this.FB = window.FB;
-                _this.FB.init({
+            requirejs(['facebook'], function (FB) {
+                _this.FB = FB;
+                FB.init({
                     appId: appId,
                     cookie: true,
                     xfbml: true,
                     version: 'v2.7'
                 });
-                d.resolve(window.FB);
-                delete window.fbAsyncInit;
-            };
-            (function (d, s, id) {
-                var fjs = d.getElementsByTagName(s)[0];
-                if (d.getElementById(id)) {
-                    return;
-                }
-                var js = d.createElement(s);
-                js.id = id;
-                js.src = "//connect.facebook.net/en_US/sdk.js";
-                fjs.parentNode.insertBefore(js, fjs);
-            })(document, 'script', 'facebook-jssdk');
+                d.resolve(FB);
+            });
+            return d;
+        };
+        Facebook.prototype.on = function (event, cb) {
+            var _this = this;
+            this.FB.Event.subscribe(event, cb);
+            return { off: function () { return _this.FB.Event.unsubscribe(event, cb); } };
+        };
+        Facebook.prototype.api = function (name, args) {
+            if (args === void 0) { args = {}; }
+            var d = $.Deferred();
+            this.FB.api("" + name, 'get', args, function (args) {
+                d.resolve(args);
+            });
             return d;
         };
         Facebook.prototype.getUserInfo = function () {
             var _this = this;
-            var d = $.Deferred();
-            this.FB.api('/me', 'get', {
-                fields: 'last_name'
-            }, function (response) {
-                _this.user_id = response.id;
-                d.resolve(response);
+            return this.api('me').done(function (v) {
+                _this.user_id = v.id;
             });
-            return d;
         };
         Facebook.prototype.getPlaces = function (user_id) {
             if (user_id === void 0) { user_id = this.user_id; }
-            var d = $.Deferred();
-            this.FB.api(this.user_id + "/tagged_places", 'get', {}, function (args) {
-                d.resolve(args);
-            });
-            return d;
+            return this.api(this.user_id + "/tagged_places");
+        };
+        Facebook.prototype.getPicture = function () {
+            return this.api(this.user_id + "/picture");
         };
         return Facebook;
     }());
@@ -651,34 +657,49 @@ define("labs/facebook", ["require", "exports", "openlayers", "jquery"], function
                 map.getView().fit(extent, map.getSize());
             });
         });
+        return map;
     }
     function run() {
-        $(html).appendTo("body");
         $(css).appendTo("head");
+        $(html).appendTo("body");
+        $('.logout-button').hide();
         var fb = new Facebook();
         fb.load('639680389534759').then(function (FB) {
-            $('.logout-button').click(function () {
+            var map;
+            var onLoggedIn = function () {
+                console.log("logged in");
+                $('.login-button').hide();
+                $('.logout-button').show();
+                map = createMap(fb);
+                fb.getPicture().then(function (picture) {
+                    if (picture.data.is_silhouette)
+                        return;
+                    $("<img class='fb-pic' src='" + picture.data.url + "'/>'").prependTo('.facebook-toolbar');
+                });
+            };
+            var onLoggedOut = function () {
+                console.log("logged out");
                 $('.login-button').show();
                 $('.logout-button').hide();
-                FB.logout();
-            });
-            FB.getLoginStatus(function (response) {
-                switch (response.status) {
+                if (map) {
+                    map.dispose();
+                    map = null;
+                }
+                $('.fb-pic').remove();
+            };
+            fb.on('auth.login', onLoggedIn);
+            fb.on('auth.logout', onLoggedOut);
+            $('.logout-button').click(function () { return FB.logout(); });
+            FB.getLoginStatus(function (args) {
+                switch (args.status) {
                     case 'connected':
-                        $('.login-button').hide();
-                        $('.logout-button').show();
-                        createMap(fb);
+                        onLoggedIn();
                         break;
                     case 'not_authorized':
                         break;
                     default:
-                        $('#events').on("fb-login", function () {
-                            $('.login-button').hide();
-                            $('.logout-button').show();
-                            createMap(fb);
-                        });
-                        $('.login-button').show();
-                        $('.logout-button').hide();
+                        onLoggedOut();
+                        break;
                 }
             });
         });

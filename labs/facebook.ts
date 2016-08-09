@@ -1,6 +1,17 @@
 import ol = require("openlayers");
 import $ = require("jquery");
 
+requirejs.config({
+    shim: {
+        'facebook': {
+            exports: 'FB'
+        }
+    },
+    paths: {
+        'facebook': '//connect.facebook.net/en_US/sdk'
+    }
+});
+
 declare var window: any;
 
 declare namespace FacebookPlaces {
@@ -72,7 +83,10 @@ interface FB {
     login(): void;
 
     // events
-    Event: { subscribe: (name: string, cb: Function) => void };
+    Event: {
+        subscribe: (name: string, cb: Function) => void
+        unsubscribe: (name: string, cb: Function) => void
+    };
 }
 
 const css = `
@@ -88,6 +102,16 @@ const css = `
         position: absolute;
         bottom: 30px;
         right: 20px;
+    }
+
+    .logout-button {
+        background-color: #365899;
+        border: 1px solid #365899;
+        color: white;
+        border-radius: 3px;
+        font-size: 8pt !important;
+        height: 20px;
+        vertical-align: bottom;
     }
 </style>
 `;
@@ -120,33 +144,28 @@ class Facebook {
     load(appId: string) {
 
         let d = $.Deferred<FB>();
-        window.fbAsyncInit = () => {
-            this.FB = window.FB;
 
-            this.FB.init({
+        requirejs(['facebook'], (FB: FB) => {
+            this.FB = FB;
+            FB.init({
                 appId: appId,
                 cookie: true,
                 xfbml: true,
                 version: 'v2.7'
             });
 
-            d.resolve(window.FB);
-            delete window.fbAsyncInit;
-        };
-
-        ((d: Document, s: string, id: string) => {
-            let fjs = <HTMLScriptElement>d.getElementsByTagName(s)[0];
-            if (d.getElementById(id)) { return; }
-            let js = <HTMLScriptElement>d.createElement(s);
-            js.id = id;
-            js.src = "//connect.facebook.net/en_US/sdk.js";
-            fjs.parentNode.insertBefore(js, fjs);
-        })(document, 'script', 'facebook-jssdk');
+            d.resolve(FB);
+        });
 
         return d;
     }
 
-    api<T>(name: string, args = {}) {
+    on(event: string, cb: Function) {
+        this.FB.Event.subscribe(event, cb);
+        return { off: () => this.FB.Event.unsubscribe(event, cb) };
+    }
+
+    private api<T>(name: string, args = {}) {
         let d = $.Deferred<T>();
         this.FB.api(`${name}`, 'get', args, (args: T) => {
             d.resolve(args);
@@ -168,7 +187,7 @@ class Facebook {
     }
 
     getPicture() {
-        return this.api<{ data: { url: string } }>(`${this.user_id}/picture`);
+        return this.api<{ data: { is_silhouette: boolean; url: string } }>(`${this.user_id}/picture`);
     }
 
 }
@@ -226,10 +245,6 @@ function createMap(fb: Facebook) {
 
     fb.getUserInfo().then(args => {
 
-        fb.getPicture().then(picture => {
-            $(`<img src='${picture.data.url}'/>'`).prependTo('.facebook-toolbar');
-        });
-
         fb.getPlaces(args.id).then(places => {
             places.data.forEach(data => {
                 let loc = data.place.location;
@@ -259,7 +274,7 @@ function createMap(fb: Facebook) {
         });
     });
 
-
+    return map;
 }
 
 export function run() {
@@ -267,39 +282,57 @@ export function run() {
     $(css).appendTo("head");
     $(html).appendTo("body");
 
+    //$('.login-button').hide();
+    $('.logout-button').hide();
+
     let fb = new Facebook();
 
     fb.load('639680389534759').then(FB => {
 
-        FB.Event.subscribe('auth.login', () => {
+        let map: ol.Map;
+
+        let onLoggedIn = () => {
             console.log("logged in");
             $('.login-button').hide();
             $('.logout-button').show();
-        });
+            map = createMap(fb);
+            fb.getPicture().then(picture => {
+                if (picture.data.is_silhouette) return;
+                $(`<img class='fb-pic' src='${picture.data.url}'/>'`).prependTo('.facebook-toolbar');
+            });
+        };
 
-        FB.Event.subscribe('auth.logout', () => {
+        let onLoggedOut = () => {
             console.log("logged out");
             $('.login-button').show();
             $('.logout-button').hide();
-        });
+            if (map) {
+                map.dispose();
+                map = null;
+            }
+            $('.fb-pic').remove();
+        };
 
-        $('.logout-button').click(() => {
-            FB.logout();
-        });
+        fb.on('auth.login', onLoggedIn);
 
-        FB.getLoginStatus(response => {
-            switch (response.status) {
+        fb.on('auth.logout', onLoggedOut);
+
+        $('.logout-button').click(() => FB.logout());
+
+        FB.getLoginStatus(args => {
+            switch (args.status) {
                 case 'connected':
-                    createMap(fb);
+                    onLoggedIn();
                     break;
                 case 'not_authorized':
                     break;
                 default:
-                    $('#events').on("fb-login", () => {
-                        createMap(fb);
-                    });
+                    onLoggedOut();
+                    break;
             }
         });
+
+        //FB.login();
     });
 
 
