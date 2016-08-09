@@ -2913,7 +2913,7 @@ define("tests/index", ["require", "exports"], function (require, exports) {
     function run() {
         var l = window.location;
         var path = "" + l.origin + l.pathname + "?run=tests/";
-        var labs = "\n    ags-format\n    google-polyline\n    index\n    ";
+        var labs = "\n    ags-format\n    google-polyline\n    webmap\n    index\n    ";
         document.writeln("\n    <p>\n    Watch the console output for failed assertions (blank is good).\n    </p>\n    ");
         document.writeln(labs
             .split(/ /)
@@ -2925,6 +2925,31 @@ define("tests/index", ["require", "exports"], function (require, exports) {
     }
     exports.run = run;
     ;
+});
+define("tests/webmap", ["require", "exports", "jquery"], function (require, exports, $) {
+    "use strict";
+    var webmap = "ae85c9d9c5ae409bb1f351617ea0bffc";
+    var portal = "https://www.arcgis.com";
+    var items_endpoint = "http://www.arcgis.com/sharing/rest/content/items";
+    function endpoint() {
+        return items_endpoint + "/" + webmap + "/data?f=json";
+    }
+    function run() {
+        if (1)
+            $.ajax({
+                url: endpoint(),
+                dataType: "json"
+            }).done(function (webmap) {
+                console.assert(webmap.authoringApp === "WebMapViewer", "authoringApp");
+                console.assert(webmap.authoringAppVersion === "4.2");
+                webmap.operationalLayers;
+                webmap.baseMap;
+                console.assert(webmap.spatialReference.latestWkid === 3857);
+                console.assert(webmap.version === "2.5");
+                console.log("done");
+            });
+    }
+    exports.run = run;
 });
 define("ux/styles/ags/simplemarkersymbol-circle", ["require", "exports"], function (require, exports) {
     "use strict";

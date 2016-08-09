@@ -5,6 +5,7 @@ export function run() {
     let labs = `
     ags-format
     google-polyline
+    webmap
     index
     `;
     
