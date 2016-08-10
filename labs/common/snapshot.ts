@@ -42,8 +42,9 @@ class Snapshot {
         let geom = feature.getGeometry();
         let extent = geom.getExtent();
 
+        let isPoint = extent[0] === extent[2];
         let [dx, dy] = ol.extent.getCenter(extent);
-        let scale = Math.min(canvas.width / ol.extent.getWidth(extent), canvas.height / ol.extent.getHeight(extent));
+        let scale = isPoint ? 1 : Math.min(canvas.width / ol.extent.getWidth(extent), canvas.height / ol.extent.getHeight(extent));
 
         geom.translate(-dx, -dy);
         geom.scale(scale, -scale);

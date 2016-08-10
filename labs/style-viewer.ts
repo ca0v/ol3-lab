@@ -16,6 +16,7 @@ import Serializer = require("../ux/serializers/coretech");
 import polygonGeom = require("../tests/data/geom/polygon-with-holes");
 import parcelGeom = require("../tests/data/geom/parcel");
 import pointGeom = require("../tests/data/geom/point");
+import pointStyle = require("../ux/styles/icon/png");
 
 const html = `
 <div class='style-to-canvas'>
@@ -27,6 +28,7 @@ const html = `
     <div class="area">
         <label>Style</label>
         <textarea class='style'></textarea>
+        <button class="save">Save</button>
     </div>
     <div class="area">
         <label>Potential control for setting linear gradient start/stop locations</label>
@@ -121,7 +123,7 @@ function loadStyle(name: string) {
 
 function loadGeom(name: string) {
     type T = ol.geom.Geometry[];
-    let mids = name.split(",").map(name => `../data/geom/${name}`);
+    let mids = name.split(",").map(name => `../tests/data/geom/${name}`);
     let d = $.Deferred<T>();
     require(mids, (...shapes: any[]) => {
         let geoms = shapes.map(shape => {
@@ -151,9 +153,18 @@ export function run() {
     $(html).appendTo("body");
     $(css).appendTo("head");
 
+    $(".save").click(() => {
+        let style = $(".style").val();
+        let loc = window.location;
+        let url = `${loc.origin}${loc.pathname}?run=labs/style-viewer&style=${encodeURI(style)}&geom=${geom}`;
+        loc.replace(url); // replace will not save history, assign will save history
+    });
+
     let canvas = <HTMLCanvasElement>document.getElementById("canvas");
     let feature = new ol.Feature();
-    feature.setGeometry(new ol.geom.MultiPolygon([polygonGeom]));
+    //feature.setGeometry(new ol.geom.MultiPolygon([polygonGeom]));
+    //feature.setGeometry(new ol.geom.Polygon(polygonGeom));
+    //feature.setGeometry(new ol.geom.Point(pointGeom));
 
     let redraw = () => {
         let styles = <any[]>JSON.parse($(".style").val());
@@ -171,21 +182,23 @@ export function run() {
         }
     }, 2500);
 
-    let geom = getParameterByName("geom");
-    if (geom) {
-        loadGeom(geom).then(geoms => {
-            feature.setGeometry(geoms[0]);
-            redraw();
-        });
-    }
+    let geom = getParameterByName("geom") || "polygon-with-holes";
+    loadGeom(geom).then(geoms => {
+        feature.setGeometry(geoms[0]);
+        redraw();
+    });
 
-    let style = getParameterByName("style");
+    let style = getParameterByName("style") || "fill/gradient";
     if (style) {
-        loadStyle(style).then(styles => {
-            let style = styles.map(style => serializer.fromJson(style));
-            $(".style").val(JSON.stringify(styles, null, 2));
+        if ("[" === style[0]) {
+            $(".style").val(style);
             redraw();
-        });
+        } else {
+            loadStyle(style).then(styles => {
+                $(".style").val(JSON.stringify(styles, null, 2));
+                redraw();
+            });
+        }
     } else {
         let font = `${$("#canvas").css("fontSize")} ${$("#canvas").css("fontFamily")}`;
 

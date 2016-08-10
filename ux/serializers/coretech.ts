@@ -1,6 +1,7 @@
 import ol = require("openlayers");
 import Serializer = require("./serializer");
 import coretech_flower_json = require("../styles/star/flower");
+import {doif, mixin} from "../../labs/common/common";
 
 /**
  * TODO: should have formatter for ol3 (serializer/deserializer) 
@@ -23,6 +24,36 @@ export namespace Coretech {
         radius?: number;
     }
 
+    export interface Star {
+        fill?: Fill;
+        opacity?: number;
+        stroke?: Stroke;
+        radius?: number;
+        radius2?: number;
+        angle?: number;
+        roatation?: number;
+        points?: number;
+    }
+
+    export interface Icon {
+        anchor?: number[];
+        anchorOrigin?: string;
+        anchorXUnits?: string;
+        anchorYUnits?: string;
+        crossOrigin?: string;
+        //img?: ol.Image | HTMLCanvasElement;
+        offset?: Array<number>;
+        offsetOrigin?: string;
+        opacity?: number;
+        scale?: number;
+        snapToPixel?: boolean;
+        rotateWithView?: boolean;
+        rotation?: number;
+        size?: ol.Size;
+        imgSize?: ol.Size;
+        src?: string;
+    }
+
     export interface Text {
         fill?: Fill;
         stroke?: Stroke;
@@ -33,22 +64,14 @@ export namespace Coretech {
     }
 
     export interface Style {
-        star?: any;
+        icon?: Icon;
+        star?: Star;
         circle?: Circle;
         text?: Text;
         fill?: Fill;
         stroke?: Stroke;
     }
 
-}
-
-function doif<T>(v: T, cb: (v: T) => void) {
-    if (typeof v !== "undefined") cb(v);
-}
-
-function mixin<A extends any, B extends any>(a: A, b: B) {
-    Object.keys(b).forEach(k => a[k] = b[k]);
-    return <A & B>a;
 }
 
 /**
@@ -153,6 +176,7 @@ export class CoretechConverter implements Serializer.IConverter<Coretech.Style> 
 
         if (json.circle) image = this.deserializeCircle(json.circle);
         else if (json.star) image = this.deserializeStar(json.star);
+        else if (json.icon) image = this.deserializeIcon(json.icon);
         if (json.text) text = this.deserializeText(json.text);
         if (json.fill) fill = this.deserializeFill(json.fill);
         if (json.stroke) stroke = this.deserializeStroke(json.stroke);
@@ -166,7 +190,7 @@ export class CoretechConverter implements Serializer.IConverter<Coretech.Style> 
         return s;
     }
 
-    private deserializeText(json: any) {
+    private deserializeText(json: Coretech.Text) {
         return new ol.style.Text({
             fill: this.deserializeFill(json.fill),
             stroke: this.deserializeStroke(json.stroke),
@@ -177,7 +201,7 @@ export class CoretechConverter implements Serializer.IConverter<Coretech.Style> 
         });
     }
 
-    private deserializeCircle(json: any) {
+    private deserializeCircle(json: Coretech.Circle) {
         let image = new ol.style.Circle({
             radius: json.radius,
             fill: this.deserializeFill(json.fill),
@@ -187,7 +211,7 @@ export class CoretechConverter implements Serializer.IConverter<Coretech.Style> 
         return image;
     }
 
-    private deserializeStar(json: any) {
+    private deserializeStar(json: Coretech.Star) {
         let image = new ol.style.RegularShape({
             radius: json.radius,
             radius2: json.radius2,
@@ -200,6 +224,13 @@ export class CoretechConverter implements Serializer.IConverter<Coretech.Style> 
         doif(json.rotation, v => image.setRotation(v));
         doif(json.opacity, v => image.setOpacity(v));
 
+        return image;
+    }
+
+    private deserializeIcon(json: Coretech.Icon) {
+        let image = new ol.style.Icon(mixin({
+        }, json));
+        image.load();
         return image;
     }
 

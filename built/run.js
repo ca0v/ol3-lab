@@ -815,7 +815,7 @@ define("labs/index", ["require", "exports"], function (require, exports) {
     function run() {
         var l = window.location;
         var path = "" + l.origin + l.pathname + "?run=labs/";
-        var labs = "\n    style-lab\n    style-viewer\n    style-viewer&geom=parcel\n    style-viewer&geom=polygon-with-holes\n    style-viewer&style=fill/gradient,text/text\n    style-viewer&geom=parcel&style=fill/gradient,text/text\n    style-to-canvas\n    polyline-encoder\n    image-data-viewer\n    mapmaker\n    mapmaker&background=light\n    mapmaker&geom=t`syzE}gm_dAm_@A?r@p@Bp@Hp@Ph@Td@Z`@`@Vb@Nd@xUABmF\n    mapmaker&geom=t`syzE}gm_dAm_@A?r@p@Bp@Hp@Ph@Td@Z`@`@Vb@Nd@xUABmF&color=yellow&background=dark&modify=1\n    facebook\n    google-identity\n    index\n    ";
+        var labs = "\n    style-lab\n    style-viewer\n    style-viewer&geom=parcel\n    style-viewer&geom=polygon-with-holes\n    style-viewer&style=fill/gradient,text/text\n    style-viewer&geom=parcel&style=fill/gradient,text/text\n    style-viewer&geom=point&style=icon/png,text/text\n    style-viewer&style=%5B%0A%20%20%7B%0A%20%20%20%20%22circle%22:%20%7B%0A%20%20%20%20%20%20%22fill%22:%20%7B%0A%20%20%20%20%20%20%20%20%22gradient%22:%20%7B%0A%20%20%20%20%20%20%20%20%20%20%22type%22:%20%22linear(32,32,96,96)%22,%0A%20%20%20%20%20%20%20%20%20%20%22stops%22:%20%22rgba(0,255,0,0.1)%200%25;rgba(0,255,0,0.8)%20100%25%22%0A%20%20%20%20%20%20%20%20%7D%0A%20%20%20%20%20%20%7D,%0A%20%20%20%20%20%20%22opacity%22:%201,%0A%20%20%20%20%20%20%22stroke%22:%20%7B%0A%20%20%20%20%20%20%20%20%22color%22:%20%22rgba(0,255,0,1)%22,%0A%20%20%20%20%20%20%20%20%22width%22:%201%0A%20%20%20%20%20%20%7D,%0A%20%20%20%20%20%20%22radius%22:%2064%0A%20%20%20%20%7D%0A%20%20%7D,%0A%20%20%7B%0A%20%20%20%20%22icon%22:%20%7B%0A%20%20%20%20%20%20%22anchor%22:%20%5B%0A%20%20%20%20%20%20%20%2016,%0A%20%20%20%20%20%20%20%2048%0A%20%20%20%20%20%20%5D,%0A%20%20%20%20%20%20%22size%22:%20%5B%0A%20%20%20%20%20%20%20%2032,%0A%20%20%20%20%20%20%20%2048%0A%20%20%20%20%20%20%5D,%0A%20%20%20%20%20%20%22anchorXUnits%22:%20%22pixels%22,%0A%20%20%20%20%20%20%22anchorYUnits%22:%20%22pixels%22,%0A%20%20%20%20%20%20%22src%22:%20%22http://openlayers.org/en/v3.17.1/examples/data/icon.png%22%0A%20%20%20%20%7D%0A%20%20%7D,%0A%20%20%7B%0A%20%20%20%20%22text%22:%20%7B%0A%20%20%20%20%20%20%22fill%22:%20%7B%0A%20%20%20%20%20%20%20%20%22color%22:%20%22rgba(75,92,85,0.85)%22%0A%20%20%20%20%20%20%7D,%0A%20%20%20%20%20%20%22stroke%22:%20%7B%0A%20%20%20%20%20%20%20%20%22color%22:%20%22rgba(255,255,255,1)%22,%0A%20%20%20%20%20%20%20%20%22width%22:%205%0A%20%20%20%20%20%20%7D,%0A%20%20%20%20%20%20%22offset-x%22:%200,%0A%20%20%20%20%20%20%22offset-y%22:%2016,%0A%20%20%20%20%20%20%22text%22:%20%22fantasy%20light%22,%0A%20%20%20%20%20%20%22font%22:%20%2218px%20serif%22%0A%20%20%20%20%7D%0A%20%20%7D%0A%5D&geom=point\n    style-to-canvas\n    polyline-encoder\n    image-data-viewer\n    mapmaker\n    mapmaker&background=light\n    mapmaker&geom=t`syzE}gm_dAm_@A?r@p@Bp@Hp@Ph@Td@Z`@`@Vb@Nd@xUABmF\n    mapmaker&geom=t`syzE}gm_dAm_@A?r@p@Bp@Hp@Ph@Td@Z`@`@Vb@Nd@xUABmF&color=yellow&background=dark&modify=1\n    facebook\n    google-identity\n    index\n    ";
         var styles = document.createElement("style");
         document.head.appendChild(styles);
         styles.innerText += "\n    #map {\n        display: none;\n    }\n    ";
@@ -858,6 +858,24 @@ define("labs/common/common", ["require", "exports"], function (require, exports)
         return a;
     }
     exports.mixin = mixin;
+    function cssin(name, css) {
+        var id = "style-" + name;
+        var styleTag = document.getElementById(id);
+        if (!styleTag) {
+            styleTag = document.createElement("style");
+            styleTag.id = id;
+            styleTag.innerText = css;
+            document.head.appendChild(styleTag);
+        }
+        styleTag.dataset.count = (styleTag.dataset.count | 0) + 1;
+        return function () {
+            styleTag.dataset.count = (styleTag.dataset.count | 0) - 1;
+            if (styleTag.dataset.count === "0") {
+                styleTag.remove();
+            }
+        };
+    }
+    exports.cssin = cssin;
 });
 define("labs/common/ol3-polyline", ["require", "exports", "openlayers"], function (require, exports, ol) {
     "use strict";
@@ -942,16 +960,8 @@ define("ux/styles/star/flower", ["require", "exports"], function (require, expor
         }
     ];
 });
-define("ux/serializers/coretech", ["require", "exports", "openlayers"], function (require, exports, ol) {
+define("ux/serializers/coretech", ["require", "exports", "openlayers", "labs/common/common"], function (require, exports, ol, common_1) {
     "use strict";
-    function doif(v, cb) {
-        if (typeof v !== "undefined")
-            cb(v);
-    }
-    function mixin(a, b) {
-        Object.keys(b).forEach(function (k) { return a[k] = b[k]; });
-        return a;
-    }
     var CoretechConverter = (function () {
         function CoretechConverter() {
         }
@@ -989,7 +999,7 @@ define("ux/serializers/coretech", ["require", "exports", "openlayers"], function
             if (typeof style === "number")
                 return style;
             if (style.getColor)
-                mixin(s, this.serializeColor(style.getColor()));
+                common_1.mixin(s, this.serializeColor(style.getColor()));
             if (style.getImage)
                 this.assign(s, "image", this.serializeStyle(style.getImage()));
             if (style.getFill)
@@ -1059,6 +1069,8 @@ define("ux/serializers/coretech", ["require", "exports", "openlayers"], function
                 image = this.deserializeCircle(json.circle);
             else if (json.star)
                 image = this.deserializeStar(json.star);
+            else if (json.icon)
+                image = this.deserializeIcon(json.icon);
             if (json.text)
                 text = this.deserializeText(json.text);
             if (json.fill)
@@ -1101,8 +1113,13 @@ define("ux/serializers/coretech", ["require", "exports", "openlayers"], function
                 fill: this.deserializeFill(json.fill),
                 stroke: this.deserializeStroke(json.stroke)
             });
-            doif(json.rotation, function (v) { return image.setRotation(v); });
-            doif(json.opacity, function (v) { return image.setOpacity(v); });
+            common_1.doif(json.rotation, function (v) { return image.setRotation(v); });
+            common_1.doif(json.opacity, function (v) { return image.setOpacity(v); });
+            return image;
+        };
+        CoretechConverter.prototype.deserializeIcon = function (json) {
+            var image = new ol.style.Icon(common_1.mixin({}, json));
+            image.load();
             return image;
         };
         CoretechConverter.prototype.deserializeFill = function (json) {
@@ -1113,12 +1130,12 @@ define("ux/serializers/coretech", ["require", "exports", "openlayers"], function
         };
         CoretechConverter.prototype.deserializeStroke = function (json) {
             var stroke = new ol.style.Stroke();
-            doif(json.color, function (v) { return stroke.setColor(v); });
-            doif(json.lineCap, function (v) { return stroke.setLineCap(v); });
-            doif(json.lineDash, function (v) { return stroke.setLineDash(v); });
-            doif(json.lineJoin, function (v) { return stroke.setLineJoin(v); });
-            doif(json.miterLimit, function (v) { return stroke.setMiterLimit(v); });
-            doif(json.width, function (v) { return stroke.setWidth(v); });
+            common_1.doif(json.color, function (v) { return stroke.setColor(v); });
+            common_1.doif(json.lineCap, function (v) { return stroke.setLineCap(v); });
+            common_1.doif(json.lineDash, function (v) { return stroke.setLineDash(v); });
+            common_1.doif(json.lineJoin, function (v) { return stroke.setLineJoin(v); });
+            common_1.doif(json.miterLimit, function (v) { return stroke.setMiterLimit(v); });
+            common_1.doif(json.width, function (v) { return stroke.setWidth(v); });
             return stroke;
         };
         CoretechConverter.prototype.deserializeColor = function (fill) {
@@ -1135,7 +1152,7 @@ define("ux/serializers/coretech", ["require", "exports", "openlayers"], function
                     gradient_1 = this.deserializeRadialGradient(fill.gradient);
                 }
                 if (fill.gradient.stops) {
-                    mixin(gradient_1, {
+                    common_1.mixin(gradient_1, {
                         stops: fill.gradient.stops
                     });
                     var stops = fill.gradient.stops.split(";");
@@ -1188,7 +1205,7 @@ define("ux/serializers/coretech", ["require", "exports", "openlayers"], function
                         }
                         break;
                 }
-                return mixin(context.createPattern(canvas, repitition), fill.pattern);
+                return common_1.mixin(context.createPattern(canvas, repitition), fill.pattern);
             }
             throw "invalid color configuration";
         };
@@ -1200,7 +1217,7 @@ define("ux/serializers/coretech", ["require", "exports", "openlayers"], function
             canvas.height = Math.max(y0, y1);
             var context = canvas.getContext('2d');
             var gradient = context.createLinearGradient(x0, y0, x1, y1);
-            mixin(gradient, {
+            common_1.mixin(gradient, {
                 type: "linear(" + [x0, y0, x1, y1].join(",") + ")"
             });
             return gradient;
@@ -1213,7 +1230,7 @@ define("ux/serializers/coretech", ["require", "exports", "openlayers"], function
             canvas.height = 2 * Math.max(y0, y1);
             var context = canvas.getContext('2d');
             var gradient = context.createRadialGradient(x0, y0, r0, x1, y1, r1);
-            mixin(gradient, {
+            common_1.mixin(gradient, {
                 type: "radial(" + [x0, y0, r0, x1, y1, r1].join(",") + ")"
             });
             return gradient;
@@ -1265,7 +1282,7 @@ define("ux/styles/text/text", ["require", "exports"], function (require, exports
         }
     ];
 });
-define("labs/mapmaker", ["require", "exports", "jquery", "openlayers", "labs/common/common", "labs/common/ol3-polyline", "ux/serializers/coretech", "ux/styles/stroke/dashdotdot", "ux/styles/stroke/solid", "ux/styles/text/text"], function (require, exports, $, ol, common_1, reduce, coretech_1, dashdotdot, strokeStyle, textStyle) {
+define("labs/mapmaker", ["require", "exports", "jquery", "openlayers", "labs/common/common", "labs/common/ol3-polyline", "ux/serializers/coretech", "ux/styles/stroke/dashdotdot", "ux/styles/stroke/solid", "ux/styles/text/text"], function (require, exports, $, ol, common_2, reduce, coretech_1, dashdotdot, strokeStyle, textStyle) {
     "use strict";
     var styler = new coretech_1.CoretechConverter();
     function parse(v, type) {
@@ -1298,7 +1315,7 @@ define("labs/mapmaker", ["require", "exports", "jquery", "openlayers", "labs/com
         {
             var opts_1 = options;
             Object.keys(opts_1).forEach(function (k) {
-                common_1.doif(common_1.getParameterByName(k), function (v) { return opts_1[k] = parse(v, opts_1[k]); });
+                common_2.doif(common_2.getParameterByName(k), function (v) { return opts_1[k] = parse(v, opts_1[k]); });
             });
         }
         $(".map").addClass(options.background);
@@ -1342,7 +1359,7 @@ define("labs/mapmaker", ["require", "exports", "jquery", "openlayers", "labs/com
                 feature.setStyle(style);
                 features.push(feature);
             });
-            if (!common_1.getParameterByName("center")) {
+            if (!common_2.getParameterByName("center")) {
                 map.getView().fit(layer.getSource().getExtent(), map.getSize());
             }
         }
@@ -2246,8 +2263,9 @@ define("labs/common/snapshot", ["require", "exports", "openlayers"], function (r
             feature = feature.clone();
             var geom = feature.getGeometry();
             var extent = geom.getExtent();
+            var isPoint = extent[0] === extent[2];
             var _a = ol.extent.getCenter(extent), dx = _a[0], dy = _a[1];
-            var scale = Math.min(canvas.width / ol.extent.getWidth(extent), canvas.height / ol.extent.getHeight(extent));
+            var scale = isPoint ? 1 : Math.min(canvas.width / ol.extent.getWidth(extent), canvas.height / ol.extent.getHeight(extent));
             geom.translate(-dx, -dy);
             geom.scale(scale, -scale);
             geom.translate(canvas.width / 2, canvas.height / 2);
@@ -2719,9 +2737,39 @@ define("tests/data/geom/point", ["require", "exports"], function (require, expor
     "use strict";
     return [-115.2553, 36.1832];
 });
-define("labs/style-viewer", ["require", "exports", "openlayers", "jquery", "labs/common/snapshot", "labs/common/common", "ux/serializers/coretech", "tests/data/geom/polygon-with-holes"], function (require, exports, ol, $, Snapshot, common_2, Serializer, polygonGeom) {
+define("ux/styles/icon/png", ["require", "exports"], function (require, exports) {
     "use strict";
-    var html = "\n<div class='style-to-canvas'>\n    <h3>Renders a feature on a canvas</h3>\n    <div class=\"area\">\n        <label>256 x 256 Canvas</label>\n        <canvas id='canvas' width=\"256\" height=\"256\"></canvas>\n    </div>\n    <div class=\"area\">\n        <label>Style</label>\n        <textarea class='style'></textarea>\n    </div>\n    <div class=\"area\">\n        <label>Potential control for setting linear gradient start/stop locations</label>\n        <div class=\"colorramp\">\n            <input class=\"top\" type=\"range\" min=\"0\" max=\"100\" value=\"20\"/>\n            <input class=\"bottom\" type=\"range\" min=\"0\" max=\"100\" value=\"80\"/>\n        </div>\n    </div>\n</div>\n";
+    return [
+        {
+            "circle": {
+                "fill": {
+                    "gradient": {
+                        "type": "linear(32,32,96,96)",
+                        "stops": "rgba(0,255,0,0.1) 0%;rgba(0,255,0,0.8) 100%"
+                    }
+                },
+                "opacity": 1,
+                "stroke": {
+                    "color": "rgba(0,255,0,1)",
+                    "width": 1
+                },
+                "radius": 64
+            }
+        },
+        {
+            "icon": {
+                "anchor": [16, 48],
+                "size": [32, 48],
+                "anchorXUnits": "pixels",
+                "anchorYUnits": "pixels",
+                "src": "http://openlayers.org/en/v3.17.1/examples/data/icon.png"
+            }
+        }
+    ];
+});
+define("labs/style-viewer", ["require", "exports", "openlayers", "jquery", "labs/common/snapshot", "labs/common/common", "ux/serializers/coretech"], function (require, exports, ol, $, Snapshot, common_3, Serializer) {
+    "use strict";
+    var html = "\n<div class='style-to-canvas'>\n    <h3>Renders a feature on a canvas</h3>\n    <div class=\"area\">\n        <label>256 x 256 Canvas</label>\n        <canvas id='canvas' width=\"256\" height=\"256\"></canvas>\n    </div>\n    <div class=\"area\">\n        <label>Style</label>\n        <textarea class='style'></textarea>\n        <button class=\"save\">Save</button>\n    </div>\n    <div class=\"area\">\n        <label>Potential control for setting linear gradient start/stop locations</label>\n        <div class=\"colorramp\">\n            <input class=\"top\" type=\"range\" min=\"0\" max=\"100\" value=\"20\"/>\n            <input class=\"bottom\" type=\"range\" min=\"0\" max=\"100\" value=\"80\"/>\n        </div>\n    </div>\n</div>\n";
     var css = "\n<style>\n    #map {\n        display: none;\n    }\n\n    .style-to-canvas {\n    }\n\n    .style-to-canvas .area label {\n        display: block;\n        vertical-align: top;\n    }\n\n    .style-to-canvas .area {\n        border: 1px solid black;\n        padding: 20px;\n        margin: 20px;\n    }\n\n    .style-to-canvas .area .style {\n        width: 100%;\n        height: 400px;\n    }\n\n    .style-to-canvas #canvas {\n        font-family: sans serif;\n        font-size: 20px;\n        border: none;\n        padding: 0;\n        margin: 0;\n    }\n\n    div.colorramp {\n        display: inline-block;\n        background: linear-gradient(to right, rgba(250,0,0,0), rgba(250,0,0,1) 60%, rgba(250,100,0,1) 85%, rgb(250,250,0) 95%);\n        width:100%;\n    }\n\n    div.colorramp > input[type=range] {\n        -webkit-appearance: slider-horizontal;\n        display:block;\n        width:100%;\n        background-color:transparent;\n    }\n\n    div.colorramp > label {\n        display: inline-block;\n    }\n\n    div.colorramp > input[type='range'] {\n        box-shadow: 0 0 0 white;\n    }\n\n    div.colorramp > input[type=range]::-webkit-slider-runnable-track {\n        height: 0px;     \n    }\n\n    div.colorramp > input[type='range'].top::-webkit-slider-thumb {\n        margin-top: -10px;\n    }\n\n    div.colorramp > input[type='range'].bottom::-webkit-slider-thumb {\n        margin-top: -12px;\n    }\n    \n</style>\n";
     function loadStyle(name) {
         var mids = name.split(",").map(function (name) { return ("../ux/styles/" + name); });
@@ -2738,7 +2786,7 @@ define("labs/style-viewer", ["require", "exports", "openlayers", "jquery", "labs
         return d;
     }
     function loadGeom(name) {
-        var mids = name.split(",").map(function (name) { return ("../data/geom/" + name); });
+        var mids = name.split(",").map(function (name) { return ("../tests/data/geom/" + name); });
         var d = $.Deferred();
         require(mids, function () {
             var shapes = [];
@@ -2768,9 +2816,14 @@ define("labs/style-viewer", ["require", "exports", "openlayers", "jquery", "labs
         var serializer = new Serializer.CoretechConverter();
         $(html).appendTo("body");
         $(css).appendTo("head");
+        $(".save").click(function () {
+            var style = $(".style").val();
+            var loc = window.location;
+            var url = "" + loc.origin + loc.pathname + "?run=labs/style-viewer&style=" + encodeURI(style) + "&geom=" + geom;
+            loc.replace(url);
+        });
         var canvas = document.getElementById("canvas");
         var feature = new ol.Feature();
-        feature.setGeometry(new ol.geom.MultiPolygon([polygonGeom]));
         var redraw = function () {
             var styles = JSON.parse($(".style").val());
             var style = styles.map(function (style) { return serializer.fromJson(style); });
@@ -2785,20 +2838,23 @@ define("labs/style-viewer", ["require", "exports", "openlayers", "jquery", "labs
             catch (ex) {
             }
         }, 2500);
-        var geom = common_2.getParameterByName("geom");
-        if (geom) {
-            loadGeom(geom).then(function (geoms) {
-                feature.setGeometry(geoms[0]);
-                redraw();
-            });
-        }
-        var style = common_2.getParameterByName("style");
+        var geom = common_3.getParameterByName("geom") || "polygon-with-holes";
+        loadGeom(geom).then(function (geoms) {
+            feature.setGeometry(geoms[0]);
+            redraw();
+        });
+        var style = common_3.getParameterByName("style") || "fill/gradient";
         if (style) {
-            loadStyle(style).then(function (styles) {
-                var style = styles.map(function (style) { return serializer.fromJson(style); });
-                $(".style").val(JSON.stringify(styles, null, 2));
+            if ("[" === style[0]) {
+                $(".style").val(style);
                 redraw();
-            });
+            }
+            else {
+                loadStyle(style).then(function (styles) {
+                    $(".style").val(JSON.stringify(styles, null, 2));
+                    redraw();
+                });
+            }
         }
         else {
             var font = $("#canvas").css("fontSize") + " " + $("#canvas").css("fontFamily");
@@ -2946,9 +3002,15 @@ define("tests/ags-format", ["require", "exports", "openlayers"], function (requi
     }
     exports.run = run;
 });
-define("ux/controls/input", ["require", "exports", "jquery", "openlayers", "labs/common/common"], function (require, exports, $, ol, common_3) {
+define("ux/controls/input", ["require", "exports", "openlayers", "labs/common/common"], function (require, exports, ol, common_4) {
     "use strict";
-    var css = "\n<style id='locator'>\n    .ol-input {\n        position:absolute;\n    }\n    .ol-input.top {\n        top: 0.5em;\n    }\n    .ol-input.left {\n        left: 0.5em;\n    }\n    .ol-input.bottom {\n        bottom: 0.5em;\n    }\n    .ol-input.right {\n        right: 0.5em;\n    }\n    .ol-input.top.left {\n        top: 4.5em;\n    }\n    .ol-input button {\n        min-height: 1.375em;\n        min-width: 1.375em;\n        width: auto;\n        display: inline;\n    }\n    .ol-input.left button {\n        float:right;\n    }\n    .ol-input.right button {\n        float:left;\n    }\n    .ol-input input {\n        height: 24px;\n        min-width: 240px;\n        border: none;\n        padding: 0;\n        margin: 0;\n        margin-left: 2px;\n        margin-top: 1px;\n        vertical-align: top;\n    }\n    .ol-input input.hidden {\n        display: none;\n    }\n</style>\n";
+    var css = "\n    .ol-input {\n        position:absolute;\n    }\n    .ol-input.top {\n        top: 0.5em;\n    }\n    .ol-input.left {\n        left: 0.5em;\n    }\n    .ol-input.bottom {\n        bottom: 0.5em;\n    }\n    .ol-input.right {\n        right: 0.5em;\n    }\n    .ol-input.top.left {\n        top: 4.5em;\n    }\n    .ol-input button {\n        min-height: 1.375em;\n        min-width: 1.375em;\n        width: auto;\n        display: inline;\n    }\n    .ol-input.left button {\n        float:right;\n    }\n    .ol-input.right button {\n        float:left;\n    }\n    .ol-input input {\n        height: 24px;\n        min-width: 240px;\n        border: none;\n        padding: 0;\n        margin: 0;\n        margin-left: 2px;\n        margin-top: 1px;\n        vertical-align: top;\n    }\n    .ol-input input.hidden {\n        display: none;\n    }\n";
+    var olcss = {
+        CLASS_CONTROL: 'ol-control',
+        CLASS_UNSELECTABLE: 'ol-unselectable',
+        CLASS_UNSUPPORTED: 'ol-unsupported',
+        CLASS_HIDDEN: 'ol-hidden'
+    };
     var expando = {
         right: '»',
         left: '«'
@@ -2995,20 +3057,23 @@ define("ux/controls/input", ["require", "exports", "jquery", "openlayers", "labs
             options.expanded ? this.expand(options) : this.collapse(options);
         }
         Geocoder.create = function (options) {
-            $("style#locator").length || $(css).appendTo('head');
-            options = common_3.mixin({
+            common_4.cssin('ol-input', css);
+            options = common_4.mixin({
                 openedText: options.className && -1 < options.className.indexOf("left") ? expando.left : expando.right,
                 closedText: options.className && -1 < options.className.indexOf("left") ? expando.right : expando.left,
             }, options || {});
-            options = common_3.mixin(common_3.mixin({}, defaults), options);
+            options = common_4.mixin(common_4.mixin({}, defaults), options);
             var element = document.createElement('div');
-            element.className = options.className + " " + ol.css.CLASS_UNSELECTABLE + " " + ol.css.CLASS_CONTROL;
-            var geocoderOptions = common_3.mixin({
+            element.className = options.className + " " + olcss.CLASS_UNSELECTABLE + " " + olcss.CLASS_CONTROL;
+            var geocoderOptions = common_4.mixin({
                 element: element,
                 target: options.target,
                 expanded: false
             }, options);
             return new Geocoder(geocoderOptions);
+        };
+        Geocoder.prototype.dispose = function () {
+            debugger;
         };
         Geocoder.prototype.collapse = function (options) {
             options.expanded = false;
@@ -3596,26 +3661,26 @@ define("ux/styles/circle/alert", ["require", "exports"], function (require, expo
         {
             "circle": {
                 "fill": {
-                    "color": "rgba(197,37,84,0.9684230581506159)"
+                    "color": "rgba(197,37,84,0.90)"
                 },
                 "opacity": 1,
                 "stroke": {
-                    "color": "rgba(227,83,105,0.9911592437357548)",
-                    "width": 4.363895186012079
+                    "color": "rgba(227,83,105,1)",
+                    "width": 4.4
                 },
-                "radius": 7.311000259153705
+                "radius": 7.3
             },
             "text": {
                 "fill": {
-                    "color": "rgba(205,86,109,0.8918881202751567)"
+                    "color": "rgba(205,86,109,0.9)"
                 },
                 "stroke": {
-                    "color": "rgba(252,175,131,0.46245606098317293)",
-                    "width": 1.9329284004109581
+                    "color": "rgba(252,175,131,0.5)",
+                    "width": 2
                 },
                 "text": "Test",
                 "offset-x": 0,
-                "offset-y": 19.909814762842267,
+                "offset-y": 20,
                 "font": "18px fantasy"
             }
         }
@@ -3636,19 +3701,6 @@ define("ux/styles/circle/gradient", ["require", "exports"], function (require, e
                     "width": 4
                 },
                 "radius": 7
-            }
-        }
-    ];
-});
-define("ux/styles/icon/png", ["require", "exports"], function (require, exports) {
-    "use strict";
-    return [
-        {
-            "icon": {
-                anchor: [0.5, 46],
-                anchorXUnits: "fraction",
-                anchorYUnits: "pixels",
-                src: "http://openlayers.org/en/v3.17.1/examples/data/icon.png"
             }
         }
     ];

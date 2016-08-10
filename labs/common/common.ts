@@ -15,3 +15,21 @@ export function mixin<A extends any, B extends any>(a: A, b: B) {
     Object.keys(b).forEach(k => a[k] = b[k]);
     return <A & B>a;
 }
+
+export function cssin(name: string, css: string) {
+    let id = `style-${name}`;
+    let styleTag = <HTMLStyleElement>document.getElementById(id);
+    if (!styleTag) {
+        styleTag = document.createElement("style");
+        styleTag.id = id;
+        styleTag.innerText = css;
+        document.head.appendChild(styleTag);
+    }
+    styleTag.dataset.count = (styleTag.dataset.count | 0) + 1;
+    return () => {
+        styleTag.dataset.count = (styleTag.dataset.count | 0) - 1;
+        if (styleTag.dataset.count === "0") {
+            styleTag.remove();
+        } 
+    };
+}

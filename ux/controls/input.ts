@@ -2,10 +2,9 @@
 
 import $ = require("jquery");
 import ol = require("openlayers");
-import {mixin} from "../../labs/common/common";
+import {mixin, cssin} from "../../labs/common/common";
 
 const css = `
-<style id='locator'>
     .ol-input {
         position:absolute;
     }
@@ -49,7 +48,6 @@ const css = `
     .ol-input input.hidden {
         display: none;
     }
-</style>
 `;
 
 let olcss = {
@@ -88,7 +86,7 @@ export class Geocoder extends ol.control.Control {
 
     static create(options?: GeocoderOptions): Geocoder {
 
-        $("style#locator").length || $(css).appendTo('head');
+        cssin('ol-input', css);
 
         // provide computed defaults        
         options = mixin({
@@ -157,6 +155,10 @@ export class Geocoder extends ol.control.Control {
         });
 
         options.expanded ? this.expand(options) : this.collapse(options);
+    }
+
+    dispose() {
+        debugger;
     }
 
     collapse(options: GeocoderOptions) {
