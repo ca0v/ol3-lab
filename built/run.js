@@ -2898,13 +2898,17 @@ define("tests/ags-format", ["require", "exports", "openlayers"], function (requi
 });
 define("ux/controls/input", ["require", "exports", "jquery", "openlayers", "labs/common/common"], function (require, exports, $, ol, common_3) {
     "use strict";
-    var css = "\n<style id='locator'>\n    .ol-input {\n        position:absolute;\n    }\n    .ol-input.top {\n        top: 0.5em;\n    }\n    .ol-input.left {\n        left: 0.5em;\n    }\n    .ol-input.bottom {\n        bottom: 0.5em;\n    }\n    .ol-input.right {\n        right: 0.5em;\n    }\n    .ol-input.top.left {\n        top: 4.5em;\n    }\n    .ol-input button {\n        min-height: 1.375em;\n        min-width: 1.375em;\n        width: auto;\n        display: inline;\n    }\n    .ol-input input {\n        height: 24px;\n        min-width: 240px;\n        border: none;\n        padding: 0;\n        margin: 0;\n        margin-left: 2px;\n        margin-top: 1px;\n        vertical-align: top;\n    }\n    .ol-input input.hidden {\n        display: none;\n    }\n</style>\n";
+    var css = "\n<style id='locator'>\n    .ol-input {\n        position:absolute;\n    }\n    .ol-input.top {\n        top: 0.5em;\n    }\n    .ol-input.left {\n        left: 0.5em;\n    }\n    .ol-input.bottom {\n        bottom: 0.5em;\n    }\n    .ol-input.right {\n        right: 0.5em;\n    }\n    .ol-input.top.left {\n        top: 4.5em;\n    }\n    .ol-input button {\n        min-height: 1.375em;\n        min-width: 1.375em;\n        width: auto;\n        display: inline;\n    }\n    .ol-input.left button {\n        float:right;\n    }\n    .ol-input.right button {\n        float:left;\n    }\n    .ol-input input {\n        height: 24px;\n        min-width: 240px;\n        border: none;\n        padding: 0;\n        margin: 0;\n        margin-left: 2px;\n        margin-top: 1px;\n        vertical-align: top;\n    }\n    .ol-input input.hidden {\n        display: none;\n    }\n</style>\n";
+    var expando = {
+        right: '»',
+        left: '«'
+    };
     var defaults = {
         className: 'ol-input bottom left',
         expanded: false,
-        label: '»',
-        labelActive: '«',
-        tipLabel: 'Search'
+        closedText: expando.right,
+        openedText: expando.left,
+        placeholderText: 'Search'
     };
     var Geocoder = (function (_super) {
         __extends(Geocoder, _super);
@@ -2916,9 +2920,10 @@ define("ux/controls/input", ["require", "exports", "jquery", "openlayers", "labs
             });
             var button = this.button = document.createElement('button');
             button.setAttribute('type', 'button');
-            button.title = options.tipLabel;
+            button.title = options.placeholderText;
             options.element.appendChild(button);
             var input = this.input = document.createElement('input');
+            input.placeholder = options.placeholderText;
             options.element.appendChild(input);
             button.addEventListener("click", function () {
                 options.expanded ? _this.collapse(options) : _this.expand(options);
@@ -2941,29 +2946,31 @@ define("ux/controls/input", ["require", "exports", "jquery", "openlayers", "labs
         }
         Geocoder.create = function (options) {
             $("style#locator").length || $(css).appendTo('head');
-            options = common_3.mixin(common_3.mixin({}, defaults), options || {});
-            var cssClasses = options.className + " " + ol.css.CLASS_UNSELECTABLE + " " + ol.css.CLASS_CONTROL;
+            options = common_3.mixin({
+                openedText: options.className && -1 < options.className.indexOf("left") ? expando.left : expando.right,
+                closedText: options.className && -1 < options.className.indexOf("left") ? expando.right : expando.left,
+            }, options || {});
+            options = common_3.mixin(common_3.mixin({}, defaults), options);
             var element = document.createElement('div');
-            element.className = cssClasses;
+            element.className = options.className + " " + ol.css.CLASS_UNSELECTABLE + " " + ol.css.CLASS_CONTROL;
             var geocoderOptions = common_3.mixin({
                 element: element,
                 target: options.target,
                 expanded: false
             }, options);
-            var geocoder = new Geocoder(geocoderOptions);
-            return geocoder;
+            return new Geocoder(geocoderOptions);
         };
         Geocoder.prototype.collapse = function (options) {
             options.expanded = false;
             this.input.classList.toggle("hidden", true);
             this.button.classList.toggle("hidden", false);
-            this.button.innerHTML = options.label;
+            this.button.innerHTML = options.closedText;
         };
         Geocoder.prototype.expand = function (options) {
             options.expanded = true;
             this.input.classList.toggle("hidden", false);
             this.button.classList.toggle("hidden", true);
-            this.button.innerHTML = options.labelActive;
+            this.button.innerHTML = options.openedText;
             this.input.focus();
             this.input.select();
         };
@@ -2976,27 +2983,22 @@ define("tests/geocoder", ["require", "exports", "labs/mapmaker", "ux/controls/in
     function run() {
         var map = MapMaker.run();
         var geocoder = input_1.Geocoder.create({
-            label: "»"
+            closedText: "+",
+            openedText: "−"
         });
         map.addControl(geocoder);
         geocoder.on("change", function (args) {
             args.value && console.log("search", args.value);
         });
         map.addControl(input_1.Geocoder.create({
-            label: "«",
-            labelActive: "»",
             className: 'ol-input bottom right',
             expanded: true
         }));
         map.addControl(input_1.Geocoder.create({
-            label: "«",
-            labelActive: "»",
             className: 'ol-input top right',
             expanded: false
         }));
         map.addControl(input_1.Geocoder.create({
-            label: "«",
-            labelActive: "»",
             className: 'ol-input top left',
             expanded: false
         }));

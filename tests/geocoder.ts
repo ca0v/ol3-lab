@@ -8,7 +8,8 @@ export function run() {
 
     // vertical elipsis: &#x22EE;
     let geocoder = Geocoder.create({
-        label: "»"
+        closedText: "+",
+        openedText: "−"
     });
     map.addControl(geocoder);
 
@@ -17,22 +18,16 @@ export function run() {
     });
 
     map.addControl(Geocoder.create({
-        label: "«",
-        labelActive: "»",
         className: 'ol-input bottom right',
         expanded: true
     }));
 
     map.addControl(Geocoder.create({
-        label: "«",
-        labelActive: "»",
         className: 'ol-input top right',
         expanded: false
     }));
 
     map.addControl(Geocoder.create({
-        label: "«",
-        labelActive: "»",
         className: 'ol-input top left',
         expanded: false
     }));

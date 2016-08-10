@@ -30,6 +30,12 @@ const css = `
         width: auto;
         display: inline;
     }
+    .ol-input.left button {
+        float:right;
+    }
+    .ol-input.right button {
+        float:left;
+    }
     .ol-input input {
         height: 24px;
         min-width: 240px;
@@ -50,20 +56,25 @@ export interface GeocoderOptions {
     // what css class name to assign to the main element
     className?: string;
     expanded?: boolean;
-    label?: string;
-    labelActive?: string;
+    closedText?: string;
+    openedText?: string;
     source?: HTMLElement;
     target?: HTMLElement;
     // what to show on the tooltip
-    tipLabel?: string;
+    placeholderText?: string;
 }
+
+const expando = {
+    right: '»',
+    left: '«'
+};
 
 const defaults: GeocoderOptions = {
     className: 'ol-input bottom left',
     expanded: false,
-    label: '»',
-    labelActive: '«',
-    tipLabel: 'Search'
+    closedText: expando.right,
+    openedText: expando.left,
+    placeholderText: 'Search'
 };
 
 export class Geocoder extends ol.control.Control {
@@ -72,11 +83,17 @@ export class Geocoder extends ol.control.Control {
 
         $("style#locator").length || $(css).appendTo('head');
 
-        options = mixin(mixin({}, defaults), options || {});
+        // provide computed defaults        
+        options = mixin({
+            openedText: options.className && -1 < options.className.indexOf("left") ? expando.left : expando.right,
+            closedText: options.className && -1 < options.className.indexOf("left") ? expando.right : expando.left,
+        }, options || {});
 
-        let cssClasses = `${options.className} ${ol.css.CLASS_UNSELECTABLE} ${ol.css.CLASS_CONTROL}`;
+        // provide static defaults        
+        options = mixin(mixin({}, defaults), options);
+
         let element = document.createElement('div');
-        element.className = cssClasses;
+        element.className = `${options.className} ${ol.css.CLASS_UNSELECTABLE} ${ol.css.CLASS_CONTROL}`;
 
         let geocoderOptions = mixin({
             element: element,
@@ -84,8 +101,7 @@ export class Geocoder extends ol.control.Control {
             expanded: false
         }, options);
 
-        let geocoder = new Geocoder(geocoderOptions);
-        return geocoder;
+        return new Geocoder(geocoderOptions);
     }
 
     private button: HTMLButtonElement;
@@ -103,10 +119,12 @@ export class Geocoder extends ol.control.Control {
 
         let button = this.button = document.createElement('button');
         button.setAttribute('type', 'button');
-        button.title = options.tipLabel;
+        button.title = options.placeholderText;
         options.element.appendChild(button);
 
         let input = this.input = document.createElement('input');
+        input.placeholder = options.placeholderText;
+        
         options.element.appendChild(input);
 
         button.addEventListener("click", () => {
@@ -138,14 +156,14 @@ export class Geocoder extends ol.control.Control {
         options.expanded = false;
         this.input.classList.toggle("hidden", true);
         this.button.classList.toggle("hidden", false);
-        this.button.innerHTML = options.label;
+        this.button.innerHTML = options.closedText;
     }
 
     expand(options: GeocoderOptions) {
         options.expanded = true;
         this.input.classList.toggle("hidden", false);
         this.button.classList.toggle("hidden", true);
-        this.button.innerHTML = options.labelActive;
+        this.button.innerHTML = options.openedText;
         this.input.focus();
         this.input.select();
     }
