@@ -2833,6 +2833,56 @@ define("labs/style-viewer", ["require", "exports", "openlayers", "jquery", "labs
     }
     exports.run = run;
 });
+define("labs/providers/osm", ["require", "exports"], function (require, exports) {
+    "use strict";
+    var OpenStreet = (function () {
+        function OpenStreet() {
+            this.dataType = 'json';
+            this.method = 'GET';
+            this.settings = {
+                url: '//nominatim.openstreetmap.org/search/',
+                params: {
+                    q: '',
+                    format: 'json',
+                    addressdetails: 1,
+                    limit: 10,
+                    countrycodes: '',
+                    'accept-language': 'en-US'
+                }
+            };
+        }
+        OpenStreet.prototype.getParameters = function (options) {
+            return {
+                url: this.settings.url,
+                params: {
+                    q: options.query,
+                    format: 'json',
+                    addressdetails: 1,
+                    limit: options.limit || this.settings.params.limit,
+                    countrycodes: options.countrycodes || this.settings.params.countrycodes,
+                    'accept-language': options.lang || this.settings.params['accept-language']
+                }
+            };
+        };
+        OpenStreet.prototype.handleResponse = function (args) {
+            return args.sort(function (v) { return v.importance || 1; }).map(function (result) { return ({
+                original: result,
+                lon: parseFloat(result.lon),
+                lat: parseFloat(result.lat),
+                address: {
+                    name: result.address.neighbourhood || '',
+                    road: result.address.road || '',
+                    postcode: result.address.postcode,
+                    city: result.address.city || result.address.town,
+                    state: result.address.state,
+                    country: result.address.country
+                }
+            }); });
+        };
+        return OpenStreet;
+    }());
+    exports.OpenStreet = OpenStreet;
+});
 define("tests/ags-format", ["require", "exports", "openlayers"], function (require, exports, ol) {
     "use strict";
     function run() {
@@ -2978,17 +3028,41 @@ define("ux/controls/input", ["require", "exports", "jquery", "openlayers", "labs
     }(ol.control.Control));
     exports.Geocoder = Geocoder;
 });
-define("tests/geocoder", ["require", "exports", "labs/mapmaker", "ux/controls/input"], function (require, exports, MapMaker, input_1) {
+define("tests/geocoder", ["require", "exports", "labs/mapmaker", "ux/controls/input", "labs/providers/osm"], function (require, exports, MapMaker, input_1, osm_1) {
     "use strict";
     function run() {
         var map = MapMaker.run();
+        var searchProvider = new osm_1.OpenStreet();
         var geocoder = input_1.Geocoder.create({
             closedText: "+",
             openedText: "−"
         });
         map.addControl(geocoder);
         geocoder.on("change", function (args) {
-            args.value && console.log("search", args.value);
+            if (!args.value)
+                return;
+            console.log("search", args.value);
+            var searchArgs = searchProvider.getParameters({
+                query: args.value,
+                limit: 1,
+                countrycodes: 'us',
+                lang: 'en'
+            });
+            $.ajax({
+                url: searchArgs.url,
+                method: searchProvider.method || 'GET',
+                data: searchArgs.params,
+                dataType: searchProvider.dataType || 'json'
+            }).then(function (json) {
+                var results = searchProvider.handleResponse(json);
+                results.some(function (r) {
+                    console.log(r);
+                    map.getView().setCenter([r.lon, r.lat]);
+                    return true;
+                });
+            }).fail(function () {
+                console.error("geocoder failed");
+            });
         });
         map.addControl(input_1.Geocoder.create({
             className: 'ol-input bottom right',
