@@ -52,6 +52,13 @@ const css = `
 </style>
 `;
 
+let olcss = {
+    CLASS_CONTROL: 'ol-control',
+    CLASS_UNSELECTABLE: 'ol-unselectable',
+    CLASS_UNSUPPORTED: 'ol-unsupported',
+    CLASS_HIDDEN: 'ol-hidden'
+};
+
 export interface GeocoderOptions {
     // what css class name to assign to the main element
     className?: string;
@@ -93,7 +100,7 @@ export class Geocoder extends ol.control.Control {
         options = mixin(mixin({}, defaults), options);
 
         let element = document.createElement('div');
-        element.className = `${options.className} ${ol.css.CLASS_UNSELECTABLE} ${ol.css.CLASS_CONTROL}`;
+        element.className = `${options.className} ${olcss.CLASS_UNSELECTABLE} ${olcss.CLASS_CONTROL}`;
 
         let geocoderOptions = mixin({
             element: element,
@@ -124,7 +131,7 @@ export class Geocoder extends ol.control.Control {
 
         let input = this.input = document.createElement('input');
         input.placeholder = options.placeholderText;
-        
+
         options.element.appendChild(input);
 
         button.addEventListener("click", () => {
