@@ -19,7 +19,7 @@ export =
         {
             "icon": {
                 "anchor": [16, 48],
-                "size": [32, 48],
+                "imgSize": [32, 48],
                 "anchorXUnits": "pixels",
                 "anchorYUnits": "pixels",
                 "src": "http://openlayers.org/en/v3.17.1/examples/data/icon.png"

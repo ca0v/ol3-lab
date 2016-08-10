@@ -41,7 +41,6 @@ export namespace Coretech {
         anchorXUnits?: string;
         anchorYUnits?: string;
         crossOrigin?: string;
-        //img?: ol.Image | HTMLCanvasElement;
         offset?: Array<number>;
         offsetOrigin?: string;
         opacity?: number;
@@ -54,6 +53,13 @@ export namespace Coretech {
         src?: string;
     }
 
+    export interface Svg {
+        imgSize: ol.Size;
+        img: ol.Image | HTMLCanvasElement;
+        path?: string;
+        stroke?: Stroke;
+    }
+
     export interface Text {
         fill?: Fill;
         stroke?: Stroke;
@@ -64,6 +70,7 @@ export namespace Coretech {
     }
 
     export interface Style {
+        svg?: Icon & Svg;
         icon?: Icon;
         star?: Star;
         circle?: Circle;
@@ -177,6 +184,7 @@ export class CoretechConverter implements Serializer.IConverter<Coretech.Style> 
         if (json.circle) image = this.deserializeCircle(json.circle);
         else if (json.star) image = this.deserializeStar(json.star);
         else if (json.icon) image = this.deserializeIcon(json.icon);
+        else if (json.svg) image = this.deserializeSvg(json.svg);
         if (json.text) text = this.deserializeText(json.text);
         if (json.fill) fill = this.deserializeFill(json.fill);
         if (json.stroke) stroke = this.deserializeStroke(json.stroke);
@@ -231,6 +239,74 @@ export class CoretechConverter implements Serializer.IConverter<Coretech.Style> 
         let image = new ol.style.Icon(mixin({
         }, json));
         image.load();
+        return image;
+    }
+
+    private deserializeSvg(json: Coretech.Svg) {
+        let canvas: HTMLCanvasElement;
+
+        {
+            let img = json.img;
+
+            if (img instanceof HTMLCanvasElement) {
+                let ctx = img.getContext("2d");
+                canvas = img;
+            }
+            if (img instanceof ol.Image) {
+                debugger;
+            }
+        }
+
+        if (json.path) {
+            if (!canvas) {
+                canvas = document.createElement("canvas");
+                canvas.width = json.imgSize[0];
+                canvas.height = json.imgSize[1];
+            }
+            /*
+            M = moveto
+            L = lineto
+            H = horizontal lineto
+            V = vertical lineto
+            C = curveto
+            S = smooth curveto
+            Q = quadratic Bézier curve
+            T = smooth quadratic Bézier curveto
+            A = elliptical Arc
+            Z = closepath
+            e.g. M23 2 L23 23 L43 16.5 L23 23 L35.34349029814194 39.989356881873896 L23 23 L10.656509701858067 39.989356881873896 L23 23 L3.0278131578017735 16.510643118126108 L23 23 L23 2 Z
+            */
+            let ctx = canvas.getContext('2d');
+            ctx.beginPath();
+            if (json.stroke) {
+                ctx.strokeStyle = json.stroke.color;
+                ctx.lineWidth = json.stroke.width;
+            }
+            let path = json.path.split(" ");
+            while (true) {
+                let token = path.shift();
+                switch (token[0]) {
+                    case 'M':
+                        ctx.moveTo(parseFloat(token.substring(1)), parseFloat(path.shift()));
+                        break;
+                    case 'L':
+                        ctx.lineTo(parseFloat(token.substring(1)), parseFloat(path.shift()));
+                        break;
+                    case 'Z':
+                        break;
+                    default:
+                        throw `unexpected token value: ${token}`
+                }
+                if (!path.length) break;
+            }
+            ctx.stroke();
+            json.img = canvas;
+        }
+
+        let image = new ol.style.Icon(mixin({            
+            img: canvas
+        }, json));
+
         return image;
     }
 

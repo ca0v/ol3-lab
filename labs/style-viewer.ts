@@ -154,7 +154,7 @@ export function run() {
     $(css).appendTo("head");
 
     $(".save").click(() => {
-        let style = $(".style").val();
+        let style = JSON.stringify(JSON.parse($(".style").val()));
         let loc = window.location;
         let url = `${loc.origin}${loc.pathname}?run=labs/style-viewer&style=${encodeURI(style)}&geom=${geom}`;
         loc.replace(url); // replace will not save history, assign will save history
@@ -191,6 +191,7 @@ export function run() {
     let style = getParameterByName("style") || "fill/gradient";
     if (style) {
         if ("[" === style[0]) {
+            style = JSON.stringify(JSON.parse(style), null, ' ');
             $(".style").val(style);
             redraw();
         } else {
