@@ -1,60 +1,70 @@
+// http://www.w3schools.com/charsets/ref_utf_arrows.asp
+
 import $ = require("jquery");
 import ol = require("openlayers");
 import {mixin} from "../../labs/common/common";
 
+const css = `
+<style id='locator'>
+    .ol-input {
+        position:absolute;
+    }
+    .ol-input.top {
+        top: 0.5em;
+    }
+    .ol-input.left {
+        left: 0.5em;
+    }
+    .ol-input.bottom {
+        bottom: 0.5em;
+    }
+    .ol-input.right {
+        right: 0.5em;
+    }
+    .ol-input.top.left {
+        top: 4.5em;
+    }
+    .ol-input button {
+        min-height: 1.375em;
+        min-width: 1.375em;
+        width: auto;
+        display: inline;
+    }
+    .ol-input input {
+        height: 24px;
+        min-width: 240px;
+        border: none;
+        padding: 0;
+        margin: 0;
+        margin-left: 2px;
+        margin-top: 1px;
+        vertical-align: top;
+    }
+    .ol-input input.hidden {
+        display: none;
+    }
+</style>
+`;
+
 export interface GeocoderOptions {
     // what css class name to assign to the main element
     className?: string;
-    label?: HTMLElement | string;
+    expanded?: boolean;
+    label?: string;
     labelActive?: string;
-    source?: HTMLElement | string;
+    source?: HTMLElement;
     target?: HTMLElement;
     // what to show on the tooltip
     tipLabel?: string;
 }
 
 const defaults: GeocoderOptions = {
-    className: 'ol-geocoder',
+    className: 'ol-input bottom left',
+    expanded: false,
     label: '»',
-    labelActive: 'Search',
+    labelActive: '«',
     tipLabel: 'Search'
 };
-
-const css = `
-<style id='locator'>
-.ol-geocoder {
-    position:absolute;
-    bottom: 0.5em;
-    left: 0.5em;
-}
-.ol-geocoder button {
-    width: auto;
-    display: inline;
-}
-.ol-geocoder input {
-    height: 22px;
-    display: none;
-    border: none;
-    padding: 0;
-    margin: 0;
-    margin-left: 2px;
-}
-.ol-geocoder input.visible {
-    display: inline-block;
-    min-width: 240px;
-}
-</style>
-`;
-
-function asElement(value: HTMLElement | string) {
-    if (typeof value === "string") {
-        let div = document.createElement("span");
-        div.innerHTML = value;
-        return div;
-    } else {
-        return value;
-    }
-}
 
 export class Geocoder extends ol.control.Control {
 
@@ -71,8 +81,6 @@ export class Geocoder extends ol.control.Control {
         let geocoderOptions = mixin({
             element: element,
             target: options.target,
-            labelNode: asElement(options.label),
-            labelActiveNode: asElement(options.labelActive),
             expanded: false
         }, options);
 
@@ -80,12 +88,12 @@ export class Geocoder extends ol.control.Control {
         return geocoder;
     }
 
+    private button: HTMLButtonElement;
+    private input: HTMLInputElement;
+
     constructor(options: GeocoderOptions & {
         element: HTMLElement;
         target: HTMLElement;
-        labelNode: HTMLElement;
-        labelActiveNode: HTMLElement;
-        expanded: boolean;
     }) {
 
         super({
@@ -93,28 +101,22 @@ export class Geocoder extends ol.control.Control {
             target: options.target
         });
 
-        let button = document.createElement('button');
-        button.className = `${options.className}-button`;
+        let button = this.button = document.createElement('button');
         button.setAttribute('type', 'button');
         button.title = options.tipLabel;
-        button.appendChild(options.labelNode);
         options.element.appendChild(button);
 
-        let input = document.createElement('input');
-        input.className = `${options.className}-input ${options.expanded ? "visible" : ""}`;
+        let input = this.input = document.createElement('input');
         options.element.appendChild(input);
 
         button.addEventListener("click", () => {
-            options.expanded = !options.expanded;
-            input.classList.toggle("visible", options.expanded);
-            options.expanded && input.focus();
+            options.expanded ? this.collapse(options) : this.expand(options);
         });
 
         input.addEventListener("keypress", (args: KeyboardEvent) => {
             if (args.key === "Enter") {
-                options.expanded = false;
-                input.classList.toggle("visible", options.expanded);
                 button.focus();
+                this.collapse(options);
             }
         });
 
@@ -126,13 +128,25 @@ export class Geocoder extends ol.control.Control {
         });
 
         input.addEventListener("blur", () => {
-            options.expanded = false;
-            input.classList.toggle("visible", options.expanded);
+            //this.collapse(options);
         });
+
+        options.expanded ? this.expand(options) : this.collapse(options);
     }
 
-    setMap(map: ol.Map) {
-        super.setMap(map);
+    collapse(options: GeocoderOptions) {
+        options.expanded = false;
+        this.input.classList.toggle("hidden", true);
+        this.button.classList.toggle("hidden", false);
+        this.button.innerHTML = options.label;
     }
 
+    expand(options: GeocoderOptions) {
+        options.expanded = true;
+        this.input.classList.toggle("hidden", false);
+        this.button.classList.toggle("hidden", true);
+        this.button.innerHTML = options.labelActive;
+        this.input.focus();
+        this.input.select();
+    }
 }

@@ -112,6 +112,7 @@ export function run() {
         keyboardEventTarget: document,
         loadTilesWhileAnimating: true,
         loadTilesWhileInteracting: true,
+        controls: ol.control.defaults({attribution: false}),
         view: new ol.View({
             projection: options.srs,
             center: options.center,

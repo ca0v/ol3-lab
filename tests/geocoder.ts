@@ -7,11 +7,34 @@ export function run() {
     let map = MapMaker.run();
 
     // vertical elipsis: &#x22EE;
-    let geocoder = Geocoder.create({ label: "»" });
+    let geocoder = Geocoder.create({
+        label: "»"
+    });
     map.addControl(geocoder);
 
     geocoder.on("change", (args: { value: string }) => {
         args.value && console.log("search", args.value);
-    })
+    });
+
+    map.addControl(Geocoder.create({
+        label: "«",
+        labelActive: "»",
+        className: 'ol-input bottom right',
+        expanded: true
+    }));
+
+    map.addControl(Geocoder.create({
+        label: "«",
+        labelActive: "»",
+        className: 'ol-input top right',
+        expanded: false
+    }));
+
+    map.addControl(Geocoder.create({
+        label: "«",
+        labelActive: "»",
+        className: 'ol-input top left',
+        expanded: false
+    }));
 
 }
