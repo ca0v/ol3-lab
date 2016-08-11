@@ -815,7 +815,7 @@ define("labs/index", ["require", "exports"], function (require, exports) {
     function run() {
         var l = window.location;
         var path = "" + l.origin + l.pathname + "?run=labs/";
-        var labs = "\n    style-lab\n    style-viewer\n    style-viewer&geom=parcel\n    style-viewer&geom=polygon-with-holes\n    style-viewer&style=fill/gradient,text/text\n    style-viewer&geom=parcel&style=fill/gradient,text/text\n    style-viewer&geom=point&style=icon/png,text/text\n    style-viewer&style=%5B%7B\"circle\":%7B\"fill\":%7B\"gradient\":%7B\"type\":\"linear(32,32,96,96)\",\"stops\":\"rgba(0,255,0,0.1)%200%25;rgba(0,255,0,0.8)%20100%25\"%7D%7D,\"opacity\":1,\"stroke\":%7B\"color\":\"rgba(0,255,0,1)\",\"width\":1%7D,\"radius\":64%7D%7D,%7B\"icon\":%7B\"anchor\":%5B16,48%5D,\"size\":%5B32,48%5D,\"anchorXUnits\":\"pixels\",\"anchorYUnits\":\"pixels\",\"src\":\"http://openlayers.org/en/v3.17.1/examples/data/icon.png\"%7D%7D,%7B\"text\":%7B\"fill\":%7B\"color\":\"rgba(75,92,85,0.85)\"%7D,\"stroke\":%7B\"color\":\"rgba(255,255,255,1)\",\"width\":5%7D,\"offset-x\":0,\"offset-y\":16,\"text\":\"fantasy%20light\",\"font\":\"18px%20serif\"%7D%7D%5D&geom=point    \n    style-viewer&style=%5B%7B\"svg\":%7B\"imgSize\":%5B48,48%5D,\"stroke\":%7B\"color\":\"rgba(255,25,0,0.8)\",\"width\":10%7D,\"path\":\"M23%202%20L23%2023%20L43%2016.5%20L23%2023%20L35%2040%20L23%2023%20L11%2040%20L23%2023%20L3%2017%20L23%2023%20L23%202%20Z\"%7D%7D%5D&geom=point\n    style-to-canvas\n    polyline-encoder\n    image-data-viewer\n    mapmaker\n    mapmaker&background=light\n    mapmaker&geom=t`syzE}gm_dAm_@A?r@p@Bp@Hp@Ph@Td@Z`@`@Vb@Nd@xUABmF\n    mapmaker&geom=t`syzE}gm_dAm_@A?r@p@Bp@Hp@Ph@Td@Z`@`@Vb@Nd@xUABmF&color=yellow&background=dark&modify=1\n    facebook\n    google-identity\n    index\n    ";
+        var labs = "\n    style-lab\n\n    style-viewer\n    style-viewer&geom=point&style=icon/png\n    style-viewer&geom=multipoint&style=icon/png\n    style-viewer&geom=polyline&style=stroke/dot\n    style-viewer&geom=polygon&style=fill/gradient\n    style-viewer&geom=multipolygon&style=text/text\n    style-viewer&geom=polygon-with-holes&style=fill/gradient\n    style-viewer&geom=parcel&style=fill/gradient,text/text\n    style-viewer&geom=point&style=icon/png,text/text\n    style-viewer&geom=point&style=%5B%7B\"circle\":%7B\"fill\":%7B\"gradient\":%7B\"type\":\"linear(32,32,96,96)\",\"stops\":\"rgba(0,255,0,0.1)%200%25;rgba(0,255,0,0.8)%20100%25\"%7D%7D,\"opacity\":1,\"stroke\":%7B\"color\":\"rgba(0,255,0,1)\",\"width\":1%7D,\"radius\":64%7D%7D,%7B\"icon\":%7B\"anchor\":%5B16,48%5D,\"size\":%5B32,48%5D,\"anchorXUnits\":\"pixels\",\"anchorYUnits\":\"pixels\",\"src\":\"http://openlayers.org/en/v3.17.1/examples/data/icon.png\"%7D%7D,%7B\"text\":%7B\"fill\":%7B\"color\":\"rgba(75,92,85,0.85)\"%7D,\"stroke\":%7B\"color\":\"rgba(255,255,255,1)\",\"width\":5%7D,\"offset-x\":0,\"offset-y\":16,\"text\":\"fantasy%20light\",\"font\":\"18px%20serif\"%7D%7D%5D    \n    style-viewer&geom=point&style=%5B%7B\"svg\":%7B\"imgSize\":%5B48,48%5D,\"stroke\":%7B\"color\":\"rgba(255,25,0,0.8)\",\"width\":10%7D,\"path\":\"M23%202%20L23%2023%20L43%2016.5%20L23%2023%20L35%2040%20L23%2023%20L11%2040%20L23%2023%20L3%2017%20L23%2023%20L23%202%20Z\"%7D%7D%5D\n    style-viewer&geom=point&style=%5B%7B\"svg\":%7B\"imgSize\":%5B13,21%5D,\"fill\":%7B\"color\":\"rgba(0,0,0,0.5)\"%7D,\"path\":\"M6.3,0C6.3,0,0,0.1,0,7.5c0,3.8,6.3,12.6,6.3,12.6s6.3-8.8,6.3-12.7C12.6,0.1,6.3,0,6.3,0z%20M6.3,8.8%20c-1.4,0-2.5-1.1-2.5-2.5c0-1.4,1.1-2.5,2.5-2.5c1.4,0,2.5,1.1,2.5,2.5C8.8,7.7,7.7,8.8,6.3,8.8z\"%7D%7D%5D\n    style-viewer&geom=point&style=%5B%7B\"svg\":%7B\"imgSize\":%5B48,48%5D,\"fill\":%7B\"color\":\"rgba(255,0,0,0.1)\"%7D,\"stroke\":%7B\"color\":\"rgba(255,0,0,1)\",\"width\":1%7D,\"img\":\"lock\",\"path\":\"M0%200%20L48%200%20L48%2048%20L0%2048%20Z\"%7D%7D%5D\n\n    style-to-canvas\n    polyline-encoder\n    image-data-viewer\n\n    mapmaker\n    mapmaker&background=light\n    mapmaker&geom=t`syzE}gm_dAm_@A?r@p@Bp@Hp@Ph@Td@Z`@`@Vb@Nd@xUABmF\n    mapmaker&geom=t`syzE}gm_dAm_@A?r@p@Bp@Hp@Ph@Td@Z`@`@Vb@Nd@xUABmF&color=yellow&background=dark&modify=1\n    \n    facebook\n    google-identity\n    index\n    ";
         var styles = document.createElement("style");
         document.head.appendChild(styles);
         styles.innerText += "\n    #map {\n        display: none;\n    }\n    ";
@@ -1125,54 +1125,48 @@ define("ux/serializers/coretech", ["require", "exports", "openlayers", "labs/com
             return image;
         };
         CoretechConverter.prototype.deserializeSvg = function (json) {
-            var canvas;
-            {
-                var img = json.img;
-                if (img instanceof HTMLCanvasElement) {
-                    var ctx = img.getContext("2d");
-                    canvas = img;
+            var canvas = document.createElement("canvas");
+            canvas.width = json.imgSize[0];
+            canvas.height = json.imgSize[1];
+            var ctx = canvas.getContext('2d');
+            if (json.img) {
+                var symbol = document.getElementById(json.img);
+                if (!symbol) {
                 }
-                if (img instanceof ol.Image) {
-                    debugger;
+                if (symbol) {
+                    if (false) {
+                        var svg = new Blob([("<svg xmlns=\"http://www.w3.org/2000/svg\">" + symbol.innerHTML + "</svg>")], { type: 'image/svg+xml;charset=utf-8' });
+                        var url_1 = URL.createObjectURL(svg);
+                        var img_1 = new Image();
+                        img_1.onload = function () {
+                            ctx.drawImage(img_1, 0, 0);
+                            URL.revokeObjectURL(url_1);
+                        };
+                        img_1.src = url_1;
+                    }
+                    else {
+                        var path = (symbol.getElementsByTagName("path")[0]);
+                        if (path) {
+                            json.path = (json.path || "") + path.getAttribute('d');
+                        }
+                    }
                 }
             }
             if (json.path) {
-                if (!canvas) {
-                    canvas = document.createElement("canvas");
-                    canvas.width = json.imgSize[0];
-                    canvas.height = json.imgSize[1];
+                var path2d = new Path2D(json.path);
+                if (json.fill) {
+                    ctx.fillStyle = json.fill.color;
+                    ctx.fill(path2d);
                 }
-                var ctx = canvas.getContext('2d');
-                ctx.beginPath();
                 if (json.stroke) {
                     ctx.strokeStyle = json.stroke.color;
                     ctx.lineWidth = json.stroke.width;
+                    ctx.stroke(path2d);
                 }
-                var path = json.path.split(" ");
-                while (true) {
-                    var token = path.shift();
-                    switch (token[0]) {
-                        case 'M':
-                            ctx.moveTo(parseFloat(token.substring(1)), parseFloat(path.shift()));
-                            break;
-                        case 'L':
-                            ctx.lineTo(parseFloat(token.substring(1)), parseFloat(path.shift()));
-                            break;
-                        case 'Z':
-                            break;
-                        default:
-                            throw "unexpected token value: " + token;
-                    }
-                    if (!path.length)
-                        break;
-                }
-                ctx.stroke();
-                json.img = canvas;
             }
-            var image = new ol.style.Icon(common_1.mixin({
+            return new ol.style.Icon(common_1.mixin(json, {
                 img: canvas
-            }, json));
-            return image;
+            }));
         };
         CoretechConverter.prototype.deserializeFill = function (json) {
             var fill = new ol.style.Fill({
@@ -2394,6 +2388,509 @@ define("labs/style-to-canvas", ["require", "exports", "openlayers", "jquery", "l
     }
     exports.run = run;
 });
+define("tests/data/geom/polygon", ["require", "exports"], function (require, exports) {
+    "use strict";
+    return [
+        [
+            [-115.25532322799027, 36.18318333413792],
+            [-115.25480456865377, 36.18318418316166],
+            [-115.25480483306748, 36.1831581364999],
+            [-115.25482974334876, 36.183156591542996],
+            [-115.2548544229261, 36.18315172017415],
+            [-115.25487928533187, 36.18314300077779],
+            [-115.25490054503052, 36.18313174786991],
+            [-115.25491924756955, 36.18311784715259],
+            [-115.25493579649431, 36.183100506595494],
+            [-115.25494767927427, 36.18308236911088],
+            [-115.25495573195485, 36.18306290523016],
+            [-115.2553212003638, 36.183064339787606],
+            [-115.25532322799027, 36.18318333413792]
+        ]
+    ];
+});
+define("ux/styles/icon/png", ["require", "exports"], function (require, exports) {
+    "use strict";
+    return [
+        {
+            "circle": {
+                "fill": {
+                    "gradient": {
+                        "type": "linear(32,32,96,96)",
+                        "stops": "rgba(0,255,0,0.1) 0%;rgba(0,255,0,0.8) 100%"
+                    }
+                },
+                "opacity": 1,
+                "stroke": {
+                    "color": "rgba(0,255,0,1)",
+                    "width": 1
+                },
+                "radius": 64
+            }
+        },
+        {
+            "icon": {
+                "anchor": [16, 48],
+                "imgSize": [32, 48],
+                "anchorXUnits": "pixels",
+                "anchorYUnits": "pixels",
+                "src": "http://openlayers.org/en/v3.17.1/examples/data/icon.png"
+            }
+        }
+    ];
+});
+define("labs/style-viewer", ["require", "exports", "openlayers", "jquery", "labs/common/snapshot", "labs/common/common", "ux/serializers/coretech", "tests/data/geom/polygon", "ux/styles/icon/png"], function (require, exports, ol, $, Snapshot, common_3, Serializer, polygonGeom, pointStyle) {
+    "use strict";
+    var html = "\n<div class='style-to-canvas'>\n    <h3>Renders a feature on a canvas</h3>\n    <div class=\"area\">\n        <label>256 x 256 Canvas</label>\n        <div id='canvas-collection'></div>\n    </div>\n    <div class=\"area\">\n        <label>Style</label>\n        <textarea class='style'></textarea>\n        <button class=\"save\">Save</button>\n    </div>\n    <div class=\"area\">\n        <label>Potential control for setting linear gradient start/stop locations</label>\n        <div class=\"colorramp\">\n            <input class=\"top\" type=\"range\" min=\"0\" max=\"100\" value=\"20\"/>\n            <input class=\"bottom\" type=\"range\" min=\"0\" max=\"100\" value=\"80\"/>\n        </div>\n    </div>\n</div>\n";
+    var css = "\n<style>\n    #map {\n        display: none;\n    }\n\n    .style-to-canvas {\n    }\n\n    .style-to-canvas .area label {\n        display: block;\n        vertical-align: top;\n    }\n\n    .style-to-canvas .area {\n        border: 1px solid black;\n        padding: 20px;\n        margin: 20px;\n    }\n\n    .style-to-canvas .area .style {\n        width: 100%;\n        height: 400px;\n    }\n\n    .style-to-canvas #canvas-collection canvas {\n        font-family: sans serif;\n        font-size: 20px;\n        border: 1px solid black;\n        padding: 20px;\n        margin: 20px;\n    }\n\n    div.colorramp {\n        display: inline-block;\n        background: linear-gradient(to right, rgba(250,0,0,0), rgba(250,0,0,1) 60%, rgba(250,100,0,1) 85%, rgb(250,250,0) 95%);\n        width:100%;\n    }\n\n    div.colorramp > input[type=range] {\n        -webkit-appearance: slider-horizontal;\n        display:block;\n        width:100%;\n        background-color:transparent;\n    }\n\n    div.colorramp > label {\n        display: inline-block;\n    }\n\n    div.colorramp > input[type='range'] {\n        box-shadow: 0 0 0 white;\n    }\n\n    div.colorramp > input[type=range]::-webkit-slider-runnable-track {\n        height: 0px;     \n    }\n\n    div.colorramp > input[type='range'].top::-webkit-slider-thumb {\n        margin-top: -10px;\n    }\n\n    div.colorramp > input[type='range'].bottom::-webkit-slider-thumb {\n        margin-top: -12px;\n    }\n    \n</style>\n";
+    var svg = "\n<div style='display:none'>\n<svg xmlns=\"http://www.w3.org/2000/svg\">\n<symbol viewBox=\"0 0 17.7 22.1\" id=\"lock\">\n    <title>lock</title>\n    <path d=\"M15.7,10c-0.3,0-0.4,0-0.4,0V6.5c0-4.2-2.9-6.5-6.4-6.5C5.4,0,2.2,2.4,2.3,6.5l0,3.5c0,0,0.1,0-0.2,0 C1.8,10,0,10.3,0,12v7.9c0,1.8,2.1,2.2,2.1,2.2c3.7,0,9.8,0,13.5,0c0,0,2-0.2,2-2.2v-7.8C17.7,10.2,15.8,10,15.7,10z M10.4,19H7.3 l0.7-3.2c-0.5-0.3-0.8-0.9-0.8-1.5c0-1,0.8-1.8,1.7-1.8c0.9,0,1.7,0.8,1.7,1.8c0,0.6-0.3,1.2-0.8,1.5L10.4,19z M5.3,10l0-3.4 c0-2.2,1.3-4,3.5-4c2.2,0,3.5,1.5,3.5,4l0,3.4H5.3z\"\n    />\n</symbol>\n</svg>\n</div>\n";
+    function loadStyle(name) {
+        var d = $.Deferred();
+        if ('[' === name[0]) {
+            d.resolve(JSON.parse(name));
+        }
+        else {
+            var mids = name.split(",").map(function (name) { return ("../ux/styles/" + name); });
+            require(mids, function () {
+                var styles = [];
+                for (var _i = 0; _i < arguments.length; _i++) {
+                    styles[_i - 0] = arguments[_i];
+                }
+                var style = [];
+                styles.forEach(function (s) { return style = style.concat(s); });
+                d.resolve(style);
+            });
+        }
+        return d;
+    }
+    function loadGeom(name) {
+        var mids = name.split(",").map(function (name) { return ("../tests/data/geom/" + name); });
+        var d = $.Deferred();
+        require(mids, function () {
+            var shapes = [];
+            for (var _i = 0; _i < arguments.length; _i++) {
+                shapes[_i - 0] = arguments[_i];
+            }
+            var geoms = shapes.map(function (shape) {
+                if (typeof shape[0] === "number") {
+                    return new ol.geom.Point(shape);
+                }
+                if (typeof shape[0][0] === "number") {
+                    return new ol.geom.LineString(shape);
+                }
+                if (typeof shape[0][0][0] === "number") {
+                    return new ol.geom.Polygon(shape);
+                }
+                if (typeof shape[0][0][0][0] === "number") {
+                    return new ol.geom.MultiPolygon(shape);
+                }
+                throw "invalid shape: " + shape;
+            });
+            d.resolve(geoms);
+        });
+        return d;
+    }
+    var geoms = {
+        point: new ol.geom.Point(polygonGeom[0][0]),
+        multipoint: new ol.geom.MultiPoint(polygonGeom[0]),
+        line: new ol.geom.LineString(polygonGeom[0]),
+        multiline: new ol.geom.MultiLineString(polygonGeom),
+        polygon: new ol.geom.Polygon(polygonGeom),
+        multipolygon: new ol.geom.MultiPolygon([polygonGeom]),
+    };
+    var styles = {
+        point: pointStyle
+    };
+    var serializer = new Serializer.CoretechConverter();
+    var Renderer = (function () {
+        function Renderer(geom) {
+            this.feature = new ol.Feature(geom);
+            this.canvas = this.createCanvas();
+        }
+        Renderer.prototype.createCanvas = function (size) {
+            if (size === void 0) { size = 256; }
+            var canvas = document.createElement("canvas");
+            canvas.width = canvas.height = size;
+            return canvas;
+        };
+        Renderer.prototype.draw = function (styles) {
+            var canvas = this.canvas;
+            var feature = this.feature;
+            var style = styles.map(function (style) { return serializer.fromJson(style); });
+            feature.setStyle(style);
+            canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
+            Snapshot.render(canvas, feature);
+        };
+        return Renderer;
+    }());
+    function run() {
+        $(html).appendTo("body");
+        $(svg).appendTo("body");
+        $(css).appendTo("head");
+        var geom = common_3.getParameterByName("geom") || "polygon-with-holes";
+        var style = common_3.getParameterByName("style") || "fill/gradient";
+        $(".save").click(function () {
+            var style = JSON.stringify(JSON.parse($(".style").val()));
+            var loc = window.location;
+            var url = "" + loc.origin + loc.pathname + "?run=labs/style-viewer&style=" + encodeURI(style) + "&geom=" + geom;
+            loc.replace(url);
+        });
+        loadStyle(style).then(function (styles) {
+            loadGeom(geom).then(function (geoms) {
+                var style = JSON.stringify(styles, null, ' ');
+                $(".style").val(style);
+                var renderers = geoms.map(function (g) { return new Renderer(g); });
+                renderers.forEach(function (r) { return $(r.canvas).appendTo("#canvas-collection"); });
+                setInterval(function () {
+                    try {
+                        var style_1 = JSON.parse($(".style").val());
+                        renderers.forEach(function (r) { return r.draw(style_1); });
+                    }
+                    catch (ex) {
+                    }
+                }, 2000);
+            });
+        });
+    }
+    exports.run = run;
+});
+define("labs/providers/osm", ["require", "exports"], function (require, exports) {
+    "use strict";
+    var OpenStreet = (function () {
+        function OpenStreet() {
+            this.dataType = 'json';
+            this.method = 'GET';
+            this.settings = {
+                url: '//nominatim.openstreetmap.org/search/',
+                params: {
+                    q: '',
+                    format: 'json',
+                    addressdetails: 1,
+                    limit: 10,
+                    countrycodes: '',
+                    'accept-language': 'en-US'
+                }
+            };
+        }
+        OpenStreet.prototype.getParameters = function (options) {
+            return {
+                url: this.settings.url,
+                params: {
+                    q: options.query,
+                    format: 'json',
+                    addressdetails: 1,
+                    limit: options.limit || this.settings.params.limit,
+                    countrycodes: options.countrycodes || this.settings.params.countrycodes,
+                    'accept-language': options.lang || this.settings.params['accept-language']
+                }
+            };
+        };
+        OpenStreet.prototype.handleResponse = function (args) {
+            return args.sort(function (v) { return v.importance || 1; }).map(function (result) { return ({
+                original: result,
+                lon: parseFloat(result.lon),
+                lat: parseFloat(result.lat),
+                address: {
+                    name: result.address.neighbourhood || '',
+                    road: result.address.road || '',
+                    postcode: result.address.postcode,
+                    city: result.address.city || result.address.town,
+                    state: result.address.state,
+                    country: result.address.country
+                }
+            }); });
+        };
+        return OpenStreet;
+    }());
+    exports.OpenStreet = OpenStreet;
+});
+define("tests/ags-format", ["require", "exports", "openlayers"], function (require, exports, ol) {
+    "use strict";
+    function run() {
+        var formatter = (new ol.format.EsriJSON());
+        var olFeature = new ol.Feature(new ol.geom.Point([0, 0]));
+        var esriFeature = formatter.writeFeatureObject(olFeature);
+        olFeature = formatter.readFeature(esriFeature);
+        console.log("esriFeature", esriFeature);
+        {
+            var geom = esriFeature.geometry;
+            console.assert(geom.x === 0);
+            console.assert(geom.y === 0);
+        }
+        olFeature.setGeometry(new ol.geom.LineString([[0, 0], [0, 0]]));
+        esriFeature = formatter.writeFeatureObject(olFeature);
+        olFeature = formatter.readFeature(esriFeature);
+        console.log("esriFeature", esriFeature);
+        {
+            var geom = esriFeature.geometry;
+            console.assert(geom.paths[0][0][0] === 0);
+        }
+        olFeature.setGeometry(new ol.geom.MultiLineString([[[0, 0], [0, 0]], [[0, 0], [0, 0]]]));
+        esriFeature = formatter.writeFeatureObject(olFeature);
+        olFeature = formatter.readFeature(esriFeature);
+        console.log("esriFeature", esriFeature);
+        {
+            var geom = esriFeature.geometry;
+            console.assert(geom.paths[0][0][0] === 0);
+        }
+        olFeature.setGeometry(new ol.geom.Polygon([[[0, 0], [0, 0]]]));
+        esriFeature = formatter.writeFeatureObject(olFeature);
+        olFeature = formatter.readFeature(esriFeature);
+        console.log("esriFeature", esriFeature);
+        {
+            var geom = esriFeature.geometry;
+            console.assert(geom.rings[0][0][0] === 0);
+        }
+        olFeature.setGeometry(new ol.geom.MultiPolygon([[[[0, 0], [0, 0]]], [[[0, 0], [0, 0]]]]));
+        esriFeature = formatter.writeFeatureObject(olFeature);
+        olFeature = formatter.readFeature(esriFeature);
+        console.log("esriFeature", esriFeature);
+        {
+            var geom = esriFeature.geometry;
+            console.assert(geom.rings[0][0][0] === 0);
+        }
+        olFeature.setGeometry(new ol.geom.MultiPoint([[0, 0], [0, 0]]));
+        esriFeature = formatter.writeFeatureObject(olFeature);
+        olFeature = formatter.readFeature(esriFeature);
+        console.log("esriFeature", esriFeature);
+        {
+            var geom = esriFeature.geometry;
+            console.assert(geom.points[0][0] === 0);
+        }
+        olFeature.setProperties({ foo: "bar" });
+        esriFeature = formatter.writeFeatureObject(olFeature);
+        olFeature = formatter.readFeature(esriFeature);
+        console.log("esriFeature", esriFeature);
+        {
+            console.assert(olFeature.get("foo") === "bar");
+        }
+    }
+    exports.run = run;
+});
+define("ux/controls/input", ["require", "exports", "openlayers", "labs/common/common"], function (require, exports, ol, common_4) {
+    "use strict";
+    var css = "\n    .ol-input {\n        position:absolute;\n    }\n    .ol-input.top {\n        top: 0.5em;\n    }\n    .ol-input.left {\n        left: 0.5em;\n    }\n    .ol-input.bottom {\n        bottom: 0.5em;\n    }\n    .ol-input.right {\n        right: 0.5em;\n    }\n    .ol-input.top.left {\n        top: 4.5em;\n    }\n    .ol-input button {\n        min-height: 1.375em;\n        min-width: 1.375em;\n        width: auto;\n        display: inline;\n    }\n    .ol-input.left button {\n        float:right;\n    }\n    .ol-input.right button {\n        float:left;\n    }\n    .ol-input input {\n        height: 24px;\n        min-width: 240px;\n        border: none;\n        padding: 0;\n        margin: 0;\n        margin-left: 2px;\n        margin-top: 1px;\n        vertical-align: top;\n    }\n    .ol-input input.hidden {\n        display: none;\n    }\n";
+    var olcss = {
+        CLASS_CONTROL: 'ol-control',
+        CLASS_UNSELECTABLE: 'ol-unselectable',
+        CLASS_UNSUPPORTED: 'ol-unsupported',
+        CLASS_HIDDEN: 'ol-hidden'
+    };
+    var expando = {
+        right: '»',
+        left: '«'
+    };
+    var defaults = {
+        className: 'ol-input bottom left',
+        expanded: false,
+        closedText: expando.right,
+        openedText: expando.left,
+        placeholderText: 'Search'
+    };
+    var Geocoder = (function (_super) {
+        __extends(Geocoder, _super);
+        function Geocoder(options) {
+            var _this = this;
+            _super.call(this, {
+                element: options.element,
+                target: options.target
+            });
+            var button = this.button = document.createElement('button');
+            button.setAttribute('type', 'button');
+            button.title = options.placeholderText;
+            options.element.appendChild(button);
+            var input = this.input = document.createElement('input');
+            input.placeholder = options.placeholderText;
+            options.element.appendChild(input);
+            button.addEventListener("click", function () {
+                options.expanded ? _this.collapse(options) : _this.expand(options);
+            });
+            input.addEventListener("keypress", function (args) {
+                if (args.key === "Enter") {
+                    button.focus();
+                    _this.collapse(options);
+                }
+            });
+            input.addEventListener("change", function () {
+                _this.dispatchEvent({
+                    type: "change",
+                    value: input.value
+                });
+            });
+            input.addEventListener("blur", function () {
+            });
+            options.expanded ? this.expand(options) : this.collapse(options);
+        }
+        Geocoder.create = function (options) {
+            common_4.cssin('ol-input', css);
+            options = common_4.mixin({
+                openedText: options.className && -1 < options.className.indexOf("left") ? expando.left : expando.right,
+                closedText: options.className && -1 < options.className.indexOf("left") ? expando.right : expando.left,
+            }, options || {});
+            options = common_4.mixin(common_4.mixin({}, defaults), options);
+            var element = document.createElement('div');
+            element.className = options.className + " " + olcss.CLASS_UNSELECTABLE + " " + olcss.CLASS_CONTROL;
+            var geocoderOptions = common_4.mixin({
+                element: element,
+                target: options.target,
+                expanded: false
+            }, options);
+            return new Geocoder(geocoderOptions);
+        };
+        Geocoder.prototype.dispose = function () {
+            debugger;
+        };
+        Geocoder.prototype.collapse = function (options) {
+            options.expanded = false;
+            this.input.classList.toggle("hidden", true);
+            this.button.classList.toggle("hidden", false);
+            this.button.innerHTML = options.closedText;
+        };
+        Geocoder.prototype.expand = function (options) {
+            options.expanded = true;
+            this.input.classList.toggle("hidden", false);
+            this.button.classList.toggle("hidden", true);
+            this.button.innerHTML = options.openedText;
+            this.input.focus();
+            this.input.select();
+        };
+        return Geocoder;
+    }(ol.control.Control));
+    exports.Geocoder = Geocoder;
+});
+define("tests/geocoder", ["require", "exports", "labs/mapmaker", "ux/controls/input", "labs/providers/osm"], function (require, exports, MapMaker, input_1, osm_1) {
+    "use strict";
+    function run() {
+        var map = MapMaker.run();
+        var searchProvider = new osm_1.OpenStreet();
+        var geocoder = input_1.Geocoder.create({
+            closedText: "+",
+            openedText: "−"
+        });
+        map.addControl(geocoder);
+        geocoder.on("change", function (args) {
+            if (!args.value)
+                return;
+            console.log("search", args.value);
+            var searchArgs = searchProvider.getParameters({
+                query: args.value,
+                limit: 1,
+                countrycodes: 'us',
+                lang: 'en'
+            });
+            $.ajax({
+                url: searchArgs.url,
+                method: searchProvider.method || 'GET',
+                data: searchArgs.params,
+                dataType: searchProvider.dataType || 'json'
+            }).then(function (json) {
+                var results = searchProvider.handleResponse(json);
+                results.some(function (r) {
+                    console.log(r);
+                    map.getView().setCenter([r.lon, r.lat]);
+                    return true;
+                });
+            }).fail(function () {
+                console.error("geocoder failed");
+            });
+        });
+        map.addControl(input_1.Geocoder.create({
+            className: 'ol-input bottom right',
+            expanded: true
+        }));
+        map.addControl(input_1.Geocoder.create({
+            className: 'ol-input top right',
+            expanded: false
+        }));
+        map.addControl(input_1.Geocoder.create({
+            className: 'ol-input top left',
+            expanded: false
+        }));
+    }
+    exports.run = run;
+});
+define("tests/google-polyline", ["require", "exports", "labs/common/ol3-polyline", "labs/common/google-polyline"], function (require, exports, OlEncoder, Encoder) {
+    "use strict";
+    var polyline = [[38.5, -120.2], [40.7, -120.95], [43.252, -126.453]];
+    var encoding = "_p~iF~ps|U_ulLnnqC_mqNvxq`@";
+    function run() {
+        {
+            var encoder = new Encoder();
+            console.assert(encoder.encode(encoder.decode(encoding)) === encoding);
+            console.assert(encoding === encoder.encode(polyline));
+        }
+        {
+            var olEncoder = new OlEncoder();
+            console.assert(olEncoder.encode(olEncoder.decode(encoding)) === encoding);
+            console.assert(encoding === olEncoder.encode(polyline));
+        }
+    }
+    exports.run = run;
+});
+define("tests/index", ["require", "exports"], function (require, exports) {
+    "use strict";
+    function run() {
+        var l = window.location;
+        var path = "" + l.origin + l.pathname + "?run=tests/";
+        var labs = "\n    ags-format\n    google-polyline\n    webmap\n    index\n    ";
+        document.writeln("\n    <p>\n    Watch the console output for failed assertions (blank is good).\n    </p>\n    ");
+        document.writeln(labs
+            .split(/ /)
+            .map(function (v) { return v.trim(); })
+            .filter(function (v) { return !!v; })
+            .sort()
+            .map(function (lab) { return ("<a href=" + path + lab + "&debug=1>" + lab + "</a>"); })
+            .join("<br/>"));
+    }
+    exports.run = run;
+    ;
+});
+define("tests/webmap", ["require", "exports", "jquery"], function (require, exports, $) {
+    "use strict";
+    var webmap = "ae85c9d9c5ae409bb1f351617ea0bffc";
+    var portal = "https://www.arcgis.com";
+    var items_endpoint = "http://www.arcgis.com/sharing/rest/content/items";
+    function endpoint() {
+        return items_endpoint + "/" + webmap + "/data?f=json";
+    }
+    function run() {
+        if (1)
+            $.ajax({
+                url: endpoint(),
+                dataType: "json"
+            }).done(function (webmap) {
+                console.assert(webmap.authoringApp === "WebMapViewer", "authoringApp");
+                console.assert(webmap.authoringAppVersion === "4.2");
+                webmap.operationalLayers;
+                webmap.baseMap;
+                console.assert(webmap.spatialReference.latestWkid === 3857);
+                console.assert(webmap.version === "2.5");
+                console.log("done");
+            });
+    }
+    exports.run = run;
+});
+define("tests/data/geom/multipoint", ["require", "exports"], function (require, exports) {
+    "use strict";
+    return [
+        [-115.25532322799027, 36.18318333413792],
+        [-115.25480456865377, 36.18318418316166],
+        [-115.25480483306748, 36.1831581364999],
+        [-115.25482974334876, 36.183156591542996],
+        [-115.2548544229261, 36.18315172017415],
+        [-115.25487928533187, 36.18314300077779],
+        [-115.25490054503052, 36.18313174786991],
+        [-115.25491924756955, 36.18311784715259],
+        [-115.25493579649431, 36.183100506595494],
+        [-115.25494767927427, 36.18308236911088],
+        [-115.25495573195485, 36.18306290523016],
+        [-115.2553212003638, 36.183064339787606],
+        [-115.25532322799027, 36.18318333413792]
+    ];
+});
+define("tests/data/geom/point", ["require", "exports"], function (require, exports) {
+    "use strict";
+    return [-115.2553, 36.1832];
+});
 define("tests/data/geom/polygon-with-holes", ["require", "exports"], function (require, exports) {
     "use strict";
     return [
@@ -2785,478 +3282,25 @@ define("tests/data/geom/polygon-with-holes", ["require", "exports"], function (r
         ]
     ];
 });
-define("tests/data/geom/point", ["require", "exports"], function (require, exports) {
-    "use strict";
-    return [-115.2553, 36.1832];
-});
-define("ux/styles/icon/png", ["require", "exports"], function (require, exports) {
+define("tests/data/geom/polyline", ["require", "exports"], function (require, exports) {
     "use strict";
     return [
-        {
-            "circle": {
-                "fill": {
-                    "gradient": {
-                        "type": "linear(32,32,96,96)",
-                        "stops": "rgba(0,255,0,0.1) 0%;rgba(0,255,0,0.8) 100%"
-                    }
-                },
-                "opacity": 1,
-                "stroke": {
-                    "color": "rgba(0,255,0,1)",
-                    "width": 1
-                },
-                "radius": 64
-            }
-        },
-        {
-            "icon": {
-                "anchor": [16, 48],
-                "imgSize": [32, 48],
-                "anchorXUnits": "pixels",
-                "anchorYUnits": "pixels",
-                "src": "http://openlayers.org/en/v3.17.1/examples/data/icon.png"
-            }
-        }
+        [
+            [-115.25532322799027, 36.18318333413792],
+            [-115.25480456865377, 36.18318418316166],
+            [-115.25480483306748, 36.1831581364999],
+            [-115.25482974334876, 36.183156591542996],
+            [-115.2548544229261, 36.18315172017415],
+            [-115.25487928533187, 36.18314300077779],
+            [-115.25490054503052, 36.18313174786991],
+            [-115.25491924756955, 36.18311784715259],
+            [-115.25493579649431, 36.183100506595494],
+            [-115.25494767927427, 36.18308236911088],
+            [-115.25495573195485, 36.18306290523016],
+            [-115.2553212003638, 36.183064339787606],
+            [-115.25532322799027, 36.18318333413792]
+        ]
     ];
-});
-define("labs/style-viewer", ["require", "exports", "openlayers", "jquery", "labs/common/snapshot", "labs/common/common", "ux/serializers/coretech"], function (require, exports, ol, $, Snapshot, common_3, Serializer) {
-    "use strict";
-    var html = "\n<div class='style-to-canvas'>\n    <h3>Renders a feature on a canvas</h3>\n    <div class=\"area\">\n        <label>256 x 256 Canvas</label>\n        <canvas id='canvas' width=\"256\" height=\"256\"></canvas>\n    </div>\n    <div class=\"area\">\n        <label>Style</label>\n        <textarea class='style'></textarea>\n        <button class=\"save\">Save</button>\n    </div>\n    <div class=\"area\">\n        <label>Potential control for setting linear gradient start/stop locations</label>\n        <div class=\"colorramp\">\n            <input class=\"top\" type=\"range\" min=\"0\" max=\"100\" value=\"20\"/>\n            <input class=\"bottom\" type=\"range\" min=\"0\" max=\"100\" value=\"80\"/>\n        </div>\n    </div>\n</div>\n";
-    var css = "\n<style>\n    #map {\n        display: none;\n    }\n\n    .style-to-canvas {\n    }\n\n    .style-to-canvas .area label {\n        display: block;\n        vertical-align: top;\n    }\n\n    .style-to-canvas .area {\n        border: 1px solid black;\n        padding: 20px;\n        margin: 20px;\n    }\n\n    .style-to-canvas .area .style {\n        width: 100%;\n        height: 400px;\n    }\n\n    .style-to-canvas #canvas {\n        font-family: sans serif;\n        font-size: 20px;\n        border: none;\n        padding: 0;\n        margin: 0;\n    }\n\n    div.colorramp {\n        display: inline-block;\n        background: linear-gradient(to right, rgba(250,0,0,0), rgba(250,0,0,1) 60%, rgba(250,100,0,1) 85%, rgb(250,250,0) 95%);\n        width:100%;\n    }\n\n    div.colorramp > input[type=range] {\n        -webkit-appearance: slider-horizontal;\n        display:block;\n        width:100%;\n        background-color:transparent;\n    }\n\n    div.colorramp > label {\n        display: inline-block;\n    }\n\n    div.colorramp > input[type='range'] {\n        box-shadow: 0 0 0 white;\n    }\n\n    div.colorramp > input[type=range]::-webkit-slider-runnable-track {\n        height: 0px;     \n    }\n\n    div.colorramp > input[type='range'].top::-webkit-slider-thumb {\n        margin-top: -10px;\n    }\n\n    div.colorramp > input[type='range'].bottom::-webkit-slider-thumb {\n        margin-top: -12px;\n    }\n    \n</style>\n";
-    function loadStyle(name) {
-        var mids = name.split(",").map(function (name) { return ("../ux/styles/" + name); });
-        var d = $.Deferred();
-        require(mids, function () {
-            var styles = [];
-            for (var _i = 0; _i < arguments.length; _i++) {
-                styles[_i - 0] = arguments[_i];
-            }
-            var style = [];
-            styles.forEach(function (s) { return style = style.concat(s); });
-            d.resolve(style);
-        });
-        return d;
-    }
-    function loadGeom(name) {
-        var mids = name.split(",").map(function (name) { return ("../tests/data/geom/" + name); });
-        var d = $.Deferred();
-        require(mids, function () {
-            var shapes = [];
-            for (var _i = 0; _i < arguments.length; _i++) {
-                shapes[_i - 0] = arguments[_i];
-            }
-            var geoms = shapes.map(function (shape) {
-                if (typeof shape[0] === "number") {
-                    return new ol.geom.Point(shape);
-                }
-                if (typeof shape[0][0] === "number") {
-                    return new ol.geom.LineString(shape);
-                }
-                if (typeof shape[0][0][0] === "number") {
-                    return new ol.geom.Polygon(shape);
-                }
-                if (typeof shape[0][0][0][0] === "number") {
-                    return new ol.geom.MultiPolygon(shape);
-                }
-                throw "invalid shape: " + shape;
-            });
-            d.resolve(geoms);
-        });
-        return d;
-    }
-    function run() {
-        var serializer = new Serializer.CoretechConverter();
-        $(html).appendTo("body");
-        $(css).appendTo("head");
-        $(".save").click(function () {
-            var style = JSON.stringify(JSON.parse($(".style").val()));
-            var loc = window.location;
-            var url = "" + loc.origin + loc.pathname + "?run=labs/style-viewer&style=" + encodeURI(style) + "&geom=" + geom;
-            loc.replace(url);
-        });
-        var canvas = document.getElementById("canvas");
-        var feature = new ol.Feature();
-        var redraw = function () {
-            var styles = JSON.parse($(".style").val());
-            var style = styles.map(function (style) { return serializer.fromJson(style); });
-            feature.setStyle(style);
-            canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
-            Snapshot.render(canvas, feature);
-        };
-        setInterval(function () {
-            try {
-                redraw();
-            }
-            catch (ex) {
-            }
-        }, 2500);
-        var geom = common_3.getParameterByName("geom") || "polygon-with-holes";
-        loadGeom(geom).then(function (geoms) {
-            feature.setGeometry(geoms[0]);
-            redraw();
-        });
-        var style = common_3.getParameterByName("style") || "fill/gradient";
-        if (style) {
-            if ("[" === style[0]) {
-                style = JSON.stringify(JSON.parse(style), null, ' ');
-                $(".style").val(style);
-                redraw();
-            }
-            else {
-                loadStyle(style).then(function (styles) {
-                    $(".style").val(JSON.stringify(styles, null, 2));
-                    redraw();
-                });
-            }
-        }
-        else {
-            var font = $("#canvas").css("fontSize") + " " + $("#canvas").css("fontFamily");
-            var style1 = serializer.fromJson({
-                "fill": {
-                    "color": "rgba(255, 0, 0, 0.5)"
-                },
-                "stroke": {
-                    "color": "blue",
-                    "width": 2
-                }
-            });
-            var style2 = serializer.fromJson({
-                "text": {
-                    "fill": {
-                        "color": "rgba(0, 0, 0, 1)"
-                    },
-                    "stroke": {
-                        "color": "rgba(255, 255, 255, 0.8)",
-                        "width": 4
-                    },
-                    "text": "style-to-canvas",
-                    "offset-x": 0,
-                    "offset-y": 0,
-                    "font": "20px 'sans serif'"
-                }
-            });
-            var styles = [style1, style2];
-            $(".style").val(JSON.stringify(styles.map(function (s) { return serializer.toJson(s); }), null, 2));
-            redraw();
-        }
-    }
-    exports.run = run;
-});
-define("labs/providers/osm", ["require", "exports"], function (require, exports) {
-    "use strict";
-    var OpenStreet = (function () {
-        function OpenStreet() {
-            this.dataType = 'json';
-            this.method = 'GET';
-            this.settings = {
-                url: '//nominatim.openstreetmap.org/search/',
-                params: {
-                    q: '',
-                    format: 'json',
-                    addressdetails: 1,
-                    limit: 10,
-                    countrycodes: '',
-                    'accept-language': 'en-US'
-                }
-            };
-        }
-        OpenStreet.prototype.getParameters = function (options) {
-            return {
-                url: this.settings.url,
-                params: {
-                    q: options.query,
-                    format: 'json',
-                    addressdetails: 1,
-                    limit: options.limit || this.settings.params.limit,
-                    countrycodes: options.countrycodes || this.settings.params.countrycodes,
-                    'accept-language': options.lang || this.settings.params['accept-language']
-                }
-            };
-        };
-        OpenStreet.prototype.handleResponse = function (args) {
-            return args.sort(function (v) { return v.importance || 1; }).map(function (result) { return ({
-                original: result,
-                lon: parseFloat(result.lon),
-                lat: parseFloat(result.lat),
-                address: {
-                    name: result.address.neighbourhood || '',
-                    road: result.address.road || '',
-                    postcode: result.address.postcode,
-                    city: result.address.city || result.address.town,
-                    state: result.address.state,
-                    country: result.address.country
-                }
-            }); });
-        };
-        return OpenStreet;
-    }());
-    exports.OpenStreet = OpenStreet;
-});
-define("tests/ags-format", ["require", "exports", "openlayers"], function (require, exports, ol) {
-    "use strict";
-    function run() {
-        var formatter = (new ol.format.EsriJSON());
-        var olFeature = new ol.Feature(new ol.geom.Point([0, 0]));
-        var esriFeature = formatter.writeFeatureObject(olFeature);
-        olFeature = formatter.readFeature(esriFeature);
-        console.log("esriFeature", esriFeature);
-        {
-            var geom = esriFeature.geometry;
-            console.assert(geom.x === 0);
-            console.assert(geom.y === 0);
-        }
-        olFeature.setGeometry(new ol.geom.LineString([[0, 0], [0, 0]]));
-        esriFeature = formatter.writeFeatureObject(olFeature);
-        olFeature = formatter.readFeature(esriFeature);
-        console.log("esriFeature", esriFeature);
-        {
-            var geom = esriFeature.geometry;
-            console.assert(geom.paths[0][0][0] === 0);
-        }
-        olFeature.setGeometry(new ol.geom.MultiLineString([[[0, 0], [0, 0]], [[0, 0], [0, 0]]]));
-        esriFeature = formatter.writeFeatureObject(olFeature);
-        olFeature = formatter.readFeature(esriFeature);
-        console.log("esriFeature", esriFeature);
-        {
-            var geom = esriFeature.geometry;
-            console.assert(geom.paths[0][0][0] === 0);
-        }
-        olFeature.setGeometry(new ol.geom.Polygon([[[0, 0], [0, 0]]]));
-        esriFeature = formatter.writeFeatureObject(olFeature);
-        olFeature = formatter.readFeature(esriFeature);
-        console.log("esriFeature", esriFeature);
-        {
-            var geom = esriFeature.geometry;
-            console.assert(geom.rings[0][0][0] === 0);
-        }
-        olFeature.setGeometry(new ol.geom.MultiPolygon([[[[0, 0], [0, 0]]], [[[0, 0], [0, 0]]]]));
-        esriFeature = formatter.writeFeatureObject(olFeature);
-        olFeature = formatter.readFeature(esriFeature);
-        console.log("esriFeature", esriFeature);
-        {
-            var geom = esriFeature.geometry;
-            console.assert(geom.rings[0][0][0] === 0);
-        }
-        olFeature.setGeometry(new ol.geom.MultiPoint([[0, 0], [0, 0]]));
-        esriFeature = formatter.writeFeatureObject(olFeature);
-        olFeature = formatter.readFeature(esriFeature);
-        console.log("esriFeature", esriFeature);
-        {
-            var geom = esriFeature.geometry;
-            console.assert(geom.points[0][0] === 0);
-        }
-        olFeature.setProperties({ foo: "bar" });
-        esriFeature = formatter.writeFeatureObject(olFeature);
-        olFeature = formatter.readFeature(esriFeature);
-        console.log("esriFeature", esriFeature);
-        {
-            console.assert(olFeature.get("foo") === "bar");
-        }
-    }
-    exports.run = run;
-});
-define("ux/controls/input", ["require", "exports", "openlayers", "labs/common/common"], function (require, exports, ol, common_4) {
-    "use strict";
-    var css = "\n    .ol-input {\n        position:absolute;\n    }\n    .ol-input.top {\n        top: 0.5em;\n    }\n    .ol-input.left {\n        left: 0.5em;\n    }\n    .ol-input.bottom {\n        bottom: 0.5em;\n    }\n    .ol-input.right {\n        right: 0.5em;\n    }\n    .ol-input.top.left {\n        top: 4.5em;\n    }\n    .ol-input button {\n        min-height: 1.375em;\n        min-width: 1.375em;\n        width: auto;\n        display: inline;\n    }\n    .ol-input.left button {\n        float:right;\n    }\n    .ol-input.right button {\n        float:left;\n    }\n    .ol-input input {\n        height: 24px;\n        min-width: 240px;\n        border: none;\n        padding: 0;\n        margin: 0;\n        margin-left: 2px;\n        margin-top: 1px;\n        vertical-align: top;\n    }\n    .ol-input input.hidden {\n        display: none;\n    }\n";
-    var olcss = {
-        CLASS_CONTROL: 'ol-control',
-        CLASS_UNSELECTABLE: 'ol-unselectable',
-        CLASS_UNSUPPORTED: 'ol-unsupported',
-        CLASS_HIDDEN: 'ol-hidden'
-    };
-    var expando = {
-        right: '»',
-        left: '«'
-    };
-    var defaults = {
-        className: 'ol-input bottom left',
-        expanded: false,
-        closedText: expando.right,
-        openedText: expando.left,
-        placeholderText: 'Search'
-    };
-    var Geocoder = (function (_super) {
-        __extends(Geocoder, _super);
-        function Geocoder(options) {
-            var _this = this;
-            _super.call(this, {
-                element: options.element,
-                target: options.target
-            });
-            var button = this.button = document.createElement('button');
-            button.setAttribute('type', 'button');
-            button.title = options.placeholderText;
-            options.element.appendChild(button);
-            var input = this.input = document.createElement('input');
-            input.placeholder = options.placeholderText;
-            options.element.appendChild(input);
-            button.addEventListener("click", function () {
-                options.expanded ? _this.collapse(options) : _this.expand(options);
-            });
-            input.addEventListener("keypress", function (args) {
-                if (args.key === "Enter") {
-                    button.focus();
-                    _this.collapse(options);
-                }
-            });
-            input.addEventListener("change", function () {
-                _this.dispatchEvent({
-                    type: "change",
-                    value: input.value
-                });
-            });
-            input.addEventListener("blur", function () {
-            });
-            options.expanded ? this.expand(options) : this.collapse(options);
-        }
-        Geocoder.create = function (options) {
-            common_4.cssin('ol-input', css);
-            options = common_4.mixin({
-                openedText: options.className && -1 < options.className.indexOf("left") ? expando.left : expando.right,
-                closedText: options.className && -1 < options.className.indexOf("left") ? expando.right : expando.left,
-            }, options || {});
-            options = common_4.mixin(common_4.mixin({}, defaults), options);
-            var element = document.createElement('div');
-            element.className = options.className + " " + olcss.CLASS_UNSELECTABLE + " " + olcss.CLASS_CONTROL;
-            var geocoderOptions = common_4.mixin({
-                element: element,
-                target: options.target,
-                expanded: false
-            }, options);
-            return new Geocoder(geocoderOptions);
-        };
-        Geocoder.prototype.dispose = function () {
-            debugger;
-        };
-        Geocoder.prototype.collapse = function (options) {
-            options.expanded = false;
-            this.input.classList.toggle("hidden", true);
-            this.button.classList.toggle("hidden", false);
-            this.button.innerHTML = options.closedText;
-        };
-        Geocoder.prototype.expand = function (options) {
-            options.expanded = true;
-            this.input.classList.toggle("hidden", false);
-            this.button.classList.toggle("hidden", true);
-            this.button.innerHTML = options.openedText;
-            this.input.focus();
-            this.input.select();
-        };
-        return Geocoder;
-    }(ol.control.Control));
-    exports.Geocoder = Geocoder;
-});
-define("tests/geocoder", ["require", "exports", "labs/mapmaker", "ux/controls/input", "labs/providers/osm"], function (require, exports, MapMaker, input_1, osm_1) {
-    "use strict";
-    function run() {
-        var map = MapMaker.run();
-        var searchProvider = new osm_1.OpenStreet();
-        var geocoder = input_1.Geocoder.create({
-            closedText: "+",
-            openedText: "−"
-        });
-        map.addControl(geocoder);
-        geocoder.on("change", function (args) {
-            if (!args.value)
-                return;
-            console.log("search", args.value);
-            var searchArgs = searchProvider.getParameters({
-                query: args.value,
-                limit: 1,
-                countrycodes: 'us',
-                lang: 'en'
-            });
-            $.ajax({
-                url: searchArgs.url,
-                method: searchProvider.method || 'GET',
-                data: searchArgs.params,
-                dataType: searchProvider.dataType || 'json'
-            }).then(function (json) {
-                var results = searchProvider.handleResponse(json);
-                results.some(function (r) {
-                    console.log(r);
-                    map.getView().setCenter([r.lon, r.lat]);
-                    return true;
-                });
-            }).fail(function () {
-                console.error("geocoder failed");
-            });
-        });
-        map.addControl(input_1.Geocoder.create({
-            className: 'ol-input bottom right',
-            expanded: true
-        }));
-        map.addControl(input_1.Geocoder.create({
-            className: 'ol-input top right',
-            expanded: false
-        }));
-        map.addControl(input_1.Geocoder.create({
-            className: 'ol-input top left',
-            expanded: false
-        }));
-    }
-    exports.run = run;
-});
-define("tests/google-polyline", ["require", "exports", "labs/common/ol3-polyline", "labs/common/google-polyline"], function (require, exports, OlEncoder, Encoder) {
-    "use strict";
-    var polyline = [[38.5, -120.2], [40.7, -120.95], [43.252, -126.453]];
-    var encoding = "_p~iF~ps|U_ulLnnqC_mqNvxq`@";
-    function run() {
-        {
-            var encoder = new Encoder();
-            console.assert(encoder.encode(encoder.decode(encoding)) === encoding);
-            console.assert(encoding === encoder.encode(polyline));
-        }
-        {
-            var olEncoder = new OlEncoder();
-            console.assert(olEncoder.encode(olEncoder.decode(encoding)) === encoding);
-            console.assert(encoding === olEncoder.encode(polyline));
-        }
-    }
-    exports.run = run;
-});
-define("tests/index", ["require", "exports"], function (require, exports) {
-    "use strict";
-    function run() {
-        var l = window.location;
-        var path = "" + l.origin + l.pathname + "?run=tests/";
-        var labs = "\n    ags-format\n    google-polyline\n    webmap\n    index\n    ";
-        document.writeln("\n    <p>\n    Watch the console output for failed assertions (blank is good).\n    </p>\n    ");
-        document.writeln(labs
-            .split(/ /)
-            .map(function (v) { return v.trim(); })
-            .filter(function (v) { return !!v; })
-            .sort()
-            .map(function (lab) { return ("<a href=" + path + lab + "&debug=1>" + lab + "</a>"); })
-            .join("<br/>"));
-    }
-    exports.run = run;
-    ;
-});
-define("tests/webmap", ["require", "exports", "jquery"], function (require, exports, $) {
-    "use strict";
-    var webmap = "ae85c9d9c5ae409bb1f351617ea0bffc";
-    var portal = "https://www.arcgis.com";
-    var items_endpoint = "http://www.arcgis.com/sharing/rest/content/items";
-    function endpoint() {
-        return items_endpoint + "/" + webmap + "/data?f=json";
-    }
-    function run() {
-        if (1)
-            $.ajax({
-                url: endpoint(),
-                dataType: "json"
-            }).done(function (webmap) {
-                console.assert(webmap.authoringApp === "WebMapViewer", "authoringApp");
-                console.assert(webmap.authoringAppVersion === "4.2");
-                webmap.operationalLayers;
-                webmap.baseMap;
-                console.assert(webmap.spatialReference.latestWkid === 3857);
-                console.assert(webmap.version === "2.5");
-                console.log("done");
-            });
-    }
-    exports.run = run;
 });
 define("ux/styles/ags/simplemarkersymbol-circle", ["require", "exports"], function (require, exports) {
     "use strict";

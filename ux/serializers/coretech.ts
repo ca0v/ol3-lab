@@ -1,7 +1,53 @@
+/**
+ * from dojox gfx.canvas:
+	var dasharray = {
+		solid:				"none",
+		shortdash:			[4, 1],
+		shortdot:			[1, 1],
+		shortdashdot:		[4, 1, 1, 1],
+		shortdashdotdot:	[4, 1, 1, 1, 1, 1],
+		dot:				[1, 3],
+		dash:				[4, 3],
+		longdash:			[8, 3],
+		dashdot:			[4, 3, 1, 3],
+		longdashdot:		[8, 3, 1, 3],
+		longdashdotdot:		[8, 3, 1, 3, 1, 3]
+	};
+     */
 import ol = require("openlayers");
 import Serializer = require("./serializer");
 import coretech_flower_json = require("../styles/star/flower");
 import {doif, mixin} from "../../labs/common/common";
+
+// Class
+interface Path2D {
+    addPath(path: Path2D, transform?: SVGMatrix): void;
+    closePath(): void;
+    moveTo(x: number, y: number): void;
+    lineTo(x: number, y: number): void;
+    bezierCurveTo(cp1x: number, cp1y: number, cp2x: number, cp2y: number, x: number, y: number): void;
+    quadraticCurveTo(cpx: number, cpy: number, x: number, y: number): void;
+    arc(x: number, y: number, radius: number, startAngle: number, endAngle: number, anticlockwise?: boolean): void;
+    arcTo(x1: number, y1: number, x2: number, y2: number, radius: number): void;
+    /*ellipse(x: number, y: number, radiusX: number, radiusY: number, rotation: number, startAngle: number, endAngle: number, anticlockwise?: boolean): void;*/
+    rect(x: number, y: number, w: number, h: number): void;
+}
+
+// Constructor
+interface Path2DConstructor {
+    new (): Path2D;
+    new (d: string): Path2D;
+    new (path: Path2D, fillRule?: string): Path2D;
+    prototype: Path2D;
+}
+declare var Path2D: Path2DConstructor;
+
+// Extend CanvasRenderingContext2D
+interface CanvasRenderingContext2D {
+    fill(path: Path2D): void;
+    stroke(path: Path2D): void;
+    clip(path: Path2D, fillRule?: string): void;
+}
 
 /**
  * TODO: should have formatter for ol3 (serializer/deserializer) 
@@ -55,9 +101,10 @@ export namespace Coretech {
 
     export interface Svg {
         imgSize: ol.Size;
-        img: ol.Image | HTMLCanvasElement;
+        img: string;
         path?: string;
         stroke?: Stroke;
+        fill?: Fill;
     }
 
     export interface Text {
@@ -243,26 +290,44 @@ export class CoretechConverter implements Serializer.IConverter<Coretech.Style> 
     }
 
     private deserializeSvg(json: Coretech.Svg) {
-        let canvas: HTMLCanvasElement;
+        let canvas = document.createElement("canvas");
+        canvas.width = json.imgSize[0];
+        canvas.height = json.imgSize[1];
+        let ctx = canvas.getContext('2d');
 
-        {
-            let img = json.img;
+        //document.body.appendChild(canvas);
 
-            if (img instanceof HTMLCanvasElement) {
-                let ctx = img.getContext("2d");
-                canvas = img;
+        if (json.img) {
+            let symbol = <SVGSymbolElement><any>document.getElementById(json.img);
+            if (!symbol) {
+                // todo
             }
-            if (img instanceof ol.Image) {
-                debugger;
+            if (symbol) {
+                if (false) {
+                    // the symbol may have a <circle>, multiple <path>...
+                    // so we could render the <svg> into an image and set json.img = image data
+                    // see: https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Drawing_DOM_objects_into_a_canvas
+                    // but how to override the fill and stroke?  via css?
+                    let svg = new Blob([`<svg xmlns="http://www.w3.org/2000/svg">${symbol.innerHTML}</svg>`], { type: 'image/svg+xml;charset=utf-8' });
+                    let url = URL.createObjectURL(svg);
+                    let img = new Image();
+                    img.onload = () => {
+                        // has the problem of rendering to the canvas too late so would need to return an ol.Image instead?
+                        ctx.drawImage(img, 0, 0);
+                        URL.revokeObjectURL(url);
+                    };
+                    img.src = url;
+                } else {
+                    // but just grab the path is probably good enough
+                    let path = <SVGPathElement>(symbol.getElementsByTagName("path")[0]);
+                    if (path) {
+                        json.path = (json.path || "") + path.getAttribute('d');
+                    }
+                }
             }
         }
 
         if (json.path) {
-            if (!canvas) {
-                canvas = document.createElement("canvas");
-                canvas.width = json.imgSize[0];
-                canvas.height = json.imgSize[1];
-            }
             /*
             M = moveto
             L = lineto
@@ -276,38 +341,24 @@ export class CoretechConverter implements Serializer.IConverter<Coretech.Style> 
             Z = closepath
             e.g. M23 2 L23 23 L43 16.5 L23 23 L35.34349029814194 39.989356881873896 L23 23 L10.656509701858067 39.989356881873896 L23 23 L3.0278131578017735 16.510643118126108 L23 23 L23 2 Z
             */
-            let ctx = canvas.getContext('2d');
-            ctx.beginPath();
+            let path2d = new Path2D(json.path);
+
+            if (json.fill) {
+                ctx.fillStyle = json.fill.color;
+                ctx.fill(path2d);
+            }
             if (json.stroke) {
                 ctx.strokeStyle = json.stroke.color;
                 ctx.lineWidth = json.stroke.width;
+                ctx.stroke(path2d);
             }
-            let path = json.path.split(" ");
-            while (true) {
-                let token = path.shift();
-                switch (token[0]) {
-                    case 'M':
-                        ctx.moveTo(parseFloat(token.substring(1)), parseFloat(path.shift()));
-                        break;
-                    case 'L':
-                        ctx.lineTo(parseFloat(token.substring(1)), parseFloat(path.shift()));
-                        break;
-                    case 'Z':
-                        break;
-                    default:
-                        throw `unexpected token value: ${token}`
-                }
-                if (!path.length) break;
-            }
-            ctx.stroke();
-            json.img = canvas;
+
         }
 
-        let image = new ol.style.Icon(mixin({            
+        return new ol.style.Icon(mixin(json, {
             img: canvas
-        }, json));
+        }));
 
-        return image;
     }
 
     private deserializeFill(json: any) {
