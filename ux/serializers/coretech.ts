@@ -1,4 +1,5 @@
 /**
+ * clustering: http://openlayers.org/en/latest/examples/earthquake-clusters.html?q=style
  * from dojox gfx.canvas:
 	var dasharray = {
 		solid:				"none",
@@ -16,7 +17,6 @@
      */
 import ol = require("openlayers");
 import Serializer = require("./serializer");
-import coretech_flower_json = require("../styles/star/flower");
 import {doif, mixin} from "../../labs/common/common";
 
 // Class
@@ -64,10 +64,10 @@ export namespace Coretech {
     }
 
     export interface Circle {
-        fill?: Fill;
-        opacity?: number;
-        stroke?: Stroke;
-        radius?: number;
+        fill?: ol.style.Fill;
+        radius: number;
+        snapToPixel?: boolean;
+        stroke?: ol.style.Stroke;
     }
 
     export interface Star {
@@ -99,22 +99,23 @@ export namespace Coretech {
         src?: string;
     }
 
-    export interface Svg {
-        imgSize: ol.Size;
-        img: string;
-        path?: string;
-        stroke?: Stroke;
-        fill?: Fill;
+    export interface Text {
+        font?: string;
+        offsetX?: number;
+        offsetY?: number;
+        scale?: number;
+        rotation?: number;
+        text?: string;
+        textAlign?: string;
+        textBaseline?: string;
+        fill?: ol.style.Fill;
+        stroke?: ol.style.Stroke;
     }
 
-    export interface Text {
-        fill?: Fill;
-        stroke?: Stroke;
-        text?: string;
-        "offset-x"?: number;
-        "offset-y"?: number;
-        font?: string;
-    }
+}
+
+// these are extensions from ol3
+export namespace Coretech {
 
     export interface Style {
         svg?: Icon & Svg;
@@ -126,7 +127,30 @@ export namespace Coretech {
         stroke?: Stroke;
     }
 
+    export interface Icon {
+        "anchor-x": number;
+        "anchor-y": number;
+    }
+
+    export interface Text {
+        "offset-x"?: number;
+        "offset-y"?: number;
+    }
+
+    export interface Circle {
+        opacity?: number;
+    }
+
+    export interface Svg extends Icon {
+        imgSize: ol.Size;
+        img: string;
+        path?: string;
+        stroke?: Stroke;
+        fill?: Fill;
+    }
+
 }
+
 
 /**
  * See also, leaflet styles:
@@ -253,6 +277,8 @@ export class CoretechConverter implements Serializer.IConverter<Coretech.Style> 
             font: json.font,
             offsetX: json["offset-x"],
             offsetY: json["offset-y"],
+            rotation: json.rotation || 0,
+            scale: json.scale || 1
         });
     }
 
@@ -283,6 +309,10 @@ export class CoretechConverter implements Serializer.IConverter<Coretech.Style> 
     }
 
     private deserializeIcon(json: Coretech.Icon) {
+        if (!json.anchor) {
+            json.anchor = [json["anchor-x"] || 0.5, json["anchor-y"] || 0.5];
+        }
+
         let image = new ol.style.Icon(mixin({
         }, json));
         image.load();
@@ -290,9 +320,16 @@ export class CoretechConverter implements Serializer.IConverter<Coretech.Style> 
     }
 
     private deserializeSvg(json: Coretech.Svg) {
+        if (json.scale && json.imgSize) json.imgSize.map(v => v * json.scale);
+        if (json.stroke && json.stroke.width) {
+            json.imgSize.map(v => v += 2 * json.stroke.width);
+        }
+
         let canvas = document.createElement("canvas");
+
         canvas.width = json.imgSize[0];
         canvas.height = json.imgSize[1];
+
         let ctx = canvas.getContext('2d');
 
         //document.body.appendChild(canvas);
@@ -342,6 +379,20 @@ export class CoretechConverter implements Serializer.IConverter<Coretech.Style> 
             e.g. M23 2 L23 23 L43 16.5 L23 23 L35.34349029814194 39.989356881873896 L23 23 L10.656509701858067 39.989356881873896 L23 23 L3.0278131578017735 16.510643118126108 L23 23 L23 2 Z
             */
             let path2d = new Path2D(json.path);
+
+            // rotate  before it is in the canvas (avoids pixelation)
+            json.rotation = json.rotation || 0;
+            json.scale = json.scale || 1;
+
+            if (1) {
+                let [w, h] = json.imgSize;
+                ctx.translate(w / 2, h / 2);
+                ctx.rotate(json.rotation);
+                ctx.translate(-w / 2, -h / 2);
+                ctx.scale(json.scale, json.scale);
+                json.rotation = 0;
+                json.scale = 1;
+            }
 
             if (json.fill) {
                 ctx.fillStyle = json.fill.color;
