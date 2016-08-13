@@ -320,19 +320,25 @@ export class CoretechConverter implements Serializer.IConverter<Coretech.Style> 
     }
 
     private deserializeSvg(json: Coretech.Svg) {
-        if (json.scale && json.imgSize) json.imgSize.map(v => v * json.scale);
-        if (json.stroke && json.stroke.width) {
-            json.imgSize.map(v => v += 2 * json.stroke.width);
-        }
+        json.rotation = json.rotation || 0;
+        json.scale = json.scale || 1;
 
         let canvas = document.createElement("canvas");
-
-        canvas.width = json.imgSize[0];
-        canvas.height = json.imgSize[1];
-
+        {
+            // rotate a rectangle and get the resulting extent
+            let [x, y] = json.imgSize;
+            let coords = [[-x, -y], [-x, y], [x, y], [x, -y]];
+            let rect = new ol.geom.MultiPoint(coords);
+            rect.rotate(json.rotation, [0, 0]);
+            let extent = rect.getExtent();
+            [canvas.width, canvas.height] = [ol.extent.getWidth(extent), ol.extent.getHeight(extent)]
+                .map(v => v * json.scale * 0.5);
+        }
         let ctx = canvas.getContext('2d');
 
-        //document.body.appendChild(canvas);
+        if (json.stroke && json.stroke.width) {
+            ctx.translate(json.stroke.width, json.stroke.width);
+        }
 
         if (json.img) {
             let symbol = <SVGSymbolElement><any>document.getElementById(json.img);
@@ -340,59 +346,22 @@ export class CoretechConverter implements Serializer.IConverter<Coretech.Style> 
                 // todo
             }
             if (symbol) {
-                if (false) {
-                    // the symbol may have a <circle>, multiple <path>...
-                    // so we could render the <svg> into an image and set json.img = image data
-                    // see: https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Drawing_DOM_objects_into_a_canvas
-                    // but how to override the fill and stroke?  via css?
-                    let svg = new Blob([`<svg xmlns="http://www.w3.org/2000/svg">${symbol.innerHTML}</svg>`], { type: 'image/svg+xml;charset=utf-8' });
-                    let url = URL.createObjectURL(svg);
-                    let img = new Image();
-                    img.onload = () => {
-                        // has the problem of rendering to the canvas too late so would need to return an ol.Image instead?
-                        ctx.drawImage(img, 0, 0);
-                        URL.revokeObjectURL(url);
-                    };
-                    img.src = url;
-                } else {
-                    // but just grab the path is probably good enough
-                    let path = <SVGPathElement>(symbol.getElementsByTagName("path")[0]);
-                    if (path) {
-                        json.path = (json.path || "") + path.getAttribute('d');
-                    }
+                // but just grab the path is probably good enough
+                let path = <SVGPathElement>(symbol.getElementsByTagName("path")[0]);
+                if (path) {
+                    json.path = (json.path || "") + path.getAttribute('d');
                 }
             }
         }
 
         if (json.path) {
-            /*
-            M = moveto
-            L = lineto
-            H = horizontal lineto
-            V = vertical lineto
-            C = curveto
-            S = smooth curveto
-            Q = quadratic Bézier curve
-            T = smooth quadratic Bézier curveto
-            A = elliptical Arc
-            Z = closepath
-            e.g. M23 2 L23 23 L43 16.5 L23 23 L35.34349029814194 39.989356881873896 L23 23 L10.656509701858067 39.989356881873896 L23 23 L3.0278131578017735 16.510643118126108 L23 23 L23 2 Z
-            */
             let path2d = new Path2D(json.path);
 
             // rotate  before it is in the canvas (avoids pixelation)
-            json.rotation = json.rotation || 0;
-            json.scale = json.scale || 1;
-
-            if (1) {
-                let [w, h] = json.imgSize;
-                ctx.translate(w / 2, h / 2);
-                ctx.rotate(json.rotation);
-                ctx.translate(-w / 2, -h / 2);
-                ctx.scale(json.scale, json.scale);
-                json.rotation = 0;
-                json.scale = 1;
-            }
+            ctx.translate(canvas.width / 2, canvas.height / 2);
+            ctx.scale(json.scale, json.scale);
+            ctx.rotate(json.rotation);
+            ctx.translate(-json.imgSize[0] / 2, -json.imgSize[1] / 2);
 
             if (json.fill) {
                 ctx.fillStyle = json.fill.color;
@@ -405,9 +374,11 @@ export class CoretechConverter implements Serializer.IConverter<Coretech.Style> 
             }
 
         }
-
         return new ol.style.Icon(mixin(json, {
-            img: canvas
+            img: canvas,
+            imgSize: [canvas.width, canvas.height],
+            rotation: 0,
+            scale: 1
         }));
 
     }
