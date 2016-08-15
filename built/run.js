@@ -815,7 +815,7 @@ define("labs/index", ["require", "exports"], function (require, exports) {
     function run() {
         var l = window.location;
         var path = "" + l.origin + l.pathname + "?run=labs/";
-        var labs = "\n    style-lab\n\n    style-viewer\n    style-viewer&geom=point&style=icon/png\n    style-viewer&geom=point&style=icon/png,text/text\n    style-viewer&geom=point&style=%5B%7B\"svg\":%7B\"imgSize\":%5B45,45%5D,\"rotation\":0,\"stroke\":%7B\"color\":\"rgba(255,25,0,0.8)\",\"width\":3%7D,\"path\":\"M23%202%20L23%2023%20L43%2016.5%20L23%2023%20L35%2040%20L23%2023%20L11%2040%20L23%2023%20L3%2017%20L23%2023%20L23%202%20Z\"%7D%7D%5D\n\n    style-viewer&geom=point&style=%5B%7B\"circle\":%7B\"fill\":%7B\"gradient\":%7B\"type\":\"linear(32,32,96,96)\",\"stops\":\"rgba(0,255,0,0.1)%200%25;rgba(0,255,0,0.8)%20100%25\"%7D%7D,\"opacity\":1,\"stroke\":%7B\"color\":\"rgba(0,255,0,1)\",\"width\":1%7D,\"radius\":64%7D%7D,%7B\"icon\":%7B\"anchor\":%5B16,48%5D,\"size\":%5B32,48%5D,\"anchorXUnits\":\"pixels\",\"anchorYUnits\":\"pixels\",\"src\":\"http://openlayers.org/en/v3.17.1/examples/data/icon.png\"%7D%7D,%7B\"text\":%7B\"fill\":%7B\"color\":\"rgba(75,92,85,0.85)\"%7D,\"stroke\":%7B\"color\":\"rgba(255,255,255,1)\",\"width\":5%7D,\"offset-x\":0,\"offset-y\":16,\"text\":\"fantasy%20light\",\"font\":\"18px%20serif\"%7D%7D%5D    \n\n    style-viewer&geom=point&style=%5B%7B\"svg\":%7B\"imgSize\":%5B13,21%5D,\"fill\":%7B\"color\":\"rgba(0,0,0,0.5)\"%7D,\"path\":\"M6.3,0C6.3,0,0,0.1,0,7.5c0,3.8,6.3,12.6,6.3,12.6s6.3-8.8,6.3-12.7C12.6,0.1,6.3,0,6.3,0z%20M6.3,8.8%20c-1.4,0-2.5-1.1-2.5-2.5c0-1.4,1.1-2.5,2.5-2.5c1.4,0,2.5,1.1,2.5,2.5C8.8,7.7,7.7,8.8,6.3,8.8z\"%7D%7D%5D\n\n    style-viewer&geom=point&style=%5B%7B%22svg%22:%7B%22imgSize%22:%5B22,24%5D,%22fill%22:%7B%22color%22:%22rgba(255,0,0,0.1)%22%7D,%22stroke%22:%7B%22color%22:%22rgba(255,0,0,1)%22,%22width%22:0.1%7D,%22scale%22:8,%22rotation%22:0.7,%22img%22:%22lock%22%7D%7D%5D\n\n\n    style-viewer&geom=multipoint&style=icon/png\n    style-viewer&geom=polyline&style=stroke/dot\n    style-viewer&geom=polygon&style=fill/diagonal\n    style-viewer&geom=multipolygon&style=text/text\n    style-viewer&geom=polygon&style=stroke/dash,text/text\n    style-viewer&geom=polygon-with-holes&style=fill/gradient\n    style-to-canvas\n    polyline-encoder\n    image-data-viewer\n\n    mapmaker\n    mapmaker&background=light\n    mapmaker&geom=t`syzE}gm_dAm_@A?r@p@Bp@Hp@Ph@Td@Z`@`@Vb@Nd@xUABmF\n    mapmaker&geom=t`syzE}gm_dAm_@A?r@p@Bp@Hp@Ph@Td@Z`@`@Vb@Nd@xUABmF&color=yellow&background=dark&modify=1\n    \n    facebook\n    google-identity\n    index\n    ";
+        var labs = "\n    style-lab\n\n    style-viewer\n    style-viewer&geom=point&style=icon/png\n    style-viewer&geom=point&style=icon/png,text/text\n    style-viewer&geom=point&style=%5B%7B\"svg\":%7B\"imgSize\":%5B45,45%5D,\"rotation\":0,\"stroke\":%7B\"color\":\"rgba(255,25,0,0.8)\",\"width\":3%7D,\"path\":\"M23%202%20L23%2023%20L43%2016.5%20L23%2023%20L35%2040%20L23%2023%20L11%2040%20L23%2023%20L3%2017%20L23%2023%20L23%202%20Z\"%7D%7D%5D\n\n    style-viewer&geom=point&style=%5B%7B\"circle\":%7B\"fill\":%7B\"gradient\":%7B\"type\":\"linear(32,32,96,96)\",\"stops\":\"rgba(0,255,0,0.1)%200%25;rgba(0,255,0,0.8)%20100%25\"%7D%7D,\"opacity\":1,\"stroke\":%7B\"color\":\"rgba(0,255,0,1)\",\"width\":1%7D,\"radius\":64%7D%7D,%7B\"icon\":%7B\"anchor\":%5B16,48%5D,\"size\":%5B32,48%5D,\"anchorXUnits\":\"pixels\",\"anchorYUnits\":\"pixels\",\"src\":\"http://openlayers.org/en/v3.17.1/examples/data/icon.png\"%7D%7D,%7B\"text\":%7B\"fill\":%7B\"color\":\"rgba(75,92,85,0.85)\"%7D,\"stroke\":%7B\"color\":\"rgba(255,255,255,1)\",\"width\":5%7D,\"offset-x\":0,\"offset-y\":16,\"text\":\"fantasy%20light\",\"font\":\"18px%20serif\"%7D%7D%5D    \n\n    style-viewer&geom=point&style=%5B%7B\"svg\":%7B\"imgSize\":%5B13,21%5D,\"fill\":%7B\"color\":\"rgba(0,0,0,0.5)\"%7D,\"path\":\"M6.3,0C6.3,0,0,0.1,0,7.5c0,3.8,6.3,12.6,6.3,12.6s6.3-8.8,6.3-12.7C12.6,0.1,6.3,0,6.3,0z%20M6.3,8.8%20c-1.4,0-2.5-1.1-2.5-2.5c0-1.4,1.1-2.5,2.5-2.5c1.4,0,2.5,1.1,2.5,2.5C8.8,7.7,7.7,8.8,6.3,8.8z\"%7D%7D%5D\n\n    style-viewer&geom=point&style=%5B%7B%22svg%22:%7B%22imgSize%22:%5B22,24%5D,%22fill%22:%7B%22color%22:%22rgba(255,0,0,0.1)%22%7D,%22stroke%22:%7B%22color%22:%22rgba(255,0,0,1)%22,%22width%22:0.1%7D,%22scale%22:8,%22rotation%22:0.7,%22img%22:%22lock%22%7D%7D%5D\n\n\n    style-viewer&geom=multipoint&style=icon/png\n\n    style-viewer&geom=polyline&style=stroke/dot\n\n    style-viewer&geom=polygon&style=fill/diagonal\n    style-viewer&geom=polygon&style=fill/horizontal,fill/vertical,stroke/dashdotdot\n    style-viewer&geom=polygon&style=stroke/solid,text/text\n    style-viewer&geom=polygon-with-holes&style=fill/cross,stroke/solid\n\n    style-viewer&geom=multipolygon&style=stroke/solid,fill/horizontal,text/text\n\n    style-to-canvas\n    polyline-encoder\n    image-data-viewer\n\n    mapmaker\n    mapmaker&background=light\n    mapmaker&geom=t`syzE}gm_dAm_@A?r@p@Bp@Hp@Ph@Td@Z`@`@Vb@Nd@xUABmF\n    mapmaker&geom=t`syzE}gm_dAm_@A?r@p@Bp@Hp@Ph@Td@Z`@`@Vb@Nd@xUABmF&color=yellow&background=dark&modify=1\n    \n    facebook\n    google-identity\n    index\n    ";
         var styles = document.createElement("style");
         document.head.appendChild(styles);
         styles.innerText += "\n    #map {\n        display: none;\n    }\n    .test {\n        margin: 20px;\n    }\n    ";
@@ -1355,7 +1355,7 @@ define("labs/mapmaker", ["require", "exports", "jquery", "openlayers", "labs/com
         throw "unknown type: " + type;
     }
     var html = "\n<div class='mapmaker'>\n    <div class='toolbar'>\n        <button class='share'>Share</button>\n        <button class='clone'>Add</button>\n    </div>\n</div>\n";
-    var css = "\n<style>\n    html, body, .map {\n        width: 100%;\n        height: 100%;\n        padding: 0;\n        overflow: hidden;\n        margin: 0;    \n    }\n\n    .map {\n        background-color: black;\n    }\n\n    .map.dark {\n        background: black;\n    }\n\n    .map.light {\n        background: silver;\n    }\n\n    .map.bright {\n        background: white;\n    }\n\n    .mapmaker {\n        position: absolute;\n        top: 0;\n        left: 0;\n        width: 0;\n        height: 0;\n        background: transparent;\n        z-index: 1;\n    }\n    .mapmaker .toolbar {\n        position: relative;\n        top: 10px;\n        left: 42px;\n        width: 240px;\n    }\n    .mapmaker .toolbar button {\n        border: none;\n        background: transparent;\n    }\n    button.clone {\n        display:none;\n    }\n</style>\n";
+    var css = "\n<style>\n    html, body, .map {\n        width: 100%;\n        height: 100%;\n        padding: 0;\n        overflow: hidden;\n        margin: 0;    \n    }\n\n    .map {\n        background-color: black;\n    }\n\n    .map.dark {\n        background: black;\n    }\n\n    .map.light {\n        background: silver;\n    }\n\n    .map.bright {\n        background: white;\n    }\n\n    .mapmaker {\n        position: absolute;\n        top: 0;\n        left: 0;\n        width: 0;\n        height: 0;\n        background: transparent;\n        z-index: 1;\n    }\n    .mapmaker .toolbar {\n        position: relative;\n        top: 10px;\n        left: 42px;\n        width: 240px;\n    }\n    .mapmaker .toolbar button {\n        border: 1px solid transparent;\n        background: transparent;\n    }\n\n    .mapmaker .toolbar button:hover {\n        border: 1px solid black;\n        background: white;\n    }\n    button.clone {\n        display:none;\n    }\n</style>\n";
     function run() {
         $(html).appendTo(".map");
         $(css).appendTo("head");
@@ -2342,7 +2342,27 @@ define("labs/common/snapshot", ["require", "exports", "openlayers"], function (r
     }());
     return Snapshot;
 });
-define("labs/style-to-canvas", ["require", "exports", "openlayers", "jquery", "labs/common/snapshot", "../tests/data/geom/parcel"], function (require, exports, ol, $, Snapshot, parcel) {
+define("tests/data/geom/polygon", ["require", "exports", "openlayers"], function (require, exports, ol) {
+    "use strict";
+    return new ol.geom.Polygon([
+        [
+            [-115.25532322799027, 36.18318333413792],
+            [-115.25480456865377, 36.18318418316166],
+            [-115.25480483306748, 36.1831581364999],
+            [-115.25482974334876, 36.183156591542996],
+            [-115.2548544229261, 36.18315172017415],
+            [-115.25487928533187, 36.18314300077779],
+            [-115.25490054503052, 36.18313174786991],
+            [-115.25491924756955, 36.18311784715259],
+            [-115.25493579649431, 36.183100506595494],
+            [-115.25494767927427, 36.18308236911088],
+            [-115.25495573195485, 36.18306290523016],
+            [-115.2553212003638, 36.183064339787606],
+            [-115.25532322799027, 36.18318333413792]
+        ]
+    ]);
+});
+define("labs/style-to-canvas", ["require", "exports", "openlayers", "jquery", "labs/common/snapshot", "tests/data/geom/polygon"], function (require, exports, ol, $, Snapshot, parcel) {
     "use strict";
     var html = "\n<div class='style-to-canvas'>\n    <h3>Renders a feature on a canvas</h3>\n    <div class=\"area\">\n        <label>256 x 256 Canvas</label>\n        <canvas id='canvas' width=\"256\" height=\"256\"></canvas>\n    </div>\n</div>\n";
     var css = "\n<style>\n    #map {\n        display: none;\n    }\n\n    .style-to-canvas {\n    }\n\n    .style-to-canvas .area label {\n        display: block;\n        vertical-align: top;\n    }\n\n    .style-to-canvas .area {\n        border: 1px solid black;\n        padding: 20px;\n        margin: 20px;\n    }\n\n    .style-to-canvas #canvas {\n        font-family: sans serif;\n        font-size: 20px;\n        border: none;\n        padding: 0;\n        margin: 0;\n    }\n</style>\n";
@@ -3547,26 +3567,6 @@ define("tests/data/geom/polygon-with-holes", ["require", "exports", "openlayers"
         ]
     ]);
 });
-define("tests/data/geom/polygon", ["require", "exports", "openlayers"], function (require, exports, ol) {
-    "use strict";
-    return new ol.geom.Polygon([
-        [
-            [-115.25532322799027, 36.18318333413792],
-            [-115.25480456865377, 36.18318418316166],
-            [-115.25480483306748, 36.1831581364999],
-            [-115.25482974334876, 36.183156591542996],
-            [-115.2548544229261, 36.18315172017415],
-            [-115.25487928533187, 36.18314300077779],
-            [-115.25490054503052, 36.18313174786991],
-            [-115.25491924756955, 36.18311784715259],
-            [-115.25493579649431, 36.183100506595494],
-            [-115.25494767927427, 36.18308236911088],
-            [-115.25495573195485, 36.18306290523016],
-            [-115.2553212003638, 36.183064339787606],
-            [-115.25532322799027, 36.18318333413792]
-        ]
-    ]);
-});
 define("tests/data/geom/polyline", ["require", "exports", "openlayers"], function (require, exports, ol) {
     "use strict";
     return new ol.geom.MultiLineString([
@@ -4087,6 +4087,19 @@ define("ux/styles/circle/gradient", ["require", "exports"], function (require, e
         }
     ];
 });
+define("ux/styles/fill/cross", ["require", "exports"], function (require, exports) {
+    "use strict";
+    return [{
+            "fill": {
+                "pattern": {
+                    "orientation": "cross",
+                    "color": "rgba(12,236,43,1)",
+                    "spacing": 7,
+                    "repitition": "repeat"
+                }
+            }
+        }];
+});
 define("ux/styles/fill/diagonal", ["require", "exports"], function (require, exports) {
     "use strict";
     return [
@@ -4101,6 +4114,32 @@ define("ux/styles/fill/diagonal", ["require", "exports"], function (require, exp
             }
         }
     ];
+});
+define("ux/styles/fill/horizontal", ["require", "exports"], function (require, exports) {
+    "use strict";
+    return [{
+            "fill": {
+                "pattern": {
+                    "orientation": "horizontal",
+                    "color": "rgba(115,38,12,1)",
+                    "spacing": 6,
+                    "repitition": "repeat"
+                }
+            }
+        }];
+});
+define("ux/styles/fill/vertical", ["require", "exports"], function (require, exports) {
+    "use strict";
+    return [{
+            "fill": {
+                "pattern": {
+                    "orientation": "vertical",
+                    "color": "rgba(12,236,43,1)",
+                    "spacing": 7,
+                    "repitition": "repeat"
+                }
+            }
+        }];
 });
 define("ux/styles/icon/svg", ["require", "exports"], function (require, exports) {
     "use strict";

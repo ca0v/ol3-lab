@@ -70,8 +70,13 @@ let css = `
         width: 240px;
     }
     .mapmaker .toolbar button {
-        border: none;
+        border: 1px solid transparent;
         background: transparent;
+    }
+
+    .mapmaker .toolbar button:hover {
+        border: 1px solid black;
+        background: white;
     }
     button.clone {
         display:none;

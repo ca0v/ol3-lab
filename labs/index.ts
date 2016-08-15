@@ -17,11 +17,16 @@ export function run() {
 
 
     style-viewer&geom=multipoint&style=icon/png
+
     style-viewer&geom=polyline&style=stroke/dot
+
     style-viewer&geom=polygon&style=fill/diagonal
-    style-viewer&geom=multipolygon&style=text/text
-    style-viewer&geom=polygon&style=stroke/dash,text/text
-    style-viewer&geom=polygon-with-holes&style=fill/gradient
+    style-viewer&geom=polygon&style=fill/horizontal,fill/vertical,stroke/dashdotdot
+    style-viewer&geom=polygon&style=stroke/solid,text/text
+    style-viewer&geom=polygon-with-holes&style=fill/cross,stroke/solid
+
+    style-viewer&geom=multipolygon&style=stroke/solid,fill/horizontal,text/text
+
     style-to-canvas
     polyline-encoder
     image-data-viewer
