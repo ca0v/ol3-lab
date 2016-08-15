@@ -54,6 +54,11 @@ interface CanvasRenderingContext2D {
 */
 export namespace Coretech {
 
+    type Color = number[] | string;
+    export type Size = number[];
+    type Offset = number[];
+    type LineDash = number[];
+
     export interface Fill {
         color?: string;
     }
@@ -61,55 +66,71 @@ export namespace Coretech {
     export interface Stroke {
         color?: string;
         width?: number;
+        lineCap?: string;
+        lineJoin?: string;
+        lineDash?: LineDash;
+        miterLimit?: number;
+    }
+
+    interface Style {
+        //geometry?: string | ol.geom.Geometry | ol.style.GeometryFunction;
+        fill?: Fill;
+        image?: Image;
+        stroke?: Stroke;
+        text?: Text;
+        zIndex?: number;
+    }
+
+    interface Image {
+        opacity?: number;
+        rotateWithView?: boolean;
+        rotation?: number;
+        scale?: number;
+        snapToPixel?: boolean;
     }
 
     export interface Circle {
-        fill?: ol.style.Fill;
         radius: number;
+        stroke?: Stroke;
+        fill?: Fill;
         snapToPixel?: boolean;
-        stroke?: ol.style.Stroke;
     }
 
-    export interface Star {
+    export interface Star extends Image {
+        angle?: number;
         fill?: Fill;
-        opacity?: number;
+        points?: number;
         stroke?: Stroke;
         radius?: number;
         radius2?: number;
-        angle?: number;
-        roatation?: number;
-        points?: number;
     }
 
-    export interface Icon {
-        anchor?: number[];
+    export interface Icon extends Image {
+        anchor?: Offset;
         anchorOrigin?: string;
         anchorXUnits?: string;
         anchorYUnits?: string;
+        color?: Color;
         crossOrigin?: string;
-        offset?: Array<number>;
-        offsetOrigin?: string;
-        opacity?: number;
-        scale?: number;
-        snapToPixel?: boolean;
-        rotateWithView?: boolean;
-        rotation?: number;
-        size?: ol.Size;
-        imgSize?: ol.Size;
-        src?: string;
+        img?: string; // same as src?
+        imgSize?: Size; // same as size?
+        src?: string; // same as img.src?
+        offset?: Offset;
+        offsetOrigin?: 'top_left'|'top_right'|'bottom-left'|'bottom-right';
+        size?: Size; // same as image size?
     }
 
     export interface Text {
+        fill?: Fill;
         font?: string;
         offsetX?: number;
         offsetY?: number;
-        scale?: number;
         rotation?: number;
+        scale?: number;
+        stroke?: Stroke;
         text?: string;
         textAlign?: string;
         textBaseline?: string;
-        fill?: ol.style.Fill;
-        stroke?: ol.style.Stroke;
     }
 
 }
@@ -141,8 +162,8 @@ export namespace Coretech {
         opacity?: number;
     }
 
-    export interface Svg extends Icon {
-        imgSize: ol.Size;
+    export interface Svg {
+        imgSize: Size;
         img: string;
         path?: string;
         stroke?: Stroke;
@@ -319,7 +340,7 @@ export class CoretechConverter implements Serializer.IConverter<Coretech.Style> 
         return image;
     }
 
-    private deserializeSvg(json: Coretech.Svg) {
+    private deserializeSvg(json: Coretech.Svg & Coretech.Icon) {
         json.rotation = json.rotation || 0;
         json.scale = json.scale || 1;
 
