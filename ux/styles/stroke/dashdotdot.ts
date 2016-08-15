@@ -1,10 +1,12 @@
+import Dashes = require("./linedash");
+
 export =
     [
         {
             "stroke": {
-                "color": "blue",
+                "color": "orange",
                 "width": 2,
-                "lineDash": [15, 2, 5, 2, 5, 2]
+                "lineDash": Dashes.longdashdotdot
             }
 
         }

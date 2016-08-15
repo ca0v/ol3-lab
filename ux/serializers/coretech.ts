@@ -1,20 +1,3 @@
-/**
- * clustering: http://openlayers.org/en/latest/examples/earthquake-clusters.html?q=style
- * from dojox gfx.canvas:
-	var dasharray = {
-		solid:				"none",
-		shortdash:			[4, 1],
-		shortdot:			[1, 1],
-		shortdashdot:		[4, 1, 1, 1],
-		shortdashdotdot:	[4, 1, 1, 1, 1, 1],
-		dot:				[1, 3],
-		dash:				[4, 3],
-		longdash:			[8, 3],
-		dashdot:			[4, 3, 1, 3],
-		longdashdot:		[8, 3, 1, 3],
-		longdashdotdot:		[8, 3, 1, 3, 1, 3]
-	};
-     */
 import ol = require("openlayers");
 import Serializer = require("./serializer");
 import {doif, mixin} from "../../labs/common/common";
@@ -116,7 +99,7 @@ export namespace Coretech {
         imgSize?: Size; // same as size?
         src?: string; // same as img.src?
         offset?: Offset;
-        offsetOrigin?: 'top_left'|'top_right'|'bottom-left'|'bottom-right';
+        offsetOrigin?: 'top_left' | 'top_right' | 'bottom-left' | 'bottom-right';
         size?: Size; // same as image size?
     }
 
@@ -354,12 +337,16 @@ export class CoretechConverter implements Serializer.IConverter<Coretech.Style> 
             let extent = rect.getExtent();
             [canvas.width, canvas.height] = [ol.extent.getWidth(extent), ol.extent.getHeight(extent)]
                 .map(v => v * json.scale * 0.5);
+            
+            if (json.stroke && json.stroke.width) {
+                let dx = 2 * json.stroke.width * json.scale;
+                canvas.width += dx;
+                canvas.height += dx;
+            }
         }
+
         let ctx = canvas.getContext('2d');
 
-        if (json.stroke && json.stroke.width) {
-            ctx.translate(json.stroke.width, json.stroke.width);
-        }
 
         if (json.img) {
             let symbol = <SVGSymbolElement><any>document.getElementById(json.img);

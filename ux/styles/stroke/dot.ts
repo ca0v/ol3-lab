@@ -1,11 +1,12 @@
-// Dash,DashDot,DashDotDot,Dot,LongDash,LongDashDot,ShortDash,ShortDashDot,ShortDashDotDot,ShortDot
+import Dashes = require("./linedash");
+
 export =
     [
         {
             "stroke": {
-                "color": "blue",
+                "color": "yellow",
                 "width": 2,
-                "lineDash": [2]
+                "lineDash": Dashes.dot
             }
 
         }

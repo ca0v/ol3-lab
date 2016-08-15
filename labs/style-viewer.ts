@@ -13,7 +13,6 @@ import $ = require("jquery");
 import Snapshot = require("./common/snapshot");
 import {getParameterByName} from "./common/common";
 import Serializer = require("../ux/serializers/coretech");
-import polygonGeom = require("../tests/data/geom/polygon");
 import pointStyle = require("../ux/styles/icon/png");
 
 const html = `
@@ -141,35 +140,11 @@ function loadGeom(name: string) {
     type T = ol.geom.Geometry[];
     let mids = name.split(",").map(name => `../tests/data/geom/${name}`);
     let d = $.Deferred<T>();
-    require(mids, (...shapes: any[]) => {
-        let geoms = shapes.map(shape => {
-            if (typeof shape[0] === "number") {
-                return new ol.geom.Point(shape);
-            }
-            if (typeof shape[0][0] === "number") {
-                return new ol.geom.LineString(shape);
-            }
-            if (typeof shape[0][0][0] === "number") {
-                return new ol.geom.Polygon(shape);
-            }
-            if (typeof shape[0][0][0][0] === "number") {
-                return new ol.geom.MultiPolygon(shape);
-            }
-            throw `invalid shape: ${shape}`;
-        });
+    require(mids, (...geoms: ol.geom.Geometry[]) => {
         d.resolve(geoms);
     });
     return d;
 }
-
-const geoms = {
-    point: new ol.geom.Point(polygonGeom[0][0]),
-    multipoint: new ol.geom.MultiPoint(polygonGeom[0]),
-    line: new ol.geom.LineString(polygonGeom[0]),
-    multiline: new ol.geom.MultiLineString(polygonGeom),
-    polygon: new ol.geom.Polygon(polygonGeom),
-    multipolygon: new ol.geom.MultiPolygon([polygonGeom]),
-};
 
 const styles = {
     point: pointStyle
@@ -216,7 +191,7 @@ export function run() {
     $(".save").click(() => {
         let style = JSON.stringify(JSON.parse($(".style").val()));
         let loc = window.location;
-        let url = `${loc.origin}${loc.pathname}?run=labs/style-viewer&style=${encodeURI(style)}&geom=${geom}`;
+        let url = `${loc.origin}${loc.pathname}?run=labs/style-viewer&geom=${geom}&style=${encodeURI(style)}`;
         loc.replace(url); // replace will not save history, assign will save history
     });
 

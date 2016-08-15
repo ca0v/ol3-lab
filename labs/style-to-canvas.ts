@@ -86,7 +86,7 @@ export function run() {
     })
 
     let canvas = <HTMLCanvasElement>document.getElementById("canvas");
-    let feature = new ol.Feature(new ol.geom.Polygon(parcel));
+    let feature = new ol.Feature(parcel);
     feature.setStyle([style1, style2]);
 
     Snapshot.render(canvas, feature);

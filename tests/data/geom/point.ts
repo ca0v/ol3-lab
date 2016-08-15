@@ -1,2 +1,3 @@
-// point in las vegas
-export =[-115.2553, 36.1832];
+import ol = require("openlayers");
+
+export = new ol.geom.Point([-115.2553, 36.1832]);
