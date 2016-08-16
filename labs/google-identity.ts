@@ -6,6 +6,21 @@ import ol = require("openlayers");
 declare var gapi: any;
 declare var window: any;
 
+const client_id = '987911803084-a6cafnu52d7lkr8vfrtl4modrpinr1os.apps.googleusercontent.com';
+const api_key = 'AIzaSyCfuluThuQ0j7tCHg9GRf0lwDRHNUsZs6o';
+
+requirejs.config({
+    shim: {
+        'gapi': {
+            exports: 'gapi'
+        }
+    },
+    paths: {
+        'gapi': 'https://apis.google.com/js/api.js'
+    }
+});
+
+
 declare module GoogleSignIn {
 
     export interface ExtraQueryParams {
@@ -100,12 +115,16 @@ class GoogleIdentity {
      */
     id_token: string;
 
-    load(client_id: string) {
+    constructor(public client_id: string) {
+    }
+
+    load() {
         let d = $.Deferred();
 
+        // https://apis.google.com/js/client.js
         $(`
-            <meta name="google-signin-scope" content="profile email">
-            <meta name="google-signin-client_id" content="${client_id}">
+            <meta name="google-signin-scope" content="profile email https://www.googleapis.com/auth/calendar.readonly">
+            <meta name="google-signin-client_id" content="${this.client_id}">
             <script src="https://apis.google.com/js/platform.js" async defer></script>
         `).appendTo('head');
 
@@ -136,8 +155,32 @@ class GoogleIdentity {
 export function run() {
     $(html).appendTo('body');
 
-    let gi = new GoogleIdentity();
-    gi.load('987911803084-a6cafnu52d7lkr8vfrtl4modrpinr1os.apps.googleusercontent.com').then(args => gi.showInfo(args));
+    require(["gapi"], (gapi: any) => {
+        gapi.load('client', () => {
+            debugger;
+            gapi.client.setApiKey(api_key);
+            gapi.auth2.init({
+                client_id: client_id,
+                scope: 'profile https://www.googleapis.com/auth/calendar.readonly'
+            }).then( () => {
+                debugger;
+                let auth2 = gapi.auth2.getAuthInstance();
+            });
+        });
+    })
+
+    return;
+
+    let gi = new GoogleIdentity(client_id);
+
+    gi.load().then(args => {
+        gi.showInfo(args);
+
+        gapi.load('client', 'v3', () => {
+            debugger;
+        });
+
+    });
 
     $('button.logout-button').click(() => {
         gi.logout();

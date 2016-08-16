@@ -2,12 +2,12 @@ import $ = require("jquery");
 import ol = require("openlayers");
 import {doif, getParameterByName, mixin} from "./common/common";
 import reduce = require("./common/ol3-polyline");
-import {CoretechConverter} from "../ux/serializers/coretech";
+import {StyleConverter} from "../alpha/format/ol3-symbolizer";
 import dashdotdot = require("../ux/styles/stroke/dashdotdot");
 import strokeStyle = require("../ux/styles/stroke/solid");
 import textStyle = require("../ux/styles/text/text");
 
-let styler = new CoretechConverter();
+let styler = new StyleConverter();
 
 function parse<T>(v: string, type: T): T {
     if (typeof type === "string") return <any>v;

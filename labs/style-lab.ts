@@ -1,12 +1,12 @@
 import ol = require("openlayers");
 import $ = require("jquery");
-import CoretechSerializer = require("../ux/serializers/coretech");
+import {Format,StyleConverter} from "../alpha/format/ol3-symbolizer";
 import AgsMarkerSerializer = require("../ux/serializers/ags-simplemarkersymbol");
 import StyleGenerator = require("./common/style-generator");
 
 const center = [-82.4, 34.85];
 
-let formatter = new CoretechSerializer.CoretechConverter();
+let formatter = new StyleConverter();
 
 let generator = new StyleGenerator({
     center: center,
@@ -122,7 +122,7 @@ let css = `
 
 export function run() {
 
-    let formatter: CoretechSerializer.CoretechConverter;
+    let formatter: StyleConverter;
 
     $(ux).appendTo(".map");
     $(css).appendTo("head");
@@ -131,7 +131,7 @@ export function run() {
         if (args.target.checked) {
             formatter = <any>new AgsMarkerSerializer.SimpleMarkerConverter();
         } else {
-            formatter = new CoretechSerializer.CoretechConverter();
+            formatter = new StyleConverter();
         }
     }).change();
 
@@ -182,12 +182,16 @@ export function run() {
 
         {
             if (Array.isArray(style)) {
-                let s = <HTMLCanvasElement | ol.style.Style>style[0];
+                let s = <HTMLImageElement | HTMLCanvasElement | ol.style.Style>style[0];
                 while (s) {
                     if (s instanceof HTMLCanvasElement) {
                         let dataUrl = s.toDataURL();
                         $(".last-image-clicked").attr("src", dataUrl);
                         break;
+                    }
+                    if (s instanceof HTMLImageElement) {
+                        $(".last-image-clicked").attr("src", s.src);
+                        break;                        
                     }
                     s = (<ol.style.Style>s).getImage();
                 }

@@ -1,9 +1,9 @@
 import ol = require("openlayers");
 import basic_styles = require("../../ux/styles/basic");
-import Coretech = require("../../ux/serializers/coretech");
+import {StyleConverter} from "../../alpha/format/ol3-symbolizer";
 import gradient_style = require("../../ux/styles/fill/gradient");
 
-let converter = new Coretech.CoretechConverter();
+let converter = new StyleConverter();
 
 // TODO: do these have pre-defined names on ol3/ags?
 const orientations = "forward,backward,diagonal,horizontal,vertical,cross".split(",");

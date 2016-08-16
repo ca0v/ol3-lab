@@ -1,41 +1,8 @@
 import ol = require("openlayers");
-import Serializer = require("./serializer");
+import Serializer = require("./base");
 import {doif, mixin} from "../../labs/common/common";
 
-// Class
-interface Path2D {
-    addPath(path: Path2D, transform?: SVGMatrix): void;
-    closePath(): void;
-    moveTo(x: number, y: number): void;
-    lineTo(x: number, y: number): void;
-    bezierCurveTo(cp1x: number, cp1y: number, cp2x: number, cp2y: number, x: number, y: number): void;
-    quadraticCurveTo(cpx: number, cpy: number, x: number, y: number): void;
-    arc(x: number, y: number, radius: number, startAngle: number, endAngle: number, anticlockwise?: boolean): void;
-    arcTo(x1: number, y1: number, x2: number, y2: number, radius: number): void;
-    /*ellipse(x: number, y: number, radiusX: number, radiusY: number, rotation: number, startAngle: number, endAngle: number, anticlockwise?: boolean): void;*/
-    rect(x: number, y: number, w: number, h: number): void;
-}
-
-// Constructor
-interface Path2DConstructor {
-    new (): Path2D;
-    new (d: string): Path2D;
-    new (path: Path2D, fillRule?: string): Path2D;
-    prototype: Path2D;
-}
-declare var Path2D: Path2DConstructor;
-
-// Extend CanvasRenderingContext2D
-interface CanvasRenderingContext2D {
-    fill(path: Path2D): void;
-    stroke(path: Path2D): void;
-    clip(path: Path2D, fillRule?: string): void;
-}
-
-/**
- * TODO: should have formatter for ol3 (serializer/deserializer) 
-*/
-export namespace Coretech {
+export namespace Format {
 
     type Color = number[] | string;
     export type Size = number[];
@@ -119,11 +86,10 @@ export namespace Coretech {
 }
 
 // these are extensions from ol3
-export namespace Coretech {
+export namespace Format {
 
     export interface Style {
-        svg?: Icon & Svg;
-        icon?: Icon;
+        image?: Icon & Svg;
         star?: Star;
         circle?: Circle;
         text?: Text;
@@ -155,26 +121,14 @@ export namespace Coretech {
 
 }
 
+export class StyleConverter implements Serializer.IConverter<Format.Style> {
 
-/**
- * See also, leaflet styles:
-  	weight: 2,
-    color: "#999",
-    opacity: 1,
-    fillColor: "#B0DE5C",
-    fillOpacity: 0.8
-
- * mapbox styles (https://github.com/mapbox/simplestyle-spec/tree/master/1.1.0)
- * mapbox svg symbols: https://github.com/mapbox/maki
- */
-export class CoretechConverter implements Serializer.IConverter<Coretech.Style> {
-
-    fromJson(json: Coretech.Style) {
+    fromJson(json: Format.Style) {
         return this.deserializeStyle(json);
     }
 
     toJson(style: ol.style.Style) {
-        return <Coretech.Style>this.serializeStyle(style);
+        return <Format.Style>this.serializeStyle(style);
     }
 
     private assign(obj: any, prop: string, value: Object) {
@@ -218,6 +172,27 @@ export class CoretechConverter implements Serializer.IConverter<Coretech.Style> 
         if (style.getPoints) this.assign(s, "points", style.getPoints());
         if (style.getAngle) this.assign(s, "angle", style.getAngle());
         if (style.getRotation) this.assign(s, "rotation", style.getRotation());
+
+        if (style.getAnchor) {
+            this.assign(s, "anchor", style.getAnchor());
+            "anchorXUnits,anchorYUnits,anchorOrigin".split(",").forEach(k => {
+                this.assign(s, k, style[`${k}_`]);
+            });
+        }
+
+        if (style.getImageSize) this.assign(s, "imgSize", style.getImageSize());
+        if (style.getOrigin) this.assign(s, "origin", style.getOrigin());
+        if (style.getScale) this.assign(s, "scale", style.getScale());
+        if (style.getSize) this.assign(s, "size", style.getSize());
+
+        // "svg"        
+        if (style.path) this.assign(s, "path", style.path);
+        if (style.stroke) this.assign(s, "stroke", style.stroke);
+        if (style.fill) this.assign(s, "fill", style.fill);
+
+        // "icon"
+        if (style.getSrc) this.assign(s, "src", style.getSrc());
+
         if (s.points && s.radius !== s.radius2) s.points /= 2; // ol3 defect doubles point count when r1 <> r2  
         return s;
     }
@@ -250,7 +225,7 @@ export class CoretechConverter implements Serializer.IConverter<Coretech.Style> 
         return this.serializeStyle(fill);
     }
 
-    private deserializeStyle(json: Coretech.Style) {
+    private deserializeStyle(json: Format.Style) {
         let image: ol.style.Image;
         let text: ol.style.Text;
         let fill: ol.style.Fill;
@@ -258,8 +233,8 @@ export class CoretechConverter implements Serializer.IConverter<Coretech.Style> 
 
         if (json.circle) image = this.deserializeCircle(json.circle);
         else if (json.star) image = this.deserializeStar(json.star);
-        else if (json.icon) image = this.deserializeIcon(json.icon);
-        else if (json.svg) image = this.deserializeSvg(json.svg);
+        else if (json.image && json.image.path) image = this.deserializeSvg(json.image);
+        else if (json.image && json.image.src) image = this.deserializeIcon(json.image);
         if (json.text) text = this.deserializeText(json.text);
         if (json.fill) fill = this.deserializeFill(json.fill);
         if (json.stroke) stroke = this.deserializeStroke(json.stroke);
@@ -273,7 +248,7 @@ export class CoretechConverter implements Serializer.IConverter<Coretech.Style> 
         return s;
     }
 
-    private deserializeText(json: Coretech.Text) {
+    private deserializeText(json: Format.Text) {
         return new ol.style.Text({
             fill: this.deserializeFill(json.fill),
             stroke: this.deserializeStroke(json.stroke),
@@ -286,7 +261,7 @@ export class CoretechConverter implements Serializer.IConverter<Coretech.Style> 
         });
     }
 
-    private deserializeCircle(json: Coretech.Circle) {
+    private deserializeCircle(json: Format.Circle) {
         let image = new ol.style.Circle({
             radius: json.radius,
             fill: this.deserializeFill(json.fill),
@@ -296,7 +271,7 @@ export class CoretechConverter implements Serializer.IConverter<Coretech.Style> 
         return image;
     }
 
-    private deserializeStar(json: Coretech.Star) {
+    private deserializeStar(json: Format.Star) {
         let image = new ol.style.RegularShape({
             radius: json.radius,
             radius2: json.radius2,
@@ -312,7 +287,7 @@ export class CoretechConverter implements Serializer.IConverter<Coretech.Style> 
         return image;
     }
 
-    private deserializeIcon(json: Coretech.Icon) {
+    private deserializeIcon(json: Format.Icon) {
         if (!json.anchor) {
             json.anchor = [json["anchor-x"] || 0.5, json["anchor-y"] || 0.5];
         }
@@ -323,7 +298,7 @@ export class CoretechConverter implements Serializer.IConverter<Coretech.Style> 
         return image;
     }
 
-    private deserializeSvg(json: Coretech.Svg & Coretech.Icon) {
+    private deserializeSvg(json: Format.Svg & Format.Icon) {
         json.rotation = json.rotation || 0;
         json.scale = json.scale || 1;
 
@@ -337,7 +312,7 @@ export class CoretechConverter implements Serializer.IConverter<Coretech.Style> 
             let extent = rect.getExtent();
             [canvas.width, canvas.height] = [ol.extent.getWidth(extent), ol.extent.getHeight(extent)]
                 .map(v => v * json.scale * 0.5);
-            
+
             if (json.stroke && json.stroke.width) {
                 let dx = 2 * json.stroke.width * json.scale;
                 canvas.width += dx;
@@ -382,12 +357,19 @@ export class CoretechConverter implements Serializer.IConverter<Coretech.Style> 
             }
 
         }
-        return new ol.style.Icon(mixin(json, {
+
+        let icon = new ol.style.Icon(mixin(json, {
             img: canvas,
             imgSize: [canvas.width, canvas.height],
             rotation: 0,
             scale: 1
         }));
+
+        return mixin(icon, {
+            path: json.path,
+            stroke: json.stroke,
+            fill: json.fill
+        });
 
     }
 
@@ -433,7 +415,7 @@ export class CoretechConverter implements Serializer.IConverter<Coretech.Style> 
                 let stops = <string[]>fill.gradient.stops.split(";");
                 stops = stops.map(v => v.trim());
 
-                let colorStops = stops.forEach(colorstop => {
+                stops.forEach(colorstop => {
                     let stop = colorstop.match(/ \d+%/m)[0];
                     let color = colorstop.substr(0, colorstop.length - stop.length);
                     gradient.addColorStop(parseInt(stop) / 100, color);

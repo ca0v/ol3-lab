@@ -531,6 +531,419 @@ define("app", ["require", "exports", "openlayers", "ux/mapquest-directions-proxy
     }
     return run;
 });
+define("alpha/format/base", ["require", "exports"], function (require, exports) {
+    "use strict";
+});
+define("labs/common/common", ["require", "exports"], function (require, exports) {
+    "use strict";
+    function getParameterByName(name, url) {
+        if (url === void 0) { url = window.location.href; }
+        name = name.replace(/[\[\]]/g, "\\$&");
+        var regex = new RegExp("[?&]" + name + "(=([^&#]*)|&|#|$)"), results = regex.exec(url);
+        if (!results)
+            return null;
+        if (!results[2])
+            return '';
+        return decodeURIComponent(results[2].replace(/\+/g, " "));
+    }
+    exports.getParameterByName = getParameterByName;
+    function doif(v, cb) {
+        if (v !== undefined && v !== null)
+            cb(v);
+    }
+    exports.doif = doif;
+    function mixin(a, b) {
+        Object.keys(b).forEach(function (k) { return a[k] = b[k]; });
+        return a;
+    }
+    exports.mixin = mixin;
+    function cssin(name, css) {
+        var id = "style-" + name;
+        var styleTag = document.getElementById(id);
+        if (!styleTag) {
+            styleTag = document.createElement("style");
+            styleTag.id = id;
+            styleTag.innerText = css;
+            document.head.appendChild(styleTag);
+        }
+        styleTag.dataset.count = (styleTag.dataset.count | 0) + 1;
+        return function () {
+            styleTag.dataset.count = (styleTag.dataset.count | 0) - 1;
+            if (styleTag.dataset.count === "0") {
+                styleTag.remove();
+            }
+        };
+    }
+    exports.cssin = cssin;
+});
+define("alpha/format/ol3-symbolizer", ["require", "exports", "openlayers", "labs/common/common"], function (require, exports, ol, common_1) {
+    "use strict";
+    var StyleConverter = (function () {
+        function StyleConverter() {
+        }
+        StyleConverter.prototype.fromJson = function (json) {
+            return this.deserializeStyle(json);
+        };
+        StyleConverter.prototype.toJson = function (style) {
+            return this.serializeStyle(style);
+        };
+        StyleConverter.prototype.assign = function (obj, prop, value) {
+            if (value === null)
+                return;
+            if (value === undefined)
+                return;
+            if (typeof value === "object") {
+                if (Object.keys(value).length === 0)
+                    return;
+            }
+            if (prop === "image") {
+                if (value.hasOwnProperty("radius")) {
+                    prop = "circle";
+                }
+                if (value.hasOwnProperty("points")) {
+                    prop = "star";
+                }
+            }
+            obj[prop] = value;
+        };
+        StyleConverter.prototype.serializeStyle = function (style) {
+            var _this = this;
+            var s = {};
+            if (!style)
+                return null;
+            if (typeof style === "string")
+                return style;
+            if (typeof style === "number")
+                return style;
+            if (style.getColor)
+                common_1.mixin(s, this.serializeColor(style.getColor()));
+            if (style.getImage)
+                this.assign(s, "image", this.serializeStyle(style.getImage()));
+            if (style.getFill)
+                this.assign(s, "fill", this.serializeFill(style.getFill()));
+            if (style.getOpacity)
+                this.assign(s, "opacity", style.getOpacity());
+            if (style.getStroke)
+                this.assign(s, "stroke", this.serializeStyle(style.getStroke()));
+            if (style.getText)
+                this.assign(s, "text", this.serializeStyle(style.getText()));
+            if (style.getWidth)
+                this.assign(s, "width", style.getWidth());
+            if (style.getOffsetX)
+                this.assign(s, "offset-x", style.getOffsetX());
+            if (style.getOffsetY)
+                this.assign(s, "offset-y", style.getOffsetY());
+            if (style.getWidth)
+                this.assign(s, "width", style.getWidth());
+            if (style.getFont)
+                this.assign(s, "font", style.getFont());
+            if (style.getRadius)
+                this.assign(s, "radius", style.getRadius());
+            if (style.getRadius2)
+                this.assign(s, "radius2", style.getRadius2());
+            if (style.getPoints)
+                this.assign(s, "points", style.getPoints());
+            if (style.getAngle)
+                this.assign(s, "angle", style.getAngle());
+            if (style.getRotation)
+                this.assign(s, "rotation", style.getRotation());
+            if (style.getAnchor) {
+                this.assign(s, "anchor", style.getAnchor());
+                "anchorXUnits,anchorYUnits,anchorOrigin".split(",").forEach(function (k) {
+                    _this.assign(s, k, style[(k + "_")]);
+                });
+            }
+            if (style.getImageSize)
+                this.assign(s, "imgSize", style.getImageSize());
+            if (style.getOrigin)
+                this.assign(s, "origin", style.getOrigin());
+            if (style.getScale)
+                this.assign(s, "scale", style.getScale());
+            if (style.getSize)
+                this.assign(s, "size", style.getSize());
+            if (style.path)
+                this.assign(s, "path", style.path);
+            if (style.stroke)
+                this.assign(s, "stroke", style.stroke);
+            if (style.fill)
+                this.assign(s, "fill", style.fill);
+            if (style.getSrc)
+                this.assign(s, "src", style.getSrc());
+            if (s.points && s.radius !== s.radius2)
+                s.points /= 2;
+            return s;
+        };
+        StyleConverter.prototype.serializeColor = function (color) {
+            if (color instanceof Array) {
+                return {
+                    color: ol.color.asString(color)
+                };
+            }
+            else if (color instanceof CanvasGradient) {
+                return {
+                    gradient: color
+                };
+            }
+            else if (color instanceof CanvasPattern) {
+                return {
+                    pattern: color
+                };
+            }
+            else if (typeof color === "string") {
+                return {
+                    color: color
+                };
+            }
+            throw "unknown color type";
+        };
+        StyleConverter.prototype.serializeFill = function (fill) {
+            return this.serializeStyle(fill);
+        };
+        StyleConverter.prototype.deserializeStyle = function (json) {
+            var image;
+            var text;
+            var fill;
+            var stroke;
+            if (json.circle)
+                image = this.deserializeCircle(json.circle);
+            else if (json.star)
+                image = this.deserializeStar(json.star);
+            else if (json.image && json.image.path)
+                image = this.deserializeSvg(json.image);
+            else if (json.image && json.image.src)
+                image = this.deserializeIcon(json.image);
+            if (json.text)
+                text = this.deserializeText(json.text);
+            if (json.fill)
+                fill = this.deserializeFill(json.fill);
+            if (json.stroke)
+                stroke = this.deserializeStroke(json.stroke);
+            var s = new ol.style.Style({
+                image: image,
+                text: text,
+                fill: fill,
+                stroke: stroke
+            });
+            return s;
+        };
+        StyleConverter.prototype.deserializeText = function (json) {
+            return new ol.style.Text({
+                fill: this.deserializeFill(json.fill),
+                stroke: this.deserializeStroke(json.stroke),
+                text: json.text,
+                font: json.font,
+                offsetX: json["offset-x"],
+                offsetY: json["offset-y"],
+                rotation: json.rotation || 0,
+                scale: json.scale || 1
+            });
+        };
+        StyleConverter.prototype.deserializeCircle = function (json) {
+            var image = new ol.style.Circle({
+                radius: json.radius,
+                fill: this.deserializeFill(json.fill),
+                stroke: this.deserializeStroke(json.stroke)
+            });
+            image.setOpacity(json.opacity);
+            return image;
+        };
+        StyleConverter.prototype.deserializeStar = function (json) {
+            var image = new ol.style.RegularShape({
+                radius: json.radius,
+                radius2: json.radius2,
+                points: json.points,
+                angle: json.angle,
+                fill: this.deserializeFill(json.fill),
+                stroke: this.deserializeStroke(json.stroke)
+            });
+            common_1.doif(json.rotation, function (v) { return image.setRotation(v); });
+            common_1.doif(json.opacity, function (v) { return image.setOpacity(v); });
+            return image;
+        };
+        StyleConverter.prototype.deserializeIcon = function (json) {
+            if (!json.anchor) {
+                json.anchor = [json["anchor-x"] || 0.5, json["anchor-y"] || 0.5];
+            }
+            var image = new ol.style.Icon(common_1.mixin({}, json));
+            image.load();
+            return image;
+        };
+        StyleConverter.prototype.deserializeSvg = function (json) {
+            json.rotation = json.rotation || 0;
+            json.scale = json.scale || 1;
+            var canvas = document.createElement("canvas");
+            {
+                var _a = json.imgSize, x = _a[0], y = _a[1];
+                var coords = [[-x, -y], [-x, y], [x, y], [x, -y]];
+                var rect = new ol.geom.MultiPoint(coords);
+                rect.rotate(json.rotation, [0, 0]);
+                var extent = rect.getExtent();
+                _b = [ol.extent.getWidth(extent), ol.extent.getHeight(extent)]
+                    .map(function (v) { return v * json.scale * 0.5; }), canvas.width = _b[0], canvas.height = _b[1];
+                if (json.stroke && json.stroke.width) {
+                    var dx = 2 * json.stroke.width * json.scale;
+                    canvas.width += dx;
+                    canvas.height += dx;
+                }
+            }
+            var ctx = canvas.getContext('2d');
+            if (json.img) {
+                var symbol = document.getElementById(json.img);
+                if (!symbol) {
+                }
+                if (symbol) {
+                    var path = (symbol.getElementsByTagName("path")[0]);
+                    if (path) {
+                        json.path = (json.path || "") + path.getAttribute('d');
+                    }
+                }
+            }
+            if (json.path) {
+                var path2d = new Path2D(json.path);
+                ctx.translate(canvas.width / 2, canvas.height / 2);
+                ctx.scale(json.scale, json.scale);
+                ctx.rotate(json.rotation);
+                ctx.translate(-json.imgSize[0] / 2, -json.imgSize[1] / 2);
+                if (json.fill) {
+                    ctx.fillStyle = json.fill.color;
+                    ctx.fill(path2d);
+                }
+                if (json.stroke) {
+                    ctx.strokeStyle = json.stroke.color;
+                    ctx.lineWidth = json.stroke.width;
+                    ctx.stroke(path2d);
+                }
+            }
+            var icon = new ol.style.Icon(common_1.mixin(json, {
+                img: canvas,
+                imgSize: [canvas.width, canvas.height],
+                rotation: 0,
+                scale: 1
+            }));
+            return common_1.mixin(icon, {
+                path: json.path,
+                stroke: json.stroke,
+                fill: json.fill
+            });
+            var _b;
+        };
+        StyleConverter.prototype.deserializeFill = function (json) {
+            var fill = new ol.style.Fill({
+                color: this.deserializeColor(json)
+            });
+            return fill;
+        };
+        StyleConverter.prototype.deserializeStroke = function (json) {
+            var stroke = new ol.style.Stroke();
+            common_1.doif(json.color, function (v) { return stroke.setColor(v); });
+            common_1.doif(json.lineCap, function (v) { return stroke.setLineCap(v); });
+            common_1.doif(json.lineDash, function (v) { return stroke.setLineDash(v); });
+            common_1.doif(json.lineJoin, function (v) { return stroke.setLineJoin(v); });
+            common_1.doif(json.miterLimit, function (v) { return stroke.setMiterLimit(v); });
+            common_1.doif(json.width, function (v) { return stroke.setWidth(v); });
+            return stroke;
+        };
+        StyleConverter.prototype.deserializeColor = function (fill) {
+            if (fill.color) {
+                return fill.color;
+            }
+            if (fill.gradient) {
+                var type = fill.gradient.type;
+                var gradient_1;
+                if (0 === type.indexOf("linear(")) {
+                    gradient_1 = this.deserializeLinearGradient(fill.gradient);
+                }
+                else if (0 === type.indexOf("radial(")) {
+                    gradient_1 = this.deserializeRadialGradient(fill.gradient);
+                }
+                if (fill.gradient.stops) {
+                    common_1.mixin(gradient_1, {
+                        stops: fill.gradient.stops
+                    });
+                    var stops = fill.gradient.stops.split(";");
+                    stops = stops.map(function (v) { return v.trim(); });
+                    stops.forEach(function (colorstop) {
+                        var stop = colorstop.match(/ \d+%/m)[0];
+                        var color = colorstop.substr(0, colorstop.length - stop.length);
+                        gradient_1.addColorStop(parseInt(stop) / 100, color);
+                    });
+                }
+                return gradient_1;
+            }
+            if (fill.pattern) {
+                var repitition = fill.pattern.repitition;
+                var canvas = document.createElement('canvas');
+                var spacing = canvas.width = canvas.height = fill.pattern.spacing | 6;
+                var context = canvas.getContext('2d');
+                context.fillStyle = fill.pattern.color;
+                switch (fill.pattern.orientation) {
+                    case "horizontal":
+                        for (var i = 0; i < spacing; i++) {
+                            context.fillRect(i, 0, 1, 1);
+                        }
+                        break;
+                    case "vertical":
+                        for (var i = 0; i < spacing; i++) {
+                            context.fillRect(0, i, 1, 1);
+                        }
+                        break;
+                    case "cross":
+                        for (var i = 0; i < spacing; i++) {
+                            context.fillRect(i, 0, 1, 1);
+                            context.fillRect(0, i, 1, 1);
+                        }
+                        break;
+                    case "forward":
+                        for (var i = 0; i < spacing; i++) {
+                            context.fillRect(i, i, 1, 1);
+                        }
+                        break;
+                    case "backward":
+                        for (var i = 0; i < spacing; i++) {
+                            context.fillRect(spacing - 1 - i, i, 1, 1);
+                        }
+                        break;
+                    case "diagonal":
+                        for (var i = 0; i < spacing; i++) {
+                            context.fillRect(i, i, 1, 1);
+                            context.fillRect(spacing - 1 - i, i, 1, 1);
+                        }
+                        break;
+                }
+                return common_1.mixin(context.createPattern(canvas, repitition), fill.pattern);
+            }
+            throw "invalid color configuration";
+        };
+        StyleConverter.prototype.deserializeLinearGradient = function (json) {
+            var rx = /\w+\((.*)\)/m;
+            var _a = JSON.parse(json.type.replace(rx, "[$1]")), x0 = _a[0], y0 = _a[1], x1 = _a[2], y1 = _a[3];
+            var canvas = document.createElement('canvas');
+            canvas.width = Math.max(x0, x1);
+            canvas.height = Math.max(y0, y1);
+            var context = canvas.getContext('2d');
+            var gradient = context.createLinearGradient(x0, y0, x1, y1);
+            common_1.mixin(gradient, {
+                type: "linear(" + [x0, y0, x1, y1].join(",") + ")"
+            });
+            return gradient;
+        };
+        StyleConverter.prototype.deserializeRadialGradient = function (json) {
+            var rx = /radial\((.*)\)/m;
+            var _a = JSON.parse(json.type.replace(rx, "[$1]")), x0 = _a[0], y0 = _a[1], r0 = _a[2], x1 = _a[3], y1 = _a[4], r1 = _a[5];
+            var canvas = document.createElement('canvas');
+            canvas.width = 2 * Math.max(x0, x1);
+            canvas.height = 2 * Math.max(y0, y1);
+            var context = canvas.getContext('2d');
+            var gradient = context.createRadialGradient(x0, y0, r0, x1, y1, r1);
+            common_1.mixin(gradient, {
+                type: "radial(" + [x0, y0, r0, x1, y1, r1].join(",") + ")"
+            });
+            return gradient;
+        };
+        return StyleConverter;
+    }());
+    exports.StyleConverter = StyleConverter;
+});
 define("labs/facebook", ["require", "exports", "openlayers", "jquery"], function (require, exports, ol, $) {
     "use strict";
     requirejs.config({
@@ -713,6 +1126,18 @@ define("labs/facebook", ["require", "exports", "openlayers", "jquery"], function
 });
 define("labs/google-identity", ["require", "exports", "jquery", "openlayers"], function (require, exports, $, ol) {
     "use strict";
+    var client_id = '987911803084-a6cafnu52d7lkr8vfrtl4modrpinr1os.apps.googleusercontent.com';
+    var api_key = 'AIzaSyCfuluThuQ0j7tCHg9GRf0lwDRHNUsZs6o';
+    requirejs.config({
+        shim: {
+            'gapi': {
+                exports: 'gapi'
+            }
+        },
+        paths: {
+            'gapi': 'https://apis.google.com/js/api.js'
+        }
+    });
     var html = "\n    <div class=\"g-signin2\" data-onsuccess=\"giAsyncInit\" data-theme=\"dark\"></div>\n    <button class='logout-button'>Logout</button>\n";
     function createMap() {
         var basemap = new ol.layer.Tile({
@@ -729,12 +1154,13 @@ define("labs/google-identity", ["require", "exports", "jquery", "openlayers"], f
         });
     }
     var GoogleIdentity = (function () {
-        function GoogleIdentity() {
+        function GoogleIdentity(client_id) {
+            this.client_id = client_id;
         }
-        GoogleIdentity.prototype.load = function (client_id) {
+        GoogleIdentity.prototype.load = function () {
             var _this = this;
             var d = $.Deferred();
-            $("\n            <meta name=\"google-signin-scope\" content=\"profile email\">\n            <meta name=\"google-signin-client_id\" content=\"" + client_id + "\">\n            <script src=\"https://apis.google.com/js/platform.js\" async defer></script>\n        ").appendTo('head');
+            $("\n            <meta name=\"google-signin-scope\" content=\"profile email https://www.googleapis.com/auth/calendar.readonly\">\n            <meta name=\"google-signin-client_id\" content=\"" + this.client_id + "\">\n            <script src=\"https://apis.google.com/js/platform.js\" async defer></script>\n        ").appendTo('head');
             window.giAsyncInit = function (args) {
                 _this.id_token = args.getAuthResponse().id_token;
                 d.resolve(args);
@@ -758,8 +1184,27 @@ define("labs/google-identity", ["require", "exports", "jquery", "openlayers"], f
     }());
     function run() {
         $(html).appendTo('body');
-        var gi = new GoogleIdentity();
-        gi.load('987911803084-a6cafnu52d7lkr8vfrtl4modrpinr1os.apps.googleusercontent.com').then(function (args) { return gi.showInfo(args); });
+        require(["gapi"], function (gapi) {
+            gapi.load('client', function () {
+                debugger;
+                gapi.client.setApiKey(api_key);
+                gapi.auth2.init({
+                    client_id: client_id,
+                    scope: 'profile https://www.googleapis.com/auth/calendar.readonly'
+                }).then(function () {
+                    debugger;
+                    var auth2 = gapi.auth2.getAuthInstance();
+                });
+            });
+        });
+        return;
+        var gi = new GoogleIdentity(client_id);
+        gi.load().then(function (args) {
+            gi.showInfo(args);
+            gapi.load('client', 'v3', function () {
+                debugger;
+            });
+        });
         $('button.logout-button').click(function () {
             gi.logout();
         });
@@ -834,48 +1279,6 @@ define("labs/index", ["require", "exports"], function (require, exports) {
     exports.run = run;
     ;
 });
-define("labs/common/common", ["require", "exports"], function (require, exports) {
-    "use strict";
-    function getParameterByName(name, url) {
-        if (url === void 0) { url = window.location.href; }
-        name = name.replace(/[\[\]]/g, "\\$&");
-        var regex = new RegExp("[?&]" + name + "(=([^&#]*)|&|#|$)"), results = regex.exec(url);
-        if (!results)
-            return null;
-        if (!results[2])
-            return '';
-        return decodeURIComponent(results[2].replace(/\+/g, " "));
-    }
-    exports.getParameterByName = getParameterByName;
-    function doif(v, cb) {
-        if (v !== undefined && v !== null)
-            cb(v);
-    }
-    exports.doif = doif;
-    function mixin(a, b) {
-        Object.keys(b).forEach(function (k) { return a[k] = b[k]; });
-        return a;
-    }
-    exports.mixin = mixin;
-    function cssin(name, css) {
-        var id = "style-" + name;
-        var styleTag = document.getElementById(id);
-        if (!styleTag) {
-            styleTag = document.createElement("style");
-            styleTag.id = id;
-            styleTag.innerText = css;
-            document.head.appendChild(styleTag);
-        }
-        styleTag.dataset.count = (styleTag.dataset.count | 0) + 1;
-        return function () {
-            styleTag.dataset.count = (styleTag.dataset.count | 0) - 1;
-            if (styleTag.dataset.count === "0") {
-                styleTag.remove();
-            }
-        };
-    }
-    exports.cssin = cssin;
-});
 define("labs/common/ol3-polyline", ["require", "exports", "openlayers"], function (require, exports, ol) {
     "use strict";
     var Polyline = ol.format.Polyline;
@@ -913,371 +1316,6 @@ define("labs/common/ol3-polyline", ["require", "exports", "openlayers"], functio
         return PolylineEncoder;
     }());
     return PolylineEncoder;
-});
-define("ux/serializers/serializer", ["require", "exports"], function (require, exports) {
-    "use strict";
-    var geoJsonSimpleStyle = {
-        "type": "FeatureCollection",
-        "features": [{
-                "type": "Feature",
-                "geometry": {
-                    "type": "Point",
-                    "coordinates": [0, 0]
-                },
-                "properties": {
-                    "title": "A title",
-                    "description": "A description",
-                    "marker-size": "medium",
-                    "marker-symbol": "bus",
-                    "marker-color": "#fff",
-                    "stroke": "#555555",
-                    "stroke-opacity": 1.0,
-                    "stroke-width": 2,
-                    "fill": "#555555",
-                    "fill-opacity": 0.5
-                }
-            }]
-    };
-});
-define("ux/serializers/coretech", ["require", "exports", "openlayers", "labs/common/common"], function (require, exports, ol, common_1) {
-    "use strict";
-    var CoretechConverter = (function () {
-        function CoretechConverter() {
-        }
-        CoretechConverter.prototype.fromJson = function (json) {
-            return this.deserializeStyle(json);
-        };
-        CoretechConverter.prototype.toJson = function (style) {
-            return this.serializeStyle(style);
-        };
-        CoretechConverter.prototype.assign = function (obj, prop, value) {
-            if (value === null)
-                return;
-            if (value === undefined)
-                return;
-            if (typeof value === "object") {
-                if (Object.keys(value).length === 0)
-                    return;
-            }
-            if (prop === "image") {
-                if (value.hasOwnProperty("radius")) {
-                    prop = "circle";
-                }
-                if (value.hasOwnProperty("points")) {
-                    prop = "star";
-                }
-            }
-            obj[prop] = value;
-        };
-        CoretechConverter.prototype.serializeStyle = function (style) {
-            var s = {};
-            if (!style)
-                return null;
-            if (typeof style === "string")
-                return style;
-            if (typeof style === "number")
-                return style;
-            if (style.getColor)
-                common_1.mixin(s, this.serializeColor(style.getColor()));
-            if (style.getImage)
-                this.assign(s, "image", this.serializeStyle(style.getImage()));
-            if (style.getFill)
-                this.assign(s, "fill", this.serializeFill(style.getFill()));
-            if (style.getOpacity)
-                this.assign(s, "opacity", style.getOpacity());
-            if (style.getStroke)
-                this.assign(s, "stroke", this.serializeStyle(style.getStroke()));
-            if (style.getText)
-                this.assign(s, "text", this.serializeStyle(style.getText()));
-            if (style.getWidth)
-                this.assign(s, "width", style.getWidth());
-            if (style.getOffsetX)
-                this.assign(s, "offset-x", style.getOffsetX());
-            if (style.getOffsetY)
-                this.assign(s, "offset-y", style.getOffsetY());
-            if (style.getWidth)
-                this.assign(s, "width", style.getWidth());
-            if (style.getFont)
-                this.assign(s, "font", style.getFont());
-            if (style.getRadius)
-                this.assign(s, "radius", style.getRadius());
-            if (style.getRadius2)
-                this.assign(s, "radius2", style.getRadius2());
-            if (style.getPoints)
-                this.assign(s, "points", style.getPoints());
-            if (style.getAngle)
-                this.assign(s, "angle", style.getAngle());
-            if (style.getRotation)
-                this.assign(s, "rotation", style.getRotation());
-            if (s.points && s.radius !== s.radius2)
-                s.points /= 2;
-            return s;
-        };
-        CoretechConverter.prototype.serializeColor = function (color) {
-            if (color instanceof Array) {
-                return {
-                    color: ol.color.asString(color)
-                };
-            }
-            else if (color instanceof CanvasGradient) {
-                return {
-                    gradient: color
-                };
-            }
-            else if (color instanceof CanvasPattern) {
-                return {
-                    pattern: color
-                };
-            }
-            else if (typeof color === "string") {
-                return {
-                    color: color
-                };
-            }
-            throw "unknown color type";
-        };
-        CoretechConverter.prototype.serializeFill = function (fill) {
-            return this.serializeStyle(fill);
-        };
-        CoretechConverter.prototype.deserializeStyle = function (json) {
-            var image;
-            var text;
-            var fill;
-            var stroke;
-            if (json.circle)
-                image = this.deserializeCircle(json.circle);
-            else if (json.star)
-                image = this.deserializeStar(json.star);
-            else if (json.icon)
-                image = this.deserializeIcon(json.icon);
-            else if (json.svg)
-                image = this.deserializeSvg(json.svg);
-            if (json.text)
-                text = this.deserializeText(json.text);
-            if (json.fill)
-                fill = this.deserializeFill(json.fill);
-            if (json.stroke)
-                stroke = this.deserializeStroke(json.stroke);
-            var s = new ol.style.Style({
-                image: image,
-                text: text,
-                fill: fill,
-                stroke: stroke
-            });
-            return s;
-        };
-        CoretechConverter.prototype.deserializeText = function (json) {
-            return new ol.style.Text({
-                fill: this.deserializeFill(json.fill),
-                stroke: this.deserializeStroke(json.stroke),
-                text: json.text,
-                font: json.font,
-                offsetX: json["offset-x"],
-                offsetY: json["offset-y"],
-                rotation: json.rotation || 0,
-                scale: json.scale || 1
-            });
-        };
-        CoretechConverter.prototype.deserializeCircle = function (json) {
-            var image = new ol.style.Circle({
-                radius: json.radius,
-                fill: this.deserializeFill(json.fill),
-                stroke: this.deserializeStroke(json.stroke)
-            });
-            image.setOpacity(json.opacity);
-            return image;
-        };
-        CoretechConverter.prototype.deserializeStar = function (json) {
-            var image = new ol.style.RegularShape({
-                radius: json.radius,
-                radius2: json.radius2,
-                points: json.points,
-                angle: json.angle,
-                fill: this.deserializeFill(json.fill),
-                stroke: this.deserializeStroke(json.stroke)
-            });
-            common_1.doif(json.rotation, function (v) { return image.setRotation(v); });
-            common_1.doif(json.opacity, function (v) { return image.setOpacity(v); });
-            return image;
-        };
-        CoretechConverter.prototype.deserializeIcon = function (json) {
-            if (!json.anchor) {
-                json.anchor = [json["anchor-x"] || 0.5, json["anchor-y"] || 0.5];
-            }
-            var image = new ol.style.Icon(common_1.mixin({}, json));
-            image.load();
-            return image;
-        };
-        CoretechConverter.prototype.deserializeSvg = function (json) {
-            json.rotation = json.rotation || 0;
-            json.scale = json.scale || 1;
-            var canvas = document.createElement("canvas");
-            {
-                var _a = json.imgSize, x = _a[0], y = _a[1];
-                var coords = [[-x, -y], [-x, y], [x, y], [x, -y]];
-                var rect = new ol.geom.MultiPoint(coords);
-                rect.rotate(json.rotation, [0, 0]);
-                var extent = rect.getExtent();
-                _b = [ol.extent.getWidth(extent), ol.extent.getHeight(extent)]
-                    .map(function (v) { return v * json.scale * 0.5; }), canvas.width = _b[0], canvas.height = _b[1];
-                if (json.stroke && json.stroke.width) {
-                    var dx = 2 * json.stroke.width * json.scale;
-                    canvas.width += dx;
-                    canvas.height += dx;
-                }
-            }
-            var ctx = canvas.getContext('2d');
-            if (json.img) {
-                var symbol = document.getElementById(json.img);
-                if (!symbol) {
-                }
-                if (symbol) {
-                    var path = (symbol.getElementsByTagName("path")[0]);
-                    if (path) {
-                        json.path = (json.path || "") + path.getAttribute('d');
-                    }
-                }
-            }
-            if (json.path) {
-                var path2d = new Path2D(json.path);
-                ctx.translate(canvas.width / 2, canvas.height / 2);
-                ctx.scale(json.scale, json.scale);
-                ctx.rotate(json.rotation);
-                ctx.translate(-json.imgSize[0] / 2, -json.imgSize[1] / 2);
-                if (json.fill) {
-                    ctx.fillStyle = json.fill.color;
-                    ctx.fill(path2d);
-                }
-                if (json.stroke) {
-                    ctx.strokeStyle = json.stroke.color;
-                    ctx.lineWidth = json.stroke.width;
-                    ctx.stroke(path2d);
-                }
-            }
-            return new ol.style.Icon(common_1.mixin(json, {
-                img: canvas,
-                imgSize: [canvas.width, canvas.height],
-                rotation: 0,
-                scale: 1
-            }));
-            var _b;
-        };
-        CoretechConverter.prototype.deserializeFill = function (json) {
-            var fill = new ol.style.Fill({
-                color: this.deserializeColor(json)
-            });
-            return fill;
-        };
-        CoretechConverter.prototype.deserializeStroke = function (json) {
-            var stroke = new ol.style.Stroke();
-            common_1.doif(json.color, function (v) { return stroke.setColor(v); });
-            common_1.doif(json.lineCap, function (v) { return stroke.setLineCap(v); });
-            common_1.doif(json.lineDash, function (v) { return stroke.setLineDash(v); });
-            common_1.doif(json.lineJoin, function (v) { return stroke.setLineJoin(v); });
-            common_1.doif(json.miterLimit, function (v) { return stroke.setMiterLimit(v); });
-            common_1.doif(json.width, function (v) { return stroke.setWidth(v); });
-            return stroke;
-        };
-        CoretechConverter.prototype.deserializeColor = function (fill) {
-            if (fill.color) {
-                return fill.color;
-            }
-            if (fill.gradient) {
-                var type = fill.gradient.type;
-                var gradient_1;
-                if (0 === type.indexOf("linear(")) {
-                    gradient_1 = this.deserializeLinearGradient(fill.gradient);
-                }
-                else if (0 === type.indexOf("radial(")) {
-                    gradient_1 = this.deserializeRadialGradient(fill.gradient);
-                }
-                if (fill.gradient.stops) {
-                    common_1.mixin(gradient_1, {
-                        stops: fill.gradient.stops
-                    });
-                    var stops = fill.gradient.stops.split(";");
-                    stops = stops.map(function (v) { return v.trim(); });
-                    var colorStops = stops.forEach(function (colorstop) {
-                        var stop = colorstop.match(/ \d+%/m)[0];
-                        var color = colorstop.substr(0, colorstop.length - stop.length);
-                        gradient_1.addColorStop(parseInt(stop) / 100, color);
-                    });
-                }
-                return gradient_1;
-            }
-            if (fill.pattern) {
-                var repitition = fill.pattern.repitition;
-                var canvas = document.createElement('canvas');
-                var spacing = canvas.width = canvas.height = fill.pattern.spacing | 6;
-                var context = canvas.getContext('2d');
-                context.fillStyle = fill.pattern.color;
-                switch (fill.pattern.orientation) {
-                    case "horizontal":
-                        for (var i = 0; i < spacing; i++) {
-                            context.fillRect(i, 0, 1, 1);
-                        }
-                        break;
-                    case "vertical":
-                        for (var i = 0; i < spacing; i++) {
-                            context.fillRect(0, i, 1, 1);
-                        }
-                        break;
-                    case "cross":
-                        for (var i = 0; i < spacing; i++) {
-                            context.fillRect(i, 0, 1, 1);
-                            context.fillRect(0, i, 1, 1);
-                        }
-                        break;
-                    case "forward":
-                        for (var i = 0; i < spacing; i++) {
-                            context.fillRect(i, i, 1, 1);
-                        }
-                        break;
-                    case "backward":
-                        for (var i = 0; i < spacing; i++) {
-                            context.fillRect(spacing - 1 - i, i, 1, 1);
-                        }
-                        break;
-                    case "diagonal":
-                        for (var i = 0; i < spacing; i++) {
-                            context.fillRect(i, i, 1, 1);
-                            context.fillRect(spacing - 1 - i, i, 1, 1);
-                        }
-                        break;
-                }
-                return common_1.mixin(context.createPattern(canvas, repitition), fill.pattern);
-            }
-            throw "invalid color configuration";
-        };
-        CoretechConverter.prototype.deserializeLinearGradient = function (json) {
-            var rx = /\w+\((.*)\)/m;
-            var _a = JSON.parse(json.type.replace(rx, "[$1]")), x0 = _a[0], y0 = _a[1], x1 = _a[2], y1 = _a[3];
-            var canvas = document.createElement('canvas');
-            canvas.width = Math.max(x0, x1);
-            canvas.height = Math.max(y0, y1);
-            var context = canvas.getContext('2d');
-            var gradient = context.createLinearGradient(x0, y0, x1, y1);
-            common_1.mixin(gradient, {
-                type: "linear(" + [x0, y0, x1, y1].join(",") + ")"
-            });
-            return gradient;
-        };
-        CoretechConverter.prototype.deserializeRadialGradient = function (json) {
-            var rx = /radial\((.*)\)/m;
-            var _a = JSON.parse(json.type.replace(rx, "[$1]")), x0 = _a[0], y0 = _a[1], r0 = _a[2], x1 = _a[3], y1 = _a[4], r1 = _a[5];
-            var canvas = document.createElement('canvas');
-            canvas.width = 2 * Math.max(x0, x1);
-            canvas.height = 2 * Math.max(y0, y1);
-            var context = canvas.getContext('2d');
-            var gradient = context.createRadialGradient(x0, y0, r0, x1, y1, r1);
-            common_1.mixin(gradient, {
-                type: "radial(" + [x0, y0, r0, x1, y1, r1].join(",") + ")"
-            });
-            return gradient;
-        };
-        return CoretechConverter;
-    }());
-    exports.CoretechConverter = CoretechConverter;
 });
 define("ux/styles/stroke/linedash", ["require", "exports"], function (require, exports) {
     "use strict";
@@ -1339,9 +1377,9 @@ define("ux/styles/text/text", ["require", "exports"], function (require, exports
         }
     ];
 });
-define("labs/mapmaker", ["require", "exports", "jquery", "openlayers", "labs/common/common", "labs/common/ol3-polyline", "ux/serializers/coretech", "ux/styles/stroke/dashdotdot", "ux/styles/stroke/solid", "ux/styles/text/text"], function (require, exports, $, ol, common_2, reduce, coretech_1, dashdotdot, strokeStyle, textStyle) {
+define("labs/mapmaker", ["require", "exports", "jquery", "openlayers", "labs/common/common", "labs/common/ol3-polyline", "alpha/format/ol3-symbolizer", "ux/styles/stroke/dashdotdot", "ux/styles/stroke/solid", "ux/styles/text/text"], function (require, exports, $, ol, common_2, reduce, ol3_symbolizer_1, dashdotdot, strokeStyle, textStyle) {
     "use strict";
-    var styler = new coretech_1.CoretechConverter();
+    var styler = new ol3_symbolizer_1.StyleConverter();
     function parse(v, type) {
         if (typeof type === "string")
             return v;
@@ -1547,6 +1585,31 @@ define("labs/polyline-encoder", ["require", "exports", "jquery", "openlayers", "
             .change();
     }
     exports.run = run;
+});
+define("ux/serializers/serializer", ["require", "exports"], function (require, exports) {
+    "use strict";
+    var geoJsonSimpleStyle = {
+        "type": "FeatureCollection",
+        "features": [{
+                "type": "Feature",
+                "geometry": {
+                    "type": "Point",
+                    "coordinates": [0, 0]
+                },
+                "properties": {
+                    "title": "A title",
+                    "description": "A description",
+                    "marker-size": "medium",
+                    "marker-symbol": "bus",
+                    "marker-color": "#fff",
+                    "stroke": "#555555",
+                    "stroke-opacity": 1.0,
+                    "stroke-width": 2,
+                    "fill": "#555555",
+                    "fill-opacity": 0.5
+                }
+            }]
+    };
 });
 define("ux/serializers/ags-simplemarkersymbol", ["require", "exports", "openlayers"], function (require, exports, ol) {
     "use strict";
@@ -1891,9 +1954,9 @@ define("ux/styles/fill/gradient", ["require", "exports"], function (require, exp
         }
     ];
 });
-define("labs/common/style-generator", ["require", "exports", "openlayers", "ux/styles/basic", "ux/serializers/coretech"], function (require, exports, ol, basic_styles, Coretech) {
+define("labs/common/style-generator", ["require", "exports", "openlayers", "ux/styles/basic", "alpha/format/ol3-symbolizer"], function (require, exports, ol, basic_styles, ol3_symbolizer_2) {
     "use strict";
-    var converter = new Coretech.CoretechConverter();
+    var converter = new ol3_symbolizer_2.StyleConverter();
     var orientations = "forward,backward,diagonal,horizontal,vertical,cross".split(",");
     function mixin(a, b) {
         Object.keys(b).forEach(function (k) { return a[k] = b[k]; });
@@ -2201,10 +2264,10 @@ define("labs/common/style-generator", ["require", "exports", "openlayers", "ux/s
     }());
     return StyleGenerator;
 });
-define("labs/style-lab", ["require", "exports", "openlayers", "jquery", "ux/serializers/coretech", "ux/serializers/ags-simplemarkersymbol", "labs/common/style-generator"], function (require, exports, ol, $, CoretechSerializer, AgsMarkerSerializer, StyleGenerator) {
+define("labs/style-lab", ["require", "exports", "openlayers", "jquery", "alpha/format/ol3-symbolizer", "ux/serializers/ags-simplemarkersymbol", "labs/common/style-generator"], function (require, exports, ol, $, ol3_symbolizer_3, AgsMarkerSerializer, StyleGenerator) {
     "use strict";
     var center = [-82.4, 34.85];
-    var formatter = new CoretechSerializer.CoretechConverter();
+    var formatter = new ol3_symbolizer_3.StyleConverter();
     var generator = new StyleGenerator({
         center: center,
         fromJson: function (json) { return formatter.fromJson(json); }
@@ -2220,7 +2283,7 @@ define("labs/style-lab", ["require", "exports", "openlayers", "jquery", "ux/seri
                 formatter = new AgsMarkerSerializer.SimpleMarkerConverter();
             }
             else {
-                formatter = new CoretechSerializer.CoretechConverter();
+                formatter = new ol3_symbolizer_3.StyleConverter();
             }
         }).change();
         var map = new ol.Map({
@@ -2270,6 +2333,10 @@ define("labs/style-lab", ["require", "exports", "openlayers", "jquery", "ux/seri
                         if (s instanceof HTMLCanvasElement) {
                             var dataUrl = s.toDataURL();
                             $(".last-image-clicked").attr("src", dataUrl);
+                            break;
+                        }
+                        if (s instanceof HTMLImageElement) {
+                            $(".last-image-clicked").attr("src", s.src);
                             break;
                         }
                         s = s.getImage();
@@ -2429,7 +2496,7 @@ define("ux/styles/icon/png", ["require", "exports"], function (require, exports)
         }
     ];
 });
-define("labs/style-viewer", ["require", "exports", "openlayers", "jquery", "labs/common/snapshot", "labs/common/common", "ux/serializers/coretech", "ux/styles/icon/png"], function (require, exports, ol, $, Snapshot, common_3, Serializer, pointStyle) {
+define("labs/style-viewer", ["require", "exports", "openlayers", "jquery", "labs/common/snapshot", "labs/common/common", "alpha/format/ol3-symbolizer", "ux/styles/icon/png"], function (require, exports, ol, $, Snapshot, common_3, ol3_symbolizer_4, pointStyle) {
     "use strict";
     var html = "\n<div class='style-to-canvas'>\n    <h3>Renders a feature on a canvas</h3>\n    <div class=\"area\">\n        <label>256 x 256 Canvas</label>\n        <div id='canvas-collection'></div>\n    </div>\n    <div class=\"area\">\n        <label>Style</label>\n        <textarea class='style'></textarea>\n        <button class=\"save\">Save</button>\n    </div>\n    <div class=\"area\">\n        <label>Potential control for setting linear gradient start/stop locations</label>\n        <div class=\"colorramp\">\n            <input class=\"top\" type=\"range\" min=\"0\" max=\"100\" value=\"20\"/>\n            <input class=\"bottom\" type=\"range\" min=\"0\" max=\"100\" value=\"80\"/>\n        </div>\n    </div>\n</div>\n";
     var css = "\n<style>\n    #map {\n        display: none;\n    }\n\n    .style-to-canvas {\n    }\n\n    .style-to-canvas .area label {\n        display: block;\n        vertical-align: top;\n    }\n\n    .style-to-canvas .area {\n        border: 1px solid black;\n        padding: 20px;\n        margin: 20px;\n    }\n\n    .style-to-canvas .area .style {\n        width: 100%;\n        height: 400px;\n    }\n\n    .style-to-canvas #canvas-collection canvas {\n        font-family: sans serif;\n        font-size: 20px;\n        border: 1px solid black;\n        padding: 20px;\n        margin: 20px;\n    }\n\n    div.colorramp {\n        display: inline-block;\n        background: linear-gradient(to right, rgba(250,0,0,0), rgba(250,0,0,1) 60%, rgba(250,100,0,1) 85%, rgb(250,250,0) 95%);\n        width:100%;\n    }\n\n    div.colorramp > input[type=range] {\n        -webkit-appearance: slider-horizontal;\n        display:block;\n        width:100%;\n        background-color:transparent;\n    }\n\n    div.colorramp > label {\n        display: inline-block;\n    }\n\n    div.colorramp > input[type='range'] {\n        box-shadow: 0 0 0 white;\n    }\n\n    div.colorramp > input[type=range]::-webkit-slider-runnable-track {\n        height: 0px;     \n    }\n\n    div.colorramp > input[type='range'].top::-webkit-slider-thumb {\n        margin-top: -10px;\n    }\n\n    div.colorramp > input[type='range'].bottom::-webkit-slider-thumb {\n        margin-top: -12px;\n    }\n    \n</style>\n";
@@ -2468,7 +2535,7 @@ define("labs/style-viewer", ["require", "exports", "openlayers", "jquery", "labs
     var styles = {
         point: pointStyle
     };
-    var serializer = new Serializer.CoretechConverter();
+    var serializer = new ol3_symbolizer_4.StyleConverter();
     var Renderer = (function () {
         function Renderer(geom) {
             this.feature = new ol.Feature(geom);

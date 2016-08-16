@@ -12,7 +12,7 @@ import ol = require("openlayers");
 import $ = require("jquery");
 import Snapshot = require("./common/snapshot");
 import {getParameterByName} from "./common/common";
-import Serializer = require("../ux/serializers/coretech");
+import {Format, StyleConverter} from "../alpha/format/ol3-symbolizer";
 import pointStyle = require("../ux/styles/icon/png");
 
 const html = `
@@ -119,7 +119,7 @@ const svg = `
 `;
 
 function loadStyle(name: string) {
-    type T = Serializer.Coretech.Style[];
+    type T = Format.Style[];
     let d = $.Deferred<T>();
 
     if ('[' === name[0]) {
@@ -150,7 +150,7 @@ const styles = {
     point: pointStyle
 };
 
-const serializer = new Serializer.CoretechConverter();
+const serializer = new StyleConverter();
 
 class Renderer {
 
