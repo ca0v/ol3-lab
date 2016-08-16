@@ -1,7 +1,7 @@
 export =
     [
         {
-            "svg": {
+            "image": {
                 "imgSize": [
                     48,
                     48

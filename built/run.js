@@ -647,26 +647,32 @@ define("alpha/format/ol3-symbolizer", ["require", "exports", "openlayers", "labs
                 this.assign(s, "angle", style.getAngle());
             if (style.getRotation)
                 this.assign(s, "rotation", style.getRotation());
-            if (style.getAnchor) {
-                this.assign(s, "anchor", style.getAnchor());
-                "anchorXUnits,anchorYUnits,anchorOrigin".split(",").forEach(function (k) {
-                    _this.assign(s, k, style[(k + "_")]);
-                });
-            }
-            if (style.getImageSize)
-                this.assign(s, "imgSize", style.getImageSize());
             if (style.getOrigin)
                 this.assign(s, "origin", style.getOrigin());
             if (style.getScale)
                 this.assign(s, "scale", style.getScale());
             if (style.getSize)
                 this.assign(s, "size", style.getSize());
-            if (style.path)
-                this.assign(s, "path", style.path);
-            if (style.stroke)
-                this.assign(s, "stroke", style.stroke);
-            if (style.fill)
-                this.assign(s, "fill", style.fill);
+            if (style.getAnchor) {
+                this.assign(s, "anchor", style.getAnchor());
+                "anchorXUnits,anchorYUnits,anchorOrigin".split(",").forEach(function (k) {
+                    _this.assign(s, k, style[(k + "_")]);
+                });
+            }
+            if (style.path) {
+                if (style.path)
+                    this.assign(s, "path", style.path);
+                if (style.getImageSize)
+                    this.assign(s, "imgSize", style.getImageSize());
+                if (style.stroke)
+                    this.assign(s, "stroke", style.stroke);
+                if (style.fill)
+                    this.assign(s, "fill", style.fill);
+                if (style.scale)
+                    this.assign(s, "scale", style.scale);
+                if (style.imgSize)
+                    this.assign(s, "imgSize", style.imgSize);
+            }
             if (style.getSrc)
                 this.assign(s, "src", style.getSrc());
             if (s.points && s.radius !== s.radius2)
@@ -708,10 +714,16 @@ define("alpha/format/ol3-symbolizer", ["require", "exports", "openlayers", "labs
                 image = this.deserializeCircle(json.circle);
             else if (json.star)
                 image = this.deserializeStar(json.star);
-            else if (json.image && json.image.path)
+            else if (json.icon)
+                image = this.deserializeIcon(json.icon);
+            else if (json.svg)
+                image = this.deserializeSvg(json.svg);
+            else if (json.image && (json.image.img || json.image.path))
                 image = this.deserializeSvg(json.image);
             else if (json.image && json.image.src)
                 image = this.deserializeIcon(json.image);
+            else if (json.image)
+                throw "unknown image type";
             if (json.text)
                 text = this.deserializeText(json.text);
             if (json.fill)
@@ -727,16 +739,26 @@ define("alpha/format/ol3-symbolizer", ["require", "exports", "openlayers", "labs
             return s;
         };
         StyleConverter.prototype.deserializeText = function (json) {
+            json.rotation = json.rotation || 0;
+            json.scale = json.scale || 1;
+            var _a = [json["offset-x"] || 0, json["offset-y"] || 0], x = _a[0], y = _a[1];
+            {
+                var p = new ol.geom.Point([x, y]);
+                p.rotate(json.rotation, [0, 0]);
+                p.scale(json.scale, json.scale);
+                _b = p.getCoordinates(), x = _b[0], y = _b[1];
+            }
             return new ol.style.Text({
                 fill: this.deserializeFill(json.fill),
                 stroke: this.deserializeStroke(json.stroke),
                 text: json.text,
                 font: json.font,
-                offsetX: json["offset-x"],
-                offsetY: json["offset-y"],
+                offsetX: x,
+                offsetY: y,
                 rotation: json.rotation || 0,
                 scale: json.scale || 1
             });
+            var _b;
         };
         StyleConverter.prototype.deserializeCircle = function (json) {
             var image = new ol.style.Circle({
@@ -764,45 +786,60 @@ define("alpha/format/ol3-symbolizer", ["require", "exports", "openlayers", "labs
             if (!json.anchor) {
                 json.anchor = [json["anchor-x"] || 0.5, json["anchor-y"] || 0.5];
             }
-            var image = new ol.style.Icon(common_1.mixin({}, json));
+            var image = new ol.style.Icon({
+                anchor: json.anchor,
+                anchorOrigin: json.anchorOrigin,
+                anchorXUnits: json.anchorXUnits,
+                anchorYUnits: json.anchorYUnits,
+                img: undefined,
+                imgSize: undefined,
+                offset: json.offset,
+                offsetOrigin: json.offsetOrigin,
+                opacity: json.opacity,
+                scale: json.scale,
+                snapToPixel: json.snapToPixel,
+                rotateWithView: json.rotateWithView,
+                rotation: json.rotation,
+                size: json.size,
+                src: json.src
+            });
             image.load();
             return image;
         };
         StyleConverter.prototype.deserializeSvg = function (json) {
             json.rotation = json.rotation || 0;
             json.scale = json.scale || 1;
-            var canvas = document.createElement("canvas");
-            {
-                var _a = json.imgSize, x = _a[0], y = _a[1];
-                var coords = [[-x, -y], [-x, y], [x, y], [x, -y]];
-                var rect = new ol.geom.MultiPoint(coords);
-                rect.rotate(json.rotation, [0, 0]);
-                var extent = rect.getExtent();
-                _b = [ol.extent.getWidth(extent), ol.extent.getHeight(extent)]
-                    .map(function (v) { return v * json.scale * 0.5; }), canvas.width = _b[0], canvas.height = _b[1];
-                if (json.stroke && json.stroke.width) {
-                    var dx = 2 * json.stroke.width * json.scale;
-                    canvas.width += dx;
-                    canvas.height += dx;
-                }
-            }
-            var ctx = canvas.getContext('2d');
             if (json.img) {
                 var symbol = document.getElementById(json.img);
                 if (!symbol) {
+                    throw "unable to find svg element: " + json.img;
                 }
                 if (symbol) {
                     var path = (symbol.getElementsByTagName("path")[0]);
                     if (path) {
+                        if (symbol.viewBox) {
+                            if (!json.imgSize) {
+                                json.imgSize = [symbol.viewBox.baseVal.width, symbol.viewBox.baseVal.height];
+                            }
+                        }
                         json.path = (json.path || "") + path.getAttribute('d');
                     }
                 }
             }
+            var canvas = document.createElement("canvas");
             if (json.path) {
+                {
+                    _a = json.imgSize.map(function (v) { return v * json.scale; }), canvas.width = _a[0], canvas.height = _a[1];
+                    if (json.stroke && json.stroke.width) {
+                        var dx = 2 * json.stroke.width * json.scale;
+                        canvas.width += dx;
+                        canvas.height += dx;
+                    }
+                }
+                var ctx = canvas.getContext('2d');
                 var path2d = new Path2D(json.path);
                 ctx.translate(canvas.width / 2, canvas.height / 2);
                 ctx.scale(json.scale, json.scale);
-                ctx.rotate(json.rotation);
                 ctx.translate(-json.imgSize[0] / 2, -json.imgSize[1] / 2);
                 if (json.fill) {
                     ctx.fillStyle = json.fill.color;
@@ -814,18 +851,31 @@ define("alpha/format/ol3-symbolizer", ["require", "exports", "openlayers", "labs
                     ctx.stroke(path2d);
                 }
             }
-            var icon = new ol.style.Icon(common_1.mixin(json, {
+            var icon = new ol.style.Icon({
                 img: canvas,
                 imgSize: [canvas.width, canvas.height],
-                rotation: 0,
-                scale: 1
-            }));
+                rotation: json.rotation,
+                scale: 1,
+                anchor: json.anchor || [canvas.width / 2, canvas.height],
+                anchorOrigin: json.anchorOrigin,
+                anchorXUnits: json.anchorXUnits || "pixels",
+                anchorYUnits: json.anchorYUnits || "pixels",
+                offset: json.offset,
+                offsetOrigin: json.offsetOrigin,
+                opacity: json.opacity,
+                snapToPixel: json.snapToPixel,
+                rotateWithView: json.rotateWithView,
+                size: [canvas.width, canvas.height],
+                src: undefined
+            });
             return common_1.mixin(icon, {
                 path: json.path,
                 stroke: json.stroke,
-                fill: json.fill
+                fill: json.fill,
+                scale: json.scale,
+                imgSize: json.imgSize
             });
-            var _b;
+            var _a;
         };
         StyleConverter.prototype.deserializeFill = function (json) {
             var fill = new ol.style.Fill({
@@ -1260,7 +1310,7 @@ define("labs/index", ["require", "exports"], function (require, exports) {
     function run() {
         var l = window.location;
         var path = "" + l.origin + l.pathname + "?run=labs/";
-        var labs = "\n    style-lab\n\n    style-viewer\n    style-viewer&geom=point&style=icon/png\n    style-viewer&geom=point&style=icon/png,text/text\n    style-viewer&geom=point&style=%5B%7B\"svg\":%7B\"imgSize\":%5B45,45%5D,\"rotation\":0,\"stroke\":%7B\"color\":\"rgba(255,25,0,0.8)\",\"width\":3%7D,\"path\":\"M23%202%20L23%2023%20L43%2016.5%20L23%2023%20L35%2040%20L23%2023%20L11%2040%20L23%2023%20L3%2017%20L23%2023%20L23%202%20Z\"%7D%7D%5D\n\n    style-viewer&geom=point&style=%5B%7B\"circle\":%7B\"fill\":%7B\"gradient\":%7B\"type\":\"linear(32,32,96,96)\",\"stops\":\"rgba(0,255,0,0.1)%200%25;rgba(0,255,0,0.8)%20100%25\"%7D%7D,\"opacity\":1,\"stroke\":%7B\"color\":\"rgba(0,255,0,1)\",\"width\":1%7D,\"radius\":64%7D%7D,%7B\"icon\":%7B\"anchor\":%5B16,48%5D,\"size\":%5B32,48%5D,\"anchorXUnits\":\"pixels\",\"anchorYUnits\":\"pixels\",\"src\":\"http://openlayers.org/en/v3.17.1/examples/data/icon.png\"%7D%7D,%7B\"text\":%7B\"fill\":%7B\"color\":\"rgba(75,92,85,0.85)\"%7D,\"stroke\":%7B\"color\":\"rgba(255,255,255,1)\",\"width\":5%7D,\"offset-x\":0,\"offset-y\":16,\"text\":\"fantasy%20light\",\"font\":\"18px%20serif\"%7D%7D%5D    \n\n    style-viewer&geom=point&style=%5B%7B\"svg\":%7B\"imgSize\":%5B13,21%5D,\"fill\":%7B\"color\":\"rgba(0,0,0,0.5)\"%7D,\"path\":\"M6.3,0C6.3,0,0,0.1,0,7.5c0,3.8,6.3,12.6,6.3,12.6s6.3-8.8,6.3-12.7C12.6,0.1,6.3,0,6.3,0z%20M6.3,8.8%20c-1.4,0-2.5-1.1-2.5-2.5c0-1.4,1.1-2.5,2.5-2.5c1.4,0,2.5,1.1,2.5,2.5C8.8,7.7,7.7,8.8,6.3,8.8z\"%7D%7D%5D\n\n    style-viewer&geom=point&style=%5B%7B%22svg%22:%7B%22imgSize%22:%5B22,24%5D,%22fill%22:%7B%22color%22:%22rgba(255,0,0,0.1)%22%7D,%22stroke%22:%7B%22color%22:%22rgba(255,0,0,1)%22,%22width%22:0.1%7D,%22scale%22:8,%22rotation%22:0.7,%22img%22:%22lock%22%7D%7D%5D\n\n\n    style-viewer&geom=multipoint&style=icon/png\n\n    style-viewer&geom=polyline&style=stroke/dot\n\n    style-viewer&geom=polygon&style=fill/diagonal\n    style-viewer&geom=polygon&style=fill/horizontal,fill/vertical,stroke/dashdotdot\n    style-viewer&geom=polygon&style=stroke/solid,text/text\n    style-viewer&geom=polygon-with-holes&style=fill/cross,stroke/solid\n\n    style-viewer&geom=multipolygon&style=stroke/solid,fill/horizontal,text/text\n\n    style-to-canvas\n    polyline-encoder\n    image-data-viewer\n\n    mapmaker\n    mapmaker&background=light\n    mapmaker&geom=t`syzE}gm_dAm_@A?r@p@Bp@Hp@Ph@Td@Z`@`@Vb@Nd@xUABmF\n    mapmaker&geom=t`syzE}gm_dAm_@A?r@p@Bp@Hp@Ph@Td@Z`@`@Vb@Nd@xUABmF&color=yellow&background=dark&modify=1\n    \n    facebook\n    google-identity\n    index\n    ";
+        var labs = "\n    style-lab\n\n    style-viewer\n    style-viewer&geom=point&style=icon/png\n    style-viewer&geom=point&style=icon/png,text/text\n    style-viewer&geom=point&style=%5B%7B\"image\":%7B\"imgSize\":%5B45,45%5D,\"rotation\":0,\"stroke\":%7B\"color\":\"rgba(255,25,0,0.8)\",\"width\":3%7D,\"path\":\"M23%202%20L23%2023%20L43%2016.5%20L23%2023%20L35%2040%20L23%2023%20L11%2040%20L23%2023%20L3%2017%20L23%2023%20L23%202%20Z\"%7D%7D%5D\n\n    style-viewer&geom=point&style=%5B%7B\"circle\":%7B\"fill\":%7B\"gradient\":%7B\"type\":\"linear(32,32,96,96)\",\"stops\":\"rgba(0,255,0,0.1)%200%25;rgba(0,255,0,0.8)%20100%25\"%7D%7D,\"opacity\":1,\"stroke\":%7B\"color\":\"rgba(0,255,0,1)\",\"width\":1%7D,\"radius\":64%7D%7D,%7B\"image\":%7B\"anchor\":%5B16,48%5D,\"size\":%5B32,48%5D,\"anchorXUnits\":\"pixels\",\"anchorYUnits\":\"pixels\",\"src\":\"http://openlayers.org/en/v3.17.1/examples/data/icon.png\"%7D%7D,%7B\"text\":%7B\"fill\":%7B\"color\":\"rgba(75,92,85,0.85)\"%7D,\"stroke\":%7B\"color\":\"rgba(255,255,255,1)\",\"width\":5%7D,\"offset-x\":0,\"offset-y\":16,\"text\":\"fantasy%20light\",\"font\":\"18px%20serif\"%7D%7D%5D    \n\n    style-viewer&geom=point&style=%5B%7B\"image\":%7B\"imgSize\":%5B13,21%5D,\"fill\":%7B\"color\":\"rgba(0,0,0,0.5)\"%7D,\"path\":\"M6.3,0C6.3,0,0,0.1,0,7.5c0,3.8,6.3,12.6,6.3,12.6s6.3-8.8,6.3-12.7C12.6,0.1,6.3,0,6.3,0z%20M6.3,8.8%20c-1.4,0-2.5-1.1-2.5-2.5c0-1.4,1.1-2.5,2.5-2.5c1.4,0,2.5,1.1,2.5,2.5C8.8,7.7,7.7,8.8,6.3,8.8z\"%7D%7D%5D\n\n    style-viewer&geom=point&style=%5B%7B\"image\":%7B\"imgSize\":%5B15,15%5D,\"anchor\":%5B0,0.5%5D,\"fill\":%7B\"color\":\"rgba(255,0,0,0.1)\"%7D,\"stroke\":%7B\"color\":\"rgba(255,0,0,1)\",\"width\":0.1%7D,\"scale\":8,\"rotation\":0.7,\"img\":\"lock\"%7D%7D,%7B\"image\":%7B\"imgSize\":%5B15,15%5D,\"anchor\":%5B100,0.5%5D,\"anchorXUnits\":\"pixels\",\"fill\":%7B\"color\":\"rgba(0,255,0,0.4)\"%7D,\"stroke\":%7B\"color\":\"rgba(255,0,0,1)\",\"width\":0.1%7D,\"scale\":1.5,\"rotation\":0.7,\"img\":\"lock\"%7D%7D,%7B\"image\":%7B\"imgSize\":%5B15,15%5D,\"anchor\":%5B-10,0%5D,\"anchorXUnits\":\"pixels\",\"anchorOrigin\":\"top-right\",\"fill\":%7B\"color\":\"rgba(230,230,80,1)\"%7D,\"stroke\":%7B\"color\":\"rgba(0,0,0,1)\",\"width\":0.5%7D,\"scale\":2,\"rotation\":0.8,\"img\":\"lock\"%7D%7D%5D\n\n\n    style-viewer&geom=multipoint&style=icon/png\n\n    style-viewer&geom=polyline&style=stroke/dot\n\n    style-viewer&geom=polygon&style=fill/diagonal\n    style-viewer&geom=polygon&style=fill/horizontal,fill/vertical,stroke/dashdotdot\n    style-viewer&geom=polygon&style=stroke/solid,text/text\n    style-viewer&geom=polygon-with-holes&style=fill/cross,stroke/solid\n\n    style-viewer&geom=multipolygon&style=stroke/solid,fill/horizontal,text/text\n\n    style-to-canvas\n    polyline-encoder\n    image-data-viewer\n\n    mapmaker\n    mapmaker&background=light\n    mapmaker&geom=t`syzE}gm_dAm_@A?r@p@Bp@Hp@Ph@Td@Z`@`@Vb@Nd@xUABmF\n    mapmaker&geom=t`syzE}gm_dAm_@A?r@p@Bp@Hp@Ph@Td@Z`@`@Vb@Nd@xUABmF&color=yellow&background=dark&modify=1\n    \n    facebook\n    google-identity\n    index\n    ";
         var styles = document.createElement("style");
         document.head.appendChild(styles);
         styles.innerText += "\n    #map {\n        display: none;\n    }\n    .test {\n        margin: 20px;\n    }\n    ";
@@ -2486,7 +2536,7 @@ define("ux/styles/icon/png", ["require", "exports"], function (require, exports)
             }
         },
         {
-            "icon": {
+            "image": {
                 "anchor": [16, 48],
                 "imgSize": [32, 48],
                 "anchorXUnits": "pixels",
@@ -2500,7 +2550,7 @@ define("labs/style-viewer", ["require", "exports", "openlayers", "jquery", "labs
     "use strict";
     var html = "\n<div class='style-to-canvas'>\n    <h3>Renders a feature on a canvas</h3>\n    <div class=\"area\">\n        <label>256 x 256 Canvas</label>\n        <div id='canvas-collection'></div>\n    </div>\n    <div class=\"area\">\n        <label>Style</label>\n        <textarea class='style'></textarea>\n        <button class=\"save\">Save</button>\n    </div>\n    <div class=\"area\">\n        <label>Potential control for setting linear gradient start/stop locations</label>\n        <div class=\"colorramp\">\n            <input class=\"top\" type=\"range\" min=\"0\" max=\"100\" value=\"20\"/>\n            <input class=\"bottom\" type=\"range\" min=\"0\" max=\"100\" value=\"80\"/>\n        </div>\n    </div>\n</div>\n";
     var css = "\n<style>\n    #map {\n        display: none;\n    }\n\n    .style-to-canvas {\n    }\n\n    .style-to-canvas .area label {\n        display: block;\n        vertical-align: top;\n    }\n\n    .style-to-canvas .area {\n        border: 1px solid black;\n        padding: 20px;\n        margin: 20px;\n    }\n\n    .style-to-canvas .area .style {\n        width: 100%;\n        height: 400px;\n    }\n\n    .style-to-canvas #canvas-collection canvas {\n        font-family: sans serif;\n        font-size: 20px;\n        border: 1px solid black;\n        padding: 20px;\n        margin: 20px;\n    }\n\n    div.colorramp {\n        display: inline-block;\n        background: linear-gradient(to right, rgba(250,0,0,0), rgba(250,0,0,1) 60%, rgba(250,100,0,1) 85%, rgb(250,250,0) 95%);\n        width:100%;\n    }\n\n    div.colorramp > input[type=range] {\n        -webkit-appearance: slider-horizontal;\n        display:block;\n        width:100%;\n        background-color:transparent;\n    }\n\n    div.colorramp > label {\n        display: inline-block;\n    }\n\n    div.colorramp > input[type='range'] {\n        box-shadow: 0 0 0 white;\n    }\n\n    div.colorramp > input[type=range]::-webkit-slider-runnable-track {\n        height: 0px;     \n    }\n\n    div.colorramp > input[type='range'].top::-webkit-slider-thumb {\n        margin-top: -10px;\n    }\n\n    div.colorramp > input[type='range'].bottom::-webkit-slider-thumb {\n        margin-top: -12px;\n    }\n    \n</style>\n";
-    var svg = "\n<div style='display:none'>\n<svg xmlns=\"http://www.w3.org/2000/svg\">\n<symbol viewBox=\"0 0 17.7 22.1\" id=\"lock\">\n    <title>lock</title>\n    <path d=\"M15.7,10c-0.3,0-0.4,0-0.4,0V6.5c0-4.2-2.9-6.5-6.4-6.5C5.4,0,2.2,2.4,2.3,6.5l0,3.5c0,0,0.1,0-0.2,0 C1.8,10,0,10.3,0,12v7.9c0,1.8,2.1,2.2,2.1,2.2c3.7,0,9.8,0,13.5,0c0,0,2-0.2,2-2.2v-7.8C17.7,10.2,15.8,10,15.7,10z M10.4,19H7.3 l0.7-3.2c-0.5-0.3-0.8-0.9-0.8-1.5c0-1,0.8-1.8,1.7-1.8c0.9,0,1.7,0.8,1.7,1.8c0,0.6-0.3,1.2-0.8,1.5L10.4,19z M5.3,10l0-3.4 c0-2.2,1.3-4,3.5-4c2.2,0,3.5,1.5,3.5,4l0,3.4H5.3z\"\n    />\n</symbol>\n</svg>\n</div>\n";
+    var svg = "\n<div style='display:none'>\n<svg xmlns=\"http://www.w3.org/2000/svg\">\n<symbol viewBox=\"5 0 20 15\" id=\"lock\">\n    <title>lock</title>\n    <path d=\"M10.9,11.6c-0.3-0.6-0.3-2.3,0-2.8c0.4-0.6,3.4,1.4,3.4,1.4c0.9,0.4,0.9-6.1,0-5.7\n\tc0,0-3.1,2.1-3.4,1.4c-0.3-0.7-0.3-2.1,0-2.8C11.2,2.5,15,2.4,15,2.4C15,1.7,12.1,1,10.9,1S8.4,1.1,6.8,1.8C5.2,2.4,3.9,3.4,2.7,4.6\n\tS0,8.2,0,8.9s1.5,2.8,3.7,3.7s3.3,1.1,4.5,1.3c1.1,0.1,2.6,0,3.9-0.3c1-0.2,2.9-0.7,2.9-1.1C15,12.3,11.2,12.2,10.9,11.6z M4.5,9.3\n\tC3.7,9.3,3,8.6,3,7.8s0.7-1.5,1.5-1.5S6,7,6,7.8S5.3,9.3,4.5,9.3z\"\n    />\n</symbol>\n<symbol viewBox=\"0 0 37 37\" id=\"marker\">\n      <title>marker</title>\n      <path d=\"M19.75 2.75 L32.47792206135786 7.022077938642145 L36.75 19.75 L32.47792206135786 32.47792206135786 L19.75 36.75 L7.022077938642145 32.47792206135786 L2.75 19.750000000000004 L7.022077938642141 7.022077938642145 L19.749999999999996 2.75 Z\" /> </symbol>\n</svg>\n</div>\n";
     function loadStyle(name) {
         var d = $.Deferred();
         if ('[' === name[0]) {
@@ -4212,7 +4262,7 @@ define("ux/styles/icon/svg", ["require", "exports"], function (require, exports)
     "use strict";
     return [
         {
-            "svg": {
+            "image": {
                 "imgSize": [
                     48,
                     48

@@ -17,7 +17,7 @@ export =
             }
         },
         {
-            "icon": {
+            "image": {
                 "anchor": [16, 48],
                 "imgSize": [32, 48],
                 "anchorXUnits": "pixels",

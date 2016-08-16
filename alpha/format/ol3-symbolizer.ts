@@ -4,10 +4,10 @@ import {doif, mixin} from "../../labs/common/common";
 
 export namespace Format {
 
-    type Color = number[] | string;
+    export type Color = number[] | string;
     export type Size = number[];
-    type Offset = number[];
-    type LineDash = number[];
+    export type Offset = number[];
+    export type LineDash = number[];
 
     export interface Fill {
         color?: string;
@@ -62,8 +62,6 @@ export namespace Format {
         anchorYUnits?: string;
         color?: Color;
         crossOrigin?: string;
-        img?: string; // same as src?
-        imgSize?: Size; // same as size?
         src?: string; // same as img.src?
         offset?: Offset;
         offsetOrigin?: 'top_left' | 'top_right' | 'bottom-left' | 'bottom-right';
@@ -89,7 +87,9 @@ export namespace Format {
 export namespace Format {
 
     export interface Style {
-        image?: Icon & Svg;
+        image?: Icon & Svg; // if 'image' specified must auto-detect icon or svg 
+        icon?: Icon;
+        svg?: Svg;
         star?: Star;
         circle?: Circle;
         text?: Text;
@@ -111,9 +111,18 @@ export namespace Format {
         opacity?: number;
     }
 
+    // icon + path - src    
     export interface Svg {
-        imgSize: Size;
-        img: string;
+        anchor?: Offset;
+        anchorOrigin?: string;
+        anchorXUnits?: string;
+        anchorYUnits?: string;
+        color?: Color;
+        crossOrigin?: string;
+        img?: string;
+        imgSize?: Size;
+        offset?: Offset;
+        offsetOrigin?: 'top_left' | 'top_right' | 'bottom-left' | 'bottom-right';
         path?: string;
         stroke?: Stroke;
         fill?: Fill;
@@ -172,6 +181,9 @@ export class StyleConverter implements Serializer.IConverter<Format.Style> {
         if (style.getPoints) this.assign(s, "points", style.getPoints());
         if (style.getAngle) this.assign(s, "angle", style.getAngle());
         if (style.getRotation) this.assign(s, "rotation", style.getRotation());
+        if (style.getOrigin) this.assign(s, "origin", style.getOrigin());
+        if (style.getScale) this.assign(s, "scale", style.getScale());
+        if (style.getSize) this.assign(s, "size", style.getSize());
 
         if (style.getAnchor) {
             this.assign(s, "anchor", style.getAnchor());
@@ -180,15 +192,15 @@ export class StyleConverter implements Serializer.IConverter<Format.Style> {
             });
         }
 
-        if (style.getImageSize) this.assign(s, "imgSize", style.getImageSize());
-        if (style.getOrigin) this.assign(s, "origin", style.getOrigin());
-        if (style.getScale) this.assign(s, "scale", style.getScale());
-        if (style.getSize) this.assign(s, "size", style.getSize());
-
-        // "svg"        
-        if (style.path) this.assign(s, "path", style.path);
-        if (style.stroke) this.assign(s, "stroke", style.stroke);
-        if (style.fill) this.assign(s, "fill", style.fill);
+        // "svg"
+        if (style.path) {
+            if (style.path) this.assign(s, "path", style.path);
+            if (style.getImageSize) this.assign(s, "imgSize", style.getImageSize());
+            if (style.stroke) this.assign(s, "stroke", style.stroke);
+            if (style.fill) this.assign(s, "fill", style.fill);
+            if (style.scale) this.assign(s, "scale", style.scale); // getScale and getImgSize are modified in deserializer               
+            if (style.imgSize) this.assign(s, "imgSize", style.imgSize);
+        }
 
         // "icon"
         if (style.getSrc) this.assign(s, "src", style.getSrc());
@@ -233,8 +245,11 @@ export class StyleConverter implements Serializer.IConverter<Format.Style> {
 
         if (json.circle) image = this.deserializeCircle(json.circle);
         else if (json.star) image = this.deserializeStar(json.star);
-        else if (json.image && json.image.path) image = this.deserializeSvg(json.image);
+        else if (json.icon) image = this.deserializeIcon(json.icon);
+        else if (json.svg) image = this.deserializeSvg(json.svg);
+        else if (json.image && (json.image.img || json.image.path)) image = this.deserializeSvg(json.image);
         else if (json.image && json.image.src) image = this.deserializeIcon(json.image);
+        else if (json.image) throw "unknown image type";
         if (json.text) text = this.deserializeText(json.text);
         if (json.fill) fill = this.deserializeFill(json.fill);
         if (json.stroke) stroke = this.deserializeStroke(json.stroke);
@@ -248,14 +263,25 @@ export class StyleConverter implements Serializer.IConverter<Format.Style> {
         return s;
     }
 
-    private deserializeText(json: Format.Text) {
+    private deserializeText(json: Coretech.Text) {
+        json.rotation = json.rotation || 0;
+        json.scale = json.scale || 1;
+
+        let [x, y] = [json["offset-x"] || 0, json["offset-y"] || 0];
+        {
+            let p = new ol.geom.Point([x, y]);
+            p.rotate(json.rotation, [0, 0]);
+            p.scale(json.scale, json.scale);
+            [x, y] = p.getCoordinates();
+        }
+
         return new ol.style.Text({
             fill: this.deserializeFill(json.fill),
             stroke: this.deserializeStroke(json.stroke),
             text: json.text,
             font: json.font,
-            offsetX: json["offset-x"],
-            offsetY: json["offset-y"],
+            offsetX: x,
+            offsetY: y,
             rotation: json.rotation || 0,
             scale: json.scale || 1
         });
@@ -292,8 +318,24 @@ export class StyleConverter implements Serializer.IConverter<Format.Style> {
             json.anchor = [json["anchor-x"] || 0.5, json["anchor-y"] || 0.5];
         }
 
-        let image = new ol.style.Icon(mixin({
-        }, json));
+        let image = new ol.style.Icon({
+            anchor: json.anchor,
+            anchorOrigin: json.anchorOrigin,
+            anchorXUnits: json.anchorXUnits,
+            anchorYUnits: json.anchorYUnits,
+            //crossOrigin?: string;
+            img: undefined,
+            imgSize: undefined,
+            offset: json.offset,
+            offsetOrigin: json.offsetOrigin,
+            opacity: json.opacity,
+            scale: json.scale,
+            snapToPixel: json.snapToPixel,
+            rotateWithView: json.rotateWithView,
+            rotation: json.rotation,
+            size: json.size,
+            src: json.src
+        });
         image.load();
         return image;
     }
@@ -302,48 +344,44 @@ export class StyleConverter implements Serializer.IConverter<Format.Style> {
         json.rotation = json.rotation || 0;
         json.scale = json.scale || 1;
 
-        let canvas = document.createElement("canvas");
-        {
-            // rotate a rectangle and get the resulting extent
-            let [x, y] = json.imgSize;
-            let coords = [[-x, -y], [-x, y], [x, y], [x, -y]];
-            let rect = new ol.geom.MultiPoint(coords);
-            rect.rotate(json.rotation, [0, 0]);
-            let extent = rect.getExtent();
-            [canvas.width, canvas.height] = [ol.extent.getWidth(extent), ol.extent.getHeight(extent)]
-                .map(v => v * json.scale * 0.5);
-
-            if (json.stroke && json.stroke.width) {
-                let dx = 2 * json.stroke.width * json.scale;
-                canvas.width += dx;
-                canvas.height += dx;
-            }
-        }
-
-        let ctx = canvas.getContext('2d');
-
-
         if (json.img) {
             let symbol = <SVGSymbolElement><any>document.getElementById(json.img);
             if (!symbol) {
-                // todo
+                throw `unable to find svg element: ${json.img}`;
             }
             if (symbol) {
                 // but just grab the path is probably good enough
                 let path = <SVGPathElement>(symbol.getElementsByTagName("path")[0]);
                 if (path) {
+                    if (symbol.viewBox) {
+                        if (!json.imgSize) {
+                            json.imgSize = [symbol.viewBox.baseVal.width, symbol.viewBox.baseVal.height];
+                        }
+                    }
                     json.path = (json.path || "") + path.getAttribute('d');
                 }
             }
         }
 
+        let canvas = document.createElement("canvas");
         if (json.path) {
+            {
+                // rotate a rectangle and get the resulting extent
+                [canvas.width, canvas.height] = json.imgSize.map(v => v * json.scale);
+
+                if (json.stroke && json.stroke.width) {
+                    let dx = 2 * json.stroke.width * json.scale;
+                    canvas.width += dx;
+                    canvas.height += dx;
+                }
+            }
+
+            let ctx = canvas.getContext('2d');
             let path2d = new Path2D(json.path);
 
             // rotate  before it is in the canvas (avoids pixelation)
             ctx.translate(canvas.width / 2, canvas.height / 2);
             ctx.scale(json.scale, json.scale);
-            ctx.rotate(json.rotation);
             ctx.translate(-json.imgSize[0] / 2, -json.imgSize[1] / 2);
 
             if (json.fill) {
@@ -358,17 +396,31 @@ export class StyleConverter implements Serializer.IConverter<Format.Style> {
 
         }
 
-        let icon = new ol.style.Icon(mixin(json, {
+        let icon = new ol.style.Icon({
             img: canvas,
             imgSize: [canvas.width, canvas.height],
-            rotation: 0,
-            scale: 1
-        }));
+            rotation: json.rotation,
+            scale: 1,
+            anchor: json.anchor || [canvas.width / 2, canvas.height],
+            anchorOrigin: json.anchorOrigin,
+            anchorXUnits: json.anchorXUnits || "pixels",
+            anchorYUnits: json.anchorYUnits || "pixels",
+            //crossOrigin?: string;
+            offset: json.offset,
+            offsetOrigin: json.offsetOrigin,
+            opacity: json.opacity,
+            snapToPixel: json.snapToPixel,
+            rotateWithView: json.rotateWithView,
+            size: [canvas.width, canvas.height],
+            src: undefined
+        });
 
         return mixin(icon, {
             path: json.path,
             stroke: json.stroke,
-            fill: json.fill
+            fill: json.fill,
+            scale: json.scale,
+            imgSize: json.imgSize
         });
 
     }
