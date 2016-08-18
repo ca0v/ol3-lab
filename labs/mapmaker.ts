@@ -115,7 +115,11 @@ export function run() {
     let d = $.Deferred<typeof options>();
     if (options.myjson) {
         let myjson = new MyJson(options, options.myjson);
-        myjson.get().then(() => d.resolve(myjson.json));
+        myjson.get().then(() => {
+            // POST can't set the key so set it now
+            myjson.json.myjson = options.myjson;
+            d.resolve(myjson.json);
+        });
     } else {
         d.resolve(options);
     }

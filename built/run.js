@@ -578,17 +578,8 @@ define("labs/common/common", ["require", "exports"], function (require, exports)
 });
 define("labs/common/ol3-patch", ["require", "exports", "openlayers"], function (require, exports, ol3) {
     "use strict";
-    ol3.geom.SimpleGeometry.prototype.scale = ol3.geom.SimpleGeometry.prototype.scale ||
-        function (deltaX, deltaY) {
-            var flatCoordinates = this.getFlatCoordinates();
-            if (flatCoordinates) {
-                var stride = this.getStride();
-                ol3.geom.flat.transform.scale(flatCoordinates, 0, flatCoordinates.length, stride, deltaX, deltaY, flatCoordinates);
-                this.changed();
-            }
-        };
-    ol3.geom.flat.transform.scale = ol3.geom.flat.transform.scale ||
-        function (flatCoordinates, offset, end, stride, deltaX, deltaY, opt_dest) {
+    if (!ol3.geom.SimpleGeometry.prototype.scale) {
+        var scale_1 = function (flatCoordinates, offset, end, stride, deltaX, deltaY, opt_dest) {
             var dest = opt_dest ? opt_dest : [];
             var i = 0;
             var j, k;
@@ -604,6 +595,15 @@ define("labs/common/ol3-patch", ["require", "exports", "openlayers"], function (
             }
             return dest;
         };
+        ol3.geom.SimpleGeometry.prototype.scale = function (deltaX, deltaY) {
+            var it = this;
+            it.applyTransform(function (flatCoordinates, output, stride) {
+                scale_1(flatCoordinates, 0, flatCoordinates.length, stride, deltaX, deltaY, flatCoordinates);
+                return flatCoordinates;
+            });
+            it.changed();
+        };
+    }
     return ol3;
 });
 define("alpha/format/ol3-symbolizer", ["require", "exports", "labs/common/ol3-patch", "labs/common/common"], function (require, exports, ol, common_1) {
@@ -1545,7 +1545,10 @@ define("labs/mapmaker", ["require", "exports", "jquery", "openlayers", "labs/com
         var d = $.Deferred();
         if (options.myjson) {
             var myjson_2 = new myjson_1.MyJson(options, options.myjson);
-            myjson_2.get().then(function () { return d.resolve(myjson_2.json); });
+            myjson_2.get().then(function () {
+                myjson_2.json.myjson = options.myjson;
+                d.resolve(myjson_2.json);
+            });
         }
         else {
             d.resolve(options);

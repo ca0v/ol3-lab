@@ -4,20 +4,10 @@ import {mixin} from "./common";
 /**
  * https://github.com/openlayers/ol3/issues/5684
  */
-ol3.geom.SimpleGeometry.prototype.scale = ol3.geom.SimpleGeometry.prototype.scale ||
-    function (deltaX: number, deltaY: number) {
-        var flatCoordinates = this.getFlatCoordinates();
-        if (flatCoordinates) {
-            var stride = this.getStride();
-            ol3.geom.flat.transform.scale(
-                flatCoordinates, 0, flatCoordinates.length, stride,
-                deltaX, deltaY, flatCoordinates);
-            this.changed();
-        }
-    }
 
-ol3.geom.flat.transform.scale = ol3.geom.flat.transform.scale ||
-    function (flatCoordinates: number[], offset: number, end: number, stride: number, deltaX: number, deltaY: number, opt_dest: number[]) {
+if (!ol3.geom.SimpleGeometry.prototype.scale) {
+
+    let scale = (flatCoordinates: number[], offset: number, end: number, stride: number, deltaX: number, deltaY: number, opt_dest: number[]) => {
         var dest = opt_dest ? opt_dest : [];
         var i = 0;
         var j: number, k: number;
@@ -34,5 +24,16 @@ ol3.geom.flat.transform.scale = ol3.geom.flat.transform.scale ||
         return dest;
     };
 
+    ol3.geom.SimpleGeometry.prototype.scale = function (deltaX: number, deltaY: number) {
+        let it = <ol.geom.SimpleGeometry>this;
+        it.applyTransform((flatCoordinates, output, stride) => {
+            scale(flatCoordinates, 0, flatCoordinates.length, stride,
+                deltaX, deltaY, flatCoordinates);
+            return flatCoordinates;
+        });
+        it.changed();
+    };
+
+}
 
 export = ol3;
