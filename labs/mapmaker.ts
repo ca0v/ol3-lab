@@ -124,7 +124,7 @@ export function run() {
         d.resolve(options);
     }
 
-    d.done(options => {
+    return d.then(options => {
         $(".map").addClass(options.background);
 
         let map = new ol.Map({
@@ -246,6 +246,7 @@ export function run() {
             }
         });
 
+        return map;        
     });
 
 }

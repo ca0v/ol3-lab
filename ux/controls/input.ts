@@ -67,6 +67,7 @@ export interface GeocoderOptions {
     target?: HTMLElement;
     // what to show on the tooltip
     placeholderText?: string;
+    onChange?: (args: { value: string }) => void;
 }
 
 const expando = {
@@ -144,10 +145,13 @@ export class Geocoder extends ol.control.Control {
         });
 
         input.addEventListener("change", () => {
-            this.dispatchEvent({
+            let args = {
                 type: "change",
                 value: input.value
-            });
+            };
+
+            this.dispatchEvent(args);
+            if (options.onChange) options.onChange(args);
         });
 
         input.addEventListener("blur", () => {
