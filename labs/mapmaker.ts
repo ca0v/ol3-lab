@@ -125,7 +125,7 @@ export function run() {
     }
 
     return d.then(options => {
-        $(".map").addClass(options.background);
+        $("#map").addClass(options.background);
 
         let map = new ol.Map({
             target: "map",

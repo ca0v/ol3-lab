@@ -6,6 +6,7 @@ export function run() {
     ags-format
     google-polyline
     webmap
+    map-resize-defect
     index
     `;
     
