@@ -25,11 +25,14 @@ export function cssin(name: string, css: string) {
         styleTag.innerText = css;
         document.head.appendChild(styleTag);
     }
-    styleTag.dataset.count = (styleTag.dataset.count | 0) + 1;
+
+    let dataset = styleTag.dataset;
+    dataset["count"] = parseInt(dataset["count"] || "0") + 1 + "";
+    
     return () => {
-        styleTag.dataset.count = (styleTag.dataset.count | 0) - 1;
-        if (styleTag.dataset.count === "0") {
+        dataset["count"] = parseInt(dataset["count"] || "0") - 1 + "";
+        if (dataset["count"] === "0") {
             styleTag.remove();
-        } 
+        }
     };
 }

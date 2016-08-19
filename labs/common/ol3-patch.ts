@@ -24,15 +24,17 @@ if (!ol3.geom.SimpleGeometry.prototype.scale) {
         return dest;
     };
 
-    ol3.geom.SimpleGeometry.prototype.scale = function (deltaX: number, deltaY: number) {
-        let it = <ol.geom.SimpleGeometry>this;
-        it.applyTransform((flatCoordinates, output, stride) => {
-            scale(flatCoordinates, 0, flatCoordinates.length, stride,
-                deltaX, deltaY, flatCoordinates);
-            return flatCoordinates;
-        });
-        it.changed();
-    };
+    mixin(ol3.geom.SimpleGeometry.prototype, {
+        scale: function (deltaX: number, deltaY: number) {
+            let it = <ol.geom.SimpleGeometry>this;
+            it.applyTransform((flatCoordinates, output, stride) => {
+                scale(flatCoordinates, 0, flatCoordinates.length, stride,
+                    deltaX, deltaY, flatCoordinates);
+                return flatCoordinates;
+            });
+            it.changed();
+        }
+    });
 
 }
 
