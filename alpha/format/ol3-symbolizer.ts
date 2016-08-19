@@ -1,4 +1,4 @@
-import ol = require("openlayers");
+import ol = require("../../labs/common/ol3-patch");
 import Serializer = require("./base");
 import {doif, mixin} from "../../labs/common/common";
 

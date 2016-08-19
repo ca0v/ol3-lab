@@ -576,7 +576,37 @@ define("labs/common/common", ["require", "exports"], function (require, exports)
     }
     exports.cssin = cssin;
 });
-define("alpha/format/ol3-symbolizer", ["require", "exports", "openlayers", "labs/common/common"], function (require, exports, ol, common_1) {
+define("labs/common/ol3-patch", ["require", "exports", "openlayers"], function (require, exports, ol3) {
+    "use strict";
+    if (!ol3.geom.SimpleGeometry.prototype.scale) {
+        var scale_1 = function (flatCoordinates, offset, end, stride, deltaX, deltaY, opt_dest) {
+            var dest = opt_dest ? opt_dest : [];
+            var i = 0;
+            var j, k;
+            for (j = offset; j < end; j += stride) {
+                dest[i++] = flatCoordinates[j] * deltaX;
+                dest[i++] = flatCoordinates[j + 1] * deltaY;
+                for (k = j + 2; k < j + stride; ++k) {
+                    dest[i++] = flatCoordinates[k];
+                }
+            }
+            if (opt_dest && dest.length != i) {
+                dest.length = i;
+            }
+            return dest;
+        };
+        ol3.geom.SimpleGeometry.prototype.scale = function (deltaX, deltaY) {
+            var it = this;
+            it.applyTransform(function (flatCoordinates, output, stride) {
+                scale_1(flatCoordinates, 0, flatCoordinates.length, stride, deltaX, deltaY, flatCoordinates);
+                return flatCoordinates;
+            });
+            it.changed();
+        };
+    }
+    return ol3;
+});
+define("alpha/format/ol3-symbolizer", ["require", "exports", "labs/common/ol3-patch", "labs/common/common"], function (require, exports, ol, common_1) {
     "use strict";
     var StyleConverter = (function () {
         function StyleConverter() {
@@ -1427,7 +1457,51 @@ define("ux/styles/text/text", ["require", "exports"], function (require, exports
         }
     ];
 });
-define("labs/mapmaker", ["require", "exports", "jquery", "openlayers", "labs/common/common", "labs/common/ol3-polyline", "alpha/format/ol3-symbolizer", "ux/styles/stroke/dashdotdot", "ux/styles/stroke/solid", "ux/styles/text/text"], function (require, exports, $, ol, common_2, reduce, ol3_symbolizer_1, dashdotdot, strokeStyle, textStyle) {
+define("labs/common/myjson", ["require", "exports", "jquery"], function (require, exports, $) {
+    "use strict";
+    var MyJson = (function () {
+        function MyJson(json, id, endpoint) {
+            if (id === void 0) { id = "4acgf"; }
+            if (endpoint === void 0) { endpoint = "https://api.myjson.com/bins"; }
+            this.json = json;
+            this.id = id;
+            this.endpoint = endpoint;
+        }
+        MyJson.prototype.get = function () {
+            var _this = this;
+            return $.ajax({
+                url: this.endpoint + "/" + this.id,
+                type: 'GET'
+            }).then(function (json) { return _this.json = json; });
+        };
+        MyJson.prototype.put = function () {
+            var _this = this;
+            return $.ajax({
+                url: this.endpoint + "/" + this.id,
+                type: 'PUT',
+                data: JSON.stringify(this.json),
+                contentType: 'application/json; charset=utf-8',
+                dataType: 'json'
+            }).then(function (json) { return _this.json = json; });
+        };
+        MyJson.prototype.post = function () {
+            var _this = this;
+            return $.ajax({
+                url: "" + this.endpoint,
+                type: 'POST',
+                data: JSON.stringify(this.json),
+                contentType: 'application/json; charset=utf-8',
+                dataType: 'json'
+            }).then(function (data) {
+                debugger;
+                _this.id = data.uri.substr(1 + _this.endpoint.length);
+            });
+        };
+        return MyJson;
+    }());
+    exports.MyJson = MyJson;
+});
+define("labs/mapmaker", ["require", "exports", "jquery", "openlayers", "labs/common/common", "labs/common/ol3-polyline", "alpha/format/ol3-symbolizer", "ux/styles/stroke/dashdotdot", "ux/styles/stroke/solid", "ux/styles/text/text", "labs/common/myjson"], function (require, exports, $, ol, common_2, reduce, ol3_symbolizer_1, dashdotdot, strokeStyle, textStyle, myjson_1) {
     "use strict";
     var styler = new ol3_symbolizer_1.StyleConverter();
     function parse(v, type) {
@@ -1452,6 +1526,7 @@ define("labs/mapmaker", ["require", "exports", "jquery", "openlayers", "labs/com
             center: [-82.4, 34.85],
             zoom: 15,
             background: "bright",
+            myjson: "",
             geom: "",
             color: "red",
             modify: false,
@@ -1460,92 +1535,133 @@ define("labs/mapmaker", ["require", "exports", "jquery", "openlayers", "labs/com
         {
             var opts_1 = options;
             Object.keys(opts_1).forEach(function (k) {
-                common_2.doif(common_2.getParameterByName(k), function (v) { return opts_1[k] = parse(v, opts_1[k]); });
+                common_2.doif(common_2.getParameterByName(k), function (v) {
+                    var value = parse(v, opts_1[k]);
+                    if (value !== undefined)
+                        opts_1[k] = value;
+                });
             });
         }
-        $(".map").addClass(options.background);
-        var map = new ol.Map({
-            target: "map",
-            keyboardEventTarget: document,
-            loadTilesWhileAnimating: true,
-            loadTilesWhileInteracting: true,
-            controls: ol.control.defaults({ attribution: false }),
-            view: new ol.View({
-                projection: options.srs,
-                center: options.center,
-                zoom: options.zoom
-            }),
-            layers: [
-                new ol.layer.Tile({
-                    opacity: 0.8,
-                    source: options.basemap !== "bing" ? new ol.source.OSM() : new ol.source.BingMaps({
-                        key: 'AuPHWkNxvxVAL_8Z4G8Pcq_eOKGm5eITH_cJMNAyYoIC1S_29_HhE893YrUUbIGl',
-                        imagerySet: 'Aerial'
-                    })
-                })]
-        });
-        var features = new ol.Collection();
-        var layer = new ol.layer.Vector({
-            source: new ol.source.Vector({
-                features: features
-            })
-        });
-        map.addLayer(layer);
-        strokeStyle[0].stroke.color = options.color;
-        layer.setStyle(strokeStyle.map(function (s) { return styler.fromJson(s); }));
-        if (options.geom) {
-            options.geom.split(",").forEach(function (encoded, i) {
-                var geom;
-                var points = new reduce(6, 2).decode(encoded);
-                geom = new ol.geom.Polygon([points]);
-                var feature = new ol.Feature(geom);
-                textStyle[0].text.text = "" + (i + 1);
-                var style = textStyle.concat(strokeStyle).map(function (s) { return styler.fromJson(s); });
-                feature.setStyle(style);
-                features.push(feature);
+        var d = $.Deferred();
+        if (options.myjson) {
+            var myjson_2 = new myjson_1.MyJson(options, options.myjson);
+            myjson_2.get().then(function () {
+                myjson_2.json.myjson = options.myjson;
+                d.resolve(myjson_2.json);
             });
-            if (!common_2.getParameterByName("center")) {
-                map.getView().fit(layer.getSource().getExtent(), map.getSize());
+        }
+        else {
+            d.resolve(options);
+        }
+        d.done(function (options) {
+            $(".map").addClass(options.background);
+            var map = new ol.Map({
+                target: "map",
+                keyboardEventTarget: document,
+                loadTilesWhileAnimating: true,
+                loadTilesWhileInteracting: true,
+                controls: ol.control.defaults({ attribution: false }),
+                view: new ol.View({
+                    projection: options.srs,
+                    center: options.center,
+                    zoom: options.zoom
+                }),
+                layers: [
+                    new ol.layer.Tile({
+                        opacity: 0.8,
+                        source: options.basemap !== "bing" ? new ol.source.OSM() : new ol.source.BingMaps({
+                            key: 'AuPHWkNxvxVAL_8Z4G8Pcq_eOKGm5eITH_cJMNAyYoIC1S_29_HhE893YrUUbIGl',
+                            imagerySet: 'Aerial'
+                        })
+                    })]
+            });
+            var features = new ol.Collection();
+            var layer = new ol.layer.Vector({
+                source: new ol.source.Vector({
+                    features: features
+                })
+            });
+            map.addLayer(layer);
+            strokeStyle[0].stroke.color = options.color;
+            layer.setStyle(strokeStyle.map(function (s) { return styler.fromJson(s); }));
+            if (options.geom) {
+                options.geom.split(",").forEach(function (encoded, i) {
+                    var geom;
+                    var points = new reduce(6, 2).decode(encoded);
+                    geom = new ol.geom.Polygon([points]);
+                    var feature = new ol.Feature(geom);
+                    textStyle[0].text.text = "" + (i + 1);
+                    var style = textStyle.concat(strokeStyle).map(function (s) { return styler.fromJson(s); });
+                    feature.setStyle(style);
+                    features.push(feature);
+                });
+                if (!common_2.getParameterByName("center")) {
+                    map.getView().fit(layer.getSource().getExtent(), map.getSize());
+                }
             }
-        }
-        if (options.modify) {
-            var modify_1 = new ol.interaction.Modify({
-                features: features,
-                deleteCondition: function (event) { return ol.events.condition.shiftKeyOnly(event) && ol.events.condition.singleClick(event); }
-            });
-            map.addInteraction(modify_1);
-            $("button.clone").show().click(function () {
-                var _a = map.getView().calculateExtent([100, 100]), a = _a[0], b = _a[1], c = _a[2], d = _a[3];
-                var geom = new ol.geom.Polygon([[[a, b], [c, b], [c, d], [a, d]]]);
-                var feature = new ol.Feature(geom);
-                feature.setStyle(styler.fromJson(dashdotdot[0]));
-                features.push(feature);
-                modify_1 && map.removeInteraction(modify_1);
-                modify_1 = new ol.interaction.Modify({
-                    features: new ol.Collection([feature]),
+            if (options.modify) {
+                var modify_1 = new ol.interaction.Modify({
+                    features: features,
                     deleteCondition: function (event) { return ol.events.condition.shiftKeyOnly(event) && ol.events.condition.singleClick(event); }
                 });
                 map.addInteraction(modify_1);
-            });
-        }
-        $("button.share").click(function () {
-            var href = window.location.href;
-            href = href.substring(0, href.length - window.location.search.length);
-            options.center = new reduce(6, 2).round(map.getView().getCenter());
-            options.zoom = map.getView().getZoom();
-            if (options.modify) {
-                options.geom = features.getArray().map(function (feature) {
-                    var geom = (feature && feature.getGeometry());
-                    var points = geom.getCoordinates()[0];
-                    return new reduce(6, 2).encode(points);
-                }).join(",");
+                $("button.clone").show().click(function () {
+                    var _a = map.getView().calculateExtent([100, 100]), a = _a[0], b = _a[1], c = _a[2], d = _a[3];
+                    var geom = new ol.geom.Polygon([[[a, b], [c, b], [c, d], [a, d]]]);
+                    var feature = new ol.Feature(geom);
+                    feature.setStyle(styler.fromJson(dashdotdot[0]));
+                    features.push(feature);
+                    modify_1 && map.removeInteraction(modify_1);
+                    modify_1 = new ol.interaction.Modify({
+                        features: new ol.Collection([feature]),
+                        deleteCondition: function (event) { return ol.events.condition.shiftKeyOnly(event) && ol.events.condition.singleClick(event); }
+                    });
+                    map.addInteraction(modify_1);
+                });
             }
-            var opts = options;
-            var querystring = Object.keys(options).map(function (k) { return (k + "=" + opts[k]); }).join("&");
-            var url = encodeURI(href + "?run=labs/mapmaker&" + querystring);
-            window.open(url, "_blank");
+            $("button.share").click(function () {
+                var href = window.location.href;
+                href = href.substring(0, href.length - window.location.search.length);
+                options.center = new reduce(6, 2).round(map.getView().getCenter());
+                options.zoom = map.getView().getZoom();
+                if (options.modify) {
+                    options.geom = features.getArray().map(function (feature) {
+                        var geom = (feature && feature.getGeometry());
+                        var points = geom.getCoordinates()[0];
+                        return new reduce(6, 2).encode(points);
+                    }).join(",");
+                    console.log("geom size", options.geom.length);
+                    if (options.myjson || (options.geom.length > 1000)) {
+                        var myjson_3 = new myjson_1.MyJson(options);
+                        if (options.myjson) {
+                            myjson_3.id = options.myjson;
+                            myjson_3.put().then(function () {
+                                var url = encodeURI(href + "?run=labs/mapmaker&myjson=" + myjson_3.id);
+                                window.open(url, "_blank");
+                            });
+                        }
+                        else {
+                            myjson_3.post().then(function () {
+                                var url = encodeURI(href + "?run=labs/mapmaker&myjson=" + myjson_3.id);
+                                window.open(url, "_blank");
+                            });
+                        }
+                    }
+                    else {
+                        var opts_2 = options;
+                        var querystring = Object.keys(options).map(function (k) { return (k + "=" + opts_2[k]); }).join("&");
+                        var url = encodeURI(href + "?run=labs/mapmaker&" + querystring);
+                        window.open(url, "_blank");
+                    }
+                }
+                else {
+                    var opts_3 = options;
+                    var querystring = Object.keys(options).map(function (k) { return (k + "=" + opts_3[k]); }).join("&");
+                    var url = encodeURI(href + "?run=labs/mapmaker&" + querystring);
+                    window.open(url, "_blank");
+                }
+            });
         });
-        return map;
     }
     exports.run = run;
 });
@@ -2401,35 +2517,8 @@ define("labs/style-lab", ["require", "exports", "openlayers", "jquery", "alpha/f
     }
     exports.run = run;
 });
-define("labs/common/snapshot", ["require", "exports", "openlayers"], function (require, exports, ol) {
+define("labs/common/snapshot", ["require", "exports", "labs/common/ol3-patch"], function (require, exports, ol) {
     "use strict";
-    {
-        ol.geom.SimpleGeometry.prototype.scale = ol.geom.SimpleGeometry.prototype.scale || function (deltaX, deltaY) {
-            var flatCoordinates = this.getFlatCoordinates();
-            if (flatCoordinates) {
-                var stride = this.getStride();
-                ol.geom.flat.transform.scale(flatCoordinates, 0, flatCoordinates.length, stride, deltaX, deltaY, flatCoordinates);
-                this.changed();
-            }
-        };
-        ol.geom.flat.transform.scale = ol.geom.flat.transform.scale ||
-            function (flatCoordinates, offset, end, stride, deltaX, deltaY, opt_dest) {
-                var dest = opt_dest ? opt_dest : [];
-                var i = 0;
-                var j, k;
-                for (j = offset; j < end; j += stride) {
-                    dest[i++] = flatCoordinates[j] * deltaX;
-                    dest[i++] = flatCoordinates[j + 1] * deltaY;
-                    for (k = j + 2; k < j + stride; ++k) {
-                        dest[i++] = flatCoordinates[k];
-                    }
-                }
-                if (opt_dest && dest.length != i) {
-                    dest.length = i;
-                }
-                return dest;
-            };
-    }
     var Snapshot = (function () {
         function Snapshot() {
         }
