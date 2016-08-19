@@ -22,16 +22,15 @@ export namespace Format {
         miterLimit?: number;
     }
 
-    interface Style {
+    export interface Style {
         //geometry?: string | ol.geom.Geometry | ol.style.GeometryFunction;
         fill?: Fill;
-        image?: Image;
         stroke?: Stroke;
         text?: Text;
         zIndex?: number;
     }
 
-    interface Image {
+    export interface Image {
         opacity?: number;
         rotateWithView?: boolean;
         rotation?: number;
@@ -87,14 +86,11 @@ export namespace Format {
 export namespace Format {
 
     export interface Style {
-        image?: Icon & Svg; // if 'image' specified must auto-detect icon or svg 
+        image?: Icon & Svg; // if 'image' specified must auto-detect icon or svg
         icon?: Icon;
         svg?: Svg;
         star?: Star;
         circle?: Circle;
-        text?: Text;
-        fill?: Fill;
-        stroke?: Stroke;
     }
 
     export interface Icon {
@@ -112,7 +108,7 @@ export namespace Format {
     }
 
     // icon + path - src    
-    export interface Svg {
+    export interface Svg extends Image {
         anchor?: Offset;
         anchorOrigin?: string;
         anchorXUnits?: string;
@@ -263,16 +259,13 @@ export class StyleConverter implements Serializer.IConverter<Format.Style> {
         return s;
     }
 
-    private deserializeText(json: Coretech.Text) {
+    private deserializeText(json: Format.Text) {
         json.rotation = json.rotation || 0;
         json.scale = json.scale || 1;
 
         let [x, y] = [json["offset-x"] || 0, json["offset-y"] || 0];
         {
-            let p = new ol.geom.Point([x, y]);
-            p.rotate(json.rotation, [0, 0]);
-            p.scale(json.scale, json.scale);
-            [x, y] = p.getCoordinates();
+            ol.coordinate.rotate([x, y].map(v => v * json.scale), json.rotation);            
         }
 
         return new ol.style.Text({
@@ -282,8 +275,8 @@ export class StyleConverter implements Serializer.IConverter<Format.Style> {
             font: json.font,
             offsetX: x,
             offsetY: y,
-            rotation: json.rotation || 0,
-            scale: json.scale || 1
+            rotation: json.rotation,
+            scale: json.scale
         });
     }
 
@@ -319,10 +312,10 @@ export class StyleConverter implements Serializer.IConverter<Format.Style> {
         }
 
         let image = new ol.style.Icon({
-            anchor: json.anchor,
-            anchorOrigin: json.anchorOrigin,
-            anchorXUnits: json.anchorXUnits,
-            anchorYUnits: json.anchorYUnits,
+            anchor: json.anchor || [0.5, 0.5],
+            anchorOrigin: json.anchorOrigin || "top-left",
+            anchorXUnits: json.anchorXUnits || "fraction",
+            anchorYUnits: json.anchorYUnits || "fraction",
             //crossOrigin?: string;
             img: undefined,
             imgSize: undefined,
@@ -334,13 +327,14 @@ export class StyleConverter implements Serializer.IConverter<Format.Style> {
             rotateWithView: json.rotateWithView,
             rotation: json.rotation,
             size: json.size,
-            src: json.src
+            src: json.src,
+            color: json.color
         });
         image.load();
         return image;
     }
 
-    private deserializeSvg(json: Format.Svg & Format.Icon) {
+    private deserializeSvg(json: Format.Svg) {
         json.rotation = json.rotation || 0;
         json.scale = json.scale || 1;
 
