@@ -1,3 +1,6 @@
+/**
+ * possible solution is to use https://github.com/marcj/css-element-queries
+ */
 import ol = require("openlayers");
 import $ = require("jquery");
 
@@ -14,31 +17,27 @@ let css = `
 <style>
 
     html {
+        padding: 20px;
         border: 1px solid black;
     }
 
     body {
+        padding: 20px;
         border: 1px solid red;
     }
 
     .outer {
-        padding: 50px;
+        padding: 20px;
         border: 1px solid orange;
-    }
-
-    .map {
-        padding: 50px;
-        border: 1px solid yellow;
-    }
-
-    .outer {
         width: 0;
-        height: 100%;
+        height: 80%;
     }
 
     .map {
-        width: 50%;
-        height: 50%;
+        padding: 20px;
+        border: 1px solid yellow;
+        width: 80%;
+        height: 80%;
     }
 
 </style>
@@ -48,16 +47,12 @@ let css2 = `
 <style>
 
     html, body {
-        width: 100%;
-        height: 100%;
-        padding: 0;
-        overflow: hidden;
-        margin: 0;
+        width: 80%;
+        height: 80%;
     }
 
     .outer {
-        width: 50%;
-        height: 50%;
+        width: 80%;
     }
 
 </style>
@@ -82,12 +77,26 @@ export = function run() {
         layers: [new ol.layer.Tile({ source: new ol.source.OSM() })]
     });
 
-    $('button.event.grow').click(() => {
-        $(css2).appendTo("head");
-        //map.updateSize();
+    $('#map').resize(() => {
+        throw "this will never happen because jquery only listens for the window size to change";
     });
 
-    $('button.event.resize').click(() => {
+    $('button.event.grow').click(evt => {
+        $(css2).appendTo("head");
+        $(evt.target).remove();
+    });
+
+    $('button.event.resize').click(evt => {
         map.updateSize();
+        $(evt.target).remove();
+    });
+
+    // https://rawgit.com/marcj/css-element-queries/v0.2.1/src/ResizeSensor.js is not compatible with AMD so use master..    
+    require(["https://rawgit.com/marcj/css-element-queries/master/src/ResizeSensor.js"], (ResizeSensor: any) => {
+        let target = map.getTargetElement();
+        new ResizeSensor(target, () => {
+            console.log("ResizeSensor resize detected!");
+            if (!fail) map.updateSize();
+        });
     });
 } 
