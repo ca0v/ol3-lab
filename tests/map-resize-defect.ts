@@ -5,32 +5,25 @@ import ol = require("openlayers");
 import $ = require("jquery");
 
 let html = `
-<div class='outer'>
-    <div id='map' class='map'>
+<lab class='map-resize-defect'>
+    <div class='outer'>
+        <div id='map' class='map fill'>
+        </div>
     </div>
     <button class='event grow'>Update CSS</button>
     <button class='event resize'>Resize Map</button>
-</div>
+</lab>
 `;
 
 let css = `
 <style>
 
-    html {
-        padding: 20px;
-        border: 1px solid black;
-    }
-
-    body {
-        padding: 20px;
-        border: 1px solid red;
-    }
-
     .outer {
         padding: 20px;
         border: 1px solid orange;
         width: 0;
-        height: 80%;
+        height: 0;
+        overflow:hidden;
     }
 
     .map {
@@ -47,18 +40,29 @@ let css2 = `
 <style>
 
     html, body {
-        width: 80%;
-        height: 80%;
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        border: none;
     }
 
     .outer {
-        width: 80%;
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        border: none;
+    }
+
+    .map {
+        border: none;
     }
 
 </style>
 `;
 
-const fail = 1;
+const fail = 0;
 export = function run() {
 
     $('#map').remove();
