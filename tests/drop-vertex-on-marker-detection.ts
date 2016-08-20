@@ -1,9 +1,140 @@
 import ol = require("openlayers");
 import {run as mapmaker} from "../labs/mapmaker";
 
+const delta = 16;
+
+class Route {
+
+    static removeVertex(geom: ol.geom.LineString, vertex: number) {
+        let coords = geom.getCoordinates();
+        if (coords.length < 3) return;
+        coords.splice(vertex, 1);
+        geom.setCoordinates(coords);
+    }
+
+    private routeLine: ol.Feature;
+    private routeStops: ol.Feature[];
+
+    get route() {
+        return this.routeLine;
+    }
+
+    get lines() {
+        return <ol.geom.LineString>this.routeLine.getGeometry();
+    }
+
+    get points() {
+        return this.routeStops.map(stop => <ol.geom.Point>stop.getGeometry());
+    }
+
+    owns(feature: ol.Feature) {
+        return feature === this.routeLine;
+    }
+
+    constructor(public color: string, stops: ol.Coordinate[]) {
+
+        let geom = new ol.geom.LineString(stops);
+        let feature = this.routeLine = new ol.Feature(geom);
+        feature.set("color", color);
+
+        feature.setStyle((res: number) => <any>[
+            new ol.style.Style({
+                stroke: new ol.style.Stroke({
+                    color: feature.get("color"),
+                    width: 4
+                })
+            }),
+            new ol.style.Style({
+                stroke: new ol.style.Stroke({
+                    color: "white",
+                    width: 1
+                })
+            })
+        ]);
+
+        let points = this.routeStops = stops.map(p => new ol.Feature(new ol.geom.Point(p)));
+        points.forEach((p, stopIndex) => {
+
+            p.set("color", color);
+            p.set("text", (1 + stopIndex) + "");
+
+            p.setStyle((res: number) => <any>[
+                new ol.style.Style({
+                    image: new ol.style.Circle({
+                        radius: delta,
+                        fill: new ol.style.Fill({
+                            color: p.get("color")
+                        })
+                    })
+                }),
+                new ol.style.Style({
+                    image: new ol.style.Circle({
+                        radius: delta - 2,
+                        stroke: new ol.style.Stroke({
+                            color: "white",
+                            width: 1
+                        })
+                    })
+                }),
+                new ol.style.Style({
+                    text: new ol.style.Text({
+                        font: `${delta * 0.75}pt Segoe UI`,
+                        text: p.get("text"),
+                        fill: new ol.style.Fill({
+                            color: "white"
+                        }),
+                        stroke: new ol.style.Stroke({
+                            color: "black",
+                            width: 1
+                        })
+                    })
+                })
+
+            ]);
+        });
+
+    }
+
+    appendTo(layer: ol.layer.Vector) {
+        layer.getSource().addFeatures([this.routeLine]);
+        layer.getSource().addFeatures(this.routeStops);
+    }
+
+    findStops(extent: ol.Extent) {
+        let result = <number[]>[];
+        this.points.forEach((p, i) => {
+            if (ol.extent.containsCoordinate(extent, p.getFirstCoordinate())) result.push(i);
+        });
+        return result;
+    }
+
+    removeStop(index: number) {
+        let stop = this.routeStops[index];
+        console.log("removeStop", this.color, stop);
+        this.routeStops.splice(index, 1);
+        let coords = this.lines.getCoordinates();
+        coords.splice(index, 1);
+        this.lines.setCoordinates(coords);
+        return stop;
+    }
+
+    addStop(stop: ol.Feature, index: number) {
+        console.log("addStop", this.color, stop, index);
+        this.routeStops.splice(index, 0, stop);
+    }
+
+    refresh() {
+        this.routeStops.map((stop, index) => {
+            stop.set("color", this.color);
+            stop.set("text", (1 + index) + "");
+        });
+    }
+}
+
 export function run() {
 
     let features = new ol.Collection([]);
+    let activeFeature: ol.Feature;
 
     features.on("add", (args: { element: ol.Feature }) => {
         console.log("add", args);
@@ -11,7 +142,7 @@ export function run() {
         let feature = args.element;
 
         feature.on("change", (args: any) => {
-            console.log("feature change", args);
+            activeFeature = feature;
         });
 
         feature.on("change:geometry", (args: any) => {
@@ -28,56 +159,27 @@ export function run() {
         console.log("remove", args);
     });
 
-    let modify = new ol.interaction.Modify({
-        features: features,
-        deleteCondition: event => ol.events.condition.shiftKeyOnly(event) && ol.events.condition.singleClick(event)
-    });
-
     mapmaker().then(map => {
 
         let layer = new ol.layer.Vector({
             source: new ol.source.Vector({
                 features: features
-            }),
-            style: (feature: ol.Feature, scale: number) => {
-                let color = feature.get("color") || "white";
-                return new ol.style.Style({
-                    image: new ol.style.Circle({
-                        radius: 10,
-                        stroke: new ol.style.Stroke({ color: "red", width: 1 }),
-                        fill: new ol.style.Fill({ color: color })
-                    })
-                })
-            }
+            })
         });
         map.addLayer(layer);
 
         let [a, b, c, d] = map.getView().calculateExtent([100, 100]);
-        let geom = new ol.geom.LineString([[a, b], [c, d]]);
-        let feature = new ol.Feature(geom);
 
-        feature.setStyle(new ol.style.Style({
-            stroke: new ol.style.Stroke({
-                color: "white",
-                width: 4
-            }),
-            fill: new ol.style.Fill({
-                color: "white"
-            })
-        }));
+        let blueRoute = new Route("blue", [[a, b], [c, b], [c, d], [a, d]].map(v => v.map(v => v + 0.001)));
+        blueRoute.appendTo(layer);
 
-        features.push(feature);
+        let greenRoute = new Route("green", [[a, b], [c, b], [c, d], [a, d]].map(v => v.map(v => v * 1.0001)));
+        greenRoute.appendTo(layer);
 
-        {
-            let points = [[a, b], [c, b], [c, d], [a, d]].map(p => new ol.Feature(new ol.geom.Point(p.map(v => v += 0.001))));
-            points.forEach(p => p.set("color", "blue"));
-            layer.getSource().addFeatures(points);
-        }
-        {
-            let points = [[a, b], [c, b], [c, d], [a, d]].map(p => new ol.Feature(new ol.geom.Point(p.map(v => v *= 1.0001))));
-            points.forEach(p => p.set("color", "green"));
-            layer.getSource().addFeatures(points);
-        }
+        let modify = new ol.interaction.Modify({
+            features: new ol.Collection([blueRoute, greenRoute].map(route => route.route)),
+            deleteCondition: event => ol.events.condition.shiftKeyOnly(event) && ol.events.condition.singleClick(event)
+        });
 
         map.addInteraction(modify);
 
@@ -93,9 +195,49 @@ export function run() {
             console.log("modifyend", args);
             let dropLocation = args.mapBrowserEvent.coordinate;
             console.log("drop-location", dropLocation);
+
+            let pixel = map.getPixelFromCoordinate(dropLocation);
+            let [x1, y1, x2, y2] = [pixel[0] - delta, pixel[1] + delta, pixel[0] + delta, pixel[1] - delta];
+            [x1, y1] = map.getCoordinateFromPixel([x1, y1]);
+            [x2, y2] = map.getCoordinateFromPixel([x2, y2]);
+
+            let dropInfo = {
+                route: <Route>null,
+                stops: <number[]>null
+            };
+
+            [blueRoute, greenRoute].some(route => {
+                let stops = route.findStops([x1, y1, x2, y2]);
+                if (stops.length) {
+                    console.log("drop", route, stops);
+                    dropInfo.route = route;
+                    dropInfo.stops = stops;
+                    return true;
+                }
+            })
+
+            let geom = <ol.geom.LineString>activeFeature.getGeometry();
             let coords = geom.getCoordinates();
             let vertex = coords.filter(p => p[0] === dropLocation[0])[0];
-            console.log("vertex", coords.indexOf(vertex));
+            let vertexIndex = coords.indexOf(vertex);
+            console.log("vertex", vertexIndex);
+
+            if (!dropInfo.route) {
+                Route.removeVertex(geom, vertexIndex);
+                activeFeature.setGeometry(geom);
+            } else {
+                let targetRoute = [blueRoute, greenRoute].filter(route => route.owns(activeFeature))[0];
+                if (!targetRoute) {
+                    //
+                } else {
+                    dropInfo.stops.map(stopIndex => {
+                        let stop = dropInfo.route.removeStop(stopIndex);
+                        targetRoute.addStop(stop, vertexIndex);
+                    });
+                    targetRoute.refresh();
+                    dropInfo.route.refresh();
+                }
+            }
         });
 
         modify.on("modifystart", () => {
