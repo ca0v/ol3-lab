@@ -33,8 +33,7 @@ class Route {
 
     constructor(public color: string, stops: ol.Coordinate[]) {
 
-        let geom = new ol.geom.LineString(stops);
-        let feature = this.routeLine = new ol.Feature(geom);
+        let feature = this.routeLine = new ol.Feature(new ol.geom.LineString(stops));
         feature.set("color", color);
 
         feature.setStyle((res: number) => <any>[
@@ -96,6 +95,7 @@ class Route {
     }
 
     appendTo(layer: ol.layer.Vector) {
+        this.refresh();
         layer.getSource().addFeatures([this.routeLine]);
         layer.getSource().addFeatures(this.routeStops);
     }
@@ -109,6 +109,7 @@ class Route {
     }
 
     removeStop(index: number) {
+        if (index === 0 && this.color !== "red") return;
         let stop = this.routeStops[index];
         console.log("removeStop", this.color, stop);
         this.routeStops.splice(index, 1);
@@ -128,6 +129,11 @@ class Route {
             stop.set("color", this.color);
             stop.set("text", (1 + index) + "");
         });
+        let coords = this.points.map(p => p.getCoordinates());
+        if (coords.length) {
+            coords.push(coords[0]);
+            this.routeLine.setGeometry(new ol.geom.LineString(coords));
+        }
     }
 }
 
@@ -176,8 +182,13 @@ export function run() {
         let greenRoute = new Route("green", [[a, b], [c, b], [c, d], [a, d]].map(v => v.map(v => v * 1.0001)));
         greenRoute.appendTo(layer);
 
+        let redRoute = new Route("red", []);
+        redRoute.appendTo(layer);
+
+        let routes = [blueRoute, greenRoute, redRoute];
+
         let modify = new ol.interaction.Modify({
-            features: new ol.Collection([blueRoute, greenRoute].map(route => route.route)),
+            features: new ol.Collection(routes.map(route => route.route)),
             deleteCondition: event => ol.events.condition.shiftKeyOnly(event) && ol.events.condition.singleClick(event)
         });
 
@@ -196,47 +207,60 @@ export function run() {
             let dropLocation = args.mapBrowserEvent.coordinate;
             console.log("drop-location", dropLocation);
 
-            let pixel = map.getPixelFromCoordinate(dropLocation);
-            let [x1, y1, x2, y2] = [pixel[0] - delta, pixel[1] + delta, pixel[0] + delta, pixel[1] - delta];
-            [x1, y1] = map.getCoordinateFromPixel([x1, y1]);
-            [x2, y2] = map.getCoordinateFromPixel([x2, y2]);
-
             let dropInfo = {
                 route: <Route>null,
                 stops: <number[]>null
             };
+            let targetInfo = {
+                route: <Route>null,
+                vertexIndex: <number>null
+            };
 
-            [blueRoute, greenRoute].some(route => {
-                let stops = route.findStops([x1, y1, x2, y2]);
-                if (stops.length) {
-                    console.log("drop", route, stops);
-                    dropInfo.route = route;
-                    dropInfo.stops = stops;
-                    return true;
-                }
-            })
+            targetInfo.route = routes.filter(route => route.owns(activeFeature))[0];
+            console.log("target-route", targetInfo.route.color);
 
-            let geom = <ol.geom.LineString>activeFeature.getGeometry();
-            let coords = geom.getCoordinates();
-            let vertex = coords.filter(p => p[0] === dropLocation[0])[0];
-            let vertexIndex = coords.indexOf(vertex);
-            console.log("vertex", vertexIndex);
+            {
+                let geom = <ol.geom.LineString>activeFeature.getGeometry();
+                let coords = geom.getCoordinates();
+                let vertex = coords.filter(p => p[0] === dropLocation[0])[0];
+                let vertexIndex = coords.indexOf(vertex);
+                console.log("vertex", vertexIndex);
+                targetInfo.vertexIndex = vertexIndex;
+            }
+
+            {
+                let pixel = map.getPixelFromCoordinate(dropLocation);
+                let [x1, y1, x2, y2] = [pixel[0] - delta, pixel[1] + delta, pixel[0] + delta, pixel[1] - delta];
+                [x1, y1] = map.getCoordinateFromPixel([x1, y1]);
+                [x2, y2] = map.getCoordinateFromPixel([x2, y2]);
+
+                routes.some(route => {
+                    let stops = route.findStops([x1, y1, x2, y2]);
+                    if (stops.length) {
+                        console.log("drop", route, stops);
+                        dropInfo.route = route;
+                        dropInfo.stops = stops;
+                        return true;
+                    }
+                })
+            }
 
             if (!dropInfo.route) {
-                Route.removeVertex(geom, vertexIndex);
-                activeFeature.setGeometry(geom);
-            } else {
-                let targetRoute = [blueRoute, greenRoute].filter(route => route.owns(activeFeature))[0];
-                if (!targetRoute) {
-                    //
-                } else {
-                    dropInfo.stops.map(stopIndex => {
-                        let stop = dropInfo.route.removeStop(stopIndex);
-                        targetRoute.addStop(stop, vertexIndex);
-                    });
-                    targetRoute.refresh();
-                    dropInfo.route.refresh();
+                if (targetInfo.route !== redRoute) {
+                    let stop = targetInfo.route.removeStop(targetInfo.vertexIndex);
+                    if (stop) {
+                        redRoute.addStop(stop, 0);
+                        targetInfo.route.refresh();
+                        redRoute.refresh();
+                    }
                 }
+            } else {
+                dropInfo.stops.map(stopIndex => {
+                    let stop = dropInfo.route.removeStop(stopIndex);
+                    stop && targetInfo.route.addStop(stop, targetInfo.vertexIndex);
+                });
+                targetInfo.route.refresh();
+                dropInfo.route.refresh();
             }
         });
 
