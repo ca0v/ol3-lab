@@ -566,17 +566,18 @@ define("labs/common/common", ["require", "exports"], function (require, exports)
             styleTag.innerText = css;
             document.head.appendChild(styleTag);
         }
-        styleTag.dataset.count = (styleTag.dataset.count | 0) + 1;
+        var dataset = styleTag.dataset;
+        dataset["count"] = parseInt(dataset["count"] || "0") + 1 + "";
         return function () {
-            styleTag.dataset.count = (styleTag.dataset.count | 0) - 1;
-            if (styleTag.dataset.count === "0") {
+            dataset["count"] = parseInt(dataset["count"] || "0") - 1 + "";
+            if (dataset["count"] === "0") {
                 styleTag.remove();
             }
         };
     }
     exports.cssin = cssin;
 });
-define("labs/common/ol3-patch", ["require", "exports", "openlayers"], function (require, exports, ol3) {
+define("labs/common/ol3-patch", ["require", "exports", "openlayers", "labs/common/common"], function (require, exports, ol3, common_1) {
     "use strict";
     if (!ol3.geom.SimpleGeometry.prototype.scale) {
         var scale_1 = function (flatCoordinates, offset, end, stride, deltaX, deltaY, opt_dest) {
@@ -595,18 +596,20 @@ define("labs/common/ol3-patch", ["require", "exports", "openlayers"], function (
             }
             return dest;
         };
-        ol3.geom.SimpleGeometry.prototype.scale = function (deltaX, deltaY) {
-            var it = this;
-            it.applyTransform(function (flatCoordinates, output, stride) {
-                scale_1(flatCoordinates, 0, flatCoordinates.length, stride, deltaX, deltaY, flatCoordinates);
-                return flatCoordinates;
-            });
-            it.changed();
-        };
+        common_1.mixin(ol3.geom.SimpleGeometry.prototype, {
+            scale: function (deltaX, deltaY) {
+                var it = this;
+                it.applyTransform(function (flatCoordinates, output, stride) {
+                    scale_1(flatCoordinates, 0, flatCoordinates.length, stride, deltaX, deltaY, flatCoordinates);
+                    return flatCoordinates;
+                });
+                it.changed();
+            }
+        });
     }
     return ol3;
 });
-define("alpha/format/ol3-symbolizer", ["require", "exports", "labs/common/ol3-patch", "labs/common/common"], function (require, exports, ol, common_1) {
+define("alpha/format/ol3-symbolizer", ["require", "exports", "labs/common/ol3-patch", "labs/common/common"], function (require, exports, ol, common_2) {
     "use strict";
     var StyleConverter = (function () {
         function StyleConverter() {
@@ -646,7 +649,7 @@ define("alpha/format/ol3-symbolizer", ["require", "exports", "labs/common/ol3-pa
             if (typeof style === "number")
                 return style;
             if (style.getColor)
-                common_1.mixin(s, this.serializeColor(style.getColor()));
+                common_2.mixin(s, this.serializeColor(style.getColor()));
             if (style.getImage)
                 this.assign(s, "image", this.serializeStyle(style.getImage()));
             if (style.getFill)
@@ -773,10 +776,7 @@ define("alpha/format/ol3-symbolizer", ["require", "exports", "labs/common/ol3-pa
             json.scale = json.scale || 1;
             var _a = [json["offset-x"] || 0, json["offset-y"] || 0], x = _a[0], y = _a[1];
             {
-                var p = new ol.geom.Point([x, y]);
-                p.rotate(json.rotation, [0, 0]);
-                p.scale(json.scale, json.scale);
-                _b = p.getCoordinates(), x = _b[0], y = _b[1];
+                ol.coordinate.rotate([x, y].map(function (v) { return v * json.scale; }), json.rotation);
             }
             return new ol.style.Text({
                 fill: this.deserializeFill(json.fill),
@@ -785,10 +785,9 @@ define("alpha/format/ol3-symbolizer", ["require", "exports", "labs/common/ol3-pa
                 font: json.font,
                 offsetX: x,
                 offsetY: y,
-                rotation: json.rotation || 0,
-                scale: json.scale || 1
+                rotation: json.rotation,
+                scale: json.scale
             });
-            var _b;
         };
         StyleConverter.prototype.deserializeCircle = function (json) {
             var image = new ol.style.Circle({
@@ -808,8 +807,8 @@ define("alpha/format/ol3-symbolizer", ["require", "exports", "labs/common/ol3-pa
                 fill: this.deserializeFill(json.fill),
                 stroke: this.deserializeStroke(json.stroke)
             });
-            common_1.doif(json.rotation, function (v) { return image.setRotation(v); });
-            common_1.doif(json.opacity, function (v) { return image.setOpacity(v); });
+            common_2.doif(json.rotation, function (v) { return image.setRotation(v); });
+            common_2.doif(json.opacity, function (v) { return image.setOpacity(v); });
             return image;
         };
         StyleConverter.prototype.deserializeIcon = function (json) {
@@ -817,10 +816,10 @@ define("alpha/format/ol3-symbolizer", ["require", "exports", "labs/common/ol3-pa
                 json.anchor = [json["anchor-x"] || 0.5, json["anchor-y"] || 0.5];
             }
             var image = new ol.style.Icon({
-                anchor: json.anchor,
-                anchorOrigin: json.anchorOrigin,
-                anchorXUnits: json.anchorXUnits,
-                anchorYUnits: json.anchorYUnits,
+                anchor: json.anchor || [0.5, 0.5],
+                anchorOrigin: json.anchorOrigin || "top-left",
+                anchorXUnits: json.anchorXUnits || "fraction",
+                anchorYUnits: json.anchorYUnits || "fraction",
                 img: undefined,
                 imgSize: undefined,
                 offset: json.offset,
@@ -831,7 +830,8 @@ define("alpha/format/ol3-symbolizer", ["require", "exports", "labs/common/ol3-pa
                 rotateWithView: json.rotateWithView,
                 rotation: json.rotation,
                 size: json.size,
-                src: json.src
+                src: json.src,
+                color: json.color
             });
             image.load();
             return image;
@@ -898,7 +898,7 @@ define("alpha/format/ol3-symbolizer", ["require", "exports", "labs/common/ol3-pa
                 size: [canvas.width, canvas.height],
                 src: undefined
             });
-            return common_1.mixin(icon, {
+            return common_2.mixin(icon, {
                 path: json.path,
                 stroke: json.stroke,
                 fill: json.fill,
@@ -915,12 +915,12 @@ define("alpha/format/ol3-symbolizer", ["require", "exports", "labs/common/ol3-pa
         };
         StyleConverter.prototype.deserializeStroke = function (json) {
             var stroke = new ol.style.Stroke();
-            common_1.doif(json.color, function (v) { return stroke.setColor(v); });
-            common_1.doif(json.lineCap, function (v) { return stroke.setLineCap(v); });
-            common_1.doif(json.lineDash, function (v) { return stroke.setLineDash(v); });
-            common_1.doif(json.lineJoin, function (v) { return stroke.setLineJoin(v); });
-            common_1.doif(json.miterLimit, function (v) { return stroke.setMiterLimit(v); });
-            common_1.doif(json.width, function (v) { return stroke.setWidth(v); });
+            common_2.doif(json.color, function (v) { return stroke.setColor(v); });
+            common_2.doif(json.lineCap, function (v) { return stroke.setLineCap(v); });
+            common_2.doif(json.lineDash, function (v) { return stroke.setLineDash(v); });
+            common_2.doif(json.lineJoin, function (v) { return stroke.setLineJoin(v); });
+            common_2.doif(json.miterLimit, function (v) { return stroke.setMiterLimit(v); });
+            common_2.doif(json.width, function (v) { return stroke.setWidth(v); });
             return stroke;
         };
         StyleConverter.prototype.deserializeColor = function (fill) {
@@ -937,7 +937,7 @@ define("alpha/format/ol3-symbolizer", ["require", "exports", "labs/common/ol3-pa
                     gradient_1 = this.deserializeRadialGradient(fill.gradient);
                 }
                 if (fill.gradient.stops) {
-                    common_1.mixin(gradient_1, {
+                    common_2.mixin(gradient_1, {
                         stops: fill.gradient.stops
                     });
                     var stops = fill.gradient.stops.split(";");
@@ -990,7 +990,7 @@ define("alpha/format/ol3-symbolizer", ["require", "exports", "labs/common/ol3-pa
                         }
                         break;
                 }
-                return common_1.mixin(context.createPattern(canvas, repitition), fill.pattern);
+                return common_2.mixin(context.createPattern(canvas, repitition), fill.pattern);
             }
             throw "invalid color configuration";
         };
@@ -1002,7 +1002,7 @@ define("alpha/format/ol3-symbolizer", ["require", "exports", "labs/common/ol3-pa
             canvas.height = Math.max(y0, y1);
             var context = canvas.getContext('2d');
             var gradient = context.createLinearGradient(x0, y0, x1, y1);
-            common_1.mixin(gradient, {
+            common_2.mixin(gradient, {
                 type: "linear(" + [x0, y0, x1, y1].join(",") + ")"
             });
             return gradient;
@@ -1015,7 +1015,7 @@ define("alpha/format/ol3-symbolizer", ["require", "exports", "labs/common/ol3-pa
             canvas.height = 2 * Math.max(y0, y1);
             var context = canvas.getContext('2d');
             var gradient = context.createRadialGradient(x0, y0, r0, x1, y1, r1);
-            common_1.mixin(gradient, {
+            common_2.mixin(gradient, {
                 type: "radial(" + [x0, y0, r0, x1, y1, r1].join(",") + ")"
             });
             return gradient;
@@ -1204,161 +1204,6 @@ define("labs/facebook", ["require", "exports", "openlayers", "jquery"], function
     }
     exports.run = run;
 });
-define("labs/google-identity", ["require", "exports", "jquery", "openlayers"], function (require, exports, $, ol) {
-    "use strict";
-    var client_id = '987911803084-a6cafnu52d7lkr8vfrtl4modrpinr1os.apps.googleusercontent.com';
-    var api_key = 'AIzaSyCfuluThuQ0j7tCHg9GRf0lwDRHNUsZs6o';
-    requirejs.config({
-        shim: {
-            'gapi': {
-                exports: 'gapi'
-            }
-        },
-        paths: {
-            'gapi': 'https://apis.google.com/js/api.js'
-        }
-    });
-    var html = "\n    <div class=\"g-signin2\" data-onsuccess=\"giAsyncInit\" data-theme=\"dark\"></div>\n    <button class='logout-button'>Logout</button>\n";
-    function createMap() {
-        var basemap = new ol.layer.Tile({
-            source: new ol.source.OSM()
-        });
-        var map = new ol.Map({
-            target: "map",
-            view: new ol.View({
-                projection: "EPSG:4326",
-                center: [-82.4, 34.85],
-                zoom: 10
-            }),
-            layers: [basemap]
-        });
-    }
-    var GoogleIdentity = (function () {
-        function GoogleIdentity(client_id) {
-            this.client_id = client_id;
-        }
-        GoogleIdentity.prototype.load = function () {
-            var _this = this;
-            var d = $.Deferred();
-            $("\n            <meta name=\"google-signin-scope\" content=\"profile email https://www.googleapis.com/auth/calendar.readonly\">\n            <meta name=\"google-signin-client_id\" content=\"" + this.client_id + "\">\n            <script src=\"https://apis.google.com/js/platform.js\" async defer></script>\n        ").appendTo('head');
-            window.giAsyncInit = function (args) {
-                _this.id_token = args.getAuthResponse().id_token;
-                d.resolve(args);
-                delete window.giAsyncInit;
-            };
-            return d;
-        };
-        GoogleIdentity.prototype.showInfo = function (googleUser) {
-            createMap();
-            var profile = googleUser.getBasicProfile();
-            $("<img src='" + profile.getImageUrl() + "'>" + profile.getName() + "</img>").appendTo('body');
-        };
-        ;
-        GoogleIdentity.prototype.logout = function () {
-            var auth2 = gapi.auth2.getAuthInstance();
-            auth2.signOut().then(function () {
-                console.log('User signed out.');
-            });
-        };
-        return GoogleIdentity;
-    }());
-    function run() {
-        $(html).appendTo('body');
-        require(["gapi"], function (gapi) {
-            gapi.load('client', function () {
-                debugger;
-                gapi.client.setApiKey(api_key);
-                gapi.auth2.init({
-                    client_id: client_id,
-                    scope: 'profile https://www.googleapis.com/auth/calendar.readonly'
-                }).then(function () {
-                    debugger;
-                    var auth2 = gapi.auth2.getAuthInstance();
-                });
-            });
-        });
-        return;
-        var gi = new GoogleIdentity(client_id);
-        gi.load().then(function (args) {
-            gi.showInfo(args);
-            gapi.load('client', 'v3', function () {
-                debugger;
-            });
-        });
-        $('button.logout-button').click(function () {
-            gi.logout();
-        });
-    }
-    exports.run = run;
-});
-define("labs/image-data-viewer", ["require", "exports", "jquery"], function (require, exports, $) {
-    "use strict";
-    var data = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAAA9CAYAAAAd1W/BAAAFf0lEQVRoBe1ZSW/bRhT+uFMSZcmSAnlpHCcokKZo0QU9t7321n/QnnvqHyjQn9Cf0GuvRU89Feg5AdIGDro5tuPd1mItJKWhyOKNRMRwpFjcZAviAATJ4XDee998b97MGwGAhwUu4gLbzk1PAUgZsOAIpC6w4ARAyoCUAQuOwO1xAQEAXTMu8ozlDcUJQ1sFCRBEASK/Dz95A8AdAJ7rwXNH6/QEF+uzBUAAJBmQNRGyJkDPy1BzCjRDgZqVucG9Th9904HdZuh3HTg9D07f46AksWuZDQAjw5WMCOOOhtJGHssbeeRKOiRF4pcoivA8MtTlF7MddE5N1HZbaOx3YNYZHHsERIy0Ja9LkGBDv1Z0AUsrGqoPiyjfLyJXzkLNqJBUCYIw3vHJBViPWNBD58zE8fMazrfb6NYdDPrxqZwoAIIIqFkB5U0Db31UQWmjCD2fgSgHm3udngO7ZeHk7xoOntZwcWhz1/BiwCExALjxOQGr7xax/sEdLK8XoWRVTBjwa0lNjCAQajtN7D0+QW3H5C4RFYRk5gABINqvPCri7sdVFNcKkHUltPGEDkULfSmDytsSf/bcY9RemHyCvBa9NzRIBABFA8qbOaw+KqGwshTZeF9/AkHLqijdK4CiBbMH3B0GzG8R/B7MGafon2J6rqJh9b0SyvdLkWg/ThxnQj6D6jtlVB7koRnEiHEtp6uL8Ot4AZJKo2+guF6AEpH24yUM3UHL6ag+LKOwRpPqpJbX18cKAB/9sobCmoHscvDZ/np1X7WQNRm5SpbLogVVWBbEDsBSNYOlqsFj/Ct1k3kihhXXCWz19gCQK+vIFHSIUqzYjkVQVmUYlSz0vHI7APA8ClVvXuGNtSRkJU2ISkZGpqBC1WlVGbyjWIeJ2R669X4oRYKrPvyDltIiLamlENYD8aXE7o0sOHjamAn9fcDI1XRDgaLTntqvnf4eCwPI+N8A0L1b62Hvydn0GkRtKQiQJJEz4MZc4AcAmwC+Hxnz7JddMMuJatp0/3seHObCdVyE2RdEZsBnAL4cqfo1AHqnvfy/vx9OZ0DEVoOBC7vTh9Pz00fBOowMAI3+5eK/P/91D2bdvvwpkWfaJbojBoQREAmArwB8eEUqvVM9lT9+fjF6SuZG2SNmMljNHpg9YxcoAPBH+6p5VE/fD5/VcPbfxdXPsb07fQet0y6sFgvl/6RIaAZ8C6A4wRSqp+9UHv/0z+gp5psHMIvh4qADq8l4QjWMhFAAULjzZ/xJQuk7taN5IIkJkfKF7ZMOmodd9DrObAH4cZLVV+p9F6EJMc6wSCHPvrBw8lcdrSMLboSIG5gBFOY+v2LopFcKjzwsWg4IhDiKO/BgXZg42jrnWeK+GW7y83UJDMC0o+8L8NuTG0QNi2Q8JUbPt5s42mqgfdqPNPqkY6CsMK32aLETtBAIOwAqDwr49Jv3g/7OTy4o5JmNLs62G3j55AyNlxZ4LjBiajwQAME1f/2PL777BPqSBoGwv27z4oGfFjGbwawPaX/4Zw2dc4YB+X1E40m7CNm0142bVEOHoIouorieRWO/CaNMSQwdlNaiPT0vPhgjo/gix2Kw2zbap10cb9VR223DbtG6f5Kk4PUzYwDl7GQNyJZUlO4aWN4wkCtleOqMnw9KIh/QARvwjQ2NeufUQm2vjeZ+F3aLjsSIEcGNfNMfMwPAV4ISp5TFpVNizZCh5GS+n/dPh+0OA+Onw5T3d+EycLrTUXkSZeYAXDaCWMH38DQdjOIRN5R8nzZ3MY/2Zdn+840C4Ctxk/fA64CbVDYJ2SkASaA6T32mDJin0UpC15QBSaA6T32mDJin0UpC15QBSaA6T32mDJin0UpC15QBSaA6T30uPAP+B8Xv5/OOW6fPAAAAAElFTkSuQmCC";
-    var css = "\n<style>\n    .image-data-viewer .area {\n        padding: 20px;\n    }\n\n    .image-data-viewer img {\n        width: auto;\n        height: auto;\n        border: 1px dashed rgba(0, 0, 0, 0.5);\n        padding: 20px;\n    }\n\n    .image-data-viewer label {\n        display: block;\n    }\n\n    .image-data-viewer textarea {\n        width: 100%;\n        height: 40px;\n        white-space: nowrap;\n    }\n</style>\n";
-    var ux = "\n<div class=\"image-data-viewer\">\n    <h3>Tool for viewing image data</h3>\n    <p>Paste an Image into Image Data to view the Image below</p>\n    <div class='area'>\n        <label>Image Data (paste image or text here)</label> \n        <textarea autocomplete=\"off\" spellcheck=\"false\" class='image-data-input'></textarea>\n    </div>\n    <div class='area'>\n        <label>Image</label> \n        <img class='image'/>\n    </div>\n    <div class='area'>\n        <label>Select an Image to update the Image Data and then the Image</label>\n        <input class='image-file' type='file' accept='image/*' />\n    </div>\n</div>\n";
-    var openFile = function (event) {
-        var input = event.target;
-        var reader = new FileReader();
-        reader.onload = function () {
-            var textarea = $(".image-data-input");
-            textarea[0].value = reader.result;
-            textarea.change();
-        };
-        reader.readAsDataURL(input.files[0]);
-    };
-    var pasteHandler = function (evt) {
-        var event = (evt.originalEvent || evt);
-        var items = event.clipboardData.items;
-        var blob;
-        for (var i = 0; i < items.length; i++) {
-            if (items[i].type.indexOf("image") === 0) {
-                blob = items[i].getAsFile();
-                break;
-            }
-        }
-        if (blob) {
-            var reader = new FileReader();
-            reader.onload = function (readerEvent) {
-                $(".image-data-input").val(readerEvent.target.result).change();
-            };
-            reader.readAsDataURL(blob);
-        }
-    };
-    function run() {
-        $(ux).appendTo(".map");
-        $(css).appendTo("head");
-        $(".image-data-input").change(function () {
-            $(".image").attr("src", $(".image-data-input").val());
-        }).val(data).change();
-        $(".image-data-input").on("paste", pasteHandler);
-        $(".image-file").change(openFile);
-    }
-    exports.run = run;
-});
-define("labs/index", ["require", "exports"], function (require, exports) {
-    "use strict";
-    function run() {
-        var l = window.location;
-        var path = "" + l.origin + l.pathname + "?run=labs/";
-        var labs = "\n    style-lab\n\n    style-viewer\n    style-viewer&geom=point&style=icon/png\n    style-viewer&geom=point&style=icon/png,text/text\n    style-viewer&geom=point&style=%5B%7B\"image\":%7B\"imgSize\":%5B45,45%5D,\"rotation\":0,\"stroke\":%7B\"color\":\"rgba(255,25,0,0.8)\",\"width\":3%7D,\"path\":\"M23%202%20L23%2023%20L43%2016.5%20L23%2023%20L35%2040%20L23%2023%20L11%2040%20L23%2023%20L3%2017%20L23%2023%20L23%202%20Z\"%7D%7D%5D\n\n    style-viewer&geom=point&style=%5B%7B\"circle\":%7B\"fill\":%7B\"gradient\":%7B\"type\":\"linear(32,32,96,96)\",\"stops\":\"rgba(0,255,0,0.1)%200%25;rgba(0,255,0,0.8)%20100%25\"%7D%7D,\"opacity\":1,\"stroke\":%7B\"color\":\"rgba(0,255,0,1)\",\"width\":1%7D,\"radius\":64%7D%7D,%7B\"image\":%7B\"anchor\":%5B16,48%5D,\"size\":%5B32,48%5D,\"anchorXUnits\":\"pixels\",\"anchorYUnits\":\"pixels\",\"src\":\"http://openlayers.org/en/v3.17.1/examples/data/icon.png\"%7D%7D,%7B\"text\":%7B\"fill\":%7B\"color\":\"rgba(75,92,85,0.85)\"%7D,\"stroke\":%7B\"color\":\"rgba(255,255,255,1)\",\"width\":5%7D,\"offset-x\":0,\"offset-y\":16,\"text\":\"fantasy%20light\",\"font\":\"18px%20serif\"%7D%7D%5D    \n\n    style-viewer&geom=point&style=%5B%7B\"image\":%7B\"imgSize\":%5B13,21%5D,\"fill\":%7B\"color\":\"rgba(0,0,0,0.5)\"%7D,\"path\":\"M6.3,0C6.3,0,0,0.1,0,7.5c0,3.8,6.3,12.6,6.3,12.6s6.3-8.8,6.3-12.7C12.6,0.1,6.3,0,6.3,0z%20M6.3,8.8%20c-1.4,0-2.5-1.1-2.5-2.5c0-1.4,1.1-2.5,2.5-2.5c1.4,0,2.5,1.1,2.5,2.5C8.8,7.7,7.7,8.8,6.3,8.8z\"%7D%7D%5D\n\n    style-viewer&geom=point&style=%5B%7B\"image\":%7B\"imgSize\":%5B15,15%5D,\"anchor\":%5B0,0.5%5D,\"fill\":%7B\"color\":\"rgba(255,0,0,0.1)\"%7D,\"stroke\":%7B\"color\":\"rgba(255,0,0,1)\",\"width\":0.1%7D,\"scale\":8,\"rotation\":0.7,\"img\":\"lock\"%7D%7D,%7B\"image\":%7B\"imgSize\":%5B15,15%5D,\"anchor\":%5B100,0.5%5D,\"anchorXUnits\":\"pixels\",\"fill\":%7B\"color\":\"rgba(0,255,0,0.4)\"%7D,\"stroke\":%7B\"color\":\"rgba(255,0,0,1)\",\"width\":0.1%7D,\"scale\":1.5,\"rotation\":0.7,\"img\":\"lock\"%7D%7D,%7B\"image\":%7B\"imgSize\":%5B15,15%5D,\"anchor\":%5B-10,0%5D,\"anchorXUnits\":\"pixels\",\"anchorOrigin\":\"top-right\",\"fill\":%7B\"color\":\"rgba(230,230,80,1)\"%7D,\"stroke\":%7B\"color\":\"rgba(0,0,0,1)\",\"width\":0.5%7D,\"scale\":2,\"rotation\":0.8,\"img\":\"lock\"%7D%7D%5D\n\n\n    style-viewer&geom=multipoint&style=icon/png\n\n    style-viewer&geom=polyline&style=stroke/dot\n\n    style-viewer&geom=polygon&style=fill/diagonal\n    style-viewer&geom=polygon&style=fill/horizontal,fill/vertical,stroke/dashdotdot\n    style-viewer&geom=polygon&style=stroke/solid,text/text\n    style-viewer&geom=polygon-with-holes&style=fill/cross,stroke/solid\n\n    style-viewer&geom=multipolygon&style=stroke/solid,fill/horizontal,text/text\n\n    style-to-canvas\n    polyline-encoder\n    image-data-viewer\n\n    mapmaker\n    mapmaker&background=light\n    mapmaker&geom=t`syzE}gm_dAm_@A?r@p@Bp@Hp@Ph@Td@Z`@`@Vb@Nd@xUABmF\n    mapmaker&geom=t`syzE}gm_dAm_@A?r@p@Bp@Hp@Ph@Td@Z`@`@Vb@Nd@xUABmF&color=yellow&background=dark&modify=1\n    \n    facebook\n    google-identity\n    index\n    ";
-        var styles = document.createElement("style");
-        document.head.appendChild(styles);
-        styles.innerText += "\n    #map {\n        display: none;\n    }\n    .test {\n        margin: 20px;\n    }\n    ";
-        var labDiv = document.createElement("div");
-        document.body.appendChild(labDiv);
-        labDiv.innerHTML = labs
-            .split(/ /)
-            .map(function (v) { return v.trim(); })
-            .filter(function (v) { return !!v; })
-            .map(function (lab) { return ("<div class='test'><a href='" + path + lab + "&debug=1'>" + lab + "</a></div>"); })
-            .join("\n");
-        var testDiv = document.createElement("div");
-        document.body.appendChild(testDiv);
-        testDiv.innerHTML = "<a href='" + l.origin + l.pathname + "?run=tests/index'>tests</a>";
-    }
-    exports.run = run;
-    ;
-});
 define("labs/common/ol3-polyline", ["require", "exports", "openlayers"], function (require, exports, ol) {
     "use strict";
     var Polyline = ol.format.Polyline;
@@ -1501,7 +1346,7 @@ define("labs/common/myjson", ["require", "exports", "jquery"], function (require
     }());
     exports.MyJson = MyJson;
 });
-define("labs/mapmaker", ["require", "exports", "jquery", "openlayers", "labs/common/common", "labs/common/ol3-polyline", "alpha/format/ol3-symbolizer", "ux/styles/stroke/dashdotdot", "ux/styles/stroke/solid", "ux/styles/text/text", "labs/common/myjson"], function (require, exports, $, ol, common_2, reduce, ol3_symbolizer_1, dashdotdot, strokeStyle, textStyle, myjson_1) {
+define("labs/mapmaker", ["require", "exports", "jquery", "openlayers", "labs/common/common", "labs/common/ol3-polyline", "alpha/format/ol3-symbolizer", "ux/styles/stroke/dashdotdot", "ux/styles/stroke/solid", "ux/styles/text/text", "labs/common/myjson"], function (require, exports, $, ol, common_3, reduce, ol3_symbolizer_1, dashdotdot, strokeStyle, textStyle, myjson_1) {
     "use strict";
     var styler = new ol3_symbolizer_1.StyleConverter();
     function parse(v, type) {
@@ -1535,7 +1380,7 @@ define("labs/mapmaker", ["require", "exports", "jquery", "openlayers", "labs/com
         {
             var opts_1 = options;
             Object.keys(opts_1).forEach(function (k) {
-                common_2.doif(common_2.getParameterByName(k), function (v) {
+                common_3.doif(common_3.getParameterByName(k), function (v) {
                     var value = parse(v, opts_1[k]);
                     if (value !== undefined)
                         opts_1[k] = value;
@@ -1553,7 +1398,7 @@ define("labs/mapmaker", ["require", "exports", "jquery", "openlayers", "labs/com
         else {
             d.resolve(options);
         }
-        d.done(function (options) {
+        return d.then(function (options) {
             $(".map").addClass(options.background);
             var map = new ol.Map({
                 target: "map",
@@ -1595,7 +1440,7 @@ define("labs/mapmaker", ["require", "exports", "jquery", "openlayers", "labs/com
                     feature.setStyle(style);
                     features.push(feature);
                 });
-                if (!common_2.getParameterByName("center")) {
+                if (!common_3.getParameterByName("center")) {
                     map.getView().fit(layer.getSource().getExtent(), map.getSize());
                 }
             }
@@ -1661,9 +1506,375 @@ define("labs/mapmaker", ["require", "exports", "jquery", "openlayers", "labs/com
                     window.open(url, "_blank");
                 }
             });
+            return map;
         });
     }
     exports.run = run;
+});
+define("ux/controls/input", ["require", "exports", "openlayers", "labs/common/common"], function (require, exports, ol, common_4) {
+    "use strict";
+    var css = "\n    .ol-input {\n        position:absolute;\n    }\n    .ol-input.top {\n        top: 0.5em;\n    }\n    .ol-input.left {\n        left: 0.5em;\n    }\n    .ol-input.bottom {\n        bottom: 0.5em;\n    }\n    .ol-input.right {\n        right: 0.5em;\n    }\n    .ol-input.top.left {\n        top: 4.5em;\n    }\n    .ol-input button {\n        min-height: 1.375em;\n        min-width: 1.375em;\n        width: auto;\n        display: inline;\n    }\n    .ol-input.left button {\n        float:right;\n    }\n    .ol-input.right button {\n        float:left;\n    }\n    .ol-input input {\n        height: 24px;\n        min-width: 240px;\n        border: none;\n        padding: 0;\n        margin: 0;\n        margin-left: 2px;\n        margin-top: 1px;\n        vertical-align: top;\n    }\n    .ol-input input.hidden {\n        display: none;\n    }\n";
+    var olcss = {
+        CLASS_CONTROL: 'ol-control',
+        CLASS_UNSELECTABLE: 'ol-unselectable',
+        CLASS_UNSUPPORTED: 'ol-unsupported',
+        CLASS_HIDDEN: 'ol-hidden'
+    };
+    var expando = {
+        right: '»',
+        left: '«'
+    };
+    var defaults = {
+        className: 'ol-input bottom left',
+        expanded: false,
+        closedText: expando.right,
+        openedText: expando.left,
+        placeholderText: 'Search'
+    };
+    var Geocoder = (function (_super) {
+        __extends(Geocoder, _super);
+        function Geocoder(options) {
+            var _this = this;
+            _super.call(this, {
+                element: options.element,
+                target: options.target
+            });
+            var button = this.button = document.createElement('button');
+            button.setAttribute('type', 'button');
+            button.title = options.placeholderText;
+            options.element.appendChild(button);
+            var input = this.input = document.createElement('input');
+            input.placeholder = options.placeholderText;
+            options.element.appendChild(input);
+            button.addEventListener("click", function () {
+                options.expanded ? _this.collapse(options) : _this.expand(options);
+            });
+            input.addEventListener("keypress", function (args) {
+                if (args.key === "Enter") {
+                    button.focus();
+                    _this.collapse(options);
+                }
+            });
+            input.addEventListener("change", function () {
+                var args = {
+                    type: "change",
+                    value: input.value
+                };
+                _this.dispatchEvent(args);
+                if (options.onChange)
+                    options.onChange(args);
+            });
+            input.addEventListener("blur", function () {
+            });
+            options.expanded ? this.expand(options) : this.collapse(options);
+        }
+        Geocoder.create = function (options) {
+            common_4.cssin('ol-input', css);
+            options = common_4.mixin({
+                openedText: options.className && -1 < options.className.indexOf("left") ? expando.left : expando.right,
+                closedText: options.className && -1 < options.className.indexOf("left") ? expando.right : expando.left,
+            }, options || {});
+            options = common_4.mixin(common_4.mixin({}, defaults), options);
+            var element = document.createElement('div');
+            element.className = options.className + " " + olcss.CLASS_UNSELECTABLE + " " + olcss.CLASS_CONTROL;
+            var geocoderOptions = common_4.mixin({
+                element: element,
+                target: options.target,
+                expanded: false
+            }, options);
+            return new Geocoder(geocoderOptions);
+        };
+        Geocoder.prototype.dispose = function () {
+            debugger;
+        };
+        Geocoder.prototype.collapse = function (options) {
+            options.expanded = false;
+            this.input.classList.toggle("hidden", true);
+            this.button.classList.toggle("hidden", false);
+            this.button.innerHTML = options.closedText;
+        };
+        Geocoder.prototype.expand = function (options) {
+            options.expanded = true;
+            this.input.classList.toggle("hidden", false);
+            this.button.classList.toggle("hidden", true);
+            this.button.innerHTML = options.openedText;
+            this.input.focus();
+            this.input.select();
+        };
+        return Geocoder;
+    }(ol.control.Control));
+    exports.Geocoder = Geocoder;
+});
+define("labs/providers/osm", ["require", "exports"], function (require, exports) {
+    "use strict";
+    var OpenStreet = (function () {
+        function OpenStreet() {
+            this.dataType = 'json';
+            this.method = 'GET';
+            this.settings = {
+                url: '//nominatim.openstreetmap.org/search/',
+                params: {
+                    q: '',
+                    format: 'json',
+                    addressdetails: 1,
+                    limit: 10,
+                    countrycodes: '',
+                    'accept-language': 'en-US'
+                }
+            };
+        }
+        OpenStreet.prototype.getParameters = function (options) {
+            return {
+                url: this.settings.url,
+                params: {
+                    q: options.query,
+                    format: 'json',
+                    addressdetails: 1,
+                    limit: options.limit || this.settings.params.limit,
+                    countrycodes: options.countrycodes || this.settings.params.countrycodes,
+                    'accept-language': options.lang || this.settings.params['accept-language']
+                }
+            };
+        };
+        OpenStreet.prototype.handleResponse = function (args) {
+            return args.sort(function (v) { return v.importance || 1; }).map(function (result) { return ({
+                original: result,
+                lon: parseFloat(result.lon),
+                lat: parseFloat(result.lat),
+                address: {
+                    name: result.address.neighbourhood || '',
+                    road: result.address.road || '',
+                    postcode: result.address.postcode,
+                    city: result.address.city || result.address.town,
+                    state: result.address.state,
+                    country: result.address.country
+                }
+            }); });
+        };
+        return OpenStreet;
+    }());
+    exports.OpenStreet = OpenStreet;
+});
+define("labs/geocoder", ["require", "exports", "labs/mapmaker", "ux/controls/input", "labs/providers/osm"], function (require, exports, MapMaker, input_1, osm_1) {
+    "use strict";
+    function run() {
+        MapMaker.run().then(function (map) {
+            var searchProvider = new osm_1.OpenStreet();
+            var changeHandler = function (args) {
+                if (!args.value)
+                    return;
+                console.log("search", args.value);
+                var searchArgs = searchProvider.getParameters({
+                    query: args.value,
+                    limit: 1,
+                    countrycodes: 'us',
+                    lang: 'en'
+                });
+                $.ajax({
+                    url: searchArgs.url,
+                    method: searchProvider.method || 'GET',
+                    data: searchArgs.params,
+                    dataType: searchProvider.dataType || 'json'
+                }).then(function (json) {
+                    var results = searchProvider.handleResponse(json);
+                    results.some(function (r) {
+                        console.log(r);
+                        if (r.original.boundingbox) {
+                            var _a = r.original.boundingbox.map(function (v) { return parseFloat(v); }), lat1 = _a[0], lat2 = _a[1], lon1 = _a[2], lon2 = _a[3];
+                            map.getView().fit([lon1, lat1, lon2, lat2], map.getSize());
+                        }
+                        else {
+                            map.getView().setCenter([r.lon, r.lat]);
+                        }
+                        return true;
+                    });
+                }).fail(function () {
+                    console.error("geocoder failed");
+                });
+            };
+            var geocoder = input_1.Geocoder.create({
+                closedText: "+",
+                openedText: "−",
+                placeholderText: "Bottom Left Search",
+                onChange: changeHandler
+            });
+            map.addControl(geocoder);
+            map.addControl(input_1.Geocoder.create({
+                className: 'ol-input bottom right',
+                expanded: true,
+                placeholderText: "Bottom Right Search",
+                onChange: changeHandler
+            }));
+            map.addControl(input_1.Geocoder.create({
+                className: 'ol-input top right',
+                expanded: false,
+                placeholderText: "Top Right",
+                onChange: changeHandler
+            }));
+            map.addControl(input_1.Geocoder.create({
+                className: 'ol-input top left',
+                expanded: false,
+                placeholderText: "Top Left Search",
+                onChange: changeHandler
+            }));
+        });
+    }
+    exports.run = run;
+});
+define("labs/google-identity", ["require", "exports", "jquery", "openlayers"], function (require, exports, $, ol) {
+    "use strict";
+    var client_id = '987911803084-a6cafnu52d7lkr8vfrtl4modrpinr1os.apps.googleusercontent.com';
+    var api_key = 'AIzaSyCfuluThuQ0j7tCHg9GRf0lwDRHNUsZs6o';
+    requirejs.config({
+        shim: {
+            'gapi': {
+                exports: 'gapi'
+            }
+        },
+        paths: {
+            'gapi': 'https://apis.google.com/js/api.js'
+        }
+    });
+    var html = "\n    <div class=\"g-signin2\" data-onsuccess=\"giAsyncInit\" data-theme=\"dark\"></div>\n    <button class='logout-button'>Logout</button>\n";
+    function createMap() {
+        var basemap = new ol.layer.Tile({
+            source: new ol.source.OSM()
+        });
+        var map = new ol.Map({
+            target: "map",
+            view: new ol.View({
+                projection: "EPSG:4326",
+                center: [-82.4, 34.85],
+                zoom: 10
+            }),
+            layers: [basemap]
+        });
+    }
+    var GoogleIdentity = (function () {
+        function GoogleIdentity(client_id) {
+            this.client_id = client_id;
+        }
+        GoogleIdentity.prototype.load = function () {
+            var _this = this;
+            var d = $.Deferred();
+            $("\n            <meta name=\"google-signin-scope\" content=\"profile email https://www.googleapis.com/auth/calendar.readonly\">\n            <meta name=\"google-signin-client_id\" content=\"" + this.client_id + "\">\n            <script src=\"https://apis.google.com/js/platform.js\" async defer></script>\n        ").appendTo('head');
+            window.giAsyncInit = function (args) {
+                _this.id_token = args.getAuthResponse().id_token;
+                d.resolve(args);
+                delete window.giAsyncInit;
+            };
+            return d;
+        };
+        GoogleIdentity.prototype.showInfo = function (googleUser) {
+            createMap();
+            var profile = googleUser.getBasicProfile();
+            $("<img src='" + profile.getImageUrl() + "'>" + profile.getName() + "</img>").appendTo('body');
+        };
+        ;
+        GoogleIdentity.prototype.logout = function () {
+            var auth2 = gapi.auth2.getAuthInstance();
+            auth2.signOut().then(function () {
+                console.log('User signed out.');
+            });
+        };
+        return GoogleIdentity;
+    }());
+    function run() {
+        $(html).appendTo('body');
+        require(["gapi"], function (gapi) {
+            gapi.load('client', function () {
+                debugger;
+                gapi.client.setApiKey(api_key);
+                gapi.auth2.init({
+                    client_id: client_id,
+                    scope: 'profile https://www.googleapis.com/auth/calendar.readonly'
+                }).then(function () {
+                    debugger;
+                    var auth2 = gapi.auth2.getAuthInstance();
+                });
+            });
+        });
+        return;
+        var gi = new GoogleIdentity(client_id);
+        gi.load().then(function (args) {
+            gi.showInfo(args);
+            gapi.load('client', 'v3', function () {
+                debugger;
+            });
+        });
+        $('button.logout-button').click(function () {
+            gi.logout();
+        });
+    }
+    exports.run = run;
+});
+define("labs/image-data-viewer", ["require", "exports", "jquery"], function (require, exports, $) {
+    "use strict";
+    var data = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAAA9CAYAAAAd1W/BAAAFf0lEQVRoBe1ZSW/bRhT+uFMSZcmSAnlpHCcokKZo0QU9t7321n/QnnvqHyjQn9Cf0GuvRU89Feg5AdIGDro5tuPd1mItJKWhyOKNRMRwpFjcZAviAATJ4XDee998b97MGwGAhwUu4gLbzk1PAUgZsOAIpC6w4ARAyoCUAQuOwO1xAQEAXTMu8ozlDcUJQ1sFCRBEASK/Dz95A8AdAJ7rwXNH6/QEF+uzBUAAJBmQNRGyJkDPy1BzCjRDgZqVucG9Th9904HdZuh3HTg9D07f46AksWuZDQAjw5WMCOOOhtJGHssbeeRKOiRF4pcoivA8MtTlF7MddE5N1HZbaOx3YNYZHHsERIy0Ja9LkGBDv1Z0AUsrGqoPiyjfLyJXzkLNqJBUCYIw3vHJBViPWNBD58zE8fMazrfb6NYdDPrxqZwoAIIIqFkB5U0Db31UQWmjCD2fgSgHm3udngO7ZeHk7xoOntZwcWhz1/BiwCExALjxOQGr7xax/sEdLK8XoWRVTBjwa0lNjCAQajtN7D0+QW3H5C4RFYRk5gABINqvPCri7sdVFNcKkHUltPGEDkULfSmDytsSf/bcY9RemHyCvBa9NzRIBABFA8qbOaw+KqGwshTZeF9/AkHLqijdK4CiBbMH3B0GzG8R/B7MGafon2J6rqJh9b0SyvdLkWg/ThxnQj6D6jtlVB7koRnEiHEtp6uL8Ot4AZJKo2+guF6AEpH24yUM3UHL6ag+LKOwRpPqpJbX18cKAB/9sobCmoHscvDZ/np1X7WQNRm5SpbLogVVWBbEDsBSNYOlqsFj/Ct1k3kihhXXCWz19gCQK+vIFHSIUqzYjkVQVmUYlSz0vHI7APA8ClVvXuGNtSRkJU2ISkZGpqBC1WlVGbyjWIeJ2R669X4oRYKrPvyDltIiLamlENYD8aXE7o0sOHjamAn9fcDI1XRDgaLTntqvnf4eCwPI+N8A0L1b62Hvydn0GkRtKQiQJJEz4MZc4AcAmwC+Hxnz7JddMMuJatp0/3seHObCdVyE2RdEZsBnAL4cqfo1AHqnvfy/vx9OZ0DEVoOBC7vTh9Pz00fBOowMAI3+5eK/P/91D2bdvvwpkWfaJbojBoQREAmArwB8eEUqvVM9lT9+fjF6SuZG2SNmMljNHpg9YxcoAPBH+6p5VE/fD5/VcPbfxdXPsb07fQet0y6sFgvl/6RIaAZ8C6A4wRSqp+9UHv/0z+gp5psHMIvh4qADq8l4QjWMhFAAULjzZ/xJQuk7taN5IIkJkfKF7ZMOmodd9DrObAH4cZLVV+p9F6EJMc6wSCHPvrBw8lcdrSMLboSIG5gBFOY+v2LopFcKjzwsWg4IhDiKO/BgXZg42jrnWeK+GW7y83UJDMC0o+8L8NuTG0QNi2Q8JUbPt5s42mqgfdqPNPqkY6CsMK32aLETtBAIOwAqDwr49Jv3g/7OTy4o5JmNLs62G3j55AyNlxZ4LjBiajwQAME1f/2PL777BPqSBoGwv27z4oGfFjGbwawPaX/4Zw2dc4YB+X1E40m7CNm0142bVEOHoIouorieRWO/CaNMSQwdlNaiPT0vPhgjo/gix2Kw2zbap10cb9VR223DbtG6f5Kk4PUzYwDl7GQNyJZUlO4aWN4wkCtleOqMnw9KIh/QARvwjQ2NeufUQm2vjeZ+F3aLjsSIEcGNfNMfMwPAV4ISp5TFpVNizZCh5GS+n/dPh+0OA+Onw5T3d+EycLrTUXkSZeYAXDaCWMH38DQdjOIRN5R8nzZ3MY/2Zdn+840C4Ctxk/fA64CbVDYJ2SkASaA6T32mDJin0UpC15QBSaA6T32mDJin0UpC15QBSaA6T32mDJin0UpC15QBSaA6T30uPAP+B8Xv5/OOW6fPAAAAAElFTkSuQmCC";
+    var css = "\n<style>\n    .image-data-viewer .area {\n        padding: 20px;\n    }\n\n    .image-data-viewer img {\n        width: auto;\n        height: auto;\n        border: 1px dashed rgba(0, 0, 0, 0.5);\n        padding: 20px;\n    }\n\n    .image-data-viewer label {\n        display: block;\n    }\n\n    .image-data-viewer textarea {\n        width: 100%;\n        height: 40px;\n        white-space: nowrap;\n    }\n</style>\n";
+    var ux = "\n<div class=\"image-data-viewer\">\n    <h3>Tool for viewing image data</h3>\n    <p>Paste an Image into Image Data to view the Image below</p>\n    <div class='area'>\n        <label>Image Data (paste image or text here)</label> \n        <textarea autocomplete=\"off\" spellcheck=\"false\" class='image-data-input'></textarea>\n    </div>\n    <div class='area'>\n        <label>Image</label> \n        <img class='image'/>\n    </div>\n    <div class='area'>\n        <label>Select an Image to update the Image Data and then the Image</label>\n        <input class='image-file' type='file' accept='image/*' />\n    </div>\n</div>\n";
+    var openFile = function (event) {
+        var input = event.target;
+        var reader = new FileReader();
+        reader.onload = function () {
+            var textarea = $(".image-data-input");
+            textarea[0].value = reader.result;
+            textarea.change();
+        };
+        reader.readAsDataURL(input.files[0]);
+    };
+    var pasteHandler = function (evt) {
+        var event = (evt.originalEvent || evt);
+        var items = event.clipboardData.items;
+        var blob;
+        for (var i = 0; i < items.length; i++) {
+            if (items[i].type.indexOf("image") === 0) {
+                blob = items[i].getAsFile();
+                break;
+            }
+        }
+        if (blob) {
+            var reader = new FileReader();
+            reader.onload = function (readerEvent) {
+                $(".image-data-input").val(readerEvent.target.result).change();
+            };
+            reader.readAsDataURL(blob);
+        }
+    };
+    function run() {
+        $(ux).appendTo(".map");
+        $(css).appendTo("head");
+        $(".image-data-input").change(function () {
+            $(".image").attr("src", $(".image-data-input").val());
+        }).val(data).change();
+        $(".image-data-input").on("paste", pasteHandler);
+        $(".image-file").change(openFile);
+    }
+    exports.run = run;
+});
+define("labs/index", ["require", "exports"], function (require, exports) {
+    "use strict";
+    function run() {
+        var l = window.location;
+        var path = "" + l.origin + l.pathname + "?run=labs/";
+        var labs = "\n    style-lab\n\n    style-viewer\n    style-viewer&geom=point&style=icon/png\n    style-viewer&geom=point&style=icon/png,text/text\n    style-viewer&geom=point&style=%5B%7B\"image\":%7B\"imgSize\":%5B45,45%5D,\"rotation\":0,\"stroke\":%7B\"color\":\"rgba(255,25,0,0.8)\",\"width\":3%7D,\"path\":\"M23%202%20L23%2023%20L43%2016.5%20L23%2023%20L35%2040%20L23%2023%20L11%2040%20L23%2023%20L3%2017%20L23%2023%20L23%202%20Z\"%7D%7D%5D\n\n    style-viewer&geom=point&style=%5B%7B\"circle\":%7B\"fill\":%7B\"gradient\":%7B\"type\":\"linear(32,32,96,96)\",\"stops\":\"rgba(0,255,0,0.1)%200%25;rgba(0,255,0,0.8)%20100%25\"%7D%7D,\"opacity\":1,\"stroke\":%7B\"color\":\"rgba(0,255,0,1)\",\"width\":1%7D,\"radius\":64%7D%7D,%7B\"image\":%7B\"anchor\":%5B16,48%5D,\"size\":%5B32,48%5D,\"anchorXUnits\":\"pixels\",\"anchorYUnits\":\"pixels\",\"src\":\"http://openlayers.org/en/v3.17.1/examples/data/icon.png\"%7D%7D,%7B\"text\":%7B\"fill\":%7B\"color\":\"rgba(75,92,85,0.85)\"%7D,\"stroke\":%7B\"color\":\"rgba(255,255,255,1)\",\"width\":5%7D,\"offset-x\":0,\"offset-y\":16,\"text\":\"fantasy%20light\",\"font\":\"18px%20serif\"%7D%7D%5D    \n\n    style-viewer&geom=point&style=%5B%7B\"image\":%7B\"imgSize\":%5B13,21%5D,\"fill\":%7B\"color\":\"rgba(0,0,0,0.5)\"%7D,\"path\":\"M6.3,0C6.3,0,0,0.1,0,7.5c0,3.8,6.3,12.6,6.3,12.6s6.3-8.8,6.3-12.7C12.6,0.1,6.3,0,6.3,0z%20M6.3,8.8%20c-1.4,0-2.5-1.1-2.5-2.5c0-1.4,1.1-2.5,2.5-2.5c1.4,0,2.5,1.1,2.5,2.5C8.8,7.7,7.7,8.8,6.3,8.8z\"%7D%7D%5D\n\n    style-viewer&geom=point&style=%5B%7B\"image\":%7B\"imgSize\":%5B15,15%5D,\"anchor\":%5B0,0.5%5D,\"fill\":%7B\"color\":\"rgba(255,0,0,0.1)\"%7D,\"stroke\":%7B\"color\":\"rgba(255,0,0,1)\",\"width\":0.1%7D,\"scale\":8,\"rotation\":0.7,\"img\":\"lock\"%7D%7D,%7B\"image\":%7B\"imgSize\":%5B15,15%5D,\"anchor\":%5B100,0.5%5D,\"anchorXUnits\":\"pixels\",\"fill\":%7B\"color\":\"rgba(0,255,0,0.4)\"%7D,\"stroke\":%7B\"color\":\"rgba(255,0,0,1)\",\"width\":0.1%7D,\"scale\":1.5,\"rotation\":0.7,\"img\":\"lock\"%7D%7D,%7B\"image\":%7B\"imgSize\":%5B15,15%5D,\"anchor\":%5B-10,0%5D,\"anchorXUnits\":\"pixels\",\"anchorOrigin\":\"top-right\",\"fill\":%7B\"color\":\"rgba(230,230,80,1)\"%7D,\"stroke\":%7B\"color\":\"rgba(0,0,0,1)\",\"width\":0.5%7D,\"scale\":2,\"rotation\":0.8,\"img\":\"lock\"%7D%7D%5D\n\n\n    style-viewer&geom=multipoint&style=icon/png\n\n    style-viewer&geom=polyline&style=stroke/dot\n\n    style-viewer&geom=polygon&style=fill/diagonal\n    style-viewer&geom=polygon&style=fill/horizontal,fill/vertical,stroke/dashdotdot\n    style-viewer&geom=polygon&style=stroke/solid,text/text\n    style-viewer&geom=polygon-with-holes&style=fill/cross,stroke/solid\n\n    style-viewer&geom=multipolygon&style=stroke/solid,fill/horizontal,text/text\n\n    style-to-canvas\n    polyline-encoder\n    image-data-viewer\n\n    mapmaker\n    mapmaker&background=light\n    mapmaker&geom=t`syzE}gm_dAm_@A?r@p@Bp@Hp@Ph@Td@Z`@`@Vb@Nd@xUABmF\n    mapmaker&geom=t`syzE}gm_dAm_@A?r@p@Bp@Hp@Ph@Td@Z`@`@Vb@Nd@xUABmF&color=yellow&background=dark&modify=1\n    \n    geocoder&modify=1\n\n    facebook\n    google-identity\n    index\n    ";
+        var styles = document.createElement("style");
+        document.head.appendChild(styles);
+        styles.innerText += "\n    #map {\n        display: none;\n    }\n    .test {\n        margin: 20px;\n    }\n    ";
+        var labDiv = document.createElement("div");
+        document.body.appendChild(labDiv);
+        labDiv.innerHTML = labs
+            .split(/ /)
+            .map(function (v) { return v.trim(); })
+            .filter(function (v) { return !!v; })
+            .map(function (lab) { return ("<div class='test'><a href='" + path + lab + "&debug=1'>" + lab + "</a></div>"); })
+            .join("\n");
+        var testDiv = document.createElement("div");
+        document.body.appendChild(testDiv);
+        testDiv.innerHTML = "<a href='" + l.origin + l.pathname + "?run=tests/index'>tests</a>";
+    }
+    exports.run = run;
+    ;
 });
 define("labs/polyline-encoder", ["require", "exports", "jquery", "openlayers", "labs/common/ol3-polyline", "labs/common/google-polyline"], function (require, exports, $, ol, PolylineEncoder, GoogleEncoder) {
     "use strict";
@@ -2635,7 +2846,7 @@ define("ux/styles/icon/png", ["require", "exports"], function (require, exports)
         }
     ];
 });
-define("labs/style-viewer", ["require", "exports", "openlayers", "jquery", "labs/common/snapshot", "labs/common/common", "alpha/format/ol3-symbolizer", "ux/styles/icon/png"], function (require, exports, ol, $, Snapshot, common_3, ol3_symbolizer_4, pointStyle) {
+define("labs/style-viewer", ["require", "exports", "openlayers", "jquery", "labs/common/snapshot", "labs/common/common", "alpha/format/ol3-symbolizer", "ux/styles/icon/png"], function (require, exports, ol, $, Snapshot, common_5, ol3_symbolizer_4, pointStyle) {
     "use strict";
     var html = "\n<div class='style-to-canvas'>\n    <h3>Renders a feature on a canvas</h3>\n    <div class=\"area\">\n        <label>256 x 256 Canvas</label>\n        <div id='canvas-collection'></div>\n    </div>\n    <div class=\"area\">\n        <label>Style</label>\n        <textarea class='style'></textarea>\n        <button class=\"save\">Save</button>\n    </div>\n    <div class=\"area\">\n        <label>Potential control for setting linear gradient start/stop locations</label>\n        <div class=\"colorramp\">\n            <input class=\"top\" type=\"range\" min=\"0\" max=\"100\" value=\"20\"/>\n            <input class=\"bottom\" type=\"range\" min=\"0\" max=\"100\" value=\"80\"/>\n        </div>\n    </div>\n</div>\n";
     var css = "\n<style>\n    #map {\n        display: none;\n    }\n\n    .style-to-canvas {\n    }\n\n    .style-to-canvas .area label {\n        display: block;\n        vertical-align: top;\n    }\n\n    .style-to-canvas .area {\n        border: 1px solid black;\n        padding: 20px;\n        margin: 20px;\n    }\n\n    .style-to-canvas .area .style {\n        width: 100%;\n        height: 400px;\n    }\n\n    .style-to-canvas #canvas-collection canvas {\n        font-family: sans serif;\n        font-size: 20px;\n        border: 1px solid black;\n        padding: 20px;\n        margin: 20px;\n    }\n\n    div.colorramp {\n        display: inline-block;\n        background: linear-gradient(to right, rgba(250,0,0,0), rgba(250,0,0,1) 60%, rgba(250,100,0,1) 85%, rgb(250,250,0) 95%);\n        width:100%;\n    }\n\n    div.colorramp > input[type=range] {\n        -webkit-appearance: slider-horizontal;\n        display:block;\n        width:100%;\n        background-color:transparent;\n    }\n\n    div.colorramp > label {\n        display: inline-block;\n    }\n\n    div.colorramp > input[type='range'] {\n        box-shadow: 0 0 0 white;\n    }\n\n    div.colorramp > input[type=range]::-webkit-slider-runnable-track {\n        height: 0px;     \n    }\n\n    div.colorramp > input[type='range'].top::-webkit-slider-thumb {\n        margin-top: -10px;\n    }\n\n    div.colorramp > input[type='range'].bottom::-webkit-slider-thumb {\n        margin-top: -12px;\n    }\n    \n</style>\n";
@@ -2700,8 +2911,8 @@ define("labs/style-viewer", ["require", "exports", "openlayers", "jquery", "labs
         $(html).appendTo("body");
         $(svg).appendTo("body");
         $(css).appendTo("head");
-        var geom = common_3.getParameterByName("geom") || "polygon-with-holes";
-        var style = common_3.getParameterByName("style") || "fill/gradient";
+        var geom = common_5.getParameterByName("geom") || "polygon-with-holes";
+        var style = common_5.getParameterByName("style") || "fill/gradient";
         $(".save").click(function () {
             var style = JSON.stringify(JSON.parse($(".style").val()));
             var loc = window.location;
@@ -2750,56 +2961,6 @@ define("labs/svg", ["require", "exports", "jquery"], function (require, exports,
         $("<svg viewBox=\"0 0 15 15\" height=\"200\" width=\"200\"><use href='#" + svg.id + "'/></svg>").appendTo(".map");
     }
     exports.run = run;
-});
-define("labs/providers/osm", ["require", "exports"], function (require, exports) {
-    "use strict";
-    var OpenStreet = (function () {
-        function OpenStreet() {
-            this.dataType = 'json';
-            this.method = 'GET';
-            this.settings = {
-                url: '//nominatim.openstreetmap.org/search/',
-                params: {
-                    q: '',
-                    format: 'json',
-                    addressdetails: 1,
-                    limit: 10,
-                    countrycodes: '',
-                    'accept-language': 'en-US'
-                }
-            };
-        }
-        OpenStreet.prototype.getParameters = function (options) {
-            return {
-                url: this.settings.url,
-                params: {
-                    q: options.query,
-                    format: 'json',
-                    addressdetails: 1,
-                    limit: options.limit || this.settings.params.limit,
-                    countrycodes: options.countrycodes || this.settings.params.countrycodes,
-                    'accept-language': options.lang || this.settings.params['accept-language']
-                }
-            };
-        };
-        OpenStreet.prototype.handleResponse = function (args) {
-            return args.sort(function (v) { return v.importance || 1; }).map(function (result) { return ({
-                original: result,
-                lon: parseFloat(result.lon),
-                lat: parseFloat(result.lat),
-                address: {
-                    name: result.address.neighbourhood || '',
-                    road: result.address.road || '',
-                    postcode: result.address.postcode,
-                    city: result.address.city || result.address.town,
-                    state: result.address.state,
-                    country: result.address.country
-                }
-            }); });
-        };
-        return OpenStreet;
-    }());
-    exports.OpenStreet = OpenStreet;
 });
 define("tests/ags-format", ["require", "exports", "openlayers"], function (require, exports, ol) {
     "use strict";
@@ -2923,145 +3084,254 @@ define("tests/canvas", ["require", "exports"], function (require, exports) {
     }
     exports.run = run;
 });
-define("ux/controls/input", ["require", "exports", "openlayers", "labs/common/common"], function (require, exports, ol, common_4) {
+define("tests/drop-vertex-on-marker-detection", ["require", "exports", "openlayers", "labs/mapmaker"], function (require, exports, ol, mapmaker_1) {
     "use strict";
-    var css = "\n    .ol-input {\n        position:absolute;\n    }\n    .ol-input.top {\n        top: 0.5em;\n    }\n    .ol-input.left {\n        left: 0.5em;\n    }\n    .ol-input.bottom {\n        bottom: 0.5em;\n    }\n    .ol-input.right {\n        right: 0.5em;\n    }\n    .ol-input.top.left {\n        top: 4.5em;\n    }\n    .ol-input button {\n        min-height: 1.375em;\n        min-width: 1.375em;\n        width: auto;\n        display: inline;\n    }\n    .ol-input.left button {\n        float:right;\n    }\n    .ol-input.right button {\n        float:left;\n    }\n    .ol-input input {\n        height: 24px;\n        min-width: 240px;\n        border: none;\n        padding: 0;\n        margin: 0;\n        margin-left: 2px;\n        margin-top: 1px;\n        vertical-align: top;\n    }\n    .ol-input input.hidden {\n        display: none;\n    }\n";
-    var olcss = {
-        CLASS_CONTROL: 'ol-control',
-        CLASS_UNSELECTABLE: 'ol-unselectable',
-        CLASS_UNSUPPORTED: 'ol-unsupported',
-        CLASS_HIDDEN: 'ol-hidden'
-    };
-    var expando = {
-        right: '»',
-        left: '«'
-    };
-    var defaults = {
-        className: 'ol-input bottom left',
-        expanded: false,
-        closedText: expando.right,
-        openedText: expando.left,
-        placeholderText: 'Search'
-    };
-    var Geocoder = (function (_super) {
-        __extends(Geocoder, _super);
-        function Geocoder(options) {
-            var _this = this;
-            _super.call(this, {
-                element: options.element,
-                target: options.target
+    var delta = 16;
+    function midpoint(points) {
+        var p0 = points.reduce(function (sum, p) { return p.map(function (v, i) { return v + sum[i]; }); });
+        return p0.map(function (v) { return v / points.length; });
+    }
+    var Route = (function () {
+        function Route(color, stops) {
+            this.color = color;
+            var feature = this.routeLine = new ol.Feature(new ol.geom.LineString(stops));
+            feature.set("color", color);
+            feature.setStyle(function (res) { return [
+                new ol.style.Style({
+                    stroke: new ol.style.Stroke({
+                        color: feature.get("color"),
+                        width: 4
+                    })
+                }),
+                new ol.style.Style({
+                    stroke: new ol.style.Stroke({
+                        color: "white",
+                        width: 1
+                    })
+                })
+            ]; });
+            var points = this.routeStops = stops.map(function (p) { return new ol.Feature(new ol.geom.Point(p)); });
+            points.forEach(function (p, stopIndex) {
+                p.set("color", color);
+                p.set("text", (1 + stopIndex) + "");
+                p.setStyle(function (res) { return [
+                    new ol.style.Style({
+                        image: new ol.style.Circle({
+                            radius: delta,
+                            fill: new ol.style.Fill({
+                                color: p.get("color")
+                            })
+                        })
+                    }),
+                    new ol.style.Style({
+                        image: new ol.style.Circle({
+                            radius: delta - 2,
+                            stroke: new ol.style.Stroke({
+                                color: "white",
+                                width: 1
+                            })
+                        })
+                    }),
+                    new ol.style.Style({
+                        text: new ol.style.Text({
+                            font: delta * 0.75 + "pt Segoe UI",
+                            text: p.get("text"),
+                            fill: new ol.style.Fill({
+                                color: "white"
+                            }),
+                            stroke: new ol.style.Stroke({
+                                color: "black",
+                                width: 1
+                            })
+                        })
+                    })
+                ]; });
             });
-            var button = this.button = document.createElement('button');
-            button.setAttribute('type', 'button');
-            button.title = options.placeholderText;
-            options.element.appendChild(button);
-            var input = this.input = document.createElement('input');
-            input.placeholder = options.placeholderText;
-            options.element.appendChild(input);
-            button.addEventListener("click", function () {
-                options.expanded ? _this.collapse(options) : _this.expand(options);
-            });
-            input.addEventListener("keypress", function (args) {
-                if (args.key === "Enter") {
-                    button.focus();
-                    _this.collapse(options);
-                }
-            });
-            input.addEventListener("change", function () {
-                _this.dispatchEvent({
-                    type: "change",
-                    value: input.value
-                });
-            });
-            input.addEventListener("blur", function () {
-            });
-            options.expanded ? this.expand(options) : this.collapse(options);
         }
-        Geocoder.create = function (options) {
-            common_4.cssin('ol-input', css);
-            options = common_4.mixin({
-                openedText: options.className && -1 < options.className.indexOf("left") ? expando.left : expando.right,
-                closedText: options.className && -1 < options.className.indexOf("left") ? expando.right : expando.left,
-            }, options || {});
-            options = common_4.mixin(common_4.mixin({}, defaults), options);
-            var element = document.createElement('div');
-            element.className = options.className + " " + olcss.CLASS_UNSELECTABLE + " " + olcss.CLASS_CONTROL;
-            var geocoderOptions = common_4.mixin({
-                element: element,
-                target: options.target,
-                expanded: false
-            }, options);
-            return new Geocoder(geocoderOptions);
-        };
-        Geocoder.prototype.dispose = function () {
-            debugger;
-        };
-        Geocoder.prototype.collapse = function (options) {
-            options.expanded = false;
-            this.input.classList.toggle("hidden", true);
-            this.button.classList.toggle("hidden", false);
-            this.button.innerHTML = options.closedText;
-        };
-        Geocoder.prototype.expand = function (options) {
-            options.expanded = true;
-            this.input.classList.toggle("hidden", false);
-            this.button.classList.toggle("hidden", true);
-            this.button.innerHTML = options.openedText;
-            this.input.focus();
-            this.input.select();
-        };
-        return Geocoder;
-    }(ol.control.Control));
-    exports.Geocoder = Geocoder;
-});
-define("tests/geocoder", ["require", "exports", "labs/mapmaker", "ux/controls/input", "labs/providers/osm"], function (require, exports, MapMaker, input_1, osm_1) {
-    "use strict";
-    function run() {
-        var map = MapMaker.run();
-        var searchProvider = new osm_1.OpenStreet();
-        var geocoder = input_1.Geocoder.create({
-            closedText: "+",
-            openedText: "−"
-        });
-        map.addControl(geocoder);
-        geocoder.on("change", function (args) {
-            if (!args.value)
+        Route.removeVertex = function (geom, vertex) {
+            var coords = geom.getCoordinates();
+            if (coords.length < 3)
                 return;
-            console.log("search", args.value);
-            var searchArgs = searchProvider.getParameters({
-                query: args.value,
-                limit: 1,
-                countrycodes: 'us',
-                lang: 'en'
+            coords.splice(vertex, 1);
+            geom.setCoordinates(coords);
+        };
+        Object.defineProperty(Route.prototype, "route", {
+            get: function () {
+                return this.routeLine;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(Route.prototype, "lines", {
+            get: function () {
+                return this.routeLine.getGeometry();
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(Route.prototype, "points", {
+            get: function () {
+                return this.routeStops.map(function (stop) { return stop.getGeometry(); });
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Route.prototype.owns = function (feature) {
+            return feature === this.routeLine;
+        };
+        Route.prototype.appendTo = function (layer) {
+            this.refresh();
+            layer.getSource().addFeatures([this.routeLine]);
+            layer.getSource().addFeatures(this.routeStops);
+        };
+        Route.prototype.findStops = function (extent) {
+            var result = [];
+            this.points.forEach(function (p, i) {
+                if (ol.extent.containsCoordinate(extent, p.getFirstCoordinate()))
+                    result.push(i);
             });
-            $.ajax({
-                url: searchArgs.url,
-                method: searchProvider.method || 'GET',
-                data: searchArgs.params,
-                dataType: searchProvider.dataType || 'json'
-            }).then(function (json) {
-                var results = searchProvider.handleResponse(json);
-                results.some(function (r) {
-                    console.log(r);
-                    map.getView().setCenter([r.lon, r.lat]);
-                    return true;
-                });
-            }).fail(function () {
-                console.error("geocoder failed");
+            return result;
+        };
+        Route.prototype.removeStop = function (index) {
+            var stop = this.routeStops[index];
+            console.log("removeStop", this.color, stop);
+            this.routeStops.splice(index, 1);
+            var coords = this.lines.getCoordinates();
+            coords.splice(index, 1);
+            this.lines.setCoordinates(coords);
+            return stop;
+        };
+        Route.prototype.addStop = function (stop, index) {
+            console.log("addStop", this.color, stop, index);
+            if (index === undefined)
+                this.routeStops.push(stop);
+            else
+                this.routeStops.splice(index, 0, stop);
+        };
+        Route.prototype.refresh = function () {
+            var _this = this;
+            this.routeStops.map(function (stop, index) {
+                stop.set("color", _this.color);
+                stop.set("text", (1 + index) + "");
+            });
+            var coords = this.points.map(function (p) { return p.getCoordinates(); });
+            if (coords.length) {
+                coords.push(coords[coords.length - 1].map(function (v, i) { return v + 0.001 * i; }));
+                this.routeLine.setGeometry(new ol.geom.LineString(coords));
+            }
+        };
+        return Route;
+    }());
+    function run() {
+        var features = new ol.Collection([]);
+        var activeFeature;
+        features.on("add", function (args) {
+            console.log("add", args);
+            var feature = args.element;
+            feature.on("change", function (args) {
+                activeFeature = feature;
+            });
+            feature.on("change:geometry", function (args) {
+                console.log("feature change:geometry", args);
             });
         });
-        map.addControl(input_1.Geocoder.create({
-            className: 'ol-input bottom right',
-            expanded: true
-        }));
-        map.addControl(input_1.Geocoder.create({
-            className: 'ol-input top right',
-            expanded: false
-        }));
-        map.addControl(input_1.Geocoder.create({
-            className: 'ol-input top left',
-            expanded: false
-        }));
+        var layer = new ol.layer.Vector({
+            source: new ol.source.Vector({
+                features: features
+            })
+        });
+        mapmaker_1.run().then(function (map) {
+            map.addLayer(layer);
+            var _a = map.getView().calculateExtent([100, 100]), a = _a[0], b = _a[1], c = _a[2], d = _a[3];
+            var blueRoute = new Route("blue", [[a, b], [c, b], [c, d], [a, d]].map(function (v) { return v.map(function (v) { return v + 0.001; }); }));
+            blueRoute.appendTo(layer);
+            var greenRoute = new Route("green", [[a, b], [c, b], [c, d], [a, d]].map(function (v) { return v.map(function (v) { return v * 1.0001; }); }));
+            greenRoute.appendTo(layer);
+            var redRoute = new Route("red", []);
+            redRoute.appendTo(layer);
+            var routes = [blueRoute, greenRoute, redRoute];
+            var modify = new ol.interaction.Modify({
+                features: new ol.Collection(routes.map(function (route) { return route.route; }))
+            });
+            map.addInteraction(modify);
+            modify.on("modifyend", function (args) {
+                console.log("modifyend", args);
+                var dropLocation = args.mapBrowserEvent.coordinate;
+                console.log("drop-location", dropLocation);
+                var dropInfo = {
+                    route: null,
+                    stops: null
+                };
+                var targetInfo = {
+                    route: null,
+                    vertexIndex: null
+                };
+                targetInfo.route = routes.filter(function (route) { return route.owns(activeFeature); })[0];
+                console.log("target-route", targetInfo.route.color);
+                {
+                    var geom = activeFeature.getGeometry();
+                    var coords = geom.getCoordinates();
+                    var vertex = coords.filter(function (p) { return p[0] === dropLocation[0]; })[0];
+                    var vertexIndex = coords.indexOf(vertex);
+                    console.log("vertex", vertexIndex);
+                    targetInfo.vertexIndex = vertexIndex;
+                }
+                {
+                    var pixel = map.getPixelFromCoordinate(dropLocation);
+                    var _a = [pixel[0] - delta, pixel[1] + delta, pixel[0] + delta, pixel[1] - delta], x1_1 = _a[0], y1_1 = _a[1], x2_1 = _a[2], y2_1 = _a[3];
+                    _b = map.getCoordinateFromPixel([x1_1, y1_1]), x1_1 = _b[0], y1_1 = _b[1];
+                    _c = map.getCoordinateFromPixel([x2_1, y2_1]), x2_1 = _c[0], y2_1 = _c[1];
+                    routes.some(function (route) {
+                        var stops = route.findStops([x1_1, y1_1, x2_1, y2_1]);
+                        if (stops.length) {
+                            console.log("drop", route, stops);
+                            dropInfo.route = route;
+                            dropInfo.stops = stops;
+                            return true;
+                        }
+                    });
+                }
+                var isNewVertex = (targetInfo.route.lines.getCoordinates().length > targetInfo.route.points.length + 1);
+                var dropOnStop = dropInfo.route && 0 < dropInfo.stops.length;
+                var isSameRoute = dropOnStop && dropInfo.route === targetInfo.route;
+                if (0 === targetInfo.vertexIndex) {
+                }
+                else if (dropOnStop && dropInfo.stops[0] === 0 && dropInfo.route !== redRoute) {
+                }
+                else if (dropOnStop && isNewVertex) {
+                    var stop = dropInfo.route.removeStop(dropInfo.stops[0]);
+                    targetInfo.route.addStop(stop, targetInfo.vertexIndex);
+                }
+                else if (dropOnStop && !isNewVertex && !isSameRoute) {
+                    var count = targetInfo.route.points.length - targetInfo.vertexIndex;
+                    while (count--) {
+                        var stop = targetInfo.route.removeStop(targetInfo.vertexIndex);
+                        redRoute.addStop(stop);
+                    }
+                    count = dropInfo.route.points.length - dropInfo.stops[0];
+                    while (count--) {
+                        var stop = dropInfo.route.removeStop(dropInfo.stops[0]);
+                        targetInfo.route.addStop(stop);
+                    }
+                }
+                else if (dropOnStop && !isNewVertex && isSameRoute) {
+                    var count = dropInfo.stops[0] - targetInfo.vertexIndex;
+                    if (count > 1)
+                        while (count--) {
+                            var stop = targetInfo.route.removeStop(targetInfo.vertexIndex);
+                            redRoute.addStop(stop);
+                        }
+                }
+                else if (!dropOnStop && isNewVertex) {
+                }
+                else if (!dropOnStop && !isNewVertex) {
+                    var stop = targetInfo.route.removeStop(targetInfo.vertexIndex);
+                    stop && redRoute.addStop(stop);
+                }
+                routes.map(function (r) { return r.refresh(); });
+                var _b, _c;
+            });
+        });
     }
     exports.run = run;
 });
