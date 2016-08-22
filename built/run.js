@@ -3347,16 +3347,21 @@ define("tests/drop-vertex-on-marker-detection", ["require", "exports", "openlaye
         mapmaker_1.run().then(function (map) {
             map.addLayer(layer);
             var _a = map.getView().calculateExtent(map.getSize().map(function (v) { return v * 0.25; })), a = _a[0], b = _a[1], c = _a[2], d = _a[3];
-            var blueRoute = new Route(colors.pop(), [a, b], [a, b], [[a, b], [c, b], [c, d], [a, d]].map(function (v) { return v.map(function (v) { return v + 0.001; }); }));
-            var greenRoute = new Route(colors.shift(), [c, d], [c, d], [[a, b], [c, b], [c, d], [a, d]].map(function (v) { return v.map(function (v) { return v * 1.0001; }); }));
-            var indigoRoute = new Route(colors.pop(), [a, b], [c, d], range(16).map(function (v) { return [a + (c - a) * Math.random(), b + (d - b) * Math.random()]; }));
+            var routes = [];
+            var shift = [-0.001, -0.005];
+            while (colors.length) {
+                var startstop = [a + (c - a) * Math.random(), b + (d - b) * Math.random()].map(function (v, i) { return v + shift[i]; });
+                var route = new Route(colors.pop(), startstop, startstop, range(8).map(function (v) { return [a + (c - a) * Math.random(), b + (d - b) * Math.random()].map(function (v, i) { return v + shift[i]; }); }));
+                shift = shift.map(function (v) { return v + 0.005; });
+                routes.push(route);
+            }
             var redRoute = new Route("red", null, null, [], [{
                     "stroke": {
                         "color": "transparent",
                         "width": 0
                     }
                 }]);
-            var routes = [blueRoute, greenRoute, indigoRoute, redRoute];
+            routes.push(redRoute);
             routes.forEach(function (r) { return r.appendTo(layer); });
             var modify = new ol.interaction.Modify({
                 pixelTolerance: 8,

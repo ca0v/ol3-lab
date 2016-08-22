@@ -290,19 +290,23 @@ export function run() {
     });
 
     let colors = ['229966', 'cc6633', 'cc22cc', '331199'].map(v => '#' + v);
-    
+
     mapmaker().then(map => {
 
         map.addLayer(layer);
 
         let [a, b, c, d] = map.getView().calculateExtent(map.getSize().map(v => v * 0.25));
 
-        let blueRoute = new Route(colors.pop(), [a, b], [a, b], [[a, b], [c, b], [c, d], [a, d]].map(v => v.map(v => v + 0.001)));
+        let routes = <Route[]>[];
 
-        let greenRoute = new Route(colors.shift(), [c, d], [c, d], [[a, b], [c, b], [c, d], [a, d]].map(v => v.map(v => v * 1.0001)));
-
-        let indigoRoute = new Route(colors.pop(), [a, b], [c, d], range(16).map(v => [a + (c - a) * Math.random(), b + (d - b) * Math.random()]));
-
+        let shift = [-0.001, -0.005];        
+        while (colors.length) {
+            let startstop = [a + (c - a) * Math.random(), b + (d - b) * Math.random()].map((v, i) => v + shift[i]);
+            let route = new Route(colors.pop(), startstop, startstop, range(8).map(v => [a + (c - a) * Math.random(), b + (d - b) * Math.random()].map((v, i) => v + shift[i])));
+            shift = shift.map(v => v + 0.005);
+            routes.push(route);
+        }
+        
         let redRoute = new Route("red", null, null, [], [{
             "stroke": {
                 "color": "transparent",
@@ -310,8 +314,8 @@ export function run() {
             }
         }]
         );
+        routes.push(redRoute);
 
-        let routes = [blueRoute, greenRoute, indigoRoute, redRoute];
         routes.forEach(r => r.appendTo(layer));
 
         let modify = new ol.interaction.Modify({
