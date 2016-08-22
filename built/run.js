@@ -1399,7 +1399,7 @@ define("labs/mapmaker", ["require", "exports", "jquery", "openlayers", "labs/com
             d.resolve(options);
         }
         return d.then(function (options) {
-            $(".map").addClass(options.background);
+            $("#map").addClass(options.background);
             var map = new ol.Map({
                 target: "map",
                 keyboardEventTarget: document,
@@ -3084,33 +3084,129 @@ define("tests/canvas", ["require", "exports"], function (require, exports) {
     }
     exports.run = run;
 });
-define("tests/drop-vertex-on-marker-detection", ["require", "exports", "openlayers", "labs/mapmaker"], function (require, exports, ol, mapmaker_1) {
+define("tests/drop-vertex-on-marker-detection", ["require", "exports", "openlayers", "labs/mapmaker", "alpha/format/ol3-symbolizer"], function (require, exports, ol, mapmaker_1, ol3_symbolizer_5) {
     "use strict";
     var delta = 16;
+    var formatter = new ol3_symbolizer_5.StyleConverter();
+    function fromJson(styles) {
+        return styles.map(function (style) { return formatter.fromJson(style); });
+    }
     function midpoint(points) {
         var p0 = points.reduce(function (sum, p) { return p.map(function (v, i) { return v + sum[i]; }); });
         return p0.map(function (v) { return v / points.length; });
     }
+    var range = function (n) {
+        var r = new Array(n);
+        for (var i = 0; i < n; i++)
+            r[i] = i;
+        return r;
+    };
     var Route = (function () {
-        function Route(color, stops) {
+        function Route(color, start, finish, stops, lineStyle) {
             this.color = color;
+            this.start = start;
+            this.finish = finish;
             var feature = this.routeLine = new ol.Feature(new ol.geom.LineString(stops));
             feature.set("color", color);
-            feature.setStyle(function (res) { return [
-                new ol.style.Style({
-                    stroke: new ol.style.Stroke({
-                        color: feature.get("color"),
-                        width: 4
-                    })
-                }),
-                new ol.style.Style({
-                    stroke: new ol.style.Stroke({
-                        color: "white",
-                        width: 1
-                    })
-                })
-            ]; });
+            if (!lineStyle)
+                lineStyle = [
+                    {
+                        "stroke": {
+                            "color": color,
+                            "width": 4
+                        }
+                    }, {
+                        "stroke": {
+                            "color": "white",
+                            "width": 1
+                        }
+                    }];
+            var styles = fromJson(lineStyle);
+            feature.setStyle(styles);
             var points = this.routeStops = stops.map(function (p) { return new ol.Feature(new ol.geom.Point(p)); });
+            if (start) {
+                var startingLocation = this.startLocation = new ol.Feature(new ol.geom.Point(start));
+                startingLocation.set("color", color);
+                startingLocation.set("text", "A");
+                startingLocation.setStyle(fromJson([
+                    {
+                        "circle": {
+                            "fill": {
+                                "color": "transparent"
+                            },
+                            "opacity": 0.5,
+                            "stroke": {
+                                "color": "green",
+                                "width": 5
+                            },
+                            "radius": delta
+                        }
+                    },
+                    {
+                        "circle": {
+                            "fill": {
+                                "color": "transparent"
+                            },
+                            "opacity": 1,
+                            "stroke": {
+                                "color": "white",
+                                "width": 1
+                            },
+                            "radius": delta
+                        }
+                    }
+                ]));
+            }
+            if (finish) {
+                var endingLocation = this.finishLocation = new ol.Feature(new ol.geom.Point(finish));
+                endingLocation.set("color", color);
+                endingLocation.set("text", "Z");
+                endingLocation.setStyle(fromJson([
+                    {
+                        "star": {
+                            "fill": {
+                                "color": "transparent"
+                            },
+                            "opacity": 1,
+                            "stroke": {
+                                "color": "red",
+                                "width": 5
+                            },
+                            "radius": delta * 0.75,
+                            "points": 8,
+                            "angle": 0.39
+                        }
+                    },
+                    {
+                        "star": {
+                            "fill": {
+                                "color": "transparent"
+                            },
+                            "opacity": 1,
+                            "stroke": {
+                                "color": "white",
+                                "width": 1
+                            },
+                            "radius": delta * 0.75,
+                            "points": 8,
+                            "angle": 0.39
+                        }
+                    },
+                    {
+                        "circle": {
+                            "fill": {
+                                "color": color
+                            },
+                            "opacity": 0.5,
+                            "stroke": {
+                                "color": color,
+                                "width": 1
+                            },
+                            "radius": 5
+                        }
+                    }
+                ]));
+            }
             points.forEach(function (p, stopIndex) {
                 p.set("color", color);
                 p.set("text", (1 + stopIndex) + "");
@@ -3148,13 +3244,6 @@ define("tests/drop-vertex-on-marker-detection", ["require", "exports", "openlaye
                 ]; });
             });
         }
-        Route.removeVertex = function (geom, vertex) {
-            var coords = geom.getCoordinates();
-            if (coords.length < 3)
-                return;
-            coords.splice(vertex, 1);
-            geom.setCoordinates(coords);
-        };
         Object.defineProperty(Route.prototype, "route", {
             get: function () {
                 return this.routeLine;
@@ -3162,16 +3251,16 @@ define("tests/drop-vertex-on-marker-detection", ["require", "exports", "openlaye
             enumerable: true,
             configurable: true
         });
-        Object.defineProperty(Route.prototype, "lines", {
+        Route.prototype.isNewVertex = function () {
+            var lineSegmentCount = this.routeLine.getGeometry().getCoordinates().length;
+            this.start && lineSegmentCount--;
+            this.finish && lineSegmentCount--;
+            var stopCount = this.routeStops.length;
+            return stopCount < lineSegmentCount;
+        };
+        Object.defineProperty(Route.prototype, "stops", {
             get: function () {
-                return this.routeLine.getGeometry();
-            },
-            enumerable: true,
-            configurable: true
-        });
-        Object.defineProperty(Route.prototype, "points", {
-            get: function () {
-                return this.routeStops.map(function (stop) { return stop.getGeometry(); });
+                return this.routeStops.map(function (stop) { return stop.getGeometry().getFirstCoordinate(); });
             },
             enumerable: true,
             configurable: true
@@ -3182,23 +3271,37 @@ define("tests/drop-vertex-on-marker-detection", ["require", "exports", "openlaye
         Route.prototype.appendTo = function (layer) {
             this.refresh();
             layer.getSource().addFeatures([this.routeLine]);
+            this.startLocation && layer.getSource().addFeature(this.startLocation);
             layer.getSource().addFeatures(this.routeStops);
+            this.finishLocation && layer.getSource().addFeature(this.finishLocation);
         };
-        Route.prototype.findStops = function (extent) {
+        Route.prototype.findStop = function (map, location) {
+            return this.findStops(map, location, this.stops)[0];
+        };
+        Route.prototype.isStartingLocation = function (map, location) {
+            return !!this.start && 1 === this.findStops(map, location, [this.start]).length;
+        };
+        Route.prototype.isEndingLocation = function (map, location) {
+            return !!this.finish && 1 === this.findStops(map, location, [this.finish]).length;
+        };
+        Route.prototype.findStops = function (map, location, stops) {
+            var pixel = map.getPixelFromCoordinate(location);
+            var _a = [pixel[0] - delta, pixel[1] + delta, pixel[0] + delta, pixel[1] - delta], x1 = _a[0], y1 = _a[1], x2 = _a[2], y2 = _a[3];
+            _b = map.getCoordinateFromPixel([x1, y1]), x1 = _b[0], y1 = _b[1];
+            _c = map.getCoordinateFromPixel([x2, y2]), x2 = _c[0], y2 = _c[1];
+            var extent = [x1, y1, x2, y2];
             var result = [];
-            this.points.forEach(function (p, i) {
-                if (ol.extent.containsCoordinate(extent, p.getFirstCoordinate()))
+            stops.forEach(function (p, i) {
+                if (ol.extent.containsCoordinate(extent, p))
                     result.push(i);
             });
             return result;
+            var _b, _c;
         };
         Route.prototype.removeStop = function (index) {
             var stop = this.routeStops[index];
             console.log("removeStop", this.color, stop);
             this.routeStops.splice(index, 1);
-            var coords = this.lines.getCoordinates();
-            coords.splice(index, 1);
-            this.lines.setCoordinates(coords);
             return stop;
         };
         Route.prototype.addStop = function (stop, index) {
@@ -3214,9 +3317,10 @@ define("tests/drop-vertex-on-marker-detection", ["require", "exports", "openlaye
                 stop.set("color", _this.color);
                 stop.set("text", (1 + index) + "");
             });
-            var coords = this.points.map(function (p) { return p.getCoordinates(); });
+            var coords = this.stops;
+            this.start && coords.unshift(this.start);
+            this.finish && coords.push(this.finish);
             if (coords.length) {
-                coords.push(coords[coords.length - 1].map(function (v, i) { return v + 0.001 * i; }));
                 this.routeLine.setGeometry(new ol.geom.LineString(coords));
             }
         };
@@ -3226,7 +3330,6 @@ define("tests/drop-vertex-on-marker-detection", ["require", "exports", "openlaye
         var features = new ol.Collection([]);
         var activeFeature;
         features.on("add", function (args) {
-            console.log("add", args);
             var feature = args.element;
             feature.on("change", function (args) {
                 activeFeature = feature;
@@ -3240,17 +3343,32 @@ define("tests/drop-vertex-on-marker-detection", ["require", "exports", "openlaye
                 features: features
             })
         });
+        var colors = ['229966', 'cc6633', 'cc22cc', '331199'].map(function (v) { return '#' + v; });
         mapmaker_1.run().then(function (map) {
             map.addLayer(layer);
-            var _a = map.getView().calculateExtent([100, 100]), a = _a[0], b = _a[1], c = _a[2], d = _a[3];
-            var blueRoute = new Route("blue", [[a, b], [c, b], [c, d], [a, d]].map(function (v) { return v.map(function (v) { return v + 0.001; }); }));
-            blueRoute.appendTo(layer);
-            var greenRoute = new Route("green", [[a, b], [c, b], [c, d], [a, d]].map(function (v) { return v.map(function (v) { return v * 1.0001; }); }));
-            greenRoute.appendTo(layer);
-            var redRoute = new Route("red", []);
-            redRoute.appendTo(layer);
-            var routes = [blueRoute, greenRoute, redRoute];
+            var _a = map.getView().calculateExtent(map.getSize().map(function (v) { return v * 0.25; })), a = _a[0], b = _a[1], c = _a[2], d = _a[3];
+            var blueRoute = new Route(colors.pop(), [a, b], [a, b], [[a, b], [c, b], [c, d], [a, d]].map(function (v) { return v.map(function (v) { return v + 0.001; }); }));
+            var greenRoute = new Route(colors.shift(), [c, d], [c, d], [[a, b], [c, b], [c, d], [a, d]].map(function (v) { return v.map(function (v) { return v * 1.0001; }); }));
+            var indigoRoute = new Route(colors.pop(), [a, b], [c, d], range(16).map(function (v) { return [a + (c - a) * Math.random(), b + (d - b) * Math.random()]; }));
+            var redRoute = new Route("red", null, null, [], [{
+                    "stroke": {
+                        "color": "transparent",
+                        "width": 0
+                    }
+                }]);
+            var routes = [blueRoute, greenRoute, indigoRoute, redRoute];
+            routes.forEach(function (r) { return r.appendTo(layer); });
             var modify = new ol.interaction.Modify({
+                pixelTolerance: 8,
+                condition: function (evt) {
+                    if (!ol.events.condition.noModifierKeys(evt))
+                        return false;
+                    if (routes.some(function (r) { return r.isStartingLocation(map, evt.coordinate); }))
+                        return false;
+                    if (routes.some(function (r) { return r.isEndingLocation(map, evt.coordinate); }))
+                        return false;
+                    return true;
+                },
                 features: new ol.Collection(routes.map(function (route) { return route.route; }))
             });
             map.addInteraction(modify);
@@ -3275,61 +3393,63 @@ define("tests/drop-vertex-on-marker-detection", ["require", "exports", "openlaye
                     var vertexIndex = coords.indexOf(vertex);
                     console.log("vertex", vertexIndex);
                     targetInfo.vertexIndex = vertexIndex;
+                    if (targetInfo.vertexIndex == 0) {
+                        targetInfo.vertexIndex = targetInfo.route.stops.length;
+                    }
                 }
-                {
-                    var pixel = map.getPixelFromCoordinate(dropLocation);
-                    var _a = [pixel[0] - delta, pixel[1] + delta, pixel[0] + delta, pixel[1] - delta], x1_1 = _a[0], y1_1 = _a[1], x2_1 = _a[2], y2_1 = _a[3];
-                    _b = map.getCoordinateFromPixel([x1_1, y1_1]), x1_1 = _b[0], y1_1 = _b[1];
-                    _c = map.getCoordinateFromPixel([x2_1, y2_1]), x2_1 = _c[0], y2_1 = _c[1];
-                    routes.some(function (route) {
-                        var stops = route.findStops([x1_1, y1_1, x2_1, y2_1]);
-                        if (stops.length) {
-                            console.log("drop", route, stops);
-                            dropInfo.route = route;
-                            dropInfo.stops = stops;
-                            return true;
-                        }
-                    });
-                }
-                var isNewVertex = (targetInfo.route.lines.getCoordinates().length > targetInfo.route.points.length + 1);
+                routes.some(function (route) {
+                    var stop = route.findStop(map, dropLocation);
+                    if (stop >= 0) {
+                        console.log("drop", route, stop);
+                        dropInfo.route = route;
+                        dropInfo.stops = [stop];
+                        return true;
+                    }
+                });
+                var isNewVertex = targetInfo.route.isNewVertex();
                 var dropOnStop = dropInfo.route && 0 < dropInfo.stops.length;
                 var isSameRoute = dropOnStop && dropInfo.route === targetInfo.route;
-                if (0 === targetInfo.vertexIndex) {
+                var stopIndex = targetInfo.vertexIndex;
+                if (targetInfo.route.startLocation)
+                    stopIndex--;
+                if (stopIndex < 0) {
+                    console.log("moving the starting vertex is not allowed");
                 }
-                else if (dropOnStop && dropInfo.stops[0] === 0 && dropInfo.route !== redRoute) {
+                else if (stopIndex > targetInfo.route.stops.length) {
+                    console.log("moving the ending vertex is not allowed");
                 }
                 else if (dropOnStop && isNewVertex) {
                     var stop = dropInfo.route.removeStop(dropInfo.stops[0]);
-                    targetInfo.route.addStop(stop, targetInfo.vertexIndex);
+                    targetInfo.route.addStop(stop, stopIndex);
                 }
                 else if (dropOnStop && !isNewVertex && !isSameRoute) {
-                    var count = targetInfo.route.points.length - targetInfo.vertexIndex;
+                    var count = targetInfo.route.stops.length - stopIndex;
                     while (count--) {
-                        var stop = targetInfo.route.removeStop(targetInfo.vertexIndex);
+                        var stop = targetInfo.route.removeStop(stopIndex);
                         redRoute.addStop(stop);
                     }
-                    count = dropInfo.route.points.length - dropInfo.stops[0];
+                    count = dropInfo.route.stops.length - dropInfo.stops[0];
                     while (count--) {
                         var stop = dropInfo.route.removeStop(dropInfo.stops[0]);
                         targetInfo.route.addStop(stop);
                     }
                 }
                 else if (dropOnStop && !isNewVertex && isSameRoute) {
-                    var count = dropInfo.stops[0] - targetInfo.vertexIndex;
+                    var count = dropInfo.stops[0] - stopIndex;
                     if (count > 1)
                         while (count--) {
-                            var stop = targetInfo.route.removeStop(targetInfo.vertexIndex);
+                            var stop = targetInfo.route.removeStop(stopIndex);
                             redRoute.addStop(stop);
                         }
                 }
                 else if (!dropOnStop && isNewVertex) {
+                    console.log("dropping a new vertex on empty space has not effect");
                 }
                 else if (!dropOnStop && !isNewVertex) {
-                    var stop = targetInfo.route.removeStop(targetInfo.vertexIndex);
+                    var stop = targetInfo.route.removeStop(stopIndex);
                     stop && redRoute.addStop(stop);
                 }
                 routes.map(function (r) { return r.refresh(); });
-                var _b, _c;
             });
         });
     }
@@ -3358,7 +3478,7 @@ define("tests/index", ["require", "exports"], function (require, exports) {
     function run() {
         var l = window.location;
         var path = "" + l.origin + l.pathname + "?run=tests/";
-        var labs = "\n    ags-format\n    google-polyline\n    webmap\n    index\n    ";
+        var labs = "\n    ags-format\n    google-polyline\n    webmap\n    map-resize-defect\n    index\n    ";
         document.writeln("\n    <p>\n    Watch the console output for failed assertions (blank is good).\n    </p>\n    ");
         document.writeln(labs
             .split(/ /)
@@ -3370,6 +3490,46 @@ define("tests/index", ["require", "exports"], function (require, exports) {
     }
     exports.run = run;
     ;
+});
+define("tests/map-resize-defect", ["require", "exports", "openlayers", "jquery"], function (require, exports, ol, $) {
+    "use strict";
+    var html = "\n<lab class='map-resize-defect'>\n    <div class='outer'>\n        <div id='map' class='map fill'>\n        </div>\n    </div>\n    <button class='event grow'>Update CSS</button>\n    <button class='event resize'>Resize Map</button>\n</lab>\n";
+    var css = "\n<style>\n\n    .outer {\n        padding: 20px;\n        border: 1px solid orange;\n        width: 0;\n        height: 0;\n        overflow:hidden;\n    }\n\n    .map {\n        padding: 20px;\n        border: 1px solid yellow;\n        width: 80%;\n        height: 80%;\n    }\n\n</style>\n";
+    var css2 = "\n<style>\n\n    html, body {\n        width: 100%;\n        height: 100%;\n        margin: 0;\n        padding: 0;\n        border: none;\n    }\n\n    .outer {\n        width: 100%;\n        height: 100%;\n        margin: 0;\n        padding: 0;\n        border: none;\n    }\n\n    .map {\n        border: none;\n    }\n\n</style>\n";
+    var fail = 0;
+    return function run() {
+        $('#map').remove();
+        $(html).appendTo('body');
+        $(css).appendTo('head');
+        var map = new ol.Map({
+            target: "map",
+            view: new ol.View({
+                projection: 'EPSG:4326',
+                center: [-82.4, 34.85],
+                zoom: 15
+            }),
+            layers: [new ol.layer.Tile({ source: new ol.source.OSM() })]
+        });
+        $('#map').resize(function () {
+            throw "this will never happen because jquery only listens for the window size to change";
+        });
+        $('button.event.grow').click(function (evt) {
+            $(css2).appendTo("head");
+            $(evt.target).remove();
+        });
+        $('button.event.resize').click(function (evt) {
+            map.updateSize();
+            $(evt.target).remove();
+        });
+        require(["https://rawgit.com/marcj/css-element-queries/master/src/ResizeSensor.js"], function (ResizeSensor) {
+            var target = map.getTargetElement();
+            new ResizeSensor(target, function () {
+                console.log("ResizeSensor resize detected!");
+                if (!fail)
+                    map.updateSize();
+            });
+        });
+    };
 });
 define("tests/webmap", ["require", "exports", "jquery"], function (require, exports, $) {
     "use strict";
@@ -4062,6 +4222,668 @@ define("tests/data/geom/polyline", ["require", "exports", "openlayers"], functio
             [-115.25532322799027, 36.18318333413792]
         ]
     ]);
+});
+define("tests/interaction/modify", ["require", "exports", "openlayers"], function (require, exports, ol) {
+    "use strict";
+    var ModifyEvent = (function (_super) {
+        __extends(ModifyEvent, _super);
+        function ModifyEvent(type, features, mapBrowserEvent) {
+            _super.call(this, type);
+            this.features = features;
+            this.mapBrowserEvent = mapBrowserEvent;
+        }
+        ;
+        return ModifyEvent;
+    }(ol.events.Event));
+    var Modify = (function (_super) {
+        __extends(Modify, _super);
+        function Modify(options) {
+            _super.call(this, {
+                handleDownEvent: this.handleDownEvent_,
+                handleDragEvent: this.handleDragEvent_,
+                handleEvent: this.handleEvent,
+                handleUpEvent: this.handleUpEvent_
+            });
+            this.handleUpEvent_ = function (evt) {
+                var segmentData;
+                for (var i = this.dragSegments_.length - 1; i >= 0; --i) {
+                    segmentData = this.dragSegments_[i][0];
+                    this.rBush_.update(ol.extent.boundingExtent(segmentData.segment), segmentData);
+                }
+                if (this.modified_) {
+                    this.dispatchEvent(new ModifyEvent(ol.ModifyEventType.MODIFYEND, this.features_, evt));
+                    this.modified_ = false;
+                }
+                return false;
+            };
+            this.handleEvent = function (mapBrowserEvent) {
+                if (!(mapBrowserEvent instanceof ol.MapBrowserPointerEvent)) {
+                    return true;
+                }
+                this.lastPointerEvent_ = mapBrowserEvent;
+                var handled;
+                if (!mapBrowserEvent.map.getView().getHints()[ol.View.Hint.INTERACTING] &&
+                    mapBrowserEvent.type == ol.MapBrowserEvent.EventType.POINTERMOVE &&
+                    !this.handlingDownUpSequence) {
+                    this.handlePointerMove_(mapBrowserEvent);
+                }
+                if (this.vertexFeature_ && this.deleteCondition_(mapBrowserEvent)) {
+                    if (mapBrowserEvent.type != ol.MapBrowserEvent.EventType.SINGLECLICK ||
+                        !this.ignoreNextSingleClick_) {
+                        handled = this.removePoint();
+                    }
+                    else {
+                        handled = true;
+                    }
+                }
+                if (mapBrowserEvent.type == ol.MapBrowserEvent.EventType.SINGLECLICK) {
+                    this.ignoreNextSingleClick_ = false;
+                }
+                return ol.interaction.Pointer.handleEvent.call(this, mapBrowserEvent) &&
+                    !handled;
+            };
+            this.condition_ = options.condition ?
+                options.condition : ol.events.condition.primaryAction;
+            this.defaultDeleteCondition_ = function (mapBrowserEvent) {
+                return ol.events.condition.noModifierKeys(mapBrowserEvent) &&
+                    ol.events.condition.singleClick(mapBrowserEvent);
+            };
+            this.deleteCondition_ = options.deleteCondition ?
+                options.deleteCondition : this.defaultDeleteCondition_;
+            this.vertexFeature_ = null;
+            this.vertexSegments_ = null;
+            this.lastPixel_ = [0, 0];
+            this.ignoreNextSingleClick_ = false;
+            this.modified_ = false;
+            this.rBush_ = new ol.structs.RBush();
+            this.pixelTolerance_ = options.pixelTolerance !== undefined ?
+                options.pixelTolerance : 10;
+            this.snappedToVertex_ = false;
+            this.changingFeature_ = false;
+            this.dragSegments_ = [];
+            this.overlay_ = new ol.layer.Vector({
+                source: new ol.source.Vector({
+                    useSpatialIndex: false,
+                    wrapX: !!options.wrapX
+                }),
+                style: options.style ? options.style :
+                    this.getDefaultStyleFunction(),
+                updateWhileAnimating: true,
+                updateWhileInteracting: true
+            });
+            this.SEGMENT_WRITERS_ = {
+                'Point': this.writePointGeometry_,
+                'LineString': this.writeLineStringGeometry_,
+                'LinearRing': this.writeLineStringGeometry_,
+                'Polygon': this.writePolygonGeometry_,
+                'MultiPoint': this.writeMultiPointGeometry_,
+                'MultiLineString': this.writeMultiLineStringGeometry_,
+                'MultiPolygon': this.writeMultiPolygonGeometry_,
+                'GeometryCollection': this.writeGeometryCollectionGeometry_
+            };
+            this.features_ = options.features;
+            this.features_.forEach(this.addFeature_, this);
+            ol.events.listen(this.features_, ol.Collection.EventType.ADD, this.handleFeatureAdd_, this);
+            ol.events.listen(this.features_, ol.Collection.EventType.REMOVE, this.handleFeatureRemove_, this);
+            this.lastPointerEvent_ = null;
+        }
+        ;
+        Modify.prototype.addFeature_ = function (feature) {
+            var geometry = feature.getGeometry();
+            if (geometry.getType() in this.SEGMENT_WRITERS_) {
+                this.SEGMENT_WRITERS_[geometry.getType()].call(this, feature, geometry);
+            }
+            var map = this.getMap();
+            if (map) {
+                this.handlePointerAtPixel_(this.lastPixel_, map);
+            }
+            ol.events.listen(feature, ol.events.EventType.CHANGE, this.handleFeatureChange_, this);
+        };
+        ;
+        Modify.prototype.willModifyFeatures_ = function (evt) {
+            if (!this.modified_) {
+                this.modified_ = true;
+                this.dispatchEvent(new ModifyEvent('modifystart', this.features_, evt));
+            }
+        };
+        ;
+        Modify.prototype.removeFeature_ = function (feature) {
+            this.removeFeatureSegmentData_(feature);
+            if (this.vertexFeature_ && this.features_.getLength() === 0) {
+                this.overlay_.getSource().removeFeature(this.vertexFeature_);
+                this.vertexFeature_ = null;
+            }
+            ol.events.unlisten(feature, ol.events.EventType.CHANGE, this.handleFeatureChange_, this);
+        };
+        ;
+        Modify.prototype.removeFeatureSegmentData_ = function (feature) {
+            var rBush = this.rBush_;
+            var nodesToRemove = [];
+            rBush.forEach(function (node) {
+                if (feature === node.feature) {
+                    nodesToRemove.push(node);
+                }
+            });
+            for (var i = nodesToRemove.length - 1; i >= 0; --i) {
+                rBush.remove(nodesToRemove[i]);
+            }
+        };
+        ;
+        Modify.prototype.setMap = function (map) {
+            this.overlay_.setMap(map);
+            ol.interaction.Pointer.prototype.setMap.call(this, map);
+        };
+        ;
+        Modify.prototype.handleFeatureAdd_ = function (evt) {
+            this.addFeature_((evt.element));
+        };
+        ;
+        Modify.prototype.handleFeatureChange_ = function (evt) {
+            if (!this.changingFeature_) {
+                var feature = (evt.target);
+                this.removeFeature_(feature);
+                this.addFeature_(feature);
+            }
+        };
+        ;
+        Modify.prototype.handleFeatureRemove_ = function (evt) {
+            var feature = (evt.element);
+            this.removeFeature_(feature);
+        };
+        ;
+        Modify.prototype.writePointGeometry_ = function (feature, geometry) {
+            var coordinates = geometry.getCoordinates();
+            var segmentData = ({
+                feature: feature,
+                geometry: geometry,
+                segment: [coordinates, coordinates]
+            });
+            this.rBush_.insert(geometry.getExtent(), segmentData);
+        };
+        ;
+        Modify.prototype.writeMultiPointGeometry_ = function (feature, geometry) {
+            var points = geometry.getCoordinates();
+            var coordinates, i, ii, segmentData;
+            for (i = 0, ii = points.length; i < ii; ++i) {
+                coordinates = points[i];
+                segmentData = ({
+                    feature: feature,
+                    geometry: geometry,
+                    depth: [i],
+                    index: i,
+                    segment: [coordinates, coordinates]
+                });
+                this.rBush_.insert(geometry.getExtent(), segmentData);
+            }
+        };
+        ;
+        Modify.prototype.writeLineStringGeometry_ = function (feature, geometry) {
+            var coordinates = geometry.getCoordinates();
+            var i, ii, segment, segmentData;
+            for (i = 0, ii = coordinates.length - 1; i < ii; ++i) {
+                segment = coordinates.slice(i, i + 2);
+                segmentData = ({
+                    feature: feature,
+                    geometry: geometry,
+                    index: i,
+                    segment: segment
+                });
+                this.rBush_.insert(ol.extent.boundingExtent(segment), segmentData);
+            }
+        };
+        ;
+        Modify.prototype.writeMultiLineStringGeometry_ = function (feature, geometry) {
+            var lines = geometry.getCoordinates();
+            var coordinates, i, ii, j, jj, segment, segmentData;
+            for (j = 0, jj = lines.length; j < jj; ++j) {
+                coordinates = lines[j];
+                for (i = 0, ii = coordinates.length - 1; i < ii; ++i) {
+                    segment = coordinates.slice(i, i + 2);
+                    segmentData = ({
+                        feature: feature,
+                        geometry: geometry,
+                        depth: [j],
+                        index: i,
+                        segment: segment
+                    });
+                    this.rBush_.insert(ol.extent.boundingExtent(segment), segmentData);
+                }
+            }
+        };
+        ;
+        Modify.prototype.writePolygonGeometry_ = function (feature, geometry) {
+            var rings = geometry.getCoordinates();
+            var coordinates, i, ii, j, jj, segment, segmentData;
+            for (j = 0, jj = rings.length; j < jj; ++j) {
+                coordinates = rings[j];
+                for (i = 0, ii = coordinates.length - 1; i < ii; ++i) {
+                    segment = coordinates.slice(i, i + 2);
+                    segmentData = ({
+                        feature: feature,
+                        geometry: geometry,
+                        depth: [j],
+                        index: i,
+                        segment: segment
+                    });
+                    this.rBush_.insert(ol.extent.boundingExtent(segment), segmentData);
+                }
+            }
+        };
+        ;
+        Modify.prototype.writeMultiPolygonGeometry_ = function (feature, geometry) {
+            var polygons = geometry.getCoordinates();
+            var coordinates, i, ii, j, jj, k, kk, rings, segment, segmentData;
+            for (k = 0, kk = polygons.length; k < kk; ++k) {
+                rings = polygons[k];
+                for (j = 0, jj = rings.length; j < jj; ++j) {
+                    coordinates = rings[j];
+                    for (i = 0, ii = coordinates.length - 1; i < ii; ++i) {
+                        segment = coordinates.slice(i, i + 2);
+                        segmentData = ({
+                            feature: feature,
+                            geometry: geometry,
+                            depth: [j, k],
+                            index: i,
+                            segment: segment
+                        });
+                        this.rBush_.insert(ol.extent.boundingExtent(segment), segmentData);
+                    }
+                }
+            }
+        };
+        ;
+        Modify.prototype.writeGeometryCollectionGeometry_ = function (feature, geometry) {
+            var i, geometries = geometry.getGeometriesArray();
+            for (i = 0; i < geometries.length; ++i) {
+                this.SEGMENT_WRITERS_[geometries[i].getType()].call(this, feature, geometries[i]);
+            }
+        };
+        ;
+        Modify.prototype.createOrUpdateVertexFeature_ = function (coordinates) {
+            var vertexFeature = this.vertexFeature_;
+            if (!vertexFeature) {
+                vertexFeature = new ol.Feature(new ol.geom.Point(coordinates));
+                this.vertexFeature_ = vertexFeature;
+                this.overlay_.getSource().addFeature(vertexFeature);
+            }
+            else {
+                var geometry = (vertexFeature.getGeometry());
+                geometry.setCoordinates(coordinates);
+            }
+            return vertexFeature;
+        };
+        ;
+        Modify.prototype.compareIndexes_ = function (a, b) {
+            return a.index - b.index;
+        };
+        ;
+        Modify.prototype.handleDownEvent_ = function (evt) {
+            if (!this.condition_(evt)) {
+                return false;
+            }
+            this.handlePointerAtPixel_(evt.pixel, evt.map);
+            this.dragSegments_.length = 0;
+            this.modified_ = false;
+            var vertexFeature = this.vertexFeature_;
+            if (vertexFeature) {
+                var insertVertices = [];
+                var geometry = (vertexFeature.getGeometry());
+                var vertex = geometry.getCoordinates();
+                var vertexExtent = ol.extent.boundingExtent([vertex]);
+                var segmentDataMatches = this.rBush_.getInExtent(vertexExtent);
+                var componentSegments = {};
+                segmentDataMatches.sort(this.compareIndexes_);
+                for (var i = 0, ii = segmentDataMatches.length; i < ii; ++i) {
+                    var segmentDataMatch = segmentDataMatches[i];
+                    var segment = segmentDataMatch.segment;
+                    var uid = ol.getUid(segmentDataMatch.feature);
+                    var depth = segmentDataMatch.depth;
+                    if (depth) {
+                        uid += '-' + depth.join('-');
+                    }
+                    if (!componentSegments[uid]) {
+                        componentSegments[uid] = new Array(2);
+                    }
+                    if (ol.coordinate.equals(segment[0], vertex) &&
+                        !componentSegments[uid][0]) {
+                        this.dragSegments_.push([segmentDataMatch, 0]);
+                        componentSegments[uid][0] = segmentDataMatch;
+                    }
+                    else if (ol.coordinate.equals(segment[1], vertex) &&
+                        !componentSegments[uid][1]) {
+                        if ((segmentDataMatch.geometry.getType() ===
+                            ol.geom.GeometryType.LINE_STRING ||
+                            segmentDataMatch.geometry.getType() ===
+                                ol.geom.GeometryType.MULTI_LINE_STRING) &&
+                            componentSegments[uid][0] &&
+                            componentSegments[uid][0].index === 0) {
+                            continue;
+                        }
+                        this.dragSegments_.push([segmentDataMatch, 1]);
+                        componentSegments[uid][1] = segmentDataMatch;
+                    }
+                    else if (ol.getUid(segment) in this.vertexSegments_ &&
+                        (!componentSegments[uid][0] && !componentSegments[uid][1])) {
+                        insertVertices.push([segmentDataMatch, vertex]);
+                    }
+                }
+                if (insertVertices.length) {
+                    this.willModifyFeatures_(evt);
+                }
+                for (var j = insertVertices.length - 1; j >= 0; --j) {
+                    this.insertVertex_.apply(this, insertVertices[j]);
+                }
+            }
+            return !!this.vertexFeature_;
+        };
+        ;
+        Modify.prototype.handleDragEvent_ = function (evt) {
+            this.ignoreNextSingleClick_ = false;
+            this.willModifyFeatures_(evt);
+            var vertex = evt.coordinate;
+            for (var i = 0, ii = this.dragSegments_.length; i < ii; ++i) {
+                var dragSegment = this.dragSegments_[i];
+                var segmentData = dragSegment[0];
+                var depth = segmentData.depth;
+                var geometry = segmentData.geometry;
+                var coordinates = geometry.getCoordinates();
+                var segment = segmentData.segment;
+                var index = dragSegment[1];
+                while (vertex.length < geometry.getStride()) {
+                    vertex.push(0);
+                }
+                switch (geometry.getType()) {
+                    case ol.geom.GeometryType.POINT:
+                        coordinates = vertex;
+                        segment[0] = segment[1] = vertex;
+                        break;
+                    case ol.geom.GeometryType.MULTI_POINT:
+                        coordinates[segmentData.index] = vertex;
+                        segment[0] = segment[1] = vertex;
+                        break;
+                    case ol.geom.GeometryType.LINE_STRING:
+                        coordinates[segmentData.index + index] = vertex;
+                        segment[index] = vertex;
+                        break;
+                    case ol.geom.GeometryType.MULTI_LINE_STRING:
+                        coordinates[depth[0]][segmentData.index + index] = vertex;
+                        segment[index] = vertex;
+                        break;
+                    case ol.geom.GeometryType.POLYGON:
+                        coordinates[depth[0]][segmentData.index + index] = vertex;
+                        segment[index] = vertex;
+                        break;
+                    case ol.geom.GeometryType.MULTI_POLYGON:
+                        coordinates[depth[1]][depth[0]][segmentData.index + index] = vertex;
+                        segment[index] = vertex;
+                        break;
+                    default:
+                }
+                this.setGeometryCoordinates_(geometry, coordinates);
+            }
+            this.createOrUpdateVertexFeature_(vertex);
+        };
+        ;
+        Modify.prototype.handlePointerMove_ = function (evt) {
+            this.lastPixel_ = evt.pixel;
+            this.handlePointerAtPixel_(evt.pixel, evt.map);
+        };
+        ;
+        Modify.prototype.handlePointerAtPixel_ = function (pixel, map) {
+            var pixelCoordinate = map.getCoordinateFromPixel(pixel);
+            var sortByDistance = function (a, b) {
+                return ol.coordinate.squaredDistanceToSegment(pixelCoordinate, a.segment) -
+                    ol.coordinate.squaredDistanceToSegment(pixelCoordinate, b.segment);
+            };
+            var lowerLeft = map.getCoordinateFromPixel([pixel[0] - this.pixelTolerance_, pixel[1] + this.pixelTolerance_]);
+            var upperRight = map.getCoordinateFromPixel([pixel[0] + this.pixelTolerance_, pixel[1] - this.pixelTolerance_]);
+            var box = ol.extent.boundingExtent([lowerLeft, upperRight]);
+            var rBush = this.rBush_;
+            var nodes = rBush.getInExtent(box);
+            if (nodes.length > 0) {
+                nodes.sort(sortByDistance);
+                var node = nodes[0];
+                var closestSegment = node.segment;
+                var vertex = (ol.coordinate.closestOnSegment(pixelCoordinate, closestSegment));
+                var vertexPixel = map.getPixelFromCoordinate(vertex);
+                if (Math.sqrt(ol.coordinate.squaredDistance(pixel, vertexPixel)) <=
+                    this.pixelTolerance_) {
+                    var pixel1 = map.getPixelFromCoordinate(closestSegment[0]);
+                    var pixel2 = map.getPixelFromCoordinate(closestSegment[1]);
+                    var squaredDist1 = ol.coordinate.squaredDistance(vertexPixel, pixel1);
+                    var squaredDist2 = ol.coordinate.squaredDistance(vertexPixel, pixel2);
+                    var dist = Math.sqrt(Math.min(squaredDist1, squaredDist2));
+                    this.snappedToVertex_ = dist <= this.pixelTolerance_;
+                    if (this.snappedToVertex_) {
+                        vertex = squaredDist1 > squaredDist2 ?
+                            closestSegment[1] : closestSegment[0];
+                    }
+                    this.createOrUpdateVertexFeature_(vertex);
+                    var vertexSegments = {};
+                    vertexSegments[ol.getUid(closestSegment)] = true;
+                    var segment;
+                    for (var i = 1, ii = nodes.length; i < ii; ++i) {
+                        segment = nodes[i].segment;
+                        if ((ol.coordinate.equals(closestSegment[0], segment[0]) &&
+                            ol.coordinate.equals(closestSegment[1], segment[1]) ||
+                            (ol.coordinate.equals(closestSegment[0], segment[1]) &&
+                                ol.coordinate.equals(closestSegment[1], segment[0])))) {
+                            vertexSegments[ol.getUid(segment)] = true;
+                        }
+                        else {
+                            break;
+                        }
+                    }
+                    this.vertexSegments_ = vertexSegments;
+                    return;
+                }
+            }
+            if (this.vertexFeature_) {
+                this.overlay_.getSource().removeFeature(this.vertexFeature_);
+                this.vertexFeature_ = null;
+            }
+        };
+        ;
+        Modify.prototype.insertVertex_ = function (segmentData, vertex) {
+            var segment = segmentData.segment;
+            var feature = segmentData.feature;
+            var geometry = segmentData.geometry;
+            var depth = segmentData.depth;
+            var index = (segmentData.index);
+            var coordinates;
+            while (vertex.length < geometry.getStride()) {
+                vertex.push(0);
+            }
+            switch (geometry.getType()) {
+                case ol.geom.GeometryType.MULTI_LINE_STRING:
+                    coordinates = geometry.getCoordinates();
+                    coordinates[depth[0]].splice(index + 1, 0, vertex);
+                    break;
+                case ol.geom.GeometryType.POLYGON:
+                    coordinates = geometry.getCoordinates();
+                    coordinates[depth[0]].splice(index + 1, 0, vertex);
+                    break;
+                case ol.geom.GeometryType.MULTI_POLYGON:
+                    coordinates = geometry.getCoordinates();
+                    coordinates[depth[1]][depth[0]].splice(index + 1, 0, vertex);
+                    break;
+                case ol.geom.GeometryType.LINE_STRING:
+                    coordinates = geometry.getCoordinates();
+                    coordinates.splice(index + 1, 0, vertex);
+                    break;
+                default:
+                    return;
+            }
+            this.setGeometryCoordinates_(geometry, coordinates);
+            var rTree = this.rBush_;
+            rTree.remove(segmentData);
+            this.updateSegmentIndices_(geometry, index, depth, 1);
+            var newSegmentData = ({
+                segment: [segment[0], vertex],
+                feature: feature,
+                geometry: geometry,
+                depth: depth,
+                index: index
+            });
+            rTree.insert(ol.extent.boundingExtent(newSegmentData.segment), newSegmentData);
+            this.dragSegments_.push([newSegmentData, 1]);
+            var newSegmentData2 = ({
+                segment: [vertex, segment[1]],
+                feature: feature,
+                geometry: geometry,
+                depth: depth,
+                index: index + 1
+            });
+            rTree.insert(ol.extent.boundingExtent(newSegmentData2.segment), newSegmentData2);
+            this.dragSegments_.push([newSegmentData2, 0]);
+            this.ignoreNextSingleClick_ = true;
+        };
+        ;
+        Modify.prototype.removePoint = function () {
+            var handled = false;
+            if (this.lastPointerEvent_ && this.lastPointerEvent_.type != ol.MapBrowserEvent.EventType.POINTERDRAG) {
+                var evt = this.lastPointerEvent_;
+                this.willModifyFeatures_(evt);
+                handled = this.removeVertex_();
+                this.dispatchEvent(new ol.interaction.ModifyEvent(ol.ModifyEventType.MODIFYEND, this.features_, evt));
+                this.modified_ = false;
+            }
+            return handled;
+        };
+        ;
+        Modify.prototype.removeVertex_ = function () {
+            var dragSegments = this.dragSegments_;
+            var segmentsByFeature = {};
+            var deleted = false;
+            var component, coordinates, dragSegment, geometry, i, index, left;
+            var newIndex, right, segmentData, uid;
+            for (i = dragSegments.length - 1; i >= 0; --i) {
+                dragSegment = dragSegments[i];
+                segmentData = dragSegment[0];
+                uid = ol.getUid(segmentData.feature);
+                if (segmentData.depth) {
+                    uid += '-' + segmentData.depth.join('-');
+                }
+                if (!(uid in segmentsByFeature)) {
+                    segmentsByFeature[uid] = {};
+                }
+                if (dragSegment[1] === 0) {
+                    segmentsByFeature[uid].right = segmentData;
+                    segmentsByFeature[uid].index = segmentData.index;
+                }
+                else if (dragSegment[1] == 1) {
+                    segmentsByFeature[uid].left = segmentData;
+                    segmentsByFeature[uid].index = segmentData.index + 1;
+                }
+            }
+            for (uid in segmentsByFeature) {
+                right = segmentsByFeature[uid].right;
+                left = segmentsByFeature[uid].left;
+                index = segmentsByFeature[uid].index;
+                newIndex = index - 1;
+                if (left !== undefined) {
+                    segmentData = left;
+                }
+                else {
+                    segmentData = right;
+                }
+                if (newIndex < 0) {
+                    newIndex = 0;
+                }
+                geometry = segmentData.geometry;
+                coordinates = geometry.getCoordinates();
+                component = coordinates;
+                deleted = false;
+                switch (geometry.getType()) {
+                    case ol.geom.GeometryType.MULTI_LINE_STRING:
+                        if (coordinates[segmentData.depth[0]].length > 2) {
+                            coordinates[segmentData.depth[0]].splice(index, 1);
+                            deleted = true;
+                        }
+                        break;
+                    case ol.geom.GeometryType.LINE_STRING:
+                        if (coordinates.length > 2) {
+                            coordinates.splice(index, 1);
+                            deleted = true;
+                        }
+                        break;
+                    case ol.geom.GeometryType.MULTI_POLYGON:
+                        component = component[segmentData.depth[1]];
+                    case ol.geom.GeometryType.POLYGON:
+                        component = component[segmentData.depth[0]];
+                        if (component.length > 4) {
+                            if (index == component.length - 1) {
+                                index = 0;
+                            }
+                            component.splice(index, 1);
+                            deleted = true;
+                            if (index === 0) {
+                                component.pop();
+                                component.push(component[0]);
+                                newIndex = component.length - 1;
+                            }
+                        }
+                        break;
+                    default:
+                }
+                if (deleted) {
+                    this.setGeometryCoordinates_(geometry, coordinates);
+                    var segments = [];
+                    if (left !== undefined) {
+                        this.rBush_.remove(left);
+                        segments.push(left.segment[0]);
+                    }
+                    if (right !== undefined) {
+                        this.rBush_.remove(right);
+                        segments.push(right.segment[1]);
+                    }
+                    if (left !== undefined && right !== undefined) {
+                        goog.DEBUG && console.assert(newIndex >= 0, 'newIndex should be larger than 0');
+                        var newSegmentData = ({
+                            depth: segmentData.depth,
+                            feature: segmentData.feature,
+                            geometry: segmentData.geometry,
+                            index: newIndex,
+                            segment: segments
+                        });
+                        this.rBush_.insert(ol.extent.boundingExtent(newSegmentData.segment), newSegmentData);
+                    }
+                    this.updateSegmentIndices_(geometry, index, segmentData.depth, -1);
+                    if (this.vertexFeature_) {
+                        this.overlay_.getSource().removeFeature(this.vertexFeature_);
+                        this.vertexFeature_ = null;
+                    }
+                }
+            }
+            return deleted;
+        };
+        ;
+        Modify.prototype.setGeometryCoordinates_ = function (geometry, coordinates) {
+            this.changingFeature_ = true;
+            geometry.setCoordinates(coordinates);
+            this.changingFeature_ = false;
+        };
+        ;
+        Modify.prototype.updateSegmentIndices_ = function (geometry, index, depth, delta) {
+            this.rBush_.forEachInExtent(geometry.getExtent(), function (segmentDataMatch) {
+                if (segmentDataMatch.geometry === geometry &&
+                    (depth === undefined || segmentDataMatch.depth === undefined ||
+                        ol.array.equals(segmentDataMatch.depth, depth)) &&
+                    segmentDataMatch.index > index) {
+                    segmentDataMatch.index += delta;
+                }
+            });
+        };
+        ;
+        Modify.prototype.getDefaultStyleFunction = function () {
+            var style = ol.style.Style.createDefaultEditing();
+            return function (feature, resolution) {
+                return style[ol.geom.GeometryType.POINT];
+            };
+        };
+        ;
+        return Modify;
+    }(ol.interaction.Pointer));
 });
 define("ux/styles/ags/simplemarkersymbol-circle", ["require", "exports"], function (require, exports) {
     "use strict";

@@ -80,19 +80,27 @@ class Route {
                 {
                     "circle": {
                         "fill": {
-                            "pattern": {
-                                "orientation": "diagonal",
-                                "color": "rgba(2,12,8,1)",
-                                "spacing": 6,
-                                "repitition": "repeat"
-                            }
+                            "color": "transparent"
+                        },
+                        "opacity": 0.5,
+                        "stroke": {
+                            "color": "green",
+                            "width": 5
+                        },
+                        "radius": delta
+                    }
+                },
+                {
+                    "circle": {
+                        "fill": {
+                            "color": "transparent"
                         },
                         "opacity": 1,
                         "stroke": {
-                            "color": "rgba(17,104,75,0.5)",
-                            "width": 9
+                            "color": "white",
+                            "width": 1
                         },
-                        "radius": 18
+                        "radius": delta
                     }
                 }
             ]));
@@ -108,16 +116,44 @@ class Route {
                 {
                     "star": {
                         "fill": {
-                            "color": "red"
+                            "color": "transparent"
+                        },
+                        "opacity": 1,
+                        "stroke": {
+                            "color": "red",
+                            "width": 5
+                        },
+                        "radius": delta * 0.75,
+                        "points": 8,
+                        "angle": 0.39
+                    }
+                },
+                {
+                    "star": {
+                        "fill": {
+                            "color": "transparent"
+                        },
+                        "opacity": 1,
+                        "stroke": {
+                            "color": "white",
+                            "width": 1
+                        },
+                        "radius": delta * 0.75,
+                        "points": 8,
+                        "angle": 0.39
+                    }
+                },
+                {
+                    "circle": {
+                        "fill": {
+                            "color": color
                         },
                         "opacity": 0.5,
                         "stroke": {
-                            "color": "black",
-                            "width": 2
+                            "color": color,
+                            "width": 1
                         },
-                        "radius": 15,
-                        "points": 8,
-                        "rotation": 0.39
+                        "radius": 5
                     }
                 }
             ]));
@@ -253,17 +289,19 @@ export function run() {
         })
     });
 
+    let colors = ['229966', 'cc6633', 'cc22cc', '331199'].map(v => '#' + v);
+    
     mapmaker().then(map => {
 
         map.addLayer(layer);
 
         let [a, b, c, d] = map.getView().calculateExtent(map.getSize().map(v => v * 0.25));
 
-        let blueRoute = new Route("blue", [a, b], [a, b], [[a, b], [c, b], [c, d], [a, d]].map(v => v.map(v => v + 0.001)));
+        let blueRoute = new Route(colors.pop(), [a, b], [a, b], [[a, b], [c, b], [c, d], [a, d]].map(v => v.map(v => v + 0.001)));
 
-        let greenRoute = new Route("green", [c, d], [c, d], [[a, b], [c, b], [c, d], [a, d]].map(v => v.map(v => v * 1.0001)));
+        let greenRoute = new Route(colors.shift(), [c, d], [c, d], [[a, b], [c, b], [c, d], [a, d]].map(v => v.map(v => v * 1.0001)));
 
-        let indigoRoute = new Route("indigo", [a, b], [a, b], range(16).map(v => [a + (c - a) * Math.random(), b + (d - b) * Math.random()]));
+        let indigoRoute = new Route(colors.pop(), [a, b], [c, d], range(16).map(v => [a + (c - a) * Math.random(), b + (d - b) * Math.random()]));
 
         let redRoute = new Route("red", null, null, [], [{
             "stroke": {
