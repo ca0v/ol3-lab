@@ -6,6 +6,10 @@ const delta = 16;
 
 let formatter = new StyleConverter();
 
+function fromJson(styles: Format.Style[]) {
+    return styles.map(style => formatter.fromJson(style));
+}
+
 function midpoint(points: number[][]) {
     let p0 = points.reduce((sum, p) => p.map((v, i) => v + sum[i]));
     return p0.map(v => v / points.length);
@@ -19,33 +23,33 @@ var range = (n: number) => {
 
 class Route {
 
-    static removeVertex(geom: ol.geom.LineString, vertex: number) {
-        let coords = geom.getCoordinates();
-        if (coords.length < 3) return;
-        coords.splice(vertex, 1);
-        geom.setCoordinates(coords);
-    }
-
     private routeLine: ol.Feature;
+
+    public startLocation: ol.Feature;
+    public finishLocation: ol.Feature;
     private routeStops: ol.Feature[];
 
     get route() {
         return this.routeLine;
     }
 
-    get lines() {
-        return <ol.geom.LineString>this.routeLine.getGeometry();
+    isNewVertex() {
+        let lineSegmentCount = (<ol.geom.LineString>this.routeLine.getGeometry()).getCoordinates().length;
+        this.start && lineSegmentCount--;
+        this.finish && lineSegmentCount--;
+        let stopCount = this.routeStops.length;
+        return stopCount < lineSegmentCount;
     }
 
     get stops() {
-        return this.routeStops.map(stop => <ol.geom.Point>stop.getGeometry());
+        return this.routeStops.map(stop => (<ol.geom.Point>stop.getGeometry()).getFirstCoordinate());
     }
 
     owns(feature: ol.Feature) {
         return feature === this.routeLine;
     }
 
-    constructor(public color: string, stops: ol.Coordinate[], lineStyle?: Format.Style[]) {
+    constructor(public color: string, private start: ol.Coordinate, private finish: ol.Coordinate, stops: ol.Coordinate[], lineStyle?: Format.Style[]) {
 
         let feature = this.routeLine = new ol.Feature(new ol.geom.LineString(stops));
         feature.set("color", color);
@@ -63,10 +67,62 @@ class Route {
                 }
             }];
 
-        let styles = lineStyle.map(style => formatter.fromJson(style));
+        let styles = fromJson(lineStyle);
         feature.setStyle(styles);
 
         let points = this.routeStops = stops.map(p => new ol.Feature(new ol.geom.Point(p)));
+        if (start) {
+            let startingLocation = this.startLocation = new ol.Feature(new ol.geom.Point(start));
+            startingLocation.set("color", color);
+            startingLocation.set("text", "A");
+
+            startingLocation.setStyle(fromJson([
+                {
+                    "circle": {
+                        "fill": {
+                            "pattern": {
+                                "orientation": "diagonal",
+                                "color": "rgba(2,12,8,1)",
+                                "spacing": 6,
+                                "repitition": "repeat"
+                            }
+                        },
+                        "opacity": 1,
+                        "stroke": {
+                            "color": "rgba(17,104,75,0.5)",
+                            "width": 9
+                        },
+                        "radius": 18
+                    }
+                }
+            ]));
+        }
+
+        if (finish) {
+            let endingLocation = this.finishLocation = new ol.Feature(new ol.geom.Point(finish));
+
+            endingLocation.set("color", color);
+            endingLocation.set("text", "Z");
+
+            endingLocation.setStyle(fromJson([
+                {
+                    "star": {
+                        "fill": {
+                            "color": "red"
+                        },
+                        "opacity": 0.5,
+                        "stroke": {
+                            "color": "black",
+                            "width": 2
+                        },
+                        "radius": 15,
+                        "points": 8,
+                        "rotation": 0.39
+                    }
+                }
+            ]));
+        }
+
         points.forEach((p, stopIndex) => {
 
             p.set("color", color);
@@ -112,21 +168,33 @@ class Route {
     appendTo(layer: ol.layer.Vector) {
         this.refresh();
         layer.getSource().addFeatures([this.routeLine]);
+        this.startLocation && layer.getSource().addFeature(this.startLocation);
         layer.getSource().addFeatures(this.routeStops);
+        this.finishLocation && layer.getSource().addFeature(this.finishLocation);
     }
 
     findStop(map: ol.Map, location: ol.Coordinate) {
+        return this.findStops(map, location, this.stops)[0];
+    }
+
+    isStartingLocation(map: ol.Map, location: ol.Coordinate) {
+        return !!this.start && 1 === this.findStops(map, location, [this.start]).length;
+    }
+
+    isEndingLocation(map: ol.Map, location: ol.Coordinate) {
+        return !!this.finish && 1 === this.findStops(map, location, [this.finish]).length;
+    }
+
+    findStops(map: ol.Map, location: ol.Coordinate, stops: ol.Coordinate[]) {
         let pixel = map.getPixelFromCoordinate(location);
         let [x1, y1, x2, y2] = [pixel[0] - delta, pixel[1] + delta, pixel[0] + delta, pixel[1] - delta];
         [x1, y1] = map.getCoordinateFromPixel([x1, y1]);
         [x2, y2] = map.getCoordinateFromPixel([x2, y2]);
-        return this.findStops([x1, y1, x2, y2])[0];
-    }
+        let extent = [x1, y1, x2, y2];
 
-    findStops(extent: ol.Extent) {
         let result = <number[]>[];
-        this.stops.forEach((p, i) => {
-            if (ol.extent.containsCoordinate(extent, p.getFirstCoordinate())) result.push(i);
+        stops.forEach((p, i) => {
+            if (ol.extent.containsCoordinate(extent, p)) result.push(i);
         });
         return result;
     }
@@ -135,9 +203,6 @@ class Route {
         let stop = this.routeStops[index];
         console.log("removeStop", this.color, stop);
         this.routeStops.splice(index, 1);
-        let coords = this.lines.getCoordinates();
-        coords.splice(index, 1);
-        this.lines.setCoordinates(coords);
         return stop;
     }
 
@@ -152,9 +217,12 @@ class Route {
             stop.set("color", this.color);
             stop.set("text", (1 + index) + "");
         });
-        let coords = this.stops.map(p => p.getCoordinates());
+        let coords = this.stops;
+
+        this.start && coords.unshift(this.start);
+        this.finish && coords.push(this.finish);
+
         if (coords.length) {
-            coords.push(midpoint(coords));
             this.routeLine.setGeometry(new ol.geom.LineString(coords));
         }
     }
@@ -166,7 +234,6 @@ export function run() {
     let activeFeature: ol.Feature;
 
     features.on("add", (args: { element: ol.Feature }) => {
-        console.log("add", args);
 
         let feature = args.element;
 
@@ -190,15 +257,15 @@ export function run() {
 
         map.addLayer(layer);
 
-        let [a, b, c, d] = map.getView().calculateExtent(map.getSize().map(v => v * 2));
+        let [a, b, c, d] = map.getView().calculateExtent(map.getSize().map(v => v * 0.25));
 
-        let blueRoute = new Route("blue", [[a, b], [c, b], [c, d], [a, d]].map(v => v.map(v => v + 0.001)));
+        let blueRoute = new Route("blue", [a, b], [a, b], [[a, b], [c, b], [c, d], [a, d]].map(v => v.map(v => v + 0.001)));
 
-        let greenRoute = new Route("green", [[a, b], [c, b], [c, d], [a, d]].map(v => v.map(v => v * 1.0001)));
+        let greenRoute = new Route("green", [c, d], [c, d], [[a, b], [c, b], [c, d], [a, d]].map(v => v.map(v => v * 1.0001)));
 
-        let indigoRoute = new Route("indigo", range(16).map(v => [a + (c - a) * Math.random(), b + (d - b) * Math.random()]));
+        let indigoRoute = new Route("indigo", [a, b], [a, b], range(16).map(v => [a + (c - a) * Math.random(), b + (d - b) * Math.random()]));
 
-        let redRoute = new Route("red", [], [{
+        let redRoute = new Route("red", null, null, [], [{
             "stroke": {
                 "color": "transparent",
                 "width": 0
@@ -213,8 +280,10 @@ export function run() {
             pixelTolerance: 8,
             condition: (evt: ol.MapBrowserEvent) => {
                 if (!ol.events.condition.noModifierKeys(evt)) return false; // ol.events.condition.primaryAction
-                // only if it is not close to any starting point
-                return routes.every(route => route === redRoute || 0 !== route.findStop(map, evt.coordinate) || route.stops.length === 1);
+                // only if it is not a starting or ending location for any route
+                if (routes.some(r => r.isStartingLocation(map, evt.coordinate))) return false;
+                if (routes.some(r => r.isEndingLocation(map, evt.coordinate))) return false;
+                return true;
             },
             features: new ol.Collection(routes.map(route => route.route))
         });
@@ -271,28 +340,33 @@ export function run() {
             });
 
             // new or existing vertex?
-            let isNewVertex = (targetInfo.route.lines.getCoordinates().length > targetInfo.route.stops.length + 1);
+            let isNewVertex = targetInfo.route.isNewVertex();
             let dropOnStop = dropInfo.route && 0 < dropInfo.stops.length;
             let isSameRoute = dropOnStop && dropInfo.route === targetInfo.route;
 
-            if (0 === targetInfo.vertexIndex) {
+            let stopIndex = targetInfo.vertexIndex;
+            if (targetInfo.route.startLocation) stopIndex--;
+
+            if (stopIndex < 0) {
                 // do nothing
+                console.log("moving the starting vertex is not allowed");
             }
-            else if (dropOnStop && dropInfo.stops[0] === 0 && dropInfo.route !== redRoute) {
-                // do nothing
+
+            else if (stopIndex > targetInfo.route.stops.length) {
+                console.log("moving the ending vertex is not allowed");
             }
 
             else if (dropOnStop && isNewVertex) {
                 // adopt stop
                 let stop = dropInfo.route.removeStop(dropInfo.stops[0]);
-                targetInfo.route.addStop(stop, targetInfo.vertexIndex);
+                targetInfo.route.addStop(stop, stopIndex);
             }
 
             else if (dropOnStop && !isNewVertex && !isSameRoute) {
                 // ophan remaining stops and adopt new stops
-                let count = targetInfo.route.stops.length - targetInfo.vertexIndex;
+                let count = targetInfo.route.stops.length - stopIndex;
                 while (count--) {
-                    let stop = targetInfo.route.removeStop(targetInfo.vertexIndex);
+                    let stop = targetInfo.route.removeStop(stopIndex);
                     redRoute.addStop(stop);
                 }
                 count = dropInfo.route.stops.length - dropInfo.stops[0];
@@ -304,20 +378,21 @@ export function run() {
 
             else if (dropOnStop && !isNewVertex && isSameRoute) {
                 // ophan in-betweens
-                let count = dropInfo.stops[0] - targetInfo.vertexIndex;
+                let count = dropInfo.stops[0] - stopIndex;
                 if (count > 1) while (count--) {
-                    let stop = targetInfo.route.removeStop(targetInfo.vertexIndex);
+                    let stop = targetInfo.route.removeStop(stopIndex);
                     redRoute.addStop(stop);
                 }
             }
 
             else if (!dropOnStop && isNewVertex) {
                 // meaningless
+                console.log("dropping a new vertex on empty space has not effect");
             }
 
             else if (!dropOnStop && !isNewVertex) {
                 // orphan the stop (unless it is the last stop)
-                let stop = targetInfo.route.removeStop(targetInfo.vertexIndex);
+                let stop = targetInfo.route.removeStop(stopIndex);
                 stop && redRoute.addStop(stop);
             }
 
