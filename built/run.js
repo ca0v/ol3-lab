@@ -557,6 +557,11 @@ define("labs/common/common", ["require", "exports"], function (require, exports)
         return a;
     }
     exports.mixin = mixin;
+    function defaults(a, b) {
+        Object.keys(b).filter(function (k) { return a[k] == undefined; }).forEach(function (k) { return a[k] = b[k]; });
+        return a;
+    }
+    exports.defaults = defaults;
     function cssin(name, css) {
         var id = "style-" + name;
         var styleTag = document.getElementById(id);
@@ -1963,6 +1968,312 @@ define("labs/polyline-encoder", ["require", "exports", "jquery", "openlayers", "
     }
     exports.run = run;
 });
+define("labs/route-editor", ["require", "exports", "openlayers", "alpha/format/ol3-symbolizer", "labs/common/common"], function (require, exports, ol, ol3_symbolizer_2, common_5) {
+    "use strict";
+    var delta = 16;
+    var formatter = new ol3_symbolizer_2.StyleConverter();
+    function fromJson(styles) {
+        return styles.map(function (style) { return formatter.fromJson(style); });
+    }
+    function asPoint(pt) {
+        return pt.getGeometry().getFirstCoordinate();
+    }
+    var defaultLineStyle = function (color) { return [
+        {
+            "stroke": {
+                "color": color,
+                "width": 4
+            }
+        }, {
+            "stroke": {
+                "color": "white",
+                "width": 1
+            }
+        }]; };
+    var Route = (function () {
+        function Route(options) {
+            this.options = common_5.defaults(options, {
+                color: "black",
+                delta: delta,
+                stops: [],
+                showLines: true,
+                modifyRoute: false,
+                modifyStartLocation: true,
+                modifyFinishLocation: true,
+                lineStyle: defaultLineStyle(options.color || "black")
+            });
+            this.create();
+        }
+        Object.defineProperty(Route.prototype, "delta", {
+            get: function () {
+                return this.options.delta;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(Route.prototype, "start", {
+            get: function () {
+                return this.startLocation && asPoint(this.startLocation);
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(Route.prototype, "finish", {
+            get: function () {
+                return this.finishLocation && asPoint(this.finishLocation);
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(Route.prototype, "route", {
+            get: function () {
+                return this.routeLine.getGeometry().getCoordinates();
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(Route.prototype, "stops", {
+            get: function () {
+                return this.routeStops.map(asPoint);
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Route.prototype.create = function () {
+            var _this = this;
+            var _a = [this.options.color, this.options.start, this.options.finish, this.options.stops], color = _a[0], start = _a[1], finish = _a[2], stops = _a[3];
+            if (this.options.showLines) {
+                var feature = this.routeLine = new ol.Feature(new ol.geom.LineString(stops));
+                feature.set("color", color);
+                feature.setStyle(fromJson(this.options.lineStyle));
+            }
+            var points = this.routeStops = stops.map(function (p) { return new ol.Feature(new ol.geom.Point(p)); });
+            if (start) {
+                var startingLocation = this.startLocation = new ol.Feature(new ol.geom.Point(start));
+                startingLocation.on("change:geometry", function () {
+                    console.log("moved start location");
+                });
+                startingLocation.set("color", color);
+                startingLocation.set("text", "A");
+                startingLocation.setStyle(fromJson([
+                    {
+                        "circle": {
+                            "fill": {
+                                "color": "transparent"
+                            },
+                            "opacity": 0.5,
+                            "stroke": {
+                                "color": "green",
+                                "width": 5
+                            },
+                            "radius": this.delta
+                        }
+                    },
+                    {
+                        "circle": {
+                            "fill": {
+                                "color": "transparent"
+                            },
+                            "opacity": 1,
+                            "stroke": {
+                                "color": "white",
+                                "width": 1
+                            },
+                            "radius": this.delta
+                        }
+                    }
+                ]));
+            }
+            if (finish) {
+                var endingLocation = this.finishLocation = new ol.Feature(new ol.geom.Point(finish));
+                endingLocation.set("color", color);
+                endingLocation.set("text", "Z");
+                endingLocation.setStyle(fromJson([
+                    {
+                        "star": {
+                            "fill": {
+                                "color": "transparent"
+                            },
+                            "opacity": 1,
+                            "stroke": {
+                                "color": "red",
+                                "width": 5
+                            },
+                            "radius": this.delta * 0.75,
+                            "points": 8,
+                            "angle": 0.39
+                        }
+                    },
+                    {
+                        "star": {
+                            "fill": {
+                                "color": "transparent"
+                            },
+                            "opacity": 1,
+                            "stroke": {
+                                "color": "white",
+                                "width": 1
+                            },
+                            "radius": this.delta * 0.75,
+                            "points": 8,
+                            "angle": 0.39
+                        }
+                    },
+                    {
+                        "circle": {
+                            "fill": {
+                                "color": color
+                            },
+                            "opacity": 0.5,
+                            "stroke": {
+                                "color": color,
+                                "width": 1
+                            },
+                            "radius": 5
+                        }
+                    }
+                ]));
+            }
+            points.forEach(function (p, stopIndex) {
+                p.set("color", color);
+                p.set("text", (1 + stopIndex) + "");
+                p.setStyle(function (res) { return [
+                    new ol.style.Style({
+                        image: new ol.style.Circle({
+                            radius: _this.delta,
+                            fill: new ol.style.Fill({
+                                color: p.get("color")
+                            })
+                        })
+                    }),
+                    new ol.style.Style({
+                        image: new ol.style.Circle({
+                            radius: _this.delta - 2,
+                            stroke: new ol.style.Stroke({
+                                color: "white",
+                                width: 1
+                            })
+                        })
+                    }),
+                    new ol.style.Style({
+                        text: new ol.style.Text({
+                            font: _this.delta * 0.75 + "pt Segoe UI",
+                            text: p.get("text"),
+                            fill: new ol.style.Fill({
+                                color: "white"
+                            }),
+                            stroke: new ol.style.Stroke({
+                                color: "black",
+                                width: 1
+                            })
+                        })
+                    })
+                ]; });
+            });
+        };
+        Route.prototype.isNewVertex = function () {
+            var lineSegmentCount = this.route.length;
+            this.start && lineSegmentCount--;
+            this.finish && lineSegmentCount--;
+            var stopCount = this.routeStops.length;
+            return stopCount < lineSegmentCount;
+        };
+        Route.prototype.owns = function (feature) {
+            return this.routeLine && feature === this.routeLine;
+        };
+        Route.prototype.allowModify = function (collection) {
+            if (this.options.showLines) {
+                collection.push(this.routeLine);
+            }
+        };
+        Route.prototype.appendTo = function (layer) {
+            this.routeLine && layer.getSource().addFeatures([this.routeLine]);
+            this.startLocation && layer.getSource().addFeature(this.startLocation);
+            this.routeStops && layer.getSource().addFeatures(this.routeStops);
+            this.finishLocation && layer.getSource().addFeature(this.finishLocation);
+        };
+        Route.prototype.findStop = function (map, location) {
+            return this.findStops(map, location, this.stops)[0];
+        };
+        Route.prototype.isStartingLocation = function (map, location) {
+            return !!this.start && 1 === this.findStops(map, location, [this.start]).length;
+        };
+        Route.prototype.isEndingLocation = function (map, location) {
+            return !!this.finish && 1 === this.findStops(map, location, [this.finish]).length;
+        };
+        Route.prototype.findStops = function (map, location, stops) {
+            var pixel = map.getPixelFromCoordinate(location);
+            var _a = [pixel[0] - this.delta, pixel[1] + this.delta, pixel[0] + this.delta, pixel[1] - this.delta], x1 = _a[0], y1 = _a[1], x2 = _a[2], y2 = _a[3];
+            _b = map.getCoordinateFromPixel([x1, y1]), x1 = _b[0], y1 = _b[1];
+            _c = map.getCoordinateFromPixel([x2, y2]), x2 = _c[0], y2 = _c[1];
+            var extent = [x1, y1, x2, y2];
+            var result = [];
+            stops.some(function (p, i) {
+                if (ol.extent.containsCoordinate(extent, p)) {
+                    result.push(i);
+                    return true;
+                }
+            });
+            return result;
+            var _b, _c;
+        };
+        Route.prototype.removeStop = function (index) {
+            var stop = this.routeStops[index];
+            this.routeStops.splice(index, 1);
+            return stop;
+        };
+        Route.prototype.addStop = function (stop, index) {
+            if (index === undefined)
+                this.routeStops.push(stop);
+            else
+                this.routeStops.splice(index, 0, stop);
+        };
+        Route.prototype.refresh = function (map) {
+            var _this = this;
+            this.routeStops.map(function (stop, index) {
+                stop.set("color", _this.options.color);
+                stop.set("text", (1 + index) + "");
+            });
+            var coords = this.stops;
+            this.start && coords.unshift(this.start);
+            this.finish && coords.push(this.finish);
+            this.routeLine && this.routeLine.setGeometry(new ol.geom.LineString(coords));
+            if (this.options.modifyRoute || this.options.modifyFinishLocation || this.options.modifyStartLocation) {
+                var modify = this.modify;
+                if (modify) {
+                    modify.setActive(false);
+                    map.removeInteraction(modify);
+                }
+                var features_1 = new ol.Collection();
+                if (this.options.modifyStartLocation) {
+                    this.startLocation && features_1.push(this.startLocation);
+                }
+                if (this.options.modifyFinishLocation) {
+                    if (this.options.modifyStartLocation && this.startLocation && this.finishLocation) {
+                        if (ol.coordinate.toStringXY(asPoint(this.startLocation), 5) === ol.coordinate.toStringXY(asPoint(this.finishLocation), 5)) {
+                        }
+                        else {
+                            features_1.push(this.finishLocation);
+                        }
+                    }
+                }
+                if (this.options.modifyRoute) {
+                    this.routeStops && this.routeStops.forEach(function (s) { return features_1.push(s); });
+                }
+                modify = this.modify = new ol.interaction.Modify({
+                    pixelTolerance: 8,
+                    features: features_1
+                });
+                modify.on("modifyend", function () {
+                    _this.refresh(map);
+                });
+                map.addInteraction(modify);
+            }
+        };
+        return Route;
+    }());
+    exports.Route = Route;
+});
 define("ux/serializers/serializer", ["require", "exports"], function (require, exports) {
     "use strict";
     var geoJsonSimpleStyle = {
@@ -2331,9 +2642,9 @@ define("ux/styles/fill/gradient", ["require", "exports"], function (require, exp
         }
     ];
 });
-define("labs/common/style-generator", ["require", "exports", "openlayers", "ux/styles/basic", "alpha/format/ol3-symbolizer"], function (require, exports, ol, basic_styles, ol3_symbolizer_2) {
+define("labs/common/style-generator", ["require", "exports", "openlayers", "ux/styles/basic", "alpha/format/ol3-symbolizer"], function (require, exports, ol, basic_styles, ol3_symbolizer_3) {
     "use strict";
-    var converter = new ol3_symbolizer_2.StyleConverter();
+    var converter = new ol3_symbolizer_3.StyleConverter();
     var orientations = "forward,backward,diagonal,horizontal,vertical,cross".split(",");
     function mixin(a, b) {
         Object.keys(b).forEach(function (k) { return a[k] = b[k]; });
@@ -2641,10 +2952,10 @@ define("labs/common/style-generator", ["require", "exports", "openlayers", "ux/s
     }());
     return StyleGenerator;
 });
-define("labs/style-lab", ["require", "exports", "openlayers", "jquery", "alpha/format/ol3-symbolizer", "ux/serializers/ags-simplemarkersymbol", "labs/common/style-generator"], function (require, exports, ol, $, ol3_symbolizer_3, AgsMarkerSerializer, StyleGenerator) {
+define("labs/style-lab", ["require", "exports", "openlayers", "jquery", "alpha/format/ol3-symbolizer", "ux/serializers/ags-simplemarkersymbol", "labs/common/style-generator"], function (require, exports, ol, $, ol3_symbolizer_4, AgsMarkerSerializer, StyleGenerator) {
     "use strict";
     var center = [-82.4, 34.85];
-    var formatter = new ol3_symbolizer_3.StyleConverter();
+    var formatter = new ol3_symbolizer_4.StyleConverter();
     var generator = new StyleGenerator({
         center: center,
         fromJson: function (json) { return formatter.fromJson(json); }
@@ -2660,7 +2971,7 @@ define("labs/style-lab", ["require", "exports", "openlayers", "jquery", "alpha/f
                 formatter = new AgsMarkerSerializer.SimpleMarkerConverter();
             }
             else {
-                formatter = new ol3_symbolizer_3.StyleConverter();
+                formatter = new ol3_symbolizer_4.StyleConverter();
             }
         }).change();
         var map = new ol.Map({
@@ -2846,7 +3157,7 @@ define("ux/styles/icon/png", ["require", "exports"], function (require, exports)
         }
     ];
 });
-define("labs/style-viewer", ["require", "exports", "openlayers", "jquery", "labs/common/snapshot", "labs/common/common", "alpha/format/ol3-symbolizer", "ux/styles/icon/png"], function (require, exports, ol, $, Snapshot, common_5, ol3_symbolizer_4, pointStyle) {
+define("labs/style-viewer", ["require", "exports", "openlayers", "jquery", "labs/common/snapshot", "labs/common/common", "alpha/format/ol3-symbolizer", "ux/styles/icon/png"], function (require, exports, ol, $, Snapshot, common_6, ol3_symbolizer_5, pointStyle) {
     "use strict";
     var html = "\n<div class='style-to-canvas'>\n    <h3>Renders a feature on a canvas</h3>\n    <div class=\"area\">\n        <label>256 x 256 Canvas</label>\n        <div id='canvas-collection'></div>\n    </div>\n    <div class=\"area\">\n        <label>Style</label>\n        <textarea class='style'></textarea>\n        <button class=\"save\">Save</button>\n    </div>\n    <div class=\"area\">\n        <label>Potential control for setting linear gradient start/stop locations</label>\n        <div class=\"colorramp\">\n            <input class=\"top\" type=\"range\" min=\"0\" max=\"100\" value=\"20\"/>\n            <input class=\"bottom\" type=\"range\" min=\"0\" max=\"100\" value=\"80\"/>\n        </div>\n    </div>\n</div>\n";
     var css = "\n<style>\n    #map {\n        display: none;\n    }\n\n    .style-to-canvas {\n    }\n\n    .style-to-canvas .area label {\n        display: block;\n        vertical-align: top;\n    }\n\n    .style-to-canvas .area {\n        border: 1px solid black;\n        padding: 20px;\n        margin: 20px;\n    }\n\n    .style-to-canvas .area .style {\n        width: 100%;\n        height: 400px;\n    }\n\n    .style-to-canvas #canvas-collection canvas {\n        font-family: sans serif;\n        font-size: 20px;\n        border: 1px solid black;\n        padding: 20px;\n        margin: 20px;\n    }\n\n    div.colorramp {\n        display: inline-block;\n        background: linear-gradient(to right, rgba(250,0,0,0), rgba(250,0,0,1) 60%, rgba(250,100,0,1) 85%, rgb(250,250,0) 95%);\n        width:100%;\n    }\n\n    div.colorramp > input[type=range] {\n        -webkit-appearance: slider-horizontal;\n        display:block;\n        width:100%;\n        background-color:transparent;\n    }\n\n    div.colorramp > label {\n        display: inline-block;\n    }\n\n    div.colorramp > input[type='range'] {\n        box-shadow: 0 0 0 white;\n    }\n\n    div.colorramp > input[type=range]::-webkit-slider-runnable-track {\n        height: 0px;     \n    }\n\n    div.colorramp > input[type='range'].top::-webkit-slider-thumb {\n        margin-top: -10px;\n    }\n\n    div.colorramp > input[type='range'].bottom::-webkit-slider-thumb {\n        margin-top: -12px;\n    }\n    \n</style>\n";
@@ -2885,7 +3196,7 @@ define("labs/style-viewer", ["require", "exports", "openlayers", "jquery", "labs
     var styles = {
         point: pointStyle
     };
-    var serializer = new ol3_symbolizer_4.StyleConverter();
+    var serializer = new ol3_symbolizer_5.StyleConverter();
     var Renderer = (function () {
         function Renderer(geom) {
             this.feature = new ol.Feature(geom);
@@ -2911,8 +3222,8 @@ define("labs/style-viewer", ["require", "exports", "openlayers", "jquery", "labs
         $(html).appendTo("body");
         $(svg).appendTo("body");
         $(css).appendTo("head");
-        var geom = common_5.getParameterByName("geom") || "polygon-with-holes";
-        var style = common_5.getParameterByName("style") || "fill/gradient";
+        var geom = common_6.getParameterByName("geom") || "polygon-with-holes";
+        var style = common_6.getParameterByName("style") || "fill/gradient";
         $(".save").click(function () {
             var style = JSON.stringify(JSON.parse($(".style").val()));
             var loc = window.location;
@@ -3084,13 +3395,8 @@ define("tests/canvas", ["require", "exports"], function (require, exports) {
     }
     exports.run = run;
 });
-define("tests/drop-vertex-on-marker-detection", ["require", "exports", "openlayers", "labs/mapmaker", "alpha/format/ol3-symbolizer"], function (require, exports, ol, mapmaker_1, ol3_symbolizer_5) {
+define("tests/drop-vertex-on-marker-detection", ["require", "exports", "openlayers", "labs/mapmaker", "labs/route-editor"], function (require, exports, ol, mapmaker_1, route_editor_1) {
     "use strict";
-    var delta = 16;
-    var formatter = new ol3_symbolizer_5.StyleConverter();
-    function fromJson(styles) {
-        return styles.map(function (style) { return formatter.fromJson(style); });
-    }
     function midpoint(points) {
         var p0 = points.reduce(function (sum, p) { return p.map(function (v, i) { return v + sum[i]; }); });
         return p0.map(function (v) { return v / points.length; });
@@ -3101,231 +3407,6 @@ define("tests/drop-vertex-on-marker-detection", ["require", "exports", "openlaye
             r[i] = i;
         return r;
     };
-    var Route = (function () {
-        function Route(color, start, finish, stops, lineStyle) {
-            this.color = color;
-            this.start = start;
-            this.finish = finish;
-            var feature = this.routeLine = new ol.Feature(new ol.geom.LineString(stops));
-            feature.set("color", color);
-            if (!lineStyle)
-                lineStyle = [
-                    {
-                        "stroke": {
-                            "color": color,
-                            "width": 4
-                        }
-                    }, {
-                        "stroke": {
-                            "color": "white",
-                            "width": 1
-                        }
-                    }];
-            var styles = fromJson(lineStyle);
-            feature.setStyle(styles);
-            var points = this.routeStops = stops.map(function (p) { return new ol.Feature(new ol.geom.Point(p)); });
-            if (start) {
-                var startingLocation = this.startLocation = new ol.Feature(new ol.geom.Point(start));
-                startingLocation.set("color", color);
-                startingLocation.set("text", "A");
-                startingLocation.setStyle(fromJson([
-                    {
-                        "circle": {
-                            "fill": {
-                                "color": "transparent"
-                            },
-                            "opacity": 0.5,
-                            "stroke": {
-                                "color": "green",
-                                "width": 5
-                            },
-                            "radius": delta
-                        }
-                    },
-                    {
-                        "circle": {
-                            "fill": {
-                                "color": "transparent"
-                            },
-                            "opacity": 1,
-                            "stroke": {
-                                "color": "white",
-                                "width": 1
-                            },
-                            "radius": delta
-                        }
-                    }
-                ]));
-            }
-            if (finish) {
-                var endingLocation = this.finishLocation = new ol.Feature(new ol.geom.Point(finish));
-                endingLocation.set("color", color);
-                endingLocation.set("text", "Z");
-                endingLocation.setStyle(fromJson([
-                    {
-                        "star": {
-                            "fill": {
-                                "color": "transparent"
-                            },
-                            "opacity": 1,
-                            "stroke": {
-                                "color": "red",
-                                "width": 5
-                            },
-                            "radius": delta * 0.75,
-                            "points": 8,
-                            "angle": 0.39
-                        }
-                    },
-                    {
-                        "star": {
-                            "fill": {
-                                "color": "transparent"
-                            },
-                            "opacity": 1,
-                            "stroke": {
-                                "color": "white",
-                                "width": 1
-                            },
-                            "radius": delta * 0.75,
-                            "points": 8,
-                            "angle": 0.39
-                        }
-                    },
-                    {
-                        "circle": {
-                            "fill": {
-                                "color": color
-                            },
-                            "opacity": 0.5,
-                            "stroke": {
-                                "color": color,
-                                "width": 1
-                            },
-                            "radius": 5
-                        }
-                    }
-                ]));
-            }
-            points.forEach(function (p, stopIndex) {
-                p.set("color", color);
-                p.set("text", (1 + stopIndex) + "");
-                p.setStyle(function (res) { return [
-                    new ol.style.Style({
-                        image: new ol.style.Circle({
-                            radius: delta,
-                            fill: new ol.style.Fill({
-                                color: p.get("color")
-                            })
-                        })
-                    }),
-                    new ol.style.Style({
-                        image: new ol.style.Circle({
-                            radius: delta - 2,
-                            stroke: new ol.style.Stroke({
-                                color: "white",
-                                width: 1
-                            })
-                        })
-                    }),
-                    new ol.style.Style({
-                        text: new ol.style.Text({
-                            font: delta * 0.75 + "pt Segoe UI",
-                            text: p.get("text"),
-                            fill: new ol.style.Fill({
-                                color: "white"
-                            }),
-                            stroke: new ol.style.Stroke({
-                                color: "black",
-                                width: 1
-                            })
-                        })
-                    })
-                ]; });
-            });
-        }
-        Object.defineProperty(Route.prototype, "route", {
-            get: function () {
-                return this.routeLine;
-            },
-            enumerable: true,
-            configurable: true
-        });
-        Route.prototype.isNewVertex = function () {
-            var lineSegmentCount = this.routeLine.getGeometry().getCoordinates().length;
-            this.start && lineSegmentCount--;
-            this.finish && lineSegmentCount--;
-            var stopCount = this.routeStops.length;
-            return stopCount < lineSegmentCount;
-        };
-        Object.defineProperty(Route.prototype, "stops", {
-            get: function () {
-                return this.routeStops.map(function (stop) { return stop.getGeometry().getFirstCoordinate(); });
-            },
-            enumerable: true,
-            configurable: true
-        });
-        Route.prototype.owns = function (feature) {
-            return feature === this.routeLine;
-        };
-        Route.prototype.appendTo = function (layer) {
-            this.refresh();
-            layer.getSource().addFeatures([this.routeLine]);
-            this.startLocation && layer.getSource().addFeature(this.startLocation);
-            layer.getSource().addFeatures(this.routeStops);
-            this.finishLocation && layer.getSource().addFeature(this.finishLocation);
-        };
-        Route.prototype.findStop = function (map, location) {
-            return this.findStops(map, location, this.stops)[0];
-        };
-        Route.prototype.isStartingLocation = function (map, location) {
-            return !!this.start && 1 === this.findStops(map, location, [this.start]).length;
-        };
-        Route.prototype.isEndingLocation = function (map, location) {
-            return !!this.finish && 1 === this.findStops(map, location, [this.finish]).length;
-        };
-        Route.prototype.findStops = function (map, location, stops) {
-            var pixel = map.getPixelFromCoordinate(location);
-            var _a = [pixel[0] - delta, pixel[1] + delta, pixel[0] + delta, pixel[1] - delta], x1 = _a[0], y1 = _a[1], x2 = _a[2], y2 = _a[3];
-            _b = map.getCoordinateFromPixel([x1, y1]), x1 = _b[0], y1 = _b[1];
-            _c = map.getCoordinateFromPixel([x2, y2]), x2 = _c[0], y2 = _c[1];
-            var extent = [x1, y1, x2, y2];
-            var result = [];
-            stops.forEach(function (p, i) {
-                if (ol.extent.containsCoordinate(extent, p))
-                    result.push(i);
-            });
-            return result;
-            var _b, _c;
-        };
-        Route.prototype.removeStop = function (index) {
-            var stop = this.routeStops[index];
-            console.log("removeStop", this.color, stop);
-            this.routeStops.splice(index, 1);
-            return stop;
-        };
-        Route.prototype.addStop = function (stop, index) {
-            console.log("addStop", this.color, stop, index);
-            if (index === undefined)
-                this.routeStops.push(stop);
-            else
-                this.routeStops.splice(index, 0, stop);
-        };
-        Route.prototype.refresh = function () {
-            var _this = this;
-            this.routeStops.map(function (stop, index) {
-                stop.set("color", _this.color);
-                stop.set("text", (1 + index) + "");
-            });
-            var coords = this.stops;
-            this.start && coords.unshift(this.start);
-            this.finish && coords.push(this.finish);
-            if (coords.length) {
-                this.routeLine.setGeometry(new ol.geom.LineString(coords));
-            }
-        };
-        return Route;
-    }());
     function run() {
         var features = new ol.Collection([]);
         var activeFeature;
@@ -3351,18 +3432,27 @@ define("tests/drop-vertex-on-marker-detection", ["require", "exports", "openlaye
             var shift = [-0.001, -0.005];
             while (colors.length) {
                 var startstop = [a + (c - a) * Math.random(), b + (d - b) * Math.random()].map(function (v, i) { return v + shift[i]; });
-                var route = new Route(colors.pop(), startstop, startstop, range(8).map(function (v) { return [a + (c - a) * Math.random(), b + (d - b) * Math.random()].map(function (v, i) { return v + shift[i]; }); }));
+                var route = new route_editor_1.Route({
+                    color: colors.pop(),
+                    start: startstop,
+                    finish: startstop,
+                    stops: range(8).map(function (v) { return [a + (c - a) * Math.random(), b + (d - b) * Math.random()].map(function (v, i) { return v + shift[i]; }); })
+                });
                 shift = shift.map(function (v) { return v + 0.005; });
                 routes.push(route);
             }
-            var redRoute = new Route("red", null, null, [], [{
-                    "stroke": {
-                        "color": "transparent",
-                        "width": 0
-                    }
-                }]);
+            var redRoute = new route_editor_1.Route({
+                color: "red",
+                showLines: false,
+                modifyRoute: true
+            });
             routes.push(redRoute);
-            routes.forEach(function (r) { return r.appendTo(layer); });
+            routes.forEach(function (r) {
+                r.refresh(map);
+                r.appendTo(layer);
+            });
+            var editFeatures = new ol.Collection();
+            routes.map(function (route) { return route.allowModify(editFeatures); });
             var modify = new ol.interaction.Modify({
                 pixelTolerance: 8,
                 condition: function (evt) {
@@ -3374,7 +3464,7 @@ define("tests/drop-vertex-on-marker-detection", ["require", "exports", "openlaye
                         return false;
                     return true;
                 },
-                features: new ol.Collection(routes.map(function (route) { return route.route; }))
+                features: editFeatures
             });
             map.addInteraction(modify);
             modify.on("modifyend", function (args) {
@@ -3390,7 +3480,7 @@ define("tests/drop-vertex-on-marker-detection", ["require", "exports", "openlaye
                     vertexIndex: null
                 };
                 targetInfo.route = routes.filter(function (route) { return route.owns(activeFeature); })[0];
-                console.log("target-route", targetInfo.route.color);
+                console.log("target-route", targetInfo.route);
                 {
                     var geom = activeFeature.getGeometry();
                     var coords = geom.getCoordinates();
@@ -3428,16 +3518,10 @@ define("tests/drop-vertex-on-marker-detection", ["require", "exports", "openlaye
                     targetInfo.route.addStop(stop, stopIndex);
                 }
                 else if (dropOnStop && !isNewVertex && !isSameRoute) {
-                    var count = targetInfo.route.stops.length - stopIndex;
-                    while (count--) {
-                        var stop = targetInfo.route.removeStop(stopIndex);
-                        redRoute.addStop(stop);
-                    }
-                    count = dropInfo.route.stops.length - dropInfo.stops[0];
-                    while (count--) {
-                        var stop = dropInfo.route.removeStop(dropInfo.stops[0]);
-                        targetInfo.route.addStop(stop);
-                    }
+                    var stop = targetInfo.route.removeStop(stopIndex);
+                    redRoute.addStop(stop);
+                    stop = dropInfo.route.removeStop(dropInfo.stops[0]);
+                    targetInfo.route.addStop(stop, stopIndex);
                 }
                 else if (dropOnStop && !isNewVertex && isSameRoute) {
                     var count = dropInfo.stops[0] - stopIndex;
@@ -3454,7 +3538,7 @@ define("tests/drop-vertex-on-marker-detection", ["require", "exports", "openlaye
                     var stop = targetInfo.route.removeStop(stopIndex);
                     stop && redRoute.addStop(stop);
                 }
-                routes.map(function (r) { return r.refresh(); });
+                routes.map(function (r) { return r.refresh(map); });
             });
         });
     }
@@ -3483,7 +3567,7 @@ define("tests/index", ["require", "exports"], function (require, exports) {
     function run() {
         var l = window.location;
         var path = "" + l.origin + l.pathname + "?run=tests/";
-        var labs = "\n    ags-format\n    google-polyline\n    webmap\n    map-resize-defect\n    index\n    ";
+        var labs = "\n    ags-format\n    google-polyline\n    webmap\n    map-resize-defect\n    drop-vertex-on-marker-detection\n    index\n    ";
         document.writeln("\n    <p>\n    Watch the console output for failed assertions (blank is good).\n    </p>\n    ");
         document.writeln(labs
             .split(/ /)
