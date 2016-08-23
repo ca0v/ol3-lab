@@ -16,6 +16,11 @@ export function mixin<A extends any, B extends any>(a: A, b: B) {
     return <A & B>a;
 }
 
+export function defaults<T extends any>(a: T, b: T) {
+    Object.keys(b).filter(k => a[k] == undefined).forEach(k => a[k] = b[k]);
+    return a;
+}
+
 export function cssin(name: string, css: string) {
     let id = `style-${name}`;
     let styleTag = <HTMLStyleElement>document.getElementById(id);
@@ -28,7 +33,7 @@ export function cssin(name: string, css: string) {
 
     let dataset = styleTag.dataset;
     dataset["count"] = parseInt(dataset["count"] || "0") + 1 + "";
-    
+
     return () => {
         dataset["count"] = parseInt(dataset["count"] || "0") - 1 + "";
         if (dataset["count"] === "0") {

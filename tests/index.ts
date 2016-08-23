@@ -7,6 +7,7 @@ export function run() {
     google-polyline
     webmap
     map-resize-defect
+    drop-vertex-on-marker-detection
     index
     `;
     

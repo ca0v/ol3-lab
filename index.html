@@ -33,7 +33,7 @@
             deps: ["built/run"],
             callback: () => {
                 require([run], test => {
-                    test.run ? test.run() : test(); 
+                    setTimeout(() => test.run ? test.run() : test(), 0); 
                 });
             }
         });
