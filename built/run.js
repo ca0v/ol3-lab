@@ -3,6 +3,511 @@ var __extends = (this && this.__extends) || function (d, b) {
     function __() { this.constructor = d; }
     d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
+define("alpha/format/base", ["require", "exports"], function (require, exports) {
+    "use strict";
+});
+define("labs/common/common", ["require", "exports"], function (require, exports) {
+    "use strict";
+    function getParameterByName(name, url) {
+        if (url === void 0) { url = window.location.href; }
+        name = name.replace(/[\[\]]/g, "\\$&");
+        var regex = new RegExp("[?&]" + name + "(=([^&#]*)|&|#|$)"), results = regex.exec(url);
+        if (!results)
+            return null;
+        if (!results[2])
+            return '';
+        return decodeURIComponent(results[2].replace(/\+/g, " "));
+    }
+    exports.getParameterByName = getParameterByName;
+    function doif(v, cb) {
+        if (v !== undefined && v !== null)
+            cb(v);
+    }
+    exports.doif = doif;
+    function mixin(a, b) {
+        Object.keys(b).forEach(function (k) { return a[k] = b[k]; });
+        return a;
+    }
+    exports.mixin = mixin;
+    function defaults(a, b) {
+        Object.keys(b).filter(function (k) { return a[k] == undefined; }).forEach(function (k) { return a[k] = b[k]; });
+        return a;
+    }
+    exports.defaults = defaults;
+    function cssin(name, css) {
+        var id = "style-" + name;
+        var styleTag = document.getElementById(id);
+        if (!styleTag) {
+            styleTag = document.createElement("style");
+            styleTag.id = id;
+            styleTag.innerText = css;
+            document.head.appendChild(styleTag);
+        }
+        var dataset = styleTag.dataset;
+        dataset["count"] = parseInt(dataset["count"] || "0") + 1 + "";
+        return function () {
+            dataset["count"] = parseInt(dataset["count"] || "0") - 1 + "";
+            if (dataset["count"] === "0") {
+                styleTag.remove();
+            }
+        };
+    }
+    exports.cssin = cssin;
+});
+define("labs/common/ol3-patch", ["require", "exports", "openlayers", "labs/common/common"], function (require, exports, ol3, common_1) {
+    "use strict";
+    if (!ol3.geom.SimpleGeometry.prototype.scale) {
+        var scale_1 = function (flatCoordinates, offset, end, stride, deltaX, deltaY, opt_dest) {
+            var dest = opt_dest ? opt_dest : [];
+            var i = 0;
+            var j, k;
+            for (j = offset; j < end; j += stride) {
+                dest[i++] = flatCoordinates[j] * deltaX;
+                dest[i++] = flatCoordinates[j + 1] * deltaY;
+                for (k = j + 2; k < j + stride; ++k) {
+                    dest[i++] = flatCoordinates[k];
+                }
+            }
+            if (opt_dest && dest.length != i) {
+                dest.length = i;
+            }
+            return dest;
+        };
+        common_1.mixin(ol3.geom.SimpleGeometry.prototype, {
+            scale: function (deltaX, deltaY) {
+                var it = this;
+                it.applyTransform(function (flatCoordinates, output, stride) {
+                    scale_1(flatCoordinates, 0, flatCoordinates.length, stride, deltaX, deltaY, flatCoordinates);
+                    return flatCoordinates;
+                });
+                it.changed();
+            }
+        });
+    }
+    return ol3;
+});
+define("alpha/format/ol3-symbolizer", ["require", "exports", "labs/common/ol3-patch", "labs/common/common"], function (require, exports, ol, common_2) {
+    "use strict";
+    var StyleConverter = (function () {
+        function StyleConverter() {
+        }
+        StyleConverter.prototype.fromJson = function (json) {
+            return this.deserializeStyle(json);
+        };
+        StyleConverter.prototype.toJson = function (style) {
+            return this.serializeStyle(style);
+        };
+        StyleConverter.prototype.assign = function (obj, prop, value) {
+            if (value === null)
+                return;
+            if (value === undefined)
+                return;
+            if (typeof value === "object") {
+                if (Object.keys(value).length === 0)
+                    return;
+            }
+            if (prop === "image") {
+                if (value.hasOwnProperty("radius")) {
+                    prop = "circle";
+                }
+                if (value.hasOwnProperty("points")) {
+                    prop = "star";
+                }
+            }
+            obj[prop] = value;
+        };
+        StyleConverter.prototype.serializeStyle = function (style) {
+            var _this = this;
+            var s = {};
+            if (!style)
+                return null;
+            if (typeof style === "string")
+                return style;
+            if (typeof style === "number")
+                return style;
+            if (style.getColor)
+                common_2.mixin(s, this.serializeColor(style.getColor()));
+            if (style.getImage)
+                this.assign(s, "image", this.serializeStyle(style.getImage()));
+            if (style.getFill)
+                this.assign(s, "fill", this.serializeFill(style.getFill()));
+            if (style.getOpacity)
+                this.assign(s, "opacity", style.getOpacity());
+            if (style.getStroke)
+                this.assign(s, "stroke", this.serializeStyle(style.getStroke()));
+            if (style.getText)
+                this.assign(s, "text", this.serializeStyle(style.getText()));
+            if (style.getWidth)
+                this.assign(s, "width", style.getWidth());
+            if (style.getOffsetX)
+                this.assign(s, "offset-x", style.getOffsetX());
+            if (style.getOffsetY)
+                this.assign(s, "offset-y", style.getOffsetY());
+            if (style.getWidth)
+                this.assign(s, "width", style.getWidth());
+            if (style.getFont)
+                this.assign(s, "font", style.getFont());
+            if (style.getRadius)
+                this.assign(s, "radius", style.getRadius());
+            if (style.getRadius2)
+                this.assign(s, "radius2", style.getRadius2());
+            if (style.getPoints)
+                this.assign(s, "points", style.getPoints());
+            if (style.getAngle)
+                this.assign(s, "angle", style.getAngle());
+            if (style.getRotation)
+                this.assign(s, "rotation", style.getRotation());
+            if (style.getOrigin)
+                this.assign(s, "origin", style.getOrigin());
+            if (style.getScale)
+                this.assign(s, "scale", style.getScale());
+            if (style.getSize)
+                this.assign(s, "size", style.getSize());
+            if (style.getAnchor) {
+                this.assign(s, "anchor", style.getAnchor());
+                "anchorXUnits,anchorYUnits,anchorOrigin".split(",").forEach(function (k) {
+                    _this.assign(s, k, style[(k + "_")]);
+                });
+            }
+            if (style.path) {
+                if (style.path)
+                    this.assign(s, "path", style.path);
+                if (style.getImageSize)
+                    this.assign(s, "imgSize", style.getImageSize());
+                if (style.stroke)
+                    this.assign(s, "stroke", style.stroke);
+                if (style.fill)
+                    this.assign(s, "fill", style.fill);
+                if (style.scale)
+                    this.assign(s, "scale", style.scale);
+                if (style.imgSize)
+                    this.assign(s, "imgSize", style.imgSize);
+            }
+            if (style.getSrc)
+                this.assign(s, "src", style.getSrc());
+            if (s.points && s.radius !== s.radius2)
+                s.points /= 2;
+            return s;
+        };
+        StyleConverter.prototype.serializeColor = function (color) {
+            if (color instanceof Array) {
+                return {
+                    color: ol.color.asString(color)
+                };
+            }
+            else if (color instanceof CanvasGradient) {
+                return {
+                    gradient: color
+                };
+            }
+            else if (color instanceof CanvasPattern) {
+                return {
+                    pattern: color
+                };
+            }
+            else if (typeof color === "string") {
+                return {
+                    color: color
+                };
+            }
+            throw "unknown color type";
+        };
+        StyleConverter.prototype.serializeFill = function (fill) {
+            return this.serializeStyle(fill);
+        };
+        StyleConverter.prototype.deserializeStyle = function (json) {
+            var image;
+            var text;
+            var fill;
+            var stroke;
+            if (json.circle)
+                image = this.deserializeCircle(json.circle);
+            else if (json.star)
+                image = this.deserializeStar(json.star);
+            else if (json.icon)
+                image = this.deserializeIcon(json.icon);
+            else if (json.svg)
+                image = this.deserializeSvg(json.svg);
+            else if (json.image && (json.image.img || json.image.path))
+                image = this.deserializeSvg(json.image);
+            else if (json.image && json.image.src)
+                image = this.deserializeIcon(json.image);
+            else if (json.image)
+                throw "unknown image type";
+            if (json.text)
+                text = this.deserializeText(json.text);
+            if (json.fill)
+                fill = this.deserializeFill(json.fill);
+            if (json.stroke)
+                stroke = this.deserializeStroke(json.stroke);
+            var s = new ol.style.Style({
+                image: image,
+                text: text,
+                fill: fill,
+                stroke: stroke
+            });
+            image && s.setGeometry(function (feature) {
+                var geom = feature.getGeometry();
+                if (geom instanceof ol.geom.Polygon) {
+                    var pt = geom.getInteriorPoint();
+                    return pt;
+                }
+            });
+            return s;
+        };
+        StyleConverter.prototype.deserializeText = function (json) {
+            json.rotation = json.rotation || 0;
+            json.scale = json.scale || 1;
+            var _a = [json["offset-x"] || 0, json["offset-y"] || 0], x = _a[0], y = _a[1];
+            {
+                ol.coordinate.rotate([x, y].map(function (v) { return v * json.scale; }), json.rotation);
+            }
+            return new ol.style.Text({
+                fill: this.deserializeFill(json.fill),
+                stroke: this.deserializeStroke(json.stroke),
+                text: json.text,
+                font: json.font,
+                offsetX: x,
+                offsetY: y,
+                rotation: json.rotation,
+                scale: json.scale
+            });
+        };
+        StyleConverter.prototype.deserializeCircle = function (json) {
+            var image = new ol.style.Circle({
+                radius: json.radius,
+                fill: this.deserializeFill(json.fill),
+                stroke: this.deserializeStroke(json.stroke)
+            });
+            image.setOpacity(json.opacity);
+            return image;
+        };
+        StyleConverter.prototype.deserializeStar = function (json) {
+            var image = new ol.style.RegularShape({
+                radius: json.radius,
+                radius2: json.radius2,
+                points: json.points,
+                angle: json.angle,
+                fill: this.deserializeFill(json.fill),
+                stroke: this.deserializeStroke(json.stroke)
+            });
+            common_2.doif(json.rotation, function (v) { return image.setRotation(v); });
+            common_2.doif(json.opacity, function (v) { return image.setOpacity(v); });
+            return image;
+        };
+        StyleConverter.prototype.deserializeIcon = function (json) {
+            if (!json.anchor) {
+                json.anchor = [json["anchor-x"] || 0.5, json["anchor-y"] || 0.5];
+            }
+            var image = new ol.style.Icon({
+                anchor: json.anchor || [0.5, 0.5],
+                anchorOrigin: json.anchorOrigin || "top-left",
+                anchorXUnits: json.anchorXUnits || "fraction",
+                anchorYUnits: json.anchorYUnits || "fraction",
+                img: undefined,
+                imgSize: undefined,
+                offset: json.offset,
+                offsetOrigin: json.offsetOrigin,
+                opacity: json.opacity,
+                scale: json.scale,
+                snapToPixel: json.snapToPixel,
+                rotateWithView: json.rotateWithView,
+                rotation: json.rotation,
+                size: json.size,
+                src: json.src,
+                color: json.color
+            });
+            image.load();
+            return image;
+        };
+        StyleConverter.prototype.deserializeSvg = function (json) {
+            json.rotation = json.rotation || 0;
+            json.scale = json.scale || 1;
+            if (json.img) {
+                var symbol = document.getElementById(json.img);
+                if (!symbol) {
+                    throw "unable to find svg element: " + json.img;
+                }
+                if (symbol) {
+                    var path = (symbol.getElementsByTagName("path")[0]);
+                    if (path) {
+                        if (symbol.viewBox) {
+                            if (!json.imgSize) {
+                                json.imgSize = [symbol.viewBox.baseVal.width, symbol.viewBox.baseVal.height];
+                            }
+                        }
+                        json.path = (json.path || "") + path.getAttribute('d');
+                    }
+                }
+            }
+            var canvas = document.createElement("canvas");
+            if (json.path) {
+                {
+                    _a = json.imgSize.map(function (v) { return v * json.scale; }), canvas.width = _a[0], canvas.height = _a[1];
+                    if (json.stroke && json.stroke.width) {
+                        var dx = 2 * json.stroke.width * json.scale;
+                        canvas.width += dx;
+                        canvas.height += dx;
+                    }
+                }
+                var ctx = canvas.getContext('2d');
+                var path2d = new Path2D(json.path);
+                ctx.translate(canvas.width / 2, canvas.height / 2);
+                ctx.scale(json.scale, json.scale);
+                ctx.translate(-json.imgSize[0] / 2, -json.imgSize[1] / 2);
+                if (json.fill) {
+                    ctx.fillStyle = json.fill.color;
+                    ctx.fill(path2d);
+                }
+                if (json.stroke) {
+                    ctx.strokeStyle = json.stroke.color;
+                    ctx.lineWidth = json.stroke.width;
+                    ctx.stroke(path2d);
+                }
+            }
+            var icon = new ol.style.Icon({
+                img: canvas,
+                imgSize: [canvas.width, canvas.height],
+                rotation: json.rotation,
+                scale: 1,
+                anchor: json.anchor || [canvas.width / 2, canvas.height],
+                anchorOrigin: json.anchorOrigin,
+                anchorXUnits: json.anchorXUnits || "pixels",
+                anchorYUnits: json.anchorYUnits || "pixels",
+                offset: json.offset,
+                offsetOrigin: json.offsetOrigin,
+                opacity: json.opacity,
+                snapToPixel: json.snapToPixel,
+                rotateWithView: json.rotateWithView,
+                size: [canvas.width, canvas.height],
+                src: undefined
+            });
+            return common_2.mixin(icon, {
+                path: json.path,
+                stroke: json.stroke,
+                fill: json.fill,
+                scale: json.scale,
+                imgSize: json.imgSize
+            });
+            var _a;
+        };
+        StyleConverter.prototype.deserializeFill = function (json) {
+            var fill = new ol.style.Fill({
+                color: this.deserializeColor(json)
+            });
+            return fill;
+        };
+        StyleConverter.prototype.deserializeStroke = function (json) {
+            var stroke = new ol.style.Stroke();
+            common_2.doif(json.color, function (v) { return stroke.setColor(v); });
+            common_2.doif(json.lineCap, function (v) { return stroke.setLineCap(v); });
+            common_2.doif(json.lineDash, function (v) { return stroke.setLineDash(v); });
+            common_2.doif(json.lineJoin, function (v) { return stroke.setLineJoin(v); });
+            common_2.doif(json.miterLimit, function (v) { return stroke.setMiterLimit(v); });
+            common_2.doif(json.width, function (v) { return stroke.setWidth(v); });
+            return stroke;
+        };
+        StyleConverter.prototype.deserializeColor = function (fill) {
+            if (fill.color) {
+                return fill.color;
+            }
+            if (fill.gradient) {
+                var type = fill.gradient.type;
+                var gradient_1;
+                if (0 === type.indexOf("linear(")) {
+                    gradient_1 = this.deserializeLinearGradient(fill.gradient);
+                }
+                else if (0 === type.indexOf("radial(")) {
+                    gradient_1 = this.deserializeRadialGradient(fill.gradient);
+                }
+                if (fill.gradient.stops) {
+                    common_2.mixin(gradient_1, {
+                        stops: fill.gradient.stops
+                    });
+                    var stops = fill.gradient.stops.split(";");
+                    stops = stops.map(function (v) { return v.trim(); });
+                    stops.forEach(function (colorstop) {
+                        var stop = colorstop.match(/ \d+%/m)[0];
+                        var color = colorstop.substr(0, colorstop.length - stop.length);
+                        gradient_1.addColorStop(parseInt(stop) / 100, color);
+                    });
+                }
+                return gradient_1;
+            }
+            if (fill.pattern) {
+                var repitition = fill.pattern.repitition;
+                var canvas = document.createElement('canvas');
+                var spacing = canvas.width = canvas.height = fill.pattern.spacing | 6;
+                var context = canvas.getContext('2d');
+                context.fillStyle = fill.pattern.color;
+                switch (fill.pattern.orientation) {
+                    case "horizontal":
+                        for (var i = 0; i < spacing; i++) {
+                            context.fillRect(i, 0, 1, 1);
+                        }
+                        break;
+                    case "vertical":
+                        for (var i = 0; i < spacing; i++) {
+                            context.fillRect(0, i, 1, 1);
+                        }
+                        break;
+                    case "cross":
+                        for (var i = 0; i < spacing; i++) {
+                            context.fillRect(i, 0, 1, 1);
+                            context.fillRect(0, i, 1, 1);
+                        }
+                        break;
+                    case "forward":
+                        for (var i = 0; i < spacing; i++) {
+                            context.fillRect(i, i, 1, 1);
+                        }
+                        break;
+                    case "backward":
+                        for (var i = 0; i < spacing; i++) {
+                            context.fillRect(spacing - 1 - i, i, 1, 1);
+                        }
+                        break;
+                    case "diagonal":
+                        for (var i = 0; i < spacing; i++) {
+                            context.fillRect(i, i, 1, 1);
+                            context.fillRect(spacing - 1 - i, i, 1, 1);
+                        }
+                        break;
+                }
+                return common_2.mixin(context.createPattern(canvas, repitition), fill.pattern);
+            }
+            throw "invalid color configuration";
+        };
+        StyleConverter.prototype.deserializeLinearGradient = function (json) {
+            var rx = /\w+\((.*)\)/m;
+            var _a = JSON.parse(json.type.replace(rx, "[$1]")), x0 = _a[0], y0 = _a[1], x1 = _a[2], y1 = _a[3];
+            var canvas = document.createElement('canvas');
+            canvas.width = Math.max(x0, x1);
+            canvas.height = Math.max(y0, y1);
+            var context = canvas.getContext('2d');
+            var gradient = context.createLinearGradient(x0, y0, x1, y1);
+            common_2.mixin(gradient, {
+                type: "linear(" + [x0, y0, x1, y1].join(",") + ")"
+            });
+            return gradient;
+        };
+        StyleConverter.prototype.deserializeRadialGradient = function (json) {
+            var rx = /radial\((.*)\)/m;
+            var _a = JSON.parse(json.type.replace(rx, "[$1]")), x0 = _a[0], y0 = _a[1], r0 = _a[2], x1 = _a[3], y1 = _a[4], r1 = _a[5];
+            var canvas = document.createElement('canvas');
+            canvas.width = 2 * Math.max(x0, x1);
+            canvas.height = 2 * Math.max(y0, y1);
+            var context = canvas.getContext('2d');
+            var gradient = context.createRadialGradient(x0, y0, r0, x1, y1, r1);
+            common_2.mixin(gradient, {
+                type: "radial(" + [x0, y0, r0, x1, y1, r1].join(",") + ")"
+            });
+            return gradient;
+        };
+        return StyleConverter;
+    }());
+    exports.StyleConverter = StyleConverter;
+});
 define("labs/common/ajax", ["require", "exports", "jquery"], function (require, exports, $) {
     "use strict";
     function jsonp(url, args, callback) {
@@ -531,503 +1036,515 @@ define("app", ["require", "exports", "openlayers", "ux/mapquest-directions-proxy
     }
     return run;
 });
-define("alpha/format/base", ["require", "exports"], function (require, exports) {
+define("labs/common/myjson", ["require", "exports", "jquery"], function (require, exports, $) {
     "use strict";
+    var MyJson = (function () {
+        function MyJson(json, id, endpoint) {
+            if (id === void 0) { id = "4acgf"; }
+            if (endpoint === void 0) { endpoint = "https://api.myjson.com/bins"; }
+            this.json = json;
+            this.id = id;
+            this.endpoint = endpoint;
+        }
+        MyJson.prototype.get = function () {
+            var _this = this;
+            return $.ajax({
+                url: this.endpoint + "/" + this.id,
+                type: 'GET'
+            }).then(function (json) { return _this.json = json; });
+        };
+        MyJson.prototype.put = function () {
+            var _this = this;
+            return $.ajax({
+                url: this.endpoint + "/" + this.id,
+                type: 'PUT',
+                data: JSON.stringify(this.json),
+                contentType: 'application/json; charset=utf-8',
+                dataType: 'json'
+            }).then(function (json) { return _this.json = json; });
+        };
+        MyJson.prototype.post = function () {
+            var _this = this;
+            return $.ajax({
+                url: "" + this.endpoint,
+                type: 'POST',
+                data: JSON.stringify(this.json),
+                contentType: 'application/json; charset=utf-8',
+                dataType: 'json'
+            }).then(function (data) {
+                debugger;
+                _this.id = data.uri.substr(1 + _this.endpoint.length);
+            });
+        };
+        return MyJson;
+    }());
+    exports.MyJson = MyJson;
 });
-define("labs/common/common", ["require", "exports"], function (require, exports) {
+define("labs/common/ol3-polyline", ["require", "exports", "openlayers"], function (require, exports, ol) {
     "use strict";
-    function getParameterByName(name, url) {
-        if (url === void 0) { url = window.location.href; }
-        name = name.replace(/[\[\]]/g, "\\$&");
-        var regex = new RegExp("[?&]" + name + "(=([^&#]*)|&|#|$)"), results = regex.exec(url);
-        if (!results)
-            return null;
-        if (!results[2])
-            return '';
-        return decodeURIComponent(results[2].replace(/\+/g, " "));
-    }
-    exports.getParameterByName = getParameterByName;
-    function doif(v, cb) {
-        if (v !== undefined && v !== null)
-            cb(v);
-    }
-    exports.doif = doif;
+    var Polyline = ol.format.Polyline;
+    var PolylineEncoder = (function () {
+        function PolylineEncoder(precision, stride) {
+            if (precision === void 0) { precision = 5; }
+            if (stride === void 0) { stride = 2; }
+            this.precision = precision;
+            this.stride = stride;
+        }
+        PolylineEncoder.prototype.flatten = function (points) {
+            var nums = new Array(points.length * this.stride);
+            var i = 0;
+            points.forEach(function (p) { return p.map(function (p) { return nums[i++] = p; }); });
+            return nums;
+        };
+        PolylineEncoder.prototype.unflatten = function (nums) {
+            var points = new Array(nums.length / this.stride);
+            for (var i = 0; i < nums.length / this.stride; i++) {
+                points[i] = nums.slice(i * this.stride, (i + 1) * this.stride);
+            }
+            return points;
+        };
+        PolylineEncoder.prototype.round = function (nums) {
+            var factor = Math.pow(10, this.precision);
+            return nums.map(function (n) { return Math.round(n * factor) / factor; });
+        };
+        PolylineEncoder.prototype.decode = function (str) {
+            var nums = Polyline.decodeDeltas(str, this.stride, Math.pow(10, this.precision));
+            return this.unflatten(this.round(nums));
+        };
+        PolylineEncoder.prototype.encode = function (points) {
+            return Polyline.encodeDeltas(this.flatten(points), this.stride, Math.pow(10, this.precision));
+        };
+        return PolylineEncoder;
+    }());
+    return PolylineEncoder;
+});
+define("labs/common/snapshot", ["require", "exports", "labs/common/ol3-patch"], function (require, exports, ol) {
+    "use strict";
+    var Snapshot = (function () {
+        function Snapshot() {
+        }
+        Snapshot.render = function (canvas, feature) {
+            feature = feature.clone();
+            var geom = feature.getGeometry();
+            var extent = geom.getExtent();
+            var isPoint = extent[0] === extent[2];
+            var _a = ol.extent.getCenter(extent), dx = _a[0], dy = _a[1];
+            var scale = isPoint ? 1 : Math.min(canvas.width / ol.extent.getWidth(extent), canvas.height / ol.extent.getHeight(extent));
+            geom.translate(-dx, -dy);
+            geom.scale(scale, -scale);
+            geom.translate(canvas.width / 2, canvas.height / 2);
+            var vtx = ol.render.toContext(canvas.getContext("2d"));
+            var styles = feature.getStyleFunction()(0);
+            if (!Array.isArray(styles))
+                styles = [styles];
+            styles.forEach(function (style) { return vtx.drawFeature(feature, style); });
+        };
+        Snapshot.snapshot = function (feature) {
+            var canvas = document.createElement("canvas");
+            var geom = feature.getGeometry();
+            this.render(canvas, feature);
+            return canvas.toDataURL();
+        };
+        return Snapshot;
+    }());
+    return Snapshot;
+});
+define("ux/styles/basic", ["require", "exports"], function (require, exports) {
+    "use strict";
+    var stroke = {
+        color: 'black',
+        width: 2
+    };
+    var fill = {
+        color: 'red'
+    };
+    var radius = 10;
+    var opacity = 0.5;
+    var square = {
+        fill: fill,
+        stroke: stroke,
+        points: 4,
+        radius: radius,
+        angle: Math.PI / 4
+    };
+    var diamond = {
+        fill: fill,
+        stroke: stroke,
+        points: 4,
+        radius: radius,
+        angle: 0
+    };
+    var triangle = {
+        fill: fill,
+        stroke: stroke,
+        points: 3,
+        radius: radius,
+        angle: 0
+    };
+    var star = {
+        fill: fill,
+        stroke: stroke,
+        points: 5,
+        radius: radius,
+        radius2: 4,
+        angle: 0
+    };
+    var cross = {
+        opacity: opacity,
+        fill: fill,
+        stroke: stroke,
+        points: 4,
+        radius: radius,
+        radius2: 0,
+        angle: 0
+    };
+    var x = {
+        fill: fill,
+        stroke: stroke,
+        points: 4,
+        radius: radius,
+        radius2: 0,
+        angle: Math.PI / 4
+    };
+    return {
+        cross: [{ star: cross }],
+        square: [{ star: square }],
+        diamond: [{ star: diamond }],
+        star: [{ star: star }],
+        triangle: [{ star: triangle }],
+        x: [{ star: x }]
+    };
+});
+define("ux/styles/fill/gradient", ["require", "exports"], function (require, exports) {
+    "use strict";
+    return [
+        {
+            "fill": {
+                "gradient": {
+                    "type": "linear(200,0,201,0)",
+                    "stops": "rgba(255,0,0,.1) 0%;rgba(255,0,0,0.8) 100%"
+                }
+            }
+        },
+        {
+            "fill": {
+                "gradient": {
+                    "type": "linear(0,200,0,201)",
+                    "stops": "rgba(0,255,0,0.1) 0%;rgba(0,255,0,0.8) 100%"
+                }
+            }
+        }
+    ];
+});
+define("labs/common/style-generator", ["require", "exports", "openlayers", "ux/styles/basic", "alpha/format/ol3-symbolizer"], function (require, exports, ol, basic_styles, ol3_symbolizer_1) {
+    "use strict";
+    var converter = new ol3_symbolizer_1.StyleConverter();
+    var orientations = "forward,backward,diagonal,horizontal,vertical,cross".split(",");
     function mixin(a, b) {
         Object.keys(b).forEach(function (k) { return a[k] = b[k]; });
         return a;
     }
-    exports.mixin = mixin;
-    function defaults(a, b) {
-        Object.keys(b).filter(function (k) { return a[k] == undefined; }).forEach(function (k) { return a[k] = b[k]; });
-        return a;
-    }
-    exports.defaults = defaults;
-    function cssin(name, css) {
-        var id = "style-" + name;
-        var styleTag = document.getElementById(id);
-        if (!styleTag) {
-            styleTag = document.createElement("style");
-            styleTag.id = id;
-            styleTag.innerText = css;
-            document.head.appendChild(styleTag);
+    var range = function (n) {
+        var result = new Array(n);
+        for (var i = 0; i < n; i++)
+            result[i] = i;
+        return result;
+    };
+    var randint = function (n) { return Math.round(n * Math.random()); };
+    var StyleGenerator = (function () {
+        function StyleGenerator(options) {
+            this.options = options;
         }
-        var dataset = styleTag.dataset;
-        dataset["count"] = parseInt(dataset["count"] || "0") + 1 + "";
-        return function () {
-            dataset["count"] = parseInt(dataset["count"] || "0") - 1 + "";
-            if (dataset["count"] === "0") {
-                styleTag.remove();
-            }
+        StyleGenerator.prototype.asPoints = function () {
+            return 3 + Math.round(10 * Math.random());
         };
-    }
-    exports.cssin = cssin;
-});
-define("labs/common/ol3-patch", ["require", "exports", "openlayers", "labs/common/common"], function (require, exports, ol3, common_1) {
-    "use strict";
-    if (!ol3.geom.SimpleGeometry.prototype.scale) {
-        var scale_1 = function (flatCoordinates, offset, end, stride, deltaX, deltaY, opt_dest) {
-            var dest = opt_dest ? opt_dest : [];
-            var i = 0;
-            var j, k;
-            for (j = offset; j < end; j += stride) {
-                dest[i++] = flatCoordinates[j] * deltaX;
-                dest[i++] = flatCoordinates[j + 1] * deltaY;
-                for (k = j + 2; k < j + stride; ++k) {
-                    dest[i++] = flatCoordinates[k];
-                }
-            }
-            if (opt_dest && dest.length != i) {
-                dest.length = i;
-            }
-            return dest;
+        StyleGenerator.prototype.asRadius = function () {
+            return 14 + Math.round(10 * Math.random());
         };
-        common_1.mixin(ol3.geom.SimpleGeometry.prototype, {
-            scale: function (deltaX, deltaY) {
-                var it = this;
-                it.applyTransform(function (flatCoordinates, output, stride) {
-                    scale_1(flatCoordinates, 0, flatCoordinates.length, stride, deltaX, deltaY, flatCoordinates);
-                    return flatCoordinates;
-                });
-                it.changed();
-            }
-        });
-    }
-    return ol3;
-});
-define("alpha/format/ol3-symbolizer", ["require", "exports", "labs/common/ol3-patch", "labs/common/common"], function (require, exports, ol, common_2) {
-    "use strict";
-    var StyleConverter = (function () {
-        function StyleConverter() {
-        }
-        StyleConverter.prototype.fromJson = function (json) {
-            return this.deserializeStyle(json);
+        StyleGenerator.prototype.asWidth = function () {
+            return 1 + Math.round(20 * Math.random() * Math.random());
         };
-        StyleConverter.prototype.toJson = function (style) {
-            return this.serializeStyle(style);
+        StyleGenerator.prototype.asPastel = function () {
+            var _a = [255, 255, 255].map(function (n) { return Math.round((1 - Math.random() * Math.random()) * n); }), r = _a[0], g = _a[1], b = _a[2];
+            return [r, g, b, (10 + randint(50)) / 100];
         };
-        StyleConverter.prototype.assign = function (obj, prop, value) {
-            if (value === null)
-                return;
-            if (value === undefined)
-                return;
-            if (typeof value === "object") {
-                if (Object.keys(value).length === 0)
-                    return;
-            }
-            if (prop === "image") {
-                if (value.hasOwnProperty("radius")) {
-                    prop = "circle";
-                }
-                if (value.hasOwnProperty("points")) {
-                    prop = "star";
-                }
-            }
-            obj[prop] = value;
+        StyleGenerator.prototype.asRgb = function () {
+            return [255, 255, 255].map(function (n) { return Math.round((Math.random() * Math.random()) * n); });
         };
-        StyleConverter.prototype.serializeStyle = function (style) {
-            var _this = this;
-            var s = {};
-            if (!style)
-                return null;
-            if (typeof style === "string")
-                return style;
-            if (typeof style === "number")
-                return style;
-            if (style.getColor)
-                common_2.mixin(s, this.serializeColor(style.getColor()));
-            if (style.getImage)
-                this.assign(s, "image", this.serializeStyle(style.getImage()));
-            if (style.getFill)
-                this.assign(s, "fill", this.serializeFill(style.getFill()));
-            if (style.getOpacity)
-                this.assign(s, "opacity", style.getOpacity());
-            if (style.getStroke)
-                this.assign(s, "stroke", this.serializeStyle(style.getStroke()));
-            if (style.getText)
-                this.assign(s, "text", this.serializeStyle(style.getText()));
-            if (style.getWidth)
-                this.assign(s, "width", style.getWidth());
-            if (style.getOffsetX)
-                this.assign(s, "offset-x", style.getOffsetX());
-            if (style.getOffsetY)
-                this.assign(s, "offset-y", style.getOffsetY());
-            if (style.getWidth)
-                this.assign(s, "width", style.getWidth());
-            if (style.getFont)
-                this.assign(s, "font", style.getFont());
-            if (style.getRadius)
-                this.assign(s, "radius", style.getRadius());
-            if (style.getRadius2)
-                this.assign(s, "radius2", style.getRadius2());
-            if (style.getPoints)
-                this.assign(s, "points", style.getPoints());
-            if (style.getAngle)
-                this.assign(s, "angle", style.getAngle());
-            if (style.getRotation)
-                this.assign(s, "rotation", style.getRotation());
-            if (style.getOrigin)
-                this.assign(s, "origin", style.getOrigin());
-            if (style.getScale)
-                this.assign(s, "scale", style.getScale());
-            if (style.getSize)
-                this.assign(s, "size", style.getSize());
-            if (style.getAnchor) {
-                this.assign(s, "anchor", style.getAnchor());
-                "anchorXUnits,anchorYUnits,anchorOrigin".split(",").forEach(function (k) {
-                    _this.assign(s, k, style[(k + "_")]);
-                });
-            }
-            if (style.path) {
-                if (style.path)
-                    this.assign(s, "path", style.path);
-                if (style.getImageSize)
-                    this.assign(s, "imgSize", style.getImageSize());
-                if (style.stroke)
-                    this.assign(s, "stroke", style.stroke);
-                if (style.fill)
-                    this.assign(s, "fill", style.fill);
-                if (style.scale)
-                    this.assign(s, "scale", style.scale);
-                if (style.imgSize)
-                    this.assign(s, "imgSize", style.imgSize);
-            }
-            if (style.getSrc)
-                this.assign(s, "src", style.getSrc());
-            if (s.points && s.radius !== s.radius2)
-                s.points /= 2;
-            return s;
+        StyleGenerator.prototype.asRgba = function () {
+            var color = this.asRgb();
+            color.push((10 + randint(90)) / 100);
+            return color;
         };
-        StyleConverter.prototype.serializeColor = function (color) {
-            if (color instanceof Array) {
-                return {
-                    color: ol.color.asString(color)
-                };
-            }
-            else if (color instanceof CanvasGradient) {
-                return {
-                    gradient: color
-                };
-            }
-            else if (color instanceof CanvasPattern) {
-                return {
-                    pattern: color
-                };
-            }
-            else if (typeof color === "string") {
-                return {
-                    color: color
-                };
-            }
-            throw "unknown color type";
-        };
-        StyleConverter.prototype.serializeFill = function (fill) {
-            return this.serializeStyle(fill);
-        };
-        StyleConverter.prototype.deserializeStyle = function (json) {
-            var image;
-            var text;
-            var fill;
-            var stroke;
-            if (json.circle)
-                image = this.deserializeCircle(json.circle);
-            else if (json.star)
-                image = this.deserializeStar(json.star);
-            else if (json.icon)
-                image = this.deserializeIcon(json.icon);
-            else if (json.svg)
-                image = this.deserializeSvg(json.svg);
-            else if (json.image && (json.image.img || json.image.path))
-                image = this.deserializeSvg(json.image);
-            else if (json.image && json.image.src)
-                image = this.deserializeIcon(json.image);
-            else if (json.image)
-                throw "unknown image type";
-            if (json.text)
-                text = this.deserializeText(json.text);
-            if (json.fill)
-                fill = this.deserializeFill(json.fill);
-            if (json.stroke)
-                stroke = this.deserializeStroke(json.stroke);
-            var s = new ol.style.Style({
-                image: image,
-                text: text,
-                fill: fill,
-                stroke: stroke
-            });
-            return s;
-        };
-        StyleConverter.prototype.deserializeText = function (json) {
-            json.rotation = json.rotation || 0;
-            json.scale = json.scale || 1;
-            var _a = [json["offset-x"] || 0, json["offset-y"] || 0], x = _a[0], y = _a[1];
-            {
-                ol.coordinate.rotate([x, y].map(function (v) { return v * json.scale; }), json.rotation);
-            }
-            return new ol.style.Text({
-                fill: this.deserializeFill(json.fill),
-                stroke: this.deserializeStroke(json.stroke),
-                text: json.text,
-                font: json.font,
-                offsetX: x,
-                offsetY: y,
-                rotation: json.rotation,
-                scale: json.scale
-            });
-        };
-        StyleConverter.prototype.deserializeCircle = function (json) {
-            var image = new ol.style.Circle({
-                radius: json.radius,
-                fill: this.deserializeFill(json.fill),
-                stroke: this.deserializeStroke(json.stroke)
-            });
-            image.setOpacity(json.opacity);
-            return image;
-        };
-        StyleConverter.prototype.deserializeStar = function (json) {
-            var image = new ol.style.RegularShape({
-                radius: json.radius,
-                radius2: json.radius2,
-                points: json.points,
-                angle: json.angle,
-                fill: this.deserializeFill(json.fill),
-                stroke: this.deserializeStroke(json.stroke)
-            });
-            common_2.doif(json.rotation, function (v) { return image.setRotation(v); });
-            common_2.doif(json.opacity, function (v) { return image.setOpacity(v); });
-            return image;
-        };
-        StyleConverter.prototype.deserializeIcon = function (json) {
-            if (!json.anchor) {
-                json.anchor = [json["anchor-x"] || 0.5, json["anchor-y"] || 0.5];
-            }
-            var image = new ol.style.Icon({
-                anchor: json.anchor || [0.5, 0.5],
-                anchorOrigin: json.anchorOrigin || "top-left",
-                anchorXUnits: json.anchorXUnits || "fraction",
-                anchorYUnits: json.anchorYUnits || "fraction",
-                img: undefined,
-                imgSize: undefined,
-                offset: json.offset,
-                offsetOrigin: json.offsetOrigin,
-                opacity: json.opacity,
-                scale: json.scale,
-                snapToPixel: json.snapToPixel,
-                rotateWithView: json.rotateWithView,
-                rotation: json.rotation,
-                size: json.size,
-                src: json.src,
-                color: json.color
-            });
-            image.load();
-            return image;
-        };
-        StyleConverter.prototype.deserializeSvg = function (json) {
-            json.rotation = json.rotation || 0;
-            json.scale = json.scale || 1;
-            if (json.img) {
-                var symbol = document.getElementById(json.img);
-                if (!symbol) {
-                    throw "unable to find svg element: " + json.img;
-                }
-                if (symbol) {
-                    var path = (symbol.getElementsByTagName("path")[0]);
-                    if (path) {
-                        if (symbol.viewBox) {
-                            if (!json.imgSize) {
-                                json.imgSize = [symbol.viewBox.baseVal.width, symbol.viewBox.baseVal.height];
-                            }
-                        }
-                        json.path = (json.path || "") + path.getAttribute('d');
-                    }
-                }
-            }
-            var canvas = document.createElement("canvas");
-            if (json.path) {
-                {
-                    _a = json.imgSize.map(function (v) { return v * json.scale; }), canvas.width = _a[0], canvas.height = _a[1];
-                    if (json.stroke && json.stroke.width) {
-                        var dx = 2 * json.stroke.width * json.scale;
-                        canvas.width += dx;
-                        canvas.height += dx;
-                    }
-                }
-                var ctx = canvas.getContext('2d');
-                var path2d = new Path2D(json.path);
-                ctx.translate(canvas.width / 2, canvas.height / 2);
-                ctx.scale(json.scale, json.scale);
-                ctx.translate(-json.imgSize[0] / 2, -json.imgSize[1] / 2);
-                if (json.fill) {
-                    ctx.fillStyle = json.fill.color;
-                    ctx.fill(path2d);
-                }
-                if (json.stroke) {
-                    ctx.strokeStyle = json.stroke.color;
-                    ctx.lineWidth = json.stroke.width;
-                    ctx.stroke(path2d);
-                }
-            }
-            var icon = new ol.style.Icon({
-                img: canvas,
-                imgSize: [canvas.width, canvas.height],
-                rotation: json.rotation,
-                scale: 1,
-                anchor: json.anchor || [canvas.width / 2, canvas.height],
-                anchorOrigin: json.anchorOrigin,
-                anchorXUnits: json.anchorXUnits || "pixels",
-                anchorYUnits: json.anchorYUnits || "pixels",
-                offset: json.offset,
-                offsetOrigin: json.offsetOrigin,
-                opacity: json.opacity,
-                snapToPixel: json.snapToPixel,
-                rotateWithView: json.rotateWithView,
-                size: [canvas.width, canvas.height],
-                src: undefined
-            });
-            return common_2.mixin(icon, {
-                path: json.path,
-                stroke: json.stroke,
-                fill: json.fill,
-                scale: json.scale,
-                imgSize: json.imgSize
-            });
-            var _a;
-        };
-        StyleConverter.prototype.deserializeFill = function (json) {
+        StyleGenerator.prototype.asFill = function () {
             var fill = new ol.style.Fill({
-                color: this.deserializeColor(json)
+                color: this.asPastel()
             });
             return fill;
         };
-        StyleConverter.prototype.deserializeStroke = function (json) {
-            var stroke = new ol.style.Stroke();
-            common_2.doif(json.color, function (v) { return stroke.setColor(v); });
-            common_2.doif(json.lineCap, function (v) { return stroke.setLineCap(v); });
-            common_2.doif(json.lineDash, function (v) { return stroke.setLineDash(v); });
-            common_2.doif(json.lineJoin, function (v) { return stroke.setLineJoin(v); });
-            common_2.doif(json.miterLimit, function (v) { return stroke.setMiterLimit(v); });
-            common_2.doif(json.width, function (v) { return stroke.setWidth(v); });
+        StyleGenerator.prototype.asStroke = function () {
+            var stroke = new ol.style.Stroke({
+                width: this.asWidth(),
+                color: this.asRgba()
+            });
             return stroke;
         };
-        StyleConverter.prototype.deserializeColor = function (fill) {
-            if (fill.color) {
-                return fill.color;
+        StyleGenerator.prototype.addColorStops = function (gradient) {
+            var stops = [
+                {
+                    stop: 0,
+                    color: "rgba(" + this.asRgba().join(",") + ")"
+                },
+                {
+                    stop: 1,
+                    color: "rgba(" + this.asRgba().join(",") + ")"
+                }
+            ];
+            while (0.5 < Math.random()) {
+                stops.push({
+                    stop: 0.1 + randint(80) / 100,
+                    color: "rgba(" + this.asRgba().join(",") + ")"
+                });
             }
-            if (fill.gradient) {
-                var type = fill.gradient.type;
-                var gradient_1;
-                if (0 === type.indexOf("linear(")) {
-                    gradient_1 = this.deserializeLinearGradient(fill.gradient);
-                }
-                else if (0 === type.indexOf("radial(")) {
-                    gradient_1 = this.deserializeRadialGradient(fill.gradient);
-                }
-                if (fill.gradient.stops) {
-                    common_2.mixin(gradient_1, {
-                        stops: fill.gradient.stops
-                    });
-                    var stops = fill.gradient.stops.split(";");
-                    stops = stops.map(function (v) { return v.trim(); });
-                    stops.forEach(function (colorstop) {
-                        var stop = colorstop.match(/ \d+%/m)[0];
-                        var color = colorstop.substr(0, colorstop.length - stop.length);
-                        gradient_1.addColorStop(parseInt(stop) / 100, color);
-                    });
-                }
-                return gradient_1;
-            }
-            if (fill.pattern) {
-                var repitition = fill.pattern.repitition;
-                var canvas = document.createElement('canvas');
-                var spacing = canvas.width = canvas.height = fill.pattern.spacing | 6;
-                var context = canvas.getContext('2d');
-                context.fillStyle = fill.pattern.color;
-                switch (fill.pattern.orientation) {
-                    case "horizontal":
-                        for (var i = 0; i < spacing; i++) {
-                            context.fillRect(i, 0, 1, 1);
-                        }
-                        break;
-                    case "vertical":
-                        for (var i = 0; i < spacing; i++) {
-                            context.fillRect(0, i, 1, 1);
-                        }
-                        break;
-                    case "cross":
-                        for (var i = 0; i < spacing; i++) {
-                            context.fillRect(i, 0, 1, 1);
-                            context.fillRect(0, i, 1, 1);
-                        }
-                        break;
-                    case "forward":
-                        for (var i = 0; i < spacing; i++) {
-                            context.fillRect(i, i, 1, 1);
-                        }
-                        break;
-                    case "backward":
-                        for (var i = 0; i < spacing; i++) {
-                            context.fillRect(spacing - 1 - i, i, 1, 1);
-                        }
-                        break;
-                    case "diagonal":
-                        for (var i = 0; i < spacing; i++) {
-                            context.fillRect(i, i, 1, 1);
-                            context.fillRect(spacing - 1 - i, i, 1, 1);
-                        }
-                        break;
-                }
-                return common_2.mixin(context.createPattern(canvas, repitition), fill.pattern);
-            }
-            throw "invalid color configuration";
-        };
-        StyleConverter.prototype.deserializeLinearGradient = function (json) {
-            var rx = /\w+\((.*)\)/m;
-            var _a = JSON.parse(json.type.replace(rx, "[$1]")), x0 = _a[0], y0 = _a[1], x1 = _a[2], y1 = _a[3];
-            var canvas = document.createElement('canvas');
-            canvas.width = Math.max(x0, x1);
-            canvas.height = Math.max(y0, y1);
-            var context = canvas.getContext('2d');
-            var gradient = context.createLinearGradient(x0, y0, x1, y1);
-            common_2.mixin(gradient, {
-                type: "linear(" + [x0, y0, x1, y1].join(",") + ")"
+            stops = stops.sort(function (a, b) { return a.stop - b.stop; });
+            stops.forEach(function (stop) { return gradient.addColorStop(stop.stop, stop.color); });
+            mixin(gradient, {
+                stops: stops.map(function (stop) { return (stop.color + " " + Math.round(100 * stop.stop) + "%"); }).join(";")
             });
-            return gradient;
         };
-        StyleConverter.prototype.deserializeRadialGradient = function (json) {
-            var rx = /radial\((.*)\)/m;
-            var _a = JSON.parse(json.type.replace(rx, "[$1]")), x0 = _a[0], y0 = _a[1], r0 = _a[2], x1 = _a[3], y1 = _a[4], r1 = _a[5];
-            var canvas = document.createElement('canvas');
-            canvas.width = 2 * Math.max(x0, x1);
-            canvas.height = 2 * Math.max(y0, y1);
-            var context = canvas.getContext('2d');
+        StyleGenerator.prototype.asRadialGradient = function (context, radius) {
+            var canvas = context.canvas;
+            var _a = [
+                canvas.width / 2, canvas.height / 2, radius,
+                canvas.width / 2, canvas.height / 2, 0
+            ], x0 = _a[0], y0 = _a[1], r0 = _a[2], x1 = _a[3], y1 = _a[4], r1 = _a[5];
             var gradient = context.createRadialGradient(x0, y0, r0, x1, y1, r1);
-            common_2.mixin(gradient, {
+            return mixin(gradient, {
                 type: "radial(" + [x0, y0, r0, x1, y1, r1].join(",") + ")"
             });
-            return gradient;
         };
-        return StyleConverter;
+        StyleGenerator.prototype.asLinearGradient = function (context, radius) {
+            var _a = [
+                randint(radius), 0,
+                randint(radius), 2 * radius
+            ], x0 = _a[0], y0 = _a[1], x1 = _a[2], y1 = _a[3];
+            var gradient = context.createLinearGradient(x0, y0, x1, y1);
+            return mixin(gradient, { type: "linear(" + [x0, y0, x1, y1].join(",") + ")" });
+        };
+        StyleGenerator.prototype.asGradient = function () {
+            var radius = this.asRadius();
+            var stroke = this.asStroke();
+            var canvas = document.createElement('canvas');
+            canvas.width = canvas.height = 2 * (radius + stroke.getWidth());
+            var context = canvas.getContext('2d');
+            var gradient;
+            if (0.5 < Math.random()) {
+                gradient = this.asLinearGradient(context, radius);
+            }
+            else {
+                gradient = this.asRadialGradient(context, radius);
+            }
+            this.addColorStops(gradient);
+            var fill = new ol.style.Fill({
+                color: gradient
+            });
+            var style = new ol.style.Circle({
+                fill: fill,
+                radius: radius,
+                stroke: stroke,
+                snapToPixel: false
+            });
+            return style;
+        };
+        StyleGenerator.prototype.asPattern = function () {
+            var radius = this.asRadius();
+            var spacing = 3 + randint(5);
+            var color = ol.color.asString(this.asRgb());
+            var canvas = document.createElement('canvas');
+            var context = canvas.getContext('2d');
+            var orientation = orientations[Math.round((orientations.length - 1) * Math.random())];
+            var pattern;
+            switch (orientation) {
+                case "horizontal":
+                    canvas.width = 1;
+                    canvas.height = 1 + randint(10);
+                    context.strokeStyle = color;
+                    context.beginPath();
+                    context.lineWidth = 1 + randint(canvas.height);
+                    context.strokeStyle = color;
+                    context.moveTo(0, 0);
+                    context.lineTo(canvas.width, 0);
+                    context.stroke();
+                    context.closePath();
+                    pattern = context.createPattern(canvas, 'repeat');
+                    break;
+                case "vertical":
+                    canvas.width = spacing;
+                    canvas.height = spacing;
+                    context.fillStyle = ol.color.asString(this.asRgba());
+                    for (var i = 0; i < spacing; i++) {
+                        context.fillRect(0, i, 1, 1);
+                    }
+                    pattern = context.createPattern(canvas, 'repeat');
+                    break;
+                case "cross":
+                    canvas.width = spacing;
+                    canvas.height = spacing;
+                    context.fillStyle = color;
+                    for (var i = 0; i < spacing; i++) {
+                        context.fillRect(i, 0, 1, 1);
+                        context.fillRect(0, i, 1, 1);
+                    }
+                    pattern = context.createPattern(canvas, 'repeat');
+                    break;
+                case "forward":
+                    canvas.width = spacing;
+                    canvas.height = spacing;
+                    context.fillStyle = color;
+                    for (var i = 0; i < spacing; i++) {
+                        context.fillRect(i, i, 1, 1);
+                    }
+                    pattern = context.createPattern(canvas, 'repeat');
+                    break;
+                case "backward":
+                    canvas.width = spacing;
+                    canvas.height = spacing;
+                    context.fillStyle = color;
+                    for (var i = 0; i < spacing; i++) {
+                        context.fillRect(spacing - 1 - i, i, 1, 1);
+                    }
+                    pattern = context.createPattern(canvas, 'repeat');
+                    break;
+                case "diagonal":
+                    canvas.width = spacing;
+                    canvas.height = spacing;
+                    context.fillStyle = color;
+                    for (var i = 0; i < spacing; i++) {
+                        context.fillRect(i, i, 1, 1);
+                        context.fillRect(spacing - 1 - i, i, 1, 1);
+                    }
+                    pattern = context.createPattern(canvas, 'repeat');
+                    break;
+                default:
+                    throw "invalid orientation";
+            }
+            mixin(pattern, {
+                orientation: orientation,
+                color: color,
+                spacing: spacing,
+                repitition: "repeat"
+            });
+            var fill = new ol.style.Fill({
+                color: pattern
+            });
+            var style = new ol.style.Circle({
+                fill: fill,
+                radius: radius,
+                stroke: this.asStroke(),
+                snapToPixel: false
+            });
+            return style;
+        };
+        StyleGenerator.prototype.asBasic = function () {
+            var basic = [basic_styles.cross, basic_styles.x, basic_styles.square, basic_styles.diamond, basic_styles.star, basic_styles.triangle];
+            var config = basic[Math.round((basic.length - 1) * Math.random())];
+            return converter.fromJson(config[0]).getImage();
+        };
+        StyleGenerator.prototype.asCircle = function () {
+            var style = new ol.style.Circle({
+                fill: this.asFill(),
+                radius: this.asRadius(),
+                stroke: this.asStroke(),
+                snapToPixel: false
+            });
+            return style;
+        };
+        StyleGenerator.prototype.asStar = function () {
+            var style = new ol.style.RegularShape({
+                fill: this.asFill(),
+                stroke: this.asStroke(),
+                points: this.asPoints(),
+                radius: this.asRadius(),
+                radius2: this.asRadius()
+            });
+            return style;
+        };
+        StyleGenerator.prototype.asPoly = function () {
+            var style = new ol.style.RegularShape({
+                fill: this.asFill(),
+                stroke: this.asStroke(),
+                points: this.asPoints(),
+                radius: this.asRadius(),
+                width: this.asWidth(),
+                radius2: 0
+            });
+            return style;
+        };
+        StyleGenerator.prototype.asText = function () {
+            var style = new ol.style.Text({
+                font: "18px fantasy",
+                text: "Test",
+                fill: this.asFill(),
+                stroke: this.asStroke(),
+                offsetY: 30 - Math.random() * 20
+            });
+            style.getFill().setColor(this.asRgba());
+            style.getStroke().setColor(this.asPastel());
+            return style;
+        };
+        StyleGenerator.prototype.asPoint = function () {
+            var _a = this.options.center, x = _a[0], y = _a[1];
+            x += (Math.random() - 0.5);
+            y += (Math.random() - 0.5);
+            return new ol.geom.Point([x, y]);
+        };
+        StyleGenerator.prototype.asPointFeature = function (styleCount) {
+            var _this = this;
+            if (styleCount === void 0) { styleCount = 1; }
+            var feature = new ol.Feature();
+            var gens = [function () { return _this.asStar(); }, function () { return _this.asCircle(); }, function () { return _this.asPoly(); }, function () { return _this.asBasic(); }, function () { return _this.asGradient(); }, function () { return _this.asPattern(); }];
+            feature.setGeometry(this.asPoint());
+            var styles = range(styleCount).map(function (x) { return new ol.style.Style({
+                image: gens[Math.round((gens.length - 1) * Math.random())](),
+                text: null && _this.asText()
+            }); });
+            feature.setStyle(styles);
+            return feature;
+        };
+        StyleGenerator.prototype.asLineFeature = function () {
+            var feature = new ol.Feature();
+            var p1 = this.asPoint();
+            var p2 = this.asPoint();
+            p2.setCoordinates([p2.getCoordinates()[0], p1.getCoordinates()[1]]);
+            var polyline = new ol.geom.LineString([p1, p2].map(function (p) { return p.getCoordinates(); }));
+            feature.setGeometry(polyline);
+            feature.setStyle([new ol.style.Style({
+                    stroke: this.asStroke(),
+                    text: this.asText()
+                })]);
+            return feature;
+        };
+        StyleGenerator.prototype.asLineLayer = function () {
+            var _this = this;
+            var layer = new ol.layer.Vector();
+            var source = new ol.source.Vector();
+            layer.setSource(source);
+            var features = range(10).map(function (i) { return _this.asLineFeature(); });
+            source.addFeatures(features);
+            return layer;
+        };
+        StyleGenerator.prototype.asMarkerLayer = function (args) {
+            var _this = this;
+            var layer = new ol.layer.Vector();
+            var source = new ol.source.Vector();
+            layer.setSource(source);
+            var features = range(args.markerCount || 100).map(function (i) { return _this.asPointFeature(args.styleCount || 1); });
+            source.addFeatures(features);
+            return layer;
+        };
+        return StyleGenerator;
     }());
-    exports.StyleConverter = StyleConverter;
+    return StyleGenerator;
 });
 define("labs/facebook", ["require", "exports", "openlayers", "jquery"], function (require, exports, ol, $) {
     "use strict";
@@ -1209,44 +1726,6 @@ define("labs/facebook", ["require", "exports", "openlayers", "jquery"], function
     }
     exports.run = run;
 });
-define("labs/common/ol3-polyline", ["require", "exports", "openlayers"], function (require, exports, ol) {
-    "use strict";
-    var Polyline = ol.format.Polyline;
-    var PolylineEncoder = (function () {
-        function PolylineEncoder(precision, stride) {
-            if (precision === void 0) { precision = 5; }
-            if (stride === void 0) { stride = 2; }
-            this.precision = precision;
-            this.stride = stride;
-        }
-        PolylineEncoder.prototype.flatten = function (points) {
-            var nums = new Array(points.length * this.stride);
-            var i = 0;
-            points.forEach(function (p) { return p.map(function (p) { return nums[i++] = p; }); });
-            return nums;
-        };
-        PolylineEncoder.prototype.unflatten = function (nums) {
-            var points = new Array(nums.length / this.stride);
-            for (var i = 0; i < nums.length / this.stride; i++) {
-                points[i] = nums.slice(i * this.stride, (i + 1) * this.stride);
-            }
-            return points;
-        };
-        PolylineEncoder.prototype.round = function (nums) {
-            var factor = Math.pow(10, this.precision);
-            return nums.map(function (n) { return Math.round(n * factor) / factor; });
-        };
-        PolylineEncoder.prototype.decode = function (str) {
-            var nums = Polyline.decodeDeltas(str, this.stride, Math.pow(10, this.precision));
-            return this.unflatten(this.round(nums));
-        };
-        PolylineEncoder.prototype.encode = function (points) {
-            return Polyline.encodeDeltas(this.flatten(points), this.stride, Math.pow(10, this.precision));
-        };
-        return PolylineEncoder;
-    }());
-    return PolylineEncoder;
-});
 define("ux/styles/stroke/linedash", ["require", "exports"], function (require, exports) {
     "use strict";
     var dasharray = {
@@ -1307,53 +1786,9 @@ define("ux/styles/text/text", ["require", "exports"], function (require, exports
         }
     ];
 });
-define("labs/common/myjson", ["require", "exports", "jquery"], function (require, exports, $) {
+define("labs/mapmaker", ["require", "exports", "jquery", "openlayers", "labs/common/common", "labs/common/ol3-polyline", "alpha/format/ol3-symbolizer", "ux/styles/stroke/dashdotdot", "ux/styles/stroke/solid", "ux/styles/text/text", "labs/common/myjson"], function (require, exports, $, ol, common_3, reduce, ol3_symbolizer_2, dashdotdot, strokeStyle, textStyle, myjson_1) {
     "use strict";
-    var MyJson = (function () {
-        function MyJson(json, id, endpoint) {
-            if (id === void 0) { id = "4acgf"; }
-            if (endpoint === void 0) { endpoint = "https://api.myjson.com/bins"; }
-            this.json = json;
-            this.id = id;
-            this.endpoint = endpoint;
-        }
-        MyJson.prototype.get = function () {
-            var _this = this;
-            return $.ajax({
-                url: this.endpoint + "/" + this.id,
-                type: 'GET'
-            }).then(function (json) { return _this.json = json; });
-        };
-        MyJson.prototype.put = function () {
-            var _this = this;
-            return $.ajax({
-                url: this.endpoint + "/" + this.id,
-                type: 'PUT',
-                data: JSON.stringify(this.json),
-                contentType: 'application/json; charset=utf-8',
-                dataType: 'json'
-            }).then(function (json) { return _this.json = json; });
-        };
-        MyJson.prototype.post = function () {
-            var _this = this;
-            return $.ajax({
-                url: "" + this.endpoint,
-                type: 'POST',
-                data: JSON.stringify(this.json),
-                contentType: 'application/json; charset=utf-8',
-                dataType: 'json'
-            }).then(function (data) {
-                debugger;
-                _this.id = data.uri.substr(1 + _this.endpoint.length);
-            });
-        };
-        return MyJson;
-    }());
-    exports.MyJson = MyJson;
-});
-define("labs/mapmaker", ["require", "exports", "jquery", "openlayers", "labs/common/common", "labs/common/ol3-polyline", "alpha/format/ol3-symbolizer", "ux/styles/stroke/dashdotdot", "ux/styles/stroke/solid", "ux/styles/text/text", "labs/common/myjson"], function (require, exports, $, ol, common_3, reduce, ol3_symbolizer_1, dashdotdot, strokeStyle, textStyle, myjson_1) {
-    "use strict";
-    var styler = new ol3_symbolizer_1.StyleConverter();
+    var styler = new ol3_symbolizer_2.StyleConverter();
     function parse(v, type) {
         if (typeof type === "string")
             return v;
@@ -1968,10 +2403,10 @@ define("labs/polyline-encoder", ["require", "exports", "jquery", "openlayers", "
     }
     exports.run = run;
 });
-define("labs/route-editor", ["require", "exports", "openlayers", "alpha/format/ol3-symbolizer", "labs/common/common"], function (require, exports, ol, ol3_symbolizer_2, common_5) {
+define("labs/route-editor", ["require", "exports", "openlayers", "alpha/format/ol3-symbolizer", "labs/common/common"], function (require, exports, ol, ol3_symbolizer_3, common_5) {
     "use strict";
     var delta = 16;
-    var formatter = new ol3_symbolizer_2.StyleConverter();
+    var formatter = new ol3_symbolizer_3.StyleConverter();
     function fromJson(styles) {
         return styles.map(function (style) { return formatter.fromJson(style); });
     }
@@ -2555,403 +2990,6 @@ define("ux/serializers/ags-simplemarkersymbol", ["require", "exports", "openlaye
     }());
     exports.SimpleMarkerConverter = SimpleMarkerConverter;
 });
-define("ux/styles/basic", ["require", "exports"], function (require, exports) {
-    "use strict";
-    var stroke = {
-        color: 'black',
-        width: 2
-    };
-    var fill = {
-        color: 'red'
-    };
-    var radius = 10;
-    var opacity = 0.5;
-    var square = {
-        fill: fill,
-        stroke: stroke,
-        points: 4,
-        radius: radius,
-        angle: Math.PI / 4
-    };
-    var diamond = {
-        fill: fill,
-        stroke: stroke,
-        points: 4,
-        radius: radius,
-        angle: 0
-    };
-    var triangle = {
-        fill: fill,
-        stroke: stroke,
-        points: 3,
-        radius: radius,
-        angle: 0
-    };
-    var star = {
-        fill: fill,
-        stroke: stroke,
-        points: 5,
-        radius: radius,
-        radius2: 4,
-        angle: 0
-    };
-    var cross = {
-        opacity: opacity,
-        fill: fill,
-        stroke: stroke,
-        points: 4,
-        radius: radius,
-        radius2: 0,
-        angle: 0
-    };
-    var x = {
-        fill: fill,
-        stroke: stroke,
-        points: 4,
-        radius: radius,
-        radius2: 0,
-        angle: Math.PI / 4
-    };
-    return {
-        cross: [{ star: cross }],
-        square: [{ star: square }],
-        diamond: [{ star: diamond }],
-        star: [{ star: star }],
-        triangle: [{ star: triangle }],
-        x: [{ star: x }]
-    };
-});
-define("ux/styles/fill/gradient", ["require", "exports"], function (require, exports) {
-    "use strict";
-    return [
-        {
-            "fill": {
-                "gradient": {
-                    "type": "linear(200,0,201,0)",
-                    "stops": "rgba(255,0,0,.1) 0%;rgba(255,0,0,0.8) 100%"
-                }
-            }
-        },
-        {
-            "fill": {
-                "gradient": {
-                    "type": "linear(0,200,0,201)",
-                    "stops": "rgba(0,255,0,0.1) 0%;rgba(0,255,0,0.8) 100%"
-                }
-            }
-        }
-    ];
-});
-define("labs/common/style-generator", ["require", "exports", "openlayers", "ux/styles/basic", "alpha/format/ol3-symbolizer"], function (require, exports, ol, basic_styles, ol3_symbolizer_3) {
-    "use strict";
-    var converter = new ol3_symbolizer_3.StyleConverter();
-    var orientations = "forward,backward,diagonal,horizontal,vertical,cross".split(",");
-    function mixin(a, b) {
-        Object.keys(b).forEach(function (k) { return a[k] = b[k]; });
-        return a;
-    }
-    var range = function (n) {
-        var result = new Array(n);
-        for (var i = 0; i < n; i++)
-            result[i] = i;
-        return result;
-    };
-    var randint = function (n) { return Math.round(n * Math.random()); };
-    var StyleGenerator = (function () {
-        function StyleGenerator(options) {
-            this.options = options;
-        }
-        StyleGenerator.prototype.asPoints = function () {
-            return 3 + Math.round(10 * Math.random());
-        };
-        StyleGenerator.prototype.asRadius = function () {
-            return 14 + Math.round(10 * Math.random());
-        };
-        StyleGenerator.prototype.asWidth = function () {
-            return 1 + Math.round(20 * Math.random() * Math.random());
-        };
-        StyleGenerator.prototype.asPastel = function () {
-            var _a = [255, 255, 255].map(function (n) { return Math.round((1 - Math.random() * Math.random()) * n); }), r = _a[0], g = _a[1], b = _a[2];
-            return [r, g, b, (10 + randint(50)) / 100];
-        };
-        StyleGenerator.prototype.asRgb = function () {
-            return [255, 255, 255].map(function (n) { return Math.round((Math.random() * Math.random()) * n); });
-        };
-        StyleGenerator.prototype.asRgba = function () {
-            var color = this.asRgb();
-            color.push((10 + randint(90)) / 100);
-            return color;
-        };
-        StyleGenerator.prototype.asFill = function () {
-            var fill = new ol.style.Fill({
-                color: this.asPastel()
-            });
-            return fill;
-        };
-        StyleGenerator.prototype.asStroke = function () {
-            var stroke = new ol.style.Stroke({
-                width: this.asWidth(),
-                color: this.asRgba()
-            });
-            return stroke;
-        };
-        StyleGenerator.prototype.addColorStops = function (gradient) {
-            var stops = [
-                {
-                    stop: 0,
-                    color: "rgba(" + this.asRgba().join(",") + ")"
-                },
-                {
-                    stop: 1,
-                    color: "rgba(" + this.asRgba().join(",") + ")"
-                }
-            ];
-            while (0.5 < Math.random()) {
-                stops.push({
-                    stop: 0.1 + randint(80) / 100,
-                    color: "rgba(" + this.asRgba().join(",") + ")"
-                });
-            }
-            stops = stops.sort(function (a, b) { return a.stop - b.stop; });
-            stops.forEach(function (stop) { return gradient.addColorStop(stop.stop, stop.color); });
-            mixin(gradient, {
-                stops: stops.map(function (stop) { return (stop.color + " " + Math.round(100 * stop.stop) + "%"); }).join(";")
-            });
-        };
-        StyleGenerator.prototype.asRadialGradient = function (context, radius) {
-            var canvas = context.canvas;
-            var _a = [
-                canvas.width / 2, canvas.height / 2, radius,
-                canvas.width / 2, canvas.height / 2, 0
-            ], x0 = _a[0], y0 = _a[1], r0 = _a[2], x1 = _a[3], y1 = _a[4], r1 = _a[5];
-            var gradient = context.createRadialGradient(x0, y0, r0, x1, y1, r1);
-            return mixin(gradient, {
-                type: "radial(" + [x0, y0, r0, x1, y1, r1].join(",") + ")"
-            });
-        };
-        StyleGenerator.prototype.asLinearGradient = function (context, radius) {
-            var _a = [
-                randint(radius), 0,
-                randint(radius), 2 * radius
-            ], x0 = _a[0], y0 = _a[1], x1 = _a[2], y1 = _a[3];
-            var gradient = context.createLinearGradient(x0, y0, x1, y1);
-            return mixin(gradient, { type: "linear(" + [x0, y0, x1, y1].join(",") + ")" });
-        };
-        StyleGenerator.prototype.asGradient = function () {
-            var radius = this.asRadius();
-            var stroke = this.asStroke();
-            var canvas = document.createElement('canvas');
-            canvas.width = canvas.height = 2 * (radius + stroke.getWidth());
-            var context = canvas.getContext('2d');
-            var gradient;
-            if (0.5 < Math.random()) {
-                gradient = this.asLinearGradient(context, radius);
-            }
-            else {
-                gradient = this.asRadialGradient(context, radius);
-            }
-            this.addColorStops(gradient);
-            var fill = new ol.style.Fill({
-                color: gradient
-            });
-            var style = new ol.style.Circle({
-                fill: fill,
-                radius: radius,
-                stroke: stroke,
-                snapToPixel: false
-            });
-            return style;
-        };
-        StyleGenerator.prototype.asPattern = function () {
-            var radius = this.asRadius();
-            var spacing = 3 + randint(5);
-            var color = ol.color.asString(this.asRgb());
-            var canvas = document.createElement('canvas');
-            var context = canvas.getContext('2d');
-            var orientation = orientations[Math.round((orientations.length - 1) * Math.random())];
-            var pattern;
-            switch (orientation) {
-                case "horizontal":
-                    canvas.width = 1;
-                    canvas.height = 1 + randint(10);
-                    context.strokeStyle = color;
-                    context.beginPath();
-                    context.lineWidth = 1 + randint(canvas.height);
-                    context.strokeStyle = color;
-                    context.moveTo(0, 0);
-                    context.lineTo(canvas.width, 0);
-                    context.stroke();
-                    context.closePath();
-                    pattern = context.createPattern(canvas, 'repeat');
-                    break;
-                case "vertical":
-                    canvas.width = spacing;
-                    canvas.height = spacing;
-                    context.fillStyle = ol.color.asString(this.asRgba());
-                    for (var i = 0; i < spacing; i++) {
-                        context.fillRect(0, i, 1, 1);
-                    }
-                    pattern = context.createPattern(canvas, 'repeat');
-                    break;
-                case "cross":
-                    canvas.width = spacing;
-                    canvas.height = spacing;
-                    context.fillStyle = color;
-                    for (var i = 0; i < spacing; i++) {
-                        context.fillRect(i, 0, 1, 1);
-                        context.fillRect(0, i, 1, 1);
-                    }
-                    pattern = context.createPattern(canvas, 'repeat');
-                    break;
-                case "forward":
-                    canvas.width = spacing;
-                    canvas.height = spacing;
-                    context.fillStyle = color;
-                    for (var i = 0; i < spacing; i++) {
-                        context.fillRect(i, i, 1, 1);
-                    }
-                    pattern = context.createPattern(canvas, 'repeat');
-                    break;
-                case "backward":
-                    canvas.width = spacing;
-                    canvas.height = spacing;
-                    context.fillStyle = color;
-                    for (var i = 0; i < spacing; i++) {
-                        context.fillRect(spacing - 1 - i, i, 1, 1);
-                    }
-                    pattern = context.createPattern(canvas, 'repeat');
-                    break;
-                case "diagonal":
-                    canvas.width = spacing;
-                    canvas.height = spacing;
-                    context.fillStyle = color;
-                    for (var i = 0; i < spacing; i++) {
-                        context.fillRect(i, i, 1, 1);
-                        context.fillRect(spacing - 1 - i, i, 1, 1);
-                    }
-                    pattern = context.createPattern(canvas, 'repeat');
-                    break;
-                default:
-                    throw "invalid orientation";
-            }
-            mixin(pattern, {
-                orientation: orientation,
-                color: color,
-                spacing: spacing,
-                repitition: "repeat"
-            });
-            var fill = new ol.style.Fill({
-                color: pattern
-            });
-            var style = new ol.style.Circle({
-                fill: fill,
-                radius: radius,
-                stroke: this.asStroke(),
-                snapToPixel: false
-            });
-            return style;
-        };
-        StyleGenerator.prototype.asBasic = function () {
-            var basic = [basic_styles.cross, basic_styles.x, basic_styles.square, basic_styles.diamond, basic_styles.star, basic_styles.triangle];
-            var config = basic[Math.round((basic.length - 1) * Math.random())];
-            return converter.fromJson(config[0]).getImage();
-        };
-        StyleGenerator.prototype.asCircle = function () {
-            var style = new ol.style.Circle({
-                fill: this.asFill(),
-                radius: this.asRadius(),
-                stroke: this.asStroke(),
-                snapToPixel: false
-            });
-            return style;
-        };
-        StyleGenerator.prototype.asStar = function () {
-            var style = new ol.style.RegularShape({
-                fill: this.asFill(),
-                stroke: this.asStroke(),
-                points: this.asPoints(),
-                radius: this.asRadius(),
-                radius2: this.asRadius()
-            });
-            return style;
-        };
-        StyleGenerator.prototype.asPoly = function () {
-            var style = new ol.style.RegularShape({
-                fill: this.asFill(),
-                stroke: this.asStroke(),
-                points: this.asPoints(),
-                radius: this.asRadius(),
-                width: this.asWidth(),
-                radius2: 0
-            });
-            return style;
-        };
-        StyleGenerator.prototype.asText = function () {
-            var style = new ol.style.Text({
-                font: "18px fantasy",
-                text: "Test",
-                fill: this.asFill(),
-                stroke: this.asStroke(),
-                offsetY: 30 - Math.random() * 20
-            });
-            style.getFill().setColor(this.asRgba());
-            style.getStroke().setColor(this.asPastel());
-            return style;
-        };
-        StyleGenerator.prototype.asPoint = function () {
-            var _a = this.options.center, x = _a[0], y = _a[1];
-            x += (Math.random() - 0.5);
-            y += (Math.random() - 0.5);
-            return new ol.geom.Point([x, y]);
-        };
-        StyleGenerator.prototype.asPointFeature = function (styleCount) {
-            var _this = this;
-            if (styleCount === void 0) { styleCount = 1; }
-            var feature = new ol.Feature();
-            var gens = [function () { return _this.asStar(); }, function () { return _this.asCircle(); }, function () { return _this.asPoly(); }, function () { return _this.asBasic(); }, function () { return _this.asGradient(); }, function () { return _this.asPattern(); }];
-            feature.setGeometry(this.asPoint());
-            var styles = range(styleCount).map(function (x) { return new ol.style.Style({
-                image: gens[Math.round((gens.length - 1) * Math.random())](),
-                text: null && _this.asText()
-            }); });
-            feature.setStyle(styles);
-            return feature;
-        };
-        StyleGenerator.prototype.asLineFeature = function () {
-            var feature = new ol.Feature();
-            var p1 = this.asPoint();
-            var p2 = this.asPoint();
-            p2.setCoordinates([p2.getCoordinates()[0], p1.getCoordinates()[1]]);
-            var polyline = new ol.geom.LineString([p1, p2].map(function (p) { return p.getCoordinates(); }));
-            feature.setGeometry(polyline);
-            feature.setStyle([new ol.style.Style({
-                    stroke: this.asStroke(),
-                    text: this.asText()
-                })]);
-            return feature;
-        };
-        StyleGenerator.prototype.asLineLayer = function () {
-            var _this = this;
-            var layer = new ol.layer.Vector();
-            var source = new ol.source.Vector();
-            layer.setSource(source);
-            var features = range(10).map(function (i) { return _this.asLineFeature(); });
-            source.addFeatures(features);
-            return layer;
-        };
-        StyleGenerator.prototype.asMarkerLayer = function (args) {
-            var _this = this;
-            var layer = new ol.layer.Vector();
-            var source = new ol.source.Vector();
-            layer.setSource(source);
-            var features = range(args.markerCount || 100).map(function (i) { return _this.asPointFeature(args.styleCount || 1); });
-            source.addFeatures(features);
-            return layer;
-        };
-        return StyleGenerator;
-    }());
-    return StyleGenerator;
-});
 define("labs/style-lab", ["require", "exports", "openlayers", "jquery", "alpha/format/ol3-symbolizer", "ux/serializers/ags-simplemarkersymbol", "labs/common/style-generator"], function (require, exports, ol, $, ol3_symbolizer_4, AgsMarkerSerializer, StyleGenerator) {
     "use strict";
     var center = [-82.4, 34.85];
@@ -3038,37 +3076,6 @@ define("labs/style-lab", ["require", "exports", "openlayers", "jquery", "alpha/f
         return map;
     }
     exports.run = run;
-});
-define("labs/common/snapshot", ["require", "exports", "labs/common/ol3-patch"], function (require, exports, ol) {
-    "use strict";
-    var Snapshot = (function () {
-        function Snapshot() {
-        }
-        Snapshot.render = function (canvas, feature) {
-            feature = feature.clone();
-            var geom = feature.getGeometry();
-            var extent = geom.getExtent();
-            var isPoint = extent[0] === extent[2];
-            var _a = ol.extent.getCenter(extent), dx = _a[0], dy = _a[1];
-            var scale = isPoint ? 1 : Math.min(canvas.width / ol.extent.getWidth(extent), canvas.height / ol.extent.getHeight(extent));
-            geom.translate(-dx, -dy);
-            geom.scale(scale, -scale);
-            geom.translate(canvas.width / 2, canvas.height / 2);
-            var vtx = ol.render.toContext(canvas.getContext("2d"));
-            var styles = feature.getStyleFunction()(0);
-            if (!Array.isArray(styles))
-                styles = [styles];
-            styles.forEach(function (style) { return vtx.drawFeature(feature, style); });
-        };
-        Snapshot.snapshot = function (feature) {
-            var canvas = document.createElement("canvas");
-            var geom = feature.getGeometry();
-            this.render(canvas, feature);
-            return canvas.toDataURL();
-        };
-        return Snapshot;
-    }());
-    return Snapshot;
 });
 define("tests/data/geom/polygon", ["require", "exports", "openlayers"], function (require, exports, ol) {
     "use strict";
@@ -3392,256 +3399,6 @@ define("tests/canvas", ["require", "exports"], function (require, exports) {
             if (tick < 360)
                 requestAnimationFrame(animate);
         }
-    }
-    exports.run = run;
-});
-define("tests/drop-vertex-on-marker-detection", ["require", "exports", "openlayers", "labs/mapmaker", "labs/route-editor"], function (require, exports, ol, mapmaker_1, route_editor_1) {
-    "use strict";
-    function midpoint(points) {
-        var p0 = points.reduce(function (sum, p) { return p.map(function (v, i) { return v + sum[i]; }); });
-        return p0.map(function (v) { return v / points.length; });
-    }
-    var range = function (n) {
-        var r = new Array(n);
-        for (var i = 0; i < n; i++)
-            r[i] = i;
-        return r;
-    };
-    function run() {
-        var features = new ol.Collection([]);
-        var activeFeature;
-        features.on("add", function (args) {
-            var feature = args.element;
-            feature.on("change", function (args) {
-                activeFeature = feature;
-            });
-            feature.on("change:geometry", function (args) {
-                console.log("feature change:geometry", args);
-            });
-        });
-        var layer = new ol.layer.Vector({
-            source: new ol.source.Vector({
-                features: features
-            })
-        });
-        var colors = ['229966', 'cc6633', 'cc22cc', '331199'].map(function (v) { return '#' + v; });
-        mapmaker_1.run().then(function (map) {
-            map.addLayer(layer);
-            var _a = map.getView().calculateExtent(map.getSize().map(function (v) { return v * 0.25; })), a = _a[0], b = _a[1], c = _a[2], d = _a[3];
-            var routes = [];
-            var shift = [-0.001, -0.005];
-            while (colors.length) {
-                var startstop = [a + (c - a) * Math.random(), b + (d - b) * Math.random()].map(function (v, i) { return v + shift[i]; });
-                var route = new route_editor_1.Route({
-                    color: colors.pop(),
-                    start: startstop,
-                    finish: startstop,
-                    stops: range(8).map(function (v) { return [a + (c - a) * Math.random(), b + (d - b) * Math.random()].map(function (v, i) { return v + shift[i]; }); })
-                });
-                shift = shift.map(function (v) { return v + 0.005; });
-                routes.push(route);
-            }
-            var redRoute = new route_editor_1.Route({
-                color: "red",
-                showLines: false,
-                modifyRoute: true
-            });
-            routes.push(redRoute);
-            routes.forEach(function (r) {
-                r.refresh(map);
-                r.appendTo(layer);
-            });
-            var editFeatures = new ol.Collection();
-            routes.map(function (route) { return route.allowModify(editFeatures); });
-            var modify = new ol.interaction.Modify({
-                pixelTolerance: 8,
-                condition: function (evt) {
-                    if (!ol.events.condition.noModifierKeys(evt))
-                        return false;
-                    if (routes.some(function (r) { return r.isStartingLocation(map, evt.coordinate); }))
-                        return false;
-                    if (routes.some(function (r) { return r.isEndingLocation(map, evt.coordinate); }))
-                        return false;
-                    return true;
-                },
-                features: editFeatures
-            });
-            map.addInteraction(modify);
-            modify.on("modifyend", function (args) {
-                console.log("modifyend", args);
-                var dropLocation = args.mapBrowserEvent.coordinate;
-                console.log("drop-location", dropLocation);
-                var dropInfo = {
-                    route: null,
-                    stops: null
-                };
-                var targetInfo = {
-                    route: null,
-                    vertexIndex: null
-                };
-                targetInfo.route = routes.filter(function (route) { return route.owns(activeFeature); })[0];
-                console.log("target-route", targetInfo.route);
-                {
-                    var geom = activeFeature.getGeometry();
-                    var coords = geom.getCoordinates();
-                    var vertex = coords.filter(function (p) { return p[0] === dropLocation[0]; })[0];
-                    var vertexIndex = coords.indexOf(vertex);
-                    console.log("vertex", vertexIndex);
-                    targetInfo.vertexIndex = vertexIndex;
-                    if (targetInfo.vertexIndex == 0) {
-                        targetInfo.vertexIndex = targetInfo.route.stops.length;
-                    }
-                }
-                routes.some(function (route) {
-                    var stop = route.findStop(map, dropLocation);
-                    if (stop >= 0) {
-                        console.log("drop", route, stop);
-                        dropInfo.route = route;
-                        dropInfo.stops = [stop];
-                        return true;
-                    }
-                });
-                var isNewVertex = targetInfo.route.isNewVertex();
-                var dropOnStop = dropInfo.route && 0 < dropInfo.stops.length;
-                var isSameRoute = dropOnStop && dropInfo.route === targetInfo.route;
-                var stopIndex = targetInfo.vertexIndex;
-                if (targetInfo.route.startLocation)
-                    stopIndex--;
-                if (stopIndex < 0) {
-                    console.log("moving the starting vertex is not allowed");
-                }
-                else if (stopIndex > targetInfo.route.stops.length) {
-                    console.log("moving the ending vertex is not allowed");
-                }
-                else if (dropOnStop && isNewVertex) {
-                    var stop = dropInfo.route.removeStop(dropInfo.stops[0]);
-                    targetInfo.route.addStop(stop, stopIndex);
-                }
-                else if (dropOnStop && !isNewVertex && !isSameRoute) {
-                    var stop = targetInfo.route.removeStop(stopIndex);
-                    redRoute.addStop(stop);
-                    stop = dropInfo.route.removeStop(dropInfo.stops[0]);
-                    targetInfo.route.addStop(stop, stopIndex);
-                }
-                else if (dropOnStop && !isNewVertex && isSameRoute) {
-                    var count = dropInfo.stops[0] - stopIndex;
-                    if (count > 1)
-                        while (count--) {
-                            var stop = targetInfo.route.removeStop(stopIndex);
-                            redRoute.addStop(stop);
-                        }
-                }
-                else if (!dropOnStop && isNewVertex) {
-                    console.log("dropping a new vertex on empty space has not effect");
-                }
-                else if (!dropOnStop && !isNewVertex) {
-                    var stop = targetInfo.route.removeStop(stopIndex);
-                    stop && redRoute.addStop(stop);
-                }
-                routes.map(function (r) { return r.refresh(map); });
-            });
-        });
-    }
-    exports.run = run;
-});
-define("tests/google-polyline", ["require", "exports", "labs/common/ol3-polyline", "labs/common/google-polyline"], function (require, exports, OlEncoder, Encoder) {
-    "use strict";
-    var polyline = [[38.5, -120.2], [40.7, -120.95], [43.252, -126.453]];
-    var encoding = "_p~iF~ps|U_ulLnnqC_mqNvxq`@";
-    function run() {
-        {
-            var encoder = new Encoder();
-            console.assert(encoder.encode(encoder.decode(encoding)) === encoding);
-            console.assert(encoding === encoder.encode(polyline));
-        }
-        {
-            var olEncoder = new OlEncoder();
-            console.assert(olEncoder.encode(olEncoder.decode(encoding)) === encoding);
-            console.assert(encoding === olEncoder.encode(polyline));
-        }
-    }
-    exports.run = run;
-});
-define("tests/index", ["require", "exports"], function (require, exports) {
-    "use strict";
-    function run() {
-        var l = window.location;
-        var path = "" + l.origin + l.pathname + "?run=tests/";
-        var labs = "\n    ags-format\n    google-polyline\n    webmap\n    map-resize-defect\n    drop-vertex-on-marker-detection\n    index\n    ";
-        document.writeln("\n    <p>\n    Watch the console output for failed assertions (blank is good).\n    </p>\n    ");
-        document.writeln(labs
-            .split(/ /)
-            .map(function (v) { return v.trim(); })
-            .filter(function (v) { return !!v; })
-            .sort()
-            .map(function (lab) { return ("<a href=" + path + lab + "&debug=1>" + lab + "</a>"); })
-            .join("<br/>"));
-    }
-    exports.run = run;
-    ;
-});
-define("tests/map-resize-defect", ["require", "exports", "openlayers", "jquery"], function (require, exports, ol, $) {
-    "use strict";
-    var html = "\n<lab class='map-resize-defect'>\n    <div class='outer'>\n        <div id='map' class='map fill'>\n        </div>\n    </div>\n    <button class='event grow'>Update CSS</button>\n    <button class='event resize'>Resize Map</button>\n</lab>\n";
-    var css = "\n<style>\n\n    .outer {\n        padding: 20px;\n        border: 1px solid orange;\n        width: 0;\n        height: 0;\n        overflow:hidden;\n    }\n\n    .map {\n        padding: 20px;\n        border: 1px solid yellow;\n        width: 80%;\n        height: 80%;\n    }\n\n</style>\n";
-    var css2 = "\n<style>\n\n    html, body {\n        width: 100%;\n        height: 100%;\n        margin: 0;\n        padding: 0;\n        border: none;\n    }\n\n    .outer {\n        width: 100%;\n        height: 100%;\n        margin: 0;\n        padding: 0;\n        border: none;\n    }\n\n    .map {\n        border: none;\n    }\n\n</style>\n";
-    var fail = 0;
-    return function run() {
-        $('#map').remove();
-        $(html).appendTo('body');
-        $(css).appendTo('head');
-        var map = new ol.Map({
-            target: "map",
-            view: new ol.View({
-                projection: 'EPSG:4326',
-                center: [-82.4, 34.85],
-                zoom: 15
-            }),
-            layers: [new ol.layer.Tile({ source: new ol.source.OSM() })]
-        });
-        $('#map').resize(function () {
-            throw "this will never happen because jquery only listens for the window size to change";
-        });
-        $('button.event.grow').click(function (evt) {
-            $(css2).appendTo("head");
-            $(evt.target).remove();
-        });
-        $('button.event.resize').click(function (evt) {
-            map.updateSize();
-            $(evt.target).remove();
-        });
-        require(["https://rawgit.com/marcj/css-element-queries/master/src/ResizeSensor.js"], function (ResizeSensor) {
-            var target = map.getTargetElement();
-            new ResizeSensor(target, function () {
-                console.log("ResizeSensor resize detected!");
-                if (!fail)
-                    map.updateSize();
-            });
-        });
-    };
-});
-define("tests/webmap", ["require", "exports", "jquery"], function (require, exports, $) {
-    "use strict";
-    var webmap = "ae85c9d9c5ae409bb1f351617ea0bffc";
-    var portal = "https://www.arcgis.com";
-    var items_endpoint = "http://www.arcgis.com/sharing/rest/content/items";
-    function endpoint() {
-        return items_endpoint + "/" + webmap + "/data?f=json";
-    }
-    function run() {
-        if (1)
-            $.ajax({
-                url: endpoint(),
-                dataType: "json"
-            }).done(function (webmap) {
-                console.assert(webmap.authoringApp === "WebMapViewer", "authoringApp");
-                console.assert(webmap.authoringAppVersion === "4.2");
-                webmap.operationalLayers;
-                webmap.baseMap;
-                console.assert(webmap.spatialReference.latestWkid === 3857);
-                console.assert(webmap.version === "2.5");
-                console.log("done");
-            });
     }
     exports.run = run;
 });
@@ -4312,6 +4069,191 @@ define("tests/data/geom/polyline", ["require", "exports", "openlayers"], functio
         ]
     ]);
 });
+define("tests/drop-vertex-on-marker-detection", ["require", "exports", "openlayers", "labs/mapmaker", "labs/route-editor"], function (require, exports, ol, mapmaker_1, route_editor_1) {
+    "use strict";
+    function midpoint(points) {
+        var p0 = points.reduce(function (sum, p) { return p.map(function (v, i) { return v + sum[i]; }); });
+        return p0.map(function (v) { return v / points.length; });
+    }
+    var range = function (n) {
+        var r = new Array(n);
+        for (var i = 0; i < n; i++)
+            r[i] = i;
+        return r;
+    };
+    function run() {
+        var features = new ol.Collection([]);
+        var activeFeature;
+        features.on("add", function (args) {
+            var feature = args.element;
+            feature.on("change", function (args) {
+                activeFeature = feature;
+            });
+            feature.on("change:geometry", function (args) {
+                console.log("feature change:geometry", args);
+            });
+        });
+        var layer = new ol.layer.Vector({
+            source: new ol.source.Vector({
+                features: features
+            })
+        });
+        var colors = ['229966', 'cc6633', 'cc22cc', '331199'].map(function (v) { return '#' + v; });
+        mapmaker_1.run().then(function (map) {
+            map.addLayer(layer);
+            var _a = map.getView().calculateExtent(map.getSize().map(function (v) { return v * 0.25; })), a = _a[0], b = _a[1], c = _a[2], d = _a[3];
+            var routes = [];
+            var shift = [-0.001, -0.005];
+            while (colors.length) {
+                var startstop = [a + (c - a) * Math.random(), b + (d - b) * Math.random()].map(function (v, i) { return v + shift[i]; });
+                var route = new route_editor_1.Route({
+                    color: colors.pop(),
+                    start: startstop,
+                    finish: startstop,
+                    stops: range(8).map(function (v) { return [a + (c - a) * Math.random(), b + (d - b) * Math.random()].map(function (v, i) { return v + shift[i]; }); })
+                });
+                shift = shift.map(function (v) { return v + 0.005; });
+                routes.push(route);
+            }
+            var redRoute = new route_editor_1.Route({
+                color: "red",
+                showLines: false,
+                modifyRoute: true
+            });
+            routes.push(redRoute);
+            routes.forEach(function (r) {
+                r.refresh(map);
+                r.appendTo(layer);
+            });
+            var editFeatures = new ol.Collection();
+            routes.map(function (route) { return route.allowModify(editFeatures); });
+            var modify = new ol.interaction.Modify({
+                pixelTolerance: 8,
+                condition: function (evt) {
+                    if (!ol.events.condition.noModifierKeys(evt))
+                        return false;
+                    if (routes.some(function (r) { return r.isStartingLocation(map, evt.coordinate); }))
+                        return false;
+                    if (routes.some(function (r) { return r.isEndingLocation(map, evt.coordinate); }))
+                        return false;
+                    return true;
+                },
+                features: editFeatures
+            });
+            map.addInteraction(modify);
+            modify.on("modifyend", function (args) {
+                console.log("modifyend", args);
+                var dropLocation = args.mapBrowserEvent.coordinate;
+                console.log("drop-location", dropLocation);
+                var dropInfo = {
+                    route: null,
+                    stops: null
+                };
+                var targetInfo = {
+                    route: null,
+                    vertexIndex: null
+                };
+                targetInfo.route = routes.filter(function (route) { return route.owns(activeFeature); })[0];
+                console.log("target-route", targetInfo.route);
+                {
+                    var geom = activeFeature.getGeometry();
+                    var coords = geom.getCoordinates();
+                    var vertex = coords.filter(function (p) { return p[0] === dropLocation[0]; })[0];
+                    var vertexIndex = coords.indexOf(vertex);
+                    console.log("vertex", vertexIndex);
+                    targetInfo.vertexIndex = vertexIndex;
+                    if (targetInfo.vertexIndex == 0) {
+                        targetInfo.vertexIndex = targetInfo.route.stops.length;
+                    }
+                }
+                routes.some(function (route) {
+                    var stop = route.findStop(map, dropLocation);
+                    if (stop >= 0) {
+                        console.log("drop", route, stop);
+                        dropInfo.route = route;
+                        dropInfo.stops = [stop];
+                        return true;
+                    }
+                });
+                var isNewVertex = targetInfo.route.isNewVertex();
+                var dropOnStop = dropInfo.route && 0 < dropInfo.stops.length;
+                var isSameRoute = dropOnStop && dropInfo.route === targetInfo.route;
+                var stopIndex = targetInfo.vertexIndex;
+                if (targetInfo.route.startLocation)
+                    stopIndex--;
+                if (stopIndex < 0) {
+                    console.log("moving the starting vertex is not allowed");
+                }
+                else if (stopIndex > targetInfo.route.stops.length) {
+                    console.log("moving the ending vertex is not allowed");
+                }
+                else if (dropOnStop && isNewVertex) {
+                    var stop = dropInfo.route.removeStop(dropInfo.stops[0]);
+                    targetInfo.route.addStop(stop, stopIndex);
+                }
+                else if (dropOnStop && !isNewVertex && !isSameRoute) {
+                    var stop = targetInfo.route.removeStop(stopIndex);
+                    redRoute.addStop(stop);
+                    stop = dropInfo.route.removeStop(dropInfo.stops[0]);
+                    targetInfo.route.addStop(stop, stopIndex);
+                }
+                else if (dropOnStop && !isNewVertex && isSameRoute) {
+                    var count = dropInfo.stops[0] - stopIndex;
+                    if (count > 1)
+                        while (count--) {
+                            var stop = targetInfo.route.removeStop(stopIndex);
+                            redRoute.addStop(stop);
+                        }
+                }
+                else if (!dropOnStop && isNewVertex) {
+                    console.log("dropping a new vertex on empty space has not effect");
+                }
+                else if (!dropOnStop && !isNewVertex) {
+                    var stop = targetInfo.route.removeStop(stopIndex);
+                    stop && redRoute.addStop(stop);
+                }
+                routes.map(function (r) { return r.refresh(map); });
+            });
+        });
+    }
+    exports.run = run;
+});
+define("tests/google-polyline", ["require", "exports", "labs/common/ol3-polyline", "labs/common/google-polyline"], function (require, exports, OlEncoder, Encoder) {
+    "use strict";
+    var polyline = [[38.5, -120.2], [40.7, -120.95], [43.252, -126.453]];
+    var encoding = "_p~iF~ps|U_ulLnnqC_mqNvxq`@";
+    function run() {
+        {
+            var encoder = new Encoder();
+            console.assert(encoder.encode(encoder.decode(encoding)) === encoding);
+            console.assert(encoding === encoder.encode(polyline));
+        }
+        {
+            var olEncoder = new OlEncoder();
+            console.assert(olEncoder.encode(olEncoder.decode(encoding)) === encoding);
+            console.assert(encoding === olEncoder.encode(polyline));
+        }
+    }
+    exports.run = run;
+});
+define("tests/index", ["require", "exports"], function (require, exports) {
+    "use strict";
+    function run() {
+        var l = window.location;
+        var path = "" + l.origin + l.pathname + "?run=tests/";
+        var labs = "\n    ags-format\n    google-polyline\n    webmap\n    map-resize-defect\n    drop-vertex-on-marker-detection\n    index\n    ";
+        document.writeln("\n    <p>\n    Watch the console output for failed assertions (blank is good).\n    </p>\n    ");
+        document.writeln(labs
+            .split(/ /)
+            .map(function (v) { return v.trim(); })
+            .filter(function (v) { return !!v; })
+            .sort()
+            .map(function (lab) { return ("<a href=" + path + lab + "&debug=1>" + lab + "</a>"); })
+            .join("<br/>"));
+    }
+    exports.run = run;
+    ;
+});
 define("tests/interaction/modify", ["require", "exports", "openlayers"], function (require, exports, ol) {
     "use strict";
     var ModifyEvent = (function (_super) {
@@ -4974,6 +4916,71 @@ define("tests/interaction/modify", ["require", "exports", "openlayers"], functio
         return Modify;
     }(ol.interaction.Pointer));
 });
+define("tests/map-resize-defect", ["require", "exports", "openlayers", "jquery"], function (require, exports, ol, $) {
+    "use strict";
+    var html = "\n<lab class='map-resize-defect'>\n    <div class='outer'>\n        <div id='map' class='map fill'>\n        </div>\n    </div>\n    <button class='event grow'>Update CSS</button>\n    <button class='event resize'>Resize Map</button>\n</lab>\n";
+    var css = "\n<style>\n\n    .outer {\n        padding: 20px;\n        border: 1px solid orange;\n        width: 0;\n        height: 0;\n        overflow:hidden;\n    }\n\n    .map {\n        padding: 20px;\n        border: 1px solid yellow;\n        width: 80%;\n        height: 80%;\n    }\n\n</style>\n";
+    var css2 = "\n<style>\n\n    html, body {\n        width: 100%;\n        height: 100%;\n        margin: 0;\n        padding: 0;\n        border: none;\n    }\n\n    .outer {\n        width: 100%;\n        height: 100%;\n        margin: 0;\n        padding: 0;\n        border: none;\n    }\n\n    .map {\n        border: none;\n    }\n\n</style>\n";
+    var fail = 0;
+    return function run() {
+        $('#map').remove();
+        $(html).appendTo('body');
+        $(css).appendTo('head');
+        var map = new ol.Map({
+            target: "map",
+            view: new ol.View({
+                projection: 'EPSG:4326',
+                center: [-82.4, 34.85],
+                zoom: 15
+            }),
+            layers: [new ol.layer.Tile({ source: new ol.source.OSM() })]
+        });
+        $('#map').resize(function () {
+            throw "this will never happen because jquery only listens for the window size to change";
+        });
+        $('button.event.grow').click(function (evt) {
+            $(css2).appendTo("head");
+            $(evt.target).remove();
+        });
+        $('button.event.resize').click(function (evt) {
+            map.updateSize();
+            $(evt.target).remove();
+        });
+        require(["https://rawgit.com/marcj/css-element-queries/master/src/ResizeSensor.js"], function (ResizeSensor) {
+            var target = map.getTargetElement();
+            new ResizeSensor(target, function () {
+                console.log("ResizeSensor resize detected!");
+                if (!fail)
+                    map.updateSize();
+            });
+        });
+    };
+});
+define("tests/webmap", ["require", "exports", "jquery"], function (require, exports, $) {
+    "use strict";
+    var webmap = "ae85c9d9c5ae409bb1f351617ea0bffc";
+    var portal = "https://www.arcgis.com";
+    var items_endpoint = "http://www.arcgis.com/sharing/rest/content/items";
+    function endpoint() {
+        return items_endpoint + "/" + webmap + "/data?f=json";
+    }
+    function run() {
+        if (1)
+            $.ajax({
+                url: endpoint(),
+                dataType: "json"
+            }).done(function (webmap) {
+                console.assert(webmap.authoringApp === "WebMapViewer", "authoringApp");
+                console.assert(webmap.authoringAppVersion === "4.2");
+                webmap.operationalLayers;
+                webmap.baseMap;
+                console.assert(webmap.spatialReference.latestWkid === 3857);
+                console.assert(webmap.version === "2.5");
+                console.log("done");
+            });
+    }
+    exports.run = run;
+});
 define("ux/styles/ags/simplemarkersymbol-circle", ["require", "exports"], function (require, exports) {
     "use strict";
     var styles = [{
@@ -5271,39 +5278,6 @@ define("ux/serializers/ags-simplefillsymbol", ["require", "exports"], function (
     }());
     exports.SimpleFillConverter = SimpleFillConverter;
 });
-define("ux/styles/peace", ["require", "exports"], function (require, exports) {
-    "use strict";
-    return [
-        {
-            "star": {
-                "fill": {
-                    "color": "rgba(182,74,9,0.2635968300410687)"
-                },
-                "opacity": 1,
-                "stroke": {
-                    "color": "rgba(49,14,23,0.6699808995760113)",
-                    "width": 3.4639032010315107
-                },
-                "radius": 6.63376222856383,
-                "radius2": 0,
-                "points": 3
-            },
-            "text": {
-                "fill": {
-                    "color": "rgba(207,45,78,0.44950090791791375)"
-                },
-                "stroke": {
-                    "color": "rgba(233,121,254,0.3105821877136521)",
-                    "width": 4.019676388210171
-                },
-                "text": "Test",
-                "offset-x": 0,
-                "offset-y": 14.239434215855646,
-                "font": "18px fantasy"
-            }
-        }
-    ];
-});
 define("ux/styles/ags/cartographiclinesymbol", ["require", "exports"], function (require, exports) {
     "use strict";
     var symbol = function () { return ({
@@ -5542,6 +5516,39 @@ define("ux/styles/icon/svg", ["require", "exports"], function (require, exports)
                     "width": 10
                 },
                 "path": "M23 2 L23 23 L43 16.5 L23 23 L35 40 L23 23 L11 40 L23 23 L3 17 L23 23 L23 2 Z"
+            }
+        }
+    ];
+});
+define("ux/styles/peace", ["require", "exports"], function (require, exports) {
+    "use strict";
+    return [
+        {
+            "star": {
+                "fill": {
+                    "color": "rgba(182,74,9,0.2635968300410687)"
+                },
+                "opacity": 1,
+                "stroke": {
+                    "color": "rgba(49,14,23,0.6699808995760113)",
+                    "width": 3.4639032010315107
+                },
+                "radius": 6.63376222856383,
+                "radius2": 0,
+                "points": 3
+            },
+            "text": {
+                "fill": {
+                    "color": "rgba(207,45,78,0.44950090791791375)"
+                },
+                "stroke": {
+                    "color": "rgba(233,121,254,0.3105821877136521)",
+                    "width": 4.019676388210171
+                },
+                "text": "Test",
+                "offset-x": 0,
+                "offset-y": 14.239434215855646,
+                "font": "18px fantasy"
             }
         }
     ];

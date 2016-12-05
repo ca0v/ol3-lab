@@ -1,6 +1,6 @@
 import ol = require("../../labs/common/ol3-patch");
 import Serializer = require("./base");
-import {doif, mixin} from "../../labs/common/common";
+import { doif, mixin } from "../../labs/common/common";
 
 export namespace Format {
 
@@ -256,6 +256,15 @@ export class StyleConverter implements Serializer.IConverter<Format.Style> {
             fill: fill,
             stroke: stroke
         });
+
+        image && s.setGeometry(feature => {
+            let geom = feature.getGeometry();
+            if (geom instanceof ol.geom.Polygon) {
+                let pt = geom.getInteriorPoint();
+                return pt;
+            }
+        });
+
         return s;
     }
 
@@ -265,7 +274,7 @@ export class StyleConverter implements Serializer.IConverter<Format.Style> {
 
         let [x, y] = [json["offset-x"] || 0, json["offset-y"] || 0];
         {
-            ol.coordinate.rotate([x, y].map(v => v * json.scale), json.rotation);            
+            ol.coordinate.rotate([x, y].map(v => v * json.scale), json.rotation);
         }
 
         return new ol.style.Text({

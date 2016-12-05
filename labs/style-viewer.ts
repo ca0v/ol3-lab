@@ -11,8 +11,8 @@
 import ol = require("openlayers");
 import $ = require("jquery");
 import Snapshot = require("./common/snapshot");
-import {getParameterByName} from "./common/common";
-import {Format, StyleConverter} from "../alpha/format/ol3-symbolizer";
+import { getParameterByName } from "./common/common";
+import { Format, StyleConverter } from "../alpha/format/ol3-symbolizer";
 import pointStyle = require("../ux/styles/icon/png");
 
 const html = `
