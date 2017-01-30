@@ -3,7 +3,6 @@ import ol = require("openlayers");
 import { doif, getParameterByName } from "./common/common";
 import { StyleConverter } from "../alpha/format/ol3-symbolizer";
 import pointStyle = require("../ux/styles/circle/alert");
-import "xstyle/css!bower_components/ol3-popup/built/css/ol3-popup.css";
 import { Popup } from "../bower_components/ol3-popup/src/ol3-popup";
 
 let styler = new StyleConverter();

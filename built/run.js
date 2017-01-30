@@ -2849,7 +2849,7 @@ define("bower_components/ol3-popup/src/ol3-popup", ["require", "exports", "jquer
     }(ol.Overlay));
     exports.Popup = Popup;
 });
-define("labs/popup", ["require", "exports", "jquery", "openlayers", "labs/common/common", "alpha/format/ol3-symbolizer", "ux/styles/circle/alert", "bower_components/ol3-popup/src/ol3-popup", "xstyle/css!bower_components/ol3-popup/built/css/ol3-popup.css"], function (require, exports, $, ol, common_5, ol3_symbolizer_3, pointStyle, ol3_popup_1) {
+define("labs/popup", ["require", "exports", "jquery", "openlayers", "labs/common/common", "alpha/format/ol3-symbolizer", "ux/styles/circle/alert", "bower_components/ol3-popup/src/ol3-popup"], function (require, exports, $, ol, common_5, ol3_symbolizer_3, pointStyle, ol3_popup_1) {
     "use strict";
     var styler = new ol3_symbolizer_3.StyleConverter();
     function parse(v, type) {
