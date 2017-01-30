@@ -2,6 +2,7 @@ export function run() {
     let l = window.location;
     let path = `${l.origin}${l.pathname}?run=labs/`;
     let labs = `
+    popup
     style-lab
 
     style-viewer
