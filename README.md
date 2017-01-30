@@ -87,7 +87,8 @@ t`syzE}gm_dAm_@A?r@p@Bp@Hp@Ph@Td@Z`@`@Vb@Nd@xUABmF
 
 ## All Examples
 
-* [index](https://cdn.rawgit.com/ca0v/ol3-lab/v3.17.1/rawgit.html?run=labs/index)
+* [index (3.20.1)](https://rawgit.com/ca0v/ol3-lab/v3.20.1/rawgit.html?run=labs/index)
+* [index (master)](https://rawgit.com/ca0v/ol3-lab/master/rawgit.html?run=labs/index)
 
 ## Build using tsd, bower, tsc:
 

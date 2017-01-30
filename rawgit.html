@@ -3,14 +3,15 @@
 
 <head>
     <style>
-        @import url('https://cdnjs.cloudflare.com/ajax/libs/ol3/3.17.1/ol.css');
+        @import url('https://cdnjs.cloudflare.com/ajax/libs/ol3/3.20.1/ol.css');
+        @import url('https://rawgit.com/ca0v/ol3-popup/v2.0.6/built/css/ol3-popup.css');
         @import url('./app.css');
     </style>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.2.0/require.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.2/require.min.js"></script>
 
-    <script>
-        (() => {
+<script>
+    (() => {
 
         function getParameterByName(name, url = window.location.href) {
             name = name.replace(/[\[\]]/g, "\\$&");
@@ -25,22 +26,28 @@
         let debug = getParameterByName("debug") === "1";
 
         requirejs.config({
+            packages: [
+                {
+                    name: 'xstyle',
+                    location: 'https://cdn.rawgit.com/kriszyp/xstyle/v0.3.2',
+                    main: debug ? 'xstyle' : 'xstyle'
+                }
+            ],
             paths: {
                 "resize-sensor": "https://rawgit.com/marcj/css-element-queries/master/src/ResizeSensor",
-                "openlayers": "https://cdnjs.cloudflare.com/ajax/libs/ol3/3.17.1/ol" + (debug ? "-debug" : ""),
-                "jquery": "https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.0/jquery" + (!debug ? ".min": ""),
-                "ol3-popup": "https://rawgit.com/ca0v/ol3-popup/master/dist/popup.js"
+                "openlayers": "https://cdnjs.cloudflare.com/ajax/libs/ol3/3.20.1/ol" + (debug ? "-debug" : ""),
+                "jquery": "https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.1/jquery" + (!debug ? ".min" : "")
             },
             deps: ["built/run"],
             callback: () => {
                 require([run], test => {
-                    test.run ? test.run() : test(); 
+                    test.run ? test.run() : test();
                 });
             }
         });
 
-        })();
-    </script>
+    })();
+</script>
 </head>
 
 <body>

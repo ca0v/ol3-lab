@@ -263,6 +263,7 @@ export class StyleConverter implements Serializer.IConverter<Format.Style> {
                 let pt = geom.getInteriorPoint();
                 return pt;
             }
+            return geom;
         });
 
         return s;
@@ -278,8 +279,8 @@ export class StyleConverter implements Serializer.IConverter<Format.Style> {
         }
 
         return new ol.style.Text({
-            fill: this.deserializeFill(json.fill),
-            stroke: this.deserializeStroke(json.stroke),
+            fill: json.fill && this.deserializeFill(json.fill),
+            stroke: json.stroke && this.deserializeStroke(json.stroke),
             text: json.text,
             font: json.font,
             offsetX: x,
@@ -292,8 +293,8 @@ export class StyleConverter implements Serializer.IConverter<Format.Style> {
     private deserializeCircle(json: Format.Circle) {
         let image = new ol.style.Circle({
             radius: json.radius,
-            fill: this.deserializeFill(json.fill),
-            stroke: this.deserializeStroke(json.stroke)
+            fill: json.fill && this.deserializeFill(json.fill),
+            stroke: json.stroke && this.deserializeStroke(json.stroke)
         });
         image.setOpacity(json.opacity);
         return image;
@@ -305,8 +306,8 @@ export class StyleConverter implements Serializer.IConverter<Format.Style> {
             radius2: json.radius2,
             points: json.points,
             angle: json.angle,
-            fill: this.deserializeFill(json.fill),
-            stroke: this.deserializeStroke(json.stroke)
+            fill: json.fill && this.deserializeFill(json.fill),
+            stroke: json.stroke && this.deserializeStroke(json.stroke)
         });
 
         doif(json.rotation, v => image.setRotation(v));
@@ -430,7 +431,7 @@ export class StyleConverter implements Serializer.IConverter<Format.Style> {
 
     private deserializeFill(json: any) {
         let fill = new ol.style.Fill({
-            color: this.deserializeColor(json)
+            color: json && this.deserializeColor(json)
         });
         return fill;
     }

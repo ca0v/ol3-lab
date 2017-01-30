@@ -22,7 +22,7 @@ export =
                 "imgSize": [32, 48],
                 "anchorXUnits": "pixels",
                 "anchorYUnits": "pixels",
-                "src": "http://openlayers.org/en/v3.17.1/examples/data/icon.png"
+                "src": "http://openlayers.org/en/v3.20.1/examples/data/icon.png"
             }
         }
     ];

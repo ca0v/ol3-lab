@@ -252,6 +252,7 @@ define("alpha/format/ol3-symbolizer", ["require", "exports", "labs/common/ol3-pa
                     var pt = geom.getInteriorPoint();
                     return pt;
                 }
+                return geom;
             });
             return s;
         };
@@ -263,8 +264,8 @@ define("alpha/format/ol3-symbolizer", ["require", "exports", "labs/common/ol3-pa
                 ol.coordinate.rotate([x, y].map(function (v) { return v * json.scale; }), json.rotation);
             }
             return new ol.style.Text({
-                fill: this.deserializeFill(json.fill),
-                stroke: this.deserializeStroke(json.stroke),
+                fill: json.fill && this.deserializeFill(json.fill),
+                stroke: json.stroke && this.deserializeStroke(json.stroke),
                 text: json.text,
                 font: json.font,
                 offsetX: x,
@@ -276,8 +277,8 @@ define("alpha/format/ol3-symbolizer", ["require", "exports", "labs/common/ol3-pa
         StyleConverter.prototype.deserializeCircle = function (json) {
             var image = new ol.style.Circle({
                 radius: json.radius,
-                fill: this.deserializeFill(json.fill),
-                stroke: this.deserializeStroke(json.stroke)
+                fill: json.fill && this.deserializeFill(json.fill),
+                stroke: json.stroke && this.deserializeStroke(json.stroke)
             });
             image.setOpacity(json.opacity);
             return image;
@@ -288,8 +289,8 @@ define("alpha/format/ol3-symbolizer", ["require", "exports", "labs/common/ol3-pa
                 radius2: json.radius2,
                 points: json.points,
                 angle: json.angle,
-                fill: this.deserializeFill(json.fill),
-                stroke: this.deserializeStroke(json.stroke)
+                fill: json.fill && this.deserializeFill(json.fill),
+                stroke: json.stroke && this.deserializeStroke(json.stroke)
             });
             common_2.doif(json.rotation, function (v) { return image.setRotation(v); });
             common_2.doif(json.opacity, function (v) { return image.setOpacity(v); });
@@ -393,7 +394,7 @@ define("alpha/format/ol3-symbolizer", ["require", "exports", "labs/common/ol3-pa
         };
         StyleConverter.prototype.deserializeFill = function (json) {
             var fill = new ol.style.Fill({
-                color: this.deserializeColor(json)
+                color: json && this.deserializeColor(json)
             });
             return fill;
         };
@@ -2297,7 +2298,7 @@ define("labs/index", ["require", "exports"], function (require, exports) {
     function run() {
         var l = window.location;
         var path = "" + l.origin + l.pathname + "?run=labs/";
-        var labs = "\n    style-lab\n\n    style-viewer\n    style-viewer&geom=point&style=icon/png\n    style-viewer&geom=point&style=icon/png,text/text\n    style-viewer&geom=point&style=%5B%7B\"image\":%7B\"imgSize\":%5B45,45%5D,\"rotation\":0,\"stroke\":%7B\"color\":\"rgba(255,25,0,0.8)\",\"width\":3%7D,\"path\":\"M23%202%20L23%2023%20L43%2016.5%20L23%2023%20L35%2040%20L23%2023%20L11%2040%20L23%2023%20L3%2017%20L23%2023%20L23%202%20Z\"%7D%7D%5D\n\n    style-viewer&geom=point&style=%5B%7B\"circle\":%7B\"fill\":%7B\"gradient\":%7B\"type\":\"linear(32,32,96,96)\",\"stops\":\"rgba(0,255,0,0.1)%200%25;rgba(0,255,0,0.8)%20100%25\"%7D%7D,\"opacity\":1,\"stroke\":%7B\"color\":\"rgba(0,255,0,1)\",\"width\":1%7D,\"radius\":64%7D%7D,%7B\"image\":%7B\"anchor\":%5B16,48%5D,\"size\":%5B32,48%5D,\"anchorXUnits\":\"pixels\",\"anchorYUnits\":\"pixels\",\"src\":\"http://openlayers.org/en/v3.17.1/examples/data/icon.png\"%7D%7D,%7B\"text\":%7B\"fill\":%7B\"color\":\"rgba(75,92,85,0.85)\"%7D,\"stroke\":%7B\"color\":\"rgba(255,255,255,1)\",\"width\":5%7D,\"offset-x\":0,\"offset-y\":16,\"text\":\"fantasy%20light\",\"font\":\"18px%20serif\"%7D%7D%5D    \n\n    style-viewer&geom=point&style=%5B%7B\"image\":%7B\"imgSize\":%5B13,21%5D,\"fill\":%7B\"color\":\"rgba(0,0,0,0.5)\"%7D,\"path\":\"M6.3,0C6.3,0,0,0.1,0,7.5c0,3.8,6.3,12.6,6.3,12.6s6.3-8.8,6.3-12.7C12.6,0.1,6.3,0,6.3,0z%20M6.3,8.8%20c-1.4,0-2.5-1.1-2.5-2.5c0-1.4,1.1-2.5,2.5-2.5c1.4,0,2.5,1.1,2.5,2.5C8.8,7.7,7.7,8.8,6.3,8.8z\"%7D%7D%5D\n\n    style-viewer&geom=point&style=%5B%7B\"image\":%7B\"imgSize\":%5B15,15%5D,\"anchor\":%5B0,0.5%5D,\"fill\":%7B\"color\":\"rgba(255,0,0,0.1)\"%7D,\"stroke\":%7B\"color\":\"rgba(255,0,0,1)\",\"width\":0.1%7D,\"scale\":8,\"rotation\":0.7,\"img\":\"lock\"%7D%7D,%7B\"image\":%7B\"imgSize\":%5B15,15%5D,\"anchor\":%5B100,0.5%5D,\"anchorXUnits\":\"pixels\",\"fill\":%7B\"color\":\"rgba(0,255,0,0.4)\"%7D,\"stroke\":%7B\"color\":\"rgba(255,0,0,1)\",\"width\":0.1%7D,\"scale\":1.5,\"rotation\":0.7,\"img\":\"lock\"%7D%7D,%7B\"image\":%7B\"imgSize\":%5B15,15%5D,\"anchor\":%5B-10,0%5D,\"anchorXUnits\":\"pixels\",\"anchorOrigin\":\"top-right\",\"fill\":%7B\"color\":\"rgba(230,230,80,1)\"%7D,\"stroke\":%7B\"color\":\"rgba(0,0,0,1)\",\"width\":0.5%7D,\"scale\":2,\"rotation\":0.8,\"img\":\"lock\"%7D%7D%5D\n\n\n    style-viewer&geom=multipoint&style=icon/png\n\n    style-viewer&geom=polyline&style=stroke/dot\n\n    style-viewer&geom=polygon&style=fill/diagonal\n    style-viewer&geom=polygon&style=fill/horizontal,fill/vertical,stroke/dashdotdot\n    style-viewer&geom=polygon&style=stroke/solid,text/text\n    style-viewer&geom=polygon-with-holes&style=fill/cross,stroke/solid\n\n    style-viewer&geom=multipolygon&style=stroke/solid,fill/horizontal,text/text\n\n    style-to-canvas\n    polyline-encoder\n    image-data-viewer\n\n    mapmaker\n    mapmaker&background=light\n    mapmaker&geom=t`syzE}gm_dAm_@A?r@p@Bp@Hp@Ph@Td@Z`@`@Vb@Nd@xUABmF\n    mapmaker&geom=t`syzE}gm_dAm_@A?r@p@Bp@Hp@Ph@Td@Z`@`@Vb@Nd@xUABmF&color=yellow&background=dark&modify=1\n    \n    geocoder&modify=1\n\n    facebook\n    google-identity\n    index\n    ";
+        var labs = "\n    popup\n    style-lab\n\n    style-viewer\n    style-viewer&geom=point&style=icon/png\n    style-viewer&geom=point&style=icon/png,text/text\n    style-viewer&geom=point&style=%5B%7B\"image\":%7B\"imgSize\":%5B45,45%5D,\"rotation\":0,\"stroke\":%7B\"color\":\"rgba(255,25,0,0.8)\",\"width\":3%7D,\"path\":\"M23%202%20L23%2023%20L43%2016.5%20L23%2023%20L35%2040%20L23%2023%20L11%2040%20L23%2023%20L3%2017%20L23%2023%20L23%202%20Z\"%7D%7D%5D\n\n    style-viewer&geom=point&style=%5B%7B\"circle\":%7B\"fill\":%7B\"gradient\":%7B\"type\":\"linear(32,32,96,96)\",\"stops\":\"rgba(0,255,0,0.1)%200%25;rgba(0,255,0,0.8)%20100%25\"%7D%7D,\"opacity\":1,\"stroke\":%7B\"color\":\"rgba(0,255,0,1)\",\"width\":1%7D,\"radius\":64%7D%7D,%7B\"image\":%7B\"anchor\":%5B16,48%5D,\"size\":%5B32,48%5D,\"anchorXUnits\":\"pixels\",\"anchorYUnits\":\"pixels\",\"src\":\"http://openlayers.org/en/v3.20.1/examples/data/icon.png\"%7D%7D,%7B\"text\":%7B\"fill\":%7B\"color\":\"rgba(75,92,85,0.85)\"%7D,\"stroke\":%7B\"color\":\"rgba(255,255,255,1)\",\"width\":5%7D,\"offset-x\":0,\"offset-y\":16,\"text\":\"fantasy%20light\",\"font\":\"18px%20serif\"%7D%7D%5D    \n\n    style-viewer&geom=point&style=%5B%7B\"image\":%7B\"imgSize\":%5B13,21%5D,\"fill\":%7B\"color\":\"rgba(0,0,0,0.5)\"%7D,\"path\":\"M6.3,0C6.3,0,0,0.1,0,7.5c0,3.8,6.3,12.6,6.3,12.6s6.3-8.8,6.3-12.7C12.6,0.1,6.3,0,6.3,0z%20M6.3,8.8%20c-1.4,0-2.5-1.1-2.5-2.5c0-1.4,1.1-2.5,2.5-2.5c1.4,0,2.5,1.1,2.5,2.5C8.8,7.7,7.7,8.8,6.3,8.8z\"%7D%7D%5D\n\n    style-viewer&geom=point&style=%5B%7B\"image\":%7B\"imgSize\":%5B15,15%5D,\"anchor\":%5B0,0.5%5D,\"fill\":%7B\"color\":\"rgba(255,0,0,0.1)\"%7D,\"stroke\":%7B\"color\":\"rgba(255,0,0,1)\",\"width\":0.1%7D,\"scale\":8,\"rotation\":0.7,\"img\":\"lock\"%7D%7D,%7B\"image\":%7B\"imgSize\":%5B15,15%5D,\"anchor\":%5B100,0.5%5D,\"anchorXUnits\":\"pixels\",\"fill\":%7B\"color\":\"rgba(0,255,0,0.4)\"%7D,\"stroke\":%7B\"color\":\"rgba(255,0,0,1)\",\"width\":0.1%7D,\"scale\":1.5,\"rotation\":0.7,\"img\":\"lock\"%7D%7D,%7B\"image\":%7B\"imgSize\":%5B15,15%5D,\"anchor\":%5B-10,0%5D,\"anchorXUnits\":\"pixels\",\"anchorOrigin\":\"top-right\",\"fill\":%7B\"color\":\"rgba(230,230,80,1)\"%7D,\"stroke\":%7B\"color\":\"rgba(0,0,0,1)\",\"width\":0.5%7D,\"scale\":2,\"rotation\":0.8,\"img\":\"lock\"%7D%7D%5D\n\n\n    style-viewer&geom=multipoint&style=icon/png\n\n    style-viewer&geom=polyline&style=stroke/dot\n\n    style-viewer&geom=polygon&style=fill/diagonal\n    style-viewer&geom=polygon&style=fill/horizontal,fill/vertical,stroke/dashdotdot\n    style-viewer&geom=polygon&style=stroke/solid,text/text\n    style-viewer&geom=polygon-with-holes&style=fill/cross,stroke/solid\n\n    style-viewer&geom=multipolygon&style=stroke/solid,fill/horizontal,text/text\n\n    style-to-canvas\n    polyline-encoder\n    image-data-viewer\n\n    mapmaker\n    mapmaker&background=light\n    mapmaker&geom=t`syzE}gm_dAm_@A?r@p@Bp@Hp@Ph@Td@Z`@`@Vb@Nd@xUABmF\n    mapmaker&geom=t`syzE}gm_dAm_@A?r@p@Bp@Hp@Ph@Td@Z`@`@Vb@Nd@xUABmF&color=yellow&background=dark&modify=1\n    \n    geocoder&modify=1\n\n    facebook\n    google-identity\n    index\n    ";
         var styles = document.createElement("style");
         document.head.appendChild(styles);
         styles.innerText += "\n    #map {\n        display: none;\n    }\n    .test {\n        margin: 20px;\n    }\n    ";
@@ -2403,10 +2404,538 @@ define("labs/polyline-encoder", ["require", "exports", "jquery", "openlayers", "
     }
     exports.run = run;
 });
-define("labs/route-editor", ["require", "exports", "openlayers", "alpha/format/ol3-symbolizer", "labs/common/common"], function (require, exports, ol, ol3_symbolizer_3, common_5) {
+define("ux/styles/circle/alert", ["require", "exports"], function (require, exports) {
+    "use strict";
+    return [
+        {
+            "circle": {
+                "fill": {
+                    "color": "rgba(197,37,84,0.90)"
+                },
+                "opacity": 1,
+                "stroke": {
+                    "color": "rgba(227,83,105,1)",
+                    "width": 4.4
+                },
+                "radius": 7.3
+            },
+            "text": {
+                "fill": {
+                    "color": "rgba(205,86,109,0.9)"
+                },
+                "stroke": {
+                    "color": "rgba(252,175,131,0.5)",
+                    "width": 2
+                },
+                "text": "Test",
+                "offset-x": 0,
+                "offset-y": 20,
+                "font": "18px fantasy"
+            }
+        }
+    ];
+});
+define("bower_components/ol3-popup/src/paging/paging", ["require", "exports", "openlayers"], function (require, exports, ol) {
+    "use strict";
+    function getInteriorPoint(geom) {
+        if (geom["getInteriorPoint"])
+            return geom["getInteriorPoint"]().getCoordinates();
+        return ol.extent.getCenter(geom.getExtent());
+    }
+    var Paging = (function () {
+        function Paging(options) {
+            this.options = options;
+            this._pages = [];
+            this.domNode = document.createElement("div");
+            this.domNode.classList.add("pages");
+            options.popup.domNode.appendChild(this.domNode);
+        }
+        Object.defineProperty(Paging.prototype, "activeIndex", {
+            get: function () {
+                return this._activeIndex;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(Paging.prototype, "count", {
+            get: function () {
+                return this._pages.length;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Paging.prototype.dispatch = function (name) {
+            this.domNode.dispatchEvent(new Event(name));
+        };
+        Paging.prototype.on = function (name, listener) {
+            this.domNode.addEventListener(name, listener);
+        };
+        Paging.prototype.add = function (source, geom) {
+            if (false) {
+            }
+            else if (typeof source === "string") {
+                var page = document.createElement("div");
+                page.innerHTML = source;
+                this._pages.push({
+                    element: page.firstChild,
+                    location: geom && getInteriorPoint(geom)
+                });
+            }
+            else if (source["appendChild"]) {
+                var page = source;
+                page.classList.add("page");
+                this._pages.push({
+                    element: page,
+                    location: geom && getInteriorPoint(geom)
+                });
+            }
+            else if (source["then"]) {
+                var d = source;
+                var page_1 = document.createElement("div");
+                page_1.classList.add("page");
+                this._pages.push({
+                    element: page_1,
+                    location: geom && getInteriorPoint(geom)
+                });
+                $.when(d).then(function (v) {
+                    if (typeof v === "string") {
+                        page_1.innerHTML = v;
+                    }
+                    else {
+                        page_1.appendChild(v);
+                    }
+                });
+            }
+            else if (typeof source === "function") {
+                var page = document.createElement("div");
+                page.classList.add("page");
+                this._pages.push({
+                    callback: source,
+                    element: page,
+                    location: geom && getInteriorPoint(geom)
+                });
+            }
+            else {
+                throw "invalid source value: " + source;
+            }
+            this.dispatch("add");
+        };
+        Paging.prototype.clear = function () {
+            var activeChild = this._activeIndex >= 0 && this._pages[this._activeIndex];
+            this._activeIndex = -1;
+            this._pages = [];
+            if (activeChild) {
+                this.domNode.removeChild(activeChild.element);
+                this.dispatch("clear");
+            }
+        };
+        Paging.prototype.goto = function (index) {
+            var _this = this;
+            var page = this._pages[index];
+            if (page) {
+                var activeChild = this._activeIndex >= 0 && this._pages[this._activeIndex];
+                if (activeChild) {
+                    this.domNode.removeChild(activeChild.element);
+                }
+                var d_1 = $.Deferred();
+                if (page.callback) {
+                    var refreshedContent = page.callback();
+                    $.when(refreshedContent).then(function (v) {
+                        if (false) {
+                        }
+                        else if (typeof v === "string") {
+                            page.element.innerHTML = v;
+                        }
+                        else if (typeof v["innerHTML"] !== "undefined") {
+                            page.element.innerHTML = "";
+                            page.element.appendChild(v);
+                        }
+                        else {
+                            throw "invalid callback result: " + v;
+                        }
+                        d_1.resolve();
+                    });
+                }
+                else {
+                    d_1.resolve();
+                }
+                d_1.then(function () {
+                    _this.domNode.appendChild(page.element);
+                    _this._activeIndex = index;
+                    if (page.location) {
+                        _this.options.popup.setPosition(page.location);
+                    }
+                    _this.dispatch("goto");
+                });
+            }
+        };
+        Paging.prototype.next = function () {
+            (0 <= this.activeIndex) && (this.activeIndex < this.count) && this.goto(this.activeIndex + 1);
+        };
+        Paging.prototype.prev = function () {
+            (0 < this.activeIndex) && this.goto(this.activeIndex - 1);
+        };
+        return Paging;
+    }());
+    exports.Paging = Paging;
+});
+define("bower_components/ol3-popup/src/paging/page-navigator", ["require", "exports"], function (require, exports) {
+    "use strict";
+    var classNames = {
+        prev: 'btn-prev',
+        next: 'btn-next',
+        hidden: 'hidden',
+        active: 'active',
+        inactive: 'inactive',
+        pagenum: "page-num"
+    };
+    var eventNames = {
+        show: "show",
+        hide: "hide",
+        prev: "prev",
+        next: "next"
+    };
+    var PageNavigator = (function () {
+        function PageNavigator(options) {
+            var _this = this;
+            this.options = options;
+            var pages = options.pages;
+            this.domNode = document.createElement("div");
+            this.domNode.classList.add("pagination");
+            this.domNode.innerHTML = this.template();
+            this.prevButton = this.domNode.getElementsByClassName(classNames.prev)[0];
+            this.nextButton = this.domNode.getElementsByClassName(classNames.next)[0];
+            this.pageInfo = this.domNode.getElementsByClassName(classNames.pagenum)[0];
+            pages.options.popup.domNode.appendChild(this.domNode);
+            this.prevButton.addEventListener('click', function () { return _this.dispatch(eventNames.prev); });
+            this.nextButton.addEventListener('click', function () { return _this.dispatch(eventNames.next); });
+            pages.on("goto", function () { return pages.count > 1 ? _this.show() : _this.hide(); });
+            pages.on("clear", function () { return _this.hide(); });
+            pages.on("goto", function () {
+                var index = pages.activeIndex;
+                var count = pages.count;
+                var canPrev = 0 < index;
+                var canNext = count - 1 > index;
+                _this.prevButton.classList.toggle(classNames.inactive, !canPrev);
+                _this.prevButton.classList.toggle(classNames.active, canPrev);
+                _this.nextButton.classList.toggle(classNames.inactive, !canNext);
+                _this.nextButton.classList.toggle(classNames.active, canNext);
+                _this.prevButton.disabled = !canPrev;
+                _this.nextButton.disabled = !canNext;
+                _this.pageInfo.innerHTML = (1 + index) + " of " + count;
+            });
+        }
+        PageNavigator.prototype.dispatch = function (name) {
+            this.domNode.dispatchEvent(new Event(name));
+        };
+        PageNavigator.prototype.on = function (name, listener) {
+            this.domNode.addEventListener(name, listener);
+        };
+        PageNavigator.prototype.template = function () {
+            return "<button class=\"arrow btn-prev\"></button><span class=\"page-num\">m of n</span><button class=\"arrow btn-next\"></button>";
+        };
+        PageNavigator.prototype.hide = function () {
+            this.domNode.classList.add(classNames.hidden);
+            this.dispatch(eventNames.hide);
+        };
+        PageNavigator.prototype.show = function () {
+            this.domNode.classList.remove(classNames.hidden);
+            this.dispatch(eventNames.show);
+        };
+        return PageNavigator;
+    }());
+    return PageNavigator;
+});
+define("bower_components/ol3-popup/src/ol3-popup", ["require", "exports", "jquery", "openlayers", "bower_components/ol3-popup/src/paging/paging", "bower_components/ol3-popup/src/paging/page-navigator"], function (require, exports, $, ol, paging_1, PageNavigator) {
+    "use strict";
+    var css = "\n.ol-popup:after {\n    bottom: -20px;\n    left: 50px;\n    border-top-color: black;\n}\n\n.ol-popup.docked {\n    bottom:0;\n    top:0;\n    left:0;\n    right:0;\n    pointer-events: all;\n    color: gold;\n    background: black;\n}\n\n.ol-popup.docked:after {\n    display:none;\n}\n\n.ol-popup.docked .pages {\n    max-height: inherit;\n    overflow: auto;\n    height: calc(100% - 60px);\n}\n\n.ol-popup .ol-popup-closer {\n    border: none;\n    background: transparent;\n    color: inherit;\n    position: absolute;\n    top: 0;\n    right: 0;\n    text-decoration: none;\n}\n    \n.ol-popup .ol-popup-closer:after {\n    content:'\u2716';\n}\n\n.ol-popup .ol-popup-docker {\n    border: none;\n    background: transparent;\n    color: inherit;\n    text-decoration: none;\n    position: absolute;\n    top: 0;\n    right: 20px;\n}\n\n.ol-popup .ol-popup-docker:after {\n    content:'\u25A1';\n}\n";
+    $("<style type='text/css'>" + css + "</style>").appendTo('head');
+    var classNames = {
+        olPopup: 'ol-popup',
+        olPopupDocker: 'ol-popup-docker',
+        olPopupCloser: 'ol-popup-closer',
+        olPopupContent: 'ol-popup-content',
+        hidden: 'hidden',
+        docked: 'docked'
+    };
+    var eventNames = {
+        show: "show",
+        hide: "hide",
+        next: "next-page"
+    };
+    function defaults(a) {
+        var b = [];
+        for (var _i = 1; _i < arguments.length; _i++) {
+            b[_i - 1] = arguments[_i];
+        }
+        b.forEach(function (b) {
+            Object.keys(b).filter(function (k) { return a[k] === undefined; }).forEach(function (k) { return a[k] = b[k]; });
+        });
+        return a;
+    }
+    function debounce(func, wait, immediate) {
+        var _this = this;
+        if (wait === void 0) { wait = 20; }
+        if (immediate === void 0) { immediate = false; }
+        var timeout;
+        return (function () {
+            var args = [];
+            for (var _i = 0; _i < arguments.length; _i++) {
+                args[_i - 0] = arguments[_i];
+            }
+            var later = function () {
+                timeout = null;
+                if (!immediate)
+                    func.call(_this, args);
+            };
+            var callNow = immediate && !timeout;
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+            if (callNow)
+                func.call(_this, args);
+        });
+    }
+    var isTouchDevice = function () {
+        try {
+            document.createEvent("TouchEvent");
+            isTouchDevice = function () { return true; };
+        }
+        catch (e) {
+            isTouchDevice = function () { return false; };
+        }
+        return isTouchDevice();
+    };
+    function enableTouchScroll(elm) {
+        var scrollStartPos = 0;
+        elm.addEventListener("touchstart", function (event) {
+            scrollStartPos = this.scrollTop + event.touches[0].pageY;
+        }, false);
+        elm.addEventListener("touchmove", function (event) {
+            this.scrollTop = scrollStartPos - event.touches[0].pageY;
+        }, false);
+    }
+    ;
+    var DEFAULT_OPTIONS = {
+        insertFirst: true,
+        autoPan: true,
+        autoPanAnimation: {
+            source: null,
+            duration: 250
+        },
+        positioning: "top-right",
+        stopEvent: true
+    };
+    var Popup = (function (_super) {
+        __extends(Popup, _super);
+        function Popup(options) {
+            if (options === void 0) { options = DEFAULT_OPTIONS; }
+            options = defaults({}, options, DEFAULT_OPTIONS);
+            _super.call(this, options);
+            this.options = options;
+            this.postCreate();
+        }
+        Popup.prototype.postCreate = function () {
+            var _this = this;
+            var options = this.options;
+            var domNode = this.domNode = document.createElement('div');
+            domNode.className = classNames.olPopup;
+            this.setElement(domNode);
+            if (this.options.dockContainer) {
+                var dockContainer = $(this.options.dockContainer)[0];
+                if (dockContainer) {
+                    var docker = this.docker = document.createElement('button');
+                    docker.className = classNames.olPopupDocker;
+                    domNode.appendChild(docker);
+                    docker.addEventListener('click', function (evt) {
+                        _this.isDocked() ? _this.undock() : _this.dock();
+                        evt.preventDefault();
+                    }, false);
+                }
+            }
+            {
+                var closer = this.closer = document.createElement('button');
+                closer.className = classNames.olPopupCloser;
+                domNode.appendChild(closer);
+                closer.addEventListener('click', function (evt) {
+                    _this.hide();
+                    evt.preventDefault();
+                }, false);
+            }
+            {
+                var content = this.content = document.createElement('div');
+                content.className = classNames.olPopupContent;
+                this.domNode.appendChild(content);
+                isTouchDevice() && enableTouchScroll(content);
+            }
+            {
+                var pages_1 = this.pages = new paging_1.Paging({ popup: this });
+                var pageNavigator = new PageNavigator({ pages: pages_1 });
+                pageNavigator.hide();
+                pageNavigator.on("prev", function () { return pages_1.prev(); });
+                pageNavigator.on("next", function () { return pages_1.next(); });
+                pages_1.on("goto", function () { return _this.panIntoView(); });
+            }
+            if (0) {
+                var callback_1 = this.setPosition;
+                this.setPosition = debounce(function (args) { return callback_1.apply(_this, args); }, 50);
+            }
+        };
+        Popup.prototype.setPosition = function (position) {
+            this.options.position = position;
+            if (!this.isDocked()) {
+                _super.prototype.setPosition.call(this, position);
+            }
+            else {
+                this.options.map.getView().setCenter(position);
+            }
+        };
+        Popup.prototype.panIntoView = function () {
+            if (!this.isOpened())
+                return;
+            if (this.isDocked())
+                return;
+            var p = this.getPosition();
+            p && this.setPosition(p.map(function (v) { return v; }));
+        };
+        Popup.prototype.destroy = function () {
+            this.getMap().removeOverlay(this);
+            this.dispose();
+            this.dispatch("dispose");
+        };
+        Popup.prototype.dispatch = function (name) {
+            this["dispatchEvent"](new Event(name));
+        };
+        Popup.prototype.show = function (coord, html) {
+            if (html instanceof HTMLElement) {
+                this.content.innerHTML = "";
+                this.content.appendChild(html);
+            }
+            else {
+                this.content.innerHTML = html;
+            }
+            this.domNode.classList.remove(classNames.hidden);
+            this.setPosition(coord);
+            this.dispatch(eventNames.show);
+            return this;
+        };
+        Popup.prototype.hide = function () {
+            !this.isDocked() && this.setPosition(undefined);
+            this.pages.clear();
+            this.dispatch(eventNames.hide);
+            this.domNode.classList.add(classNames.hidden);
+            return this;
+        };
+        Popup.prototype.isOpened = function () {
+            return !this.domNode.classList.contains(classNames.hidden);
+        };
+        Popup.prototype.isDocked = function () {
+            return this.domNode.classList.contains(classNames.docked);
+        };
+        Popup.prototype.dock = function () {
+            var map = this.getMap();
+            this.options.map = map;
+            this.options.parentNode = this.domNode.parentElement;
+            map.removeOverlay(this);
+            this.domNode.classList.add(classNames.docked);
+            $(this.options.dockContainer).append(this.domNode);
+        };
+        Popup.prototype.undock = function () {
+            this.options.parentNode.appendChild(this.domNode);
+            this.domNode.classList.remove(classNames.docked);
+            this.options.map.addOverlay(this);
+            this.setPosition(this.options.position);
+        };
+        return Popup;
+    }(ol.Overlay));
+    exports.Popup = Popup;
+});
+define("labs/popup", ["require", "exports", "jquery", "openlayers", "labs/common/common", "alpha/format/ol3-symbolizer", "ux/styles/circle/alert", "bower_components/ol3-popup/src/ol3-popup"], function (require, exports, $, ol, common_5, ol3_symbolizer_3, pointStyle, ol3_popup_1) {
+    "use strict";
+    var styler = new ol3_symbolizer_3.StyleConverter();
+    function parse(v, type) {
+        if (typeof type === "string")
+            return v;
+        if (typeof type === "number")
+            return parseFloat(v);
+        if (typeof type === "boolean")
+            return (v === "1" || v === "true");
+        if (Array.isArray(type)) {
+            return (v.split(",").map(function (v) { return parse(v, type[0]); }));
+        }
+        throw "unknown type: " + type;
+    }
+    var html = "\n<div class='popup'>\n    <div class='popup-container'>\n    </div>\n</div>\n";
+    var css = "\n<style>\n    html, body, .map {\n        width: 100%;\n        height: 100%;\n        padding: 0;\n        overflow: hidden;\n        margin: 0;    \n    }\n\n    .popup-container {\n        position: absolute;\n        top: 20px;\n        right: 20px;\n        width: 300px;\n        height: 200px;\n        background: transparent;\n        z-index: 1;\n    }\n</style>\n";
+    function run() {
+        $(html).appendTo(".map");
+        $(css).appendTo("head");
+        var options = {
+            srs: 'EPSG:4326',
+            center: [-82.4, 34.85],
+            zoom: 15,
+            basemap: "bing"
+        };
+        {
+            var opts_4 = options;
+            Object.keys(opts_4).forEach(function (k) {
+                common_5.doif(common_5.getParameterByName(k), function (v) {
+                    var value = parse(v, opts_4[k]);
+                    if (value !== undefined)
+                        opts_4[k] = value;
+                });
+            });
+        }
+        var map = new ol.Map({
+            target: "map",
+            keyboardEventTarget: document,
+            loadTilesWhileAnimating: true,
+            loadTilesWhileInteracting: true,
+            controls: ol.control.defaults({ attribution: false }),
+            view: new ol.View({
+                projection: options.srs,
+                center: options.center,
+                zoom: options.zoom
+            }),
+            layers: [
+                new ol.layer.Tile({
+                    opacity: 0.8,
+                    source: options.basemap !== "bing" ? new ol.source.OSM() : new ol.source.BingMaps({
+                        key: 'AuPHWkNxvxVAL_8Z4G8Pcq_eOKGm5eITH_cJMNAyYoIC1S_29_HhE893YrUUbIGl',
+                        imagerySet: 'Aerial'
+                    })
+                })]
+        });
+        var features = new ol.Collection();
+        var source = new ol.source.Vector({
+            features: features
+        });
+        var layer = new ol.layer.Vector({
+            source: source,
+            style: function (feature, resolution) {
+                pointStyle[0].text.text = feature.getGeometry().get("location") || "unknown location";
+                return pointStyle.map(function (s) { return styler.fromJson(s); });
+            }
+        });
+        map.addLayer(layer);
+        var popup = new ol3_popup_1.Popup({
+            dockContainer: '.popup-container'
+        });
+        popup.setMap(map);
+        map.on("click", function (event) {
+            popup.show(event.coordinate, "<div>You clicked on " + event.coordinate + "</div>");
+            var point = new ol.geom.Point(event.coordinate);
+            point.set("location", event.coordinate.join(","));
+            var feature = new ol.Feature(point);
+            source.addFeature(feature);
+        });
+        return map;
+    }
+    exports.run = run;
+});
+define("labs/route-editor", ["require", "exports", "openlayers", "alpha/format/ol3-symbolizer", "labs/common/common"], function (require, exports, ol, ol3_symbolizer_4, common_6) {
     "use strict";
     var delta = 16;
-    var formatter = new ol3_symbolizer_3.StyleConverter();
+    var formatter = new ol3_symbolizer_4.StyleConverter();
     function fromJson(styles) {
         return styles.map(function (style) { return formatter.fromJson(style); });
     }
@@ -2427,7 +2956,7 @@ define("labs/route-editor", ["require", "exports", "openlayers", "alpha/format/o
         }]; };
     var Route = (function () {
         function Route(options) {
-            this.options = common_5.defaults(options, {
+            this.options = common_6.defaults(options, {
                 color: "black",
                 delta: delta,
                 stops: [],
@@ -2990,10 +3519,10 @@ define("ux/serializers/ags-simplemarkersymbol", ["require", "exports", "openlaye
     }());
     exports.SimpleMarkerConverter = SimpleMarkerConverter;
 });
-define("labs/style-lab", ["require", "exports", "openlayers", "jquery", "alpha/format/ol3-symbolizer", "ux/serializers/ags-simplemarkersymbol", "labs/common/style-generator"], function (require, exports, ol, $, ol3_symbolizer_4, AgsMarkerSerializer, StyleGenerator) {
+define("labs/style-lab", ["require", "exports", "openlayers", "jquery", "alpha/format/ol3-symbolizer", "ux/serializers/ags-simplemarkersymbol", "labs/common/style-generator"], function (require, exports, ol, $, ol3_symbolizer_5, AgsMarkerSerializer, StyleGenerator) {
     "use strict";
     var center = [-82.4, 34.85];
-    var formatter = new ol3_symbolizer_4.StyleConverter();
+    var formatter = new ol3_symbolizer_5.StyleConverter();
     var generator = new StyleGenerator({
         center: center,
         fromJson: function (json) { return formatter.fromJson(json); }
@@ -3009,7 +3538,7 @@ define("labs/style-lab", ["require", "exports", "openlayers", "jquery", "alpha/f
                 formatter = new AgsMarkerSerializer.SimpleMarkerConverter();
             }
             else {
-                formatter = new ol3_symbolizer_4.StyleConverter();
+                formatter = new ol3_symbolizer_5.StyleConverter();
             }
         }).change();
         var map = new ol.Map({
@@ -3159,12 +3688,12 @@ define("ux/styles/icon/png", ["require", "exports"], function (require, exports)
                 "imgSize": [32, 48],
                 "anchorXUnits": "pixels",
                 "anchorYUnits": "pixels",
-                "src": "http://openlayers.org/en/v3.17.1/examples/data/icon.png"
+                "src": "http://openlayers.org/en/v3.20.1/examples/data/icon.png"
             }
         }
     ];
 });
-define("labs/style-viewer", ["require", "exports", "openlayers", "jquery", "labs/common/snapshot", "labs/common/common", "alpha/format/ol3-symbolizer", "ux/styles/icon/png"], function (require, exports, ol, $, Snapshot, common_6, ol3_symbolizer_5, pointStyle) {
+define("labs/style-viewer", ["require", "exports", "openlayers", "jquery", "labs/common/snapshot", "labs/common/common", "alpha/format/ol3-symbolizer", "ux/styles/icon/png"], function (require, exports, ol, $, Snapshot, common_7, ol3_symbolizer_6, pointStyle) {
     "use strict";
     var html = "\n<div class='style-to-canvas'>\n    <h3>Renders a feature on a canvas</h3>\n    <div class=\"area\">\n        <label>256 x 256 Canvas</label>\n        <div id='canvas-collection'></div>\n    </div>\n    <div class=\"area\">\n        <label>Style</label>\n        <textarea class='style'></textarea>\n        <button class=\"save\">Save</button>\n    </div>\n    <div class=\"area\">\n        <label>Potential control for setting linear gradient start/stop locations</label>\n        <div class=\"colorramp\">\n            <input class=\"top\" type=\"range\" min=\"0\" max=\"100\" value=\"20\"/>\n            <input class=\"bottom\" type=\"range\" min=\"0\" max=\"100\" value=\"80\"/>\n        </div>\n    </div>\n</div>\n";
     var css = "\n<style>\n    #map {\n        display: none;\n    }\n\n    .style-to-canvas {\n    }\n\n    .style-to-canvas .area label {\n        display: block;\n        vertical-align: top;\n    }\n\n    .style-to-canvas .area {\n        border: 1px solid black;\n        padding: 20px;\n        margin: 20px;\n    }\n\n    .style-to-canvas .area .style {\n        width: 100%;\n        height: 400px;\n    }\n\n    .style-to-canvas #canvas-collection canvas {\n        font-family: sans serif;\n        font-size: 20px;\n        border: 1px solid black;\n        padding: 20px;\n        margin: 20px;\n    }\n\n    div.colorramp {\n        display: inline-block;\n        background: linear-gradient(to right, rgba(250,0,0,0), rgba(250,0,0,1) 60%, rgba(250,100,0,1) 85%, rgb(250,250,0) 95%);\n        width:100%;\n    }\n\n    div.colorramp > input[type=range] {\n        -webkit-appearance: slider-horizontal;\n        display:block;\n        width:100%;\n        background-color:transparent;\n    }\n\n    div.colorramp > label {\n        display: inline-block;\n    }\n\n    div.colorramp > input[type='range'] {\n        box-shadow: 0 0 0 white;\n    }\n\n    div.colorramp > input[type=range]::-webkit-slider-runnable-track {\n        height: 0px;     \n    }\n\n    div.colorramp > input[type='range'].top::-webkit-slider-thumb {\n        margin-top: -10px;\n    }\n\n    div.colorramp > input[type='range'].bottom::-webkit-slider-thumb {\n        margin-top: -12px;\n    }\n    \n</style>\n";
@@ -3203,7 +3732,7 @@ define("labs/style-viewer", ["require", "exports", "openlayers", "jquery", "labs
     var styles = {
         point: pointStyle
     };
-    var serializer = new ol3_symbolizer_5.StyleConverter();
+    var serializer = new ol3_symbolizer_6.StyleConverter();
     var Renderer = (function () {
         function Renderer(geom) {
             this.feature = new ol.Feature(geom);
@@ -3229,8 +3758,8 @@ define("labs/style-viewer", ["require", "exports", "openlayers", "jquery", "labs
         $(html).appendTo("body");
         $(svg).appendTo("body");
         $(css).appendTo("head");
-        var geom = common_6.getParameterByName("geom") || "polygon-with-holes";
-        var style = common_6.getParameterByName("style") || "fill/gradient";
+        var geom = common_7.getParameterByName("geom") || "polygon-with-holes";
+        var style = common_7.getParameterByName("style") || "fill/gradient";
         $(".save").click(function () {
             var style = JSON.stringify(JSON.parse($(".style").val()));
             var loc = window.location;
@@ -5394,37 +5923,6 @@ define("ux/styles/ags/textsymbol", ["require", "exports"], function (require, ex
                 "variant": "normal",
                 "weight": "normal",
                 "family": "serif"
-            }
-        }
-    ];
-});
-define("ux/styles/circle/alert", ["require", "exports"], function (require, exports) {
-    "use strict";
-    return [
-        {
-            "circle": {
-                "fill": {
-                    "color": "rgba(197,37,84,0.90)"
-                },
-                "opacity": 1,
-                "stroke": {
-                    "color": "rgba(227,83,105,1)",
-                    "width": 4.4
-                },
-                "radius": 7.3
-            },
-            "text": {
-                "fill": {
-                    "color": "rgba(205,86,109,0.9)"
-                },
-                "stroke": {
-                    "color": "rgba(252,175,131,0.5)",
-                    "width": 2
-                },
-                "text": "Test",
-                "offset-x": 0,
-                "offset-y": 20,
-                "font": "18px fantasy"
             }
         }
     ];
