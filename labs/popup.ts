@@ -1,10 +1,10 @@
 import $ = require("jquery");
 import ol = require("openlayers");
-import { doif, getParameterByName, mixin } from "./common/common";
-import reduce = require("./common/ol3-polyline");
+import { doif, getParameterByName } from "./common/common";
 import { StyleConverter } from "../alpha/format/ol3-symbolizer";
-import strokeStyle = require("../ux/styles/stroke/solid");
-import { MyJson } from "./common/myjson";
+import pointStyle = require("../ux/styles/circle/alert");
+import "xstyle/css!bower_components/ol3-popup/built/css/ol3-popup.css";
+import { Popup } from "../bower_components/ol3-popup/src/ol3-popup";
 
 let styler = new StyleConverter();
 
@@ -37,8 +37,8 @@ const css = `
 
     .popup-container {
         position: absolute;
-        top: 0;
-        right: 0;
+        top: 20px;
+        right: 20px;
         width: 300px;
         height: 200px;
         background: transparent;
@@ -91,16 +91,36 @@ export function run() {
     });
 
     let features = new ol.Collection<ol.Feature>();
-    let layer = new ol.layer.Vector({
-        source: new ol.source.Vector({
-            features: features
-        })
+
+    let source = new ol.source.Vector({
+        features: features
     });
+
+
+    let layer = new ol.layer.Vector({
+        source: source,
+        style: (feature: ol.render.Feature, resolution: number) => {
+            pointStyle[0].text.text = feature.getGeometry().get("location") || "unknown location";
+            return pointStyle.map(s => styler.fromJson(s));
+        }
+    });
+
     map.addLayer(layer);
 
-    strokeStyle[0].stroke.color = "#000";
-    layer.setStyle(strokeStyle.map(s => styler.fromJson(s)));
+    let popup = new Popup({
+        dockContainer: '.popup-container'
+    });
+    popup.setMap(map);
 
+    map.on("click", (event: {
+        coordinate: [number, number];
+    }) => {
+        popup.show(event.coordinate, `<div>You clicked on ${event.coordinate}</div>`);
+        let point = new ol.geom.Point(event.coordinate);
+        point.set("location", event.coordinate.join(","));
+        let feature = new ol.Feature(point);
+        source.addFeature(feature);
+    });
 
     return map;
 

@@ -7,36 +7,43 @@
         @import url('./bower_components/ol3/ol.css');
         @import url('./app.css');
     </style>
-    <script src="bower_components/requirejs/require.js"></script>
+<script src="bower_components/requirejs/require.js"></script>
 
-    <script>
+<script>
         (() => {
 
-        function getParameterByName(name, url = window.location.href) {
-            name = name.replace(/[\[\]]/g, "\\$&");
-            var regex = new RegExp("[?&]" + name + "(=([^&#]*)|&|#|$)"),
-                results = regex.exec(url);
-            if (!results) return null;
-            if (!results[2]) return '';
-            return decodeURIComponent(results[2].replace(/\+/g, " "));
-        }
-
-        let run = getParameterByName("run") || "labs/index";
-
-        requirejs.config({
-            paths: {
-                "resize-sensor": "bower_components/ResizeSensor/index",
-                "openlayers": "bower_components/ol3/ol-debug",
-                "jquery": "bower_components/jquery/dist/jquery.min",
-                "ol3-popup": "bower_components/ol3-popup/src/ol3-popup"
-            },
-            deps: ["built/run"],
-            callback: () => {
-                require([run], test => {
-                    setTimeout(() => test.run ? test.run() : test(), 0); 
-                });
+            function getParameterByName(name, url = window.location.href) {
+                name = name.replace(/[\[\]]/g, "\\$&");
+                var regex = new RegExp("[?&]" + name + "(=([^&#]*)|&|#|$)"),
+                    results = regex.exec(url);
+                if (!results) return null;
+                if (!results[2]) return '';
+                return decodeURIComponent(results[2].replace(/\+/g, " "));
             }
-        });
+
+            let run = getParameterByName("run") || "labs/index";
+
+            requirejs.config({
+                packages: [
+                    {
+                        name: 'xstyle',
+                        location: 'bower_components/xstyle',
+                        main: 'xstyle'
+                    }
+                ],
+                paths: {
+                    "resize-sensor": "bower_components/ResizeSensor/index",
+                    "openlayers": "bower_components/ol3/ol-debug",
+                    "jquery": "bower_components/jquery/dist/jquery.min",
+                    "ol3-popup": "bower_components/ol3-popup/src/ol3-popup"
+                },
+                deps: ["built/run"],
+                callback: () => {
+                    require([run], test => {
+                        setTimeout(() => test.run ? test.run() : test(), 0);
+                    });
+                }
+            });
 
         })();
     </script>
