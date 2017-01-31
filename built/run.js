@@ -2648,8 +2648,7 @@ define("bower_components/ol3-popup/src/paging/page-navigator", ["require", "expo
 });
 define("bower_components/ol3-popup/src/ol3-popup", ["require", "exports", "jquery", "openlayers", "bower_components/ol3-popup/src/paging/paging", "bower_components/ol3-popup/src/paging/page-navigator"], function (require, exports, $, ol, paging_1, PageNavigator) {
     "use strict";
-    var css = "\n.ol-popup:after {\n    bottom: -20px;\n    left: 50px;\n    border-top-color: black;\n}\n\n.ol-popup.docked {\n    bottom:0;\n    top:0;\n    left:0;\n    right:0;\n    pointer-events: all;\n    color: gold;\n    background: black;\n}\n\n.ol-popup.docked:after {\n    display:none;\n}\n\n.ol-popup.docked .pages {\n    max-height: inherit;\n    overflow: auto;\n    height: calc(100% - 60px);\n}\n\n.ol-popup .ol-popup-closer {\n    border: none;\n    background: transparent;\n    color: inherit;\n    position: absolute;\n    top: 0;\n    right: 0;\n    text-decoration: none;\n}\n    \n.ol-popup .ol-popup-closer:after {\n    content:'\u2716';\n}\n\n.ol-popup .ol-popup-docker {\n    border: none;\n    background: transparent;\n    color: inherit;\n    text-decoration: none;\n    position: absolute;\n    top: 0;\n    right: 20px;\n}\n\n.ol-popup .ol-popup-docker:after {\n    content:'\u25A1';\n}\n";
-    $("<style type='text/css'>" + css + "</style>").appendTo('head');
+    var css = "\n.ol-popup {\n    position: absolute;\n    bottom: 12px;\n    left: -50px;\n}\n\n.ol-popup:after {\n    top: auto;\n    bottom: -20px;\n    left: 50px;\n    border: solid transparent;\n    border-top-color: inherit;\n    content: \" \";\n    height: 0;\n    width: 0;\n    position: absolute;\n    pointer-events: none;\n    border-width: 10px;\n    margin-left: -10px;\n}\n\n.ol-popup.docked {\n    position:absolute;\n    bottom:0;\n    top:0;\n    left:0;\n    right:0;\n    pointer-events: all;\n}\n\n.ol-popup.docked:after {\n    display:none;\n}\n\n.ol-popup.docked .pages {\n    max-height: inherit;\n    overflow: auto;\n    height: calc(100% - 60px);\n}\n\n.ol-popup.docked .pagination {\n    position: absolute;\n    bottom: 0;\n}\n\n.ol-popup .pagination .btn-prev::after {\n    content: \"\u21E6\"; \n}\n\n.ol-popup .pagination .btn-next::after {\n    content: \"\u21E8\"; \n}\n\n.ol-popup .ol-popup-closer {\n    border: none;\n    background: transparent;\n    color: inherit;\n    position: absolute;\n    top: 0;\n    right: 0;\n    text-decoration: none;\n}\n    \n.ol-popup .ol-popup-closer:after {\n    content:'\u2716';\n}\n\n.ol-popup .ol-popup-docker {\n    border: none;\n    background: transparent;\n    color: inherit;\n    text-decoration: none;\n    position: absolute;\n    top: 0;\n    right: 20px;\n}\n\n.ol-popup .ol-popup-docker:after {\n    content:'\u25A1';\n}\n";
     var classNames = {
         olPopup: 'ol-popup',
         olPopupDocker: 'ol-popup-docker',
@@ -2722,6 +2721,7 @@ define("bower_components/ol3-popup/src/ol3-popup", ["require", "exports", "jquer
             source: null,
             duration: 250
         },
+        pointerPosition: 50,
         positioning: "top-right",
         stopEvent: true
     };
@@ -2732,14 +2732,19 @@ define("bower_components/ol3-popup/src/ol3-popup", ["require", "exports", "jquer
             options = defaults({}, options, DEFAULT_OPTIONS);
             _super.call(this, options);
             this.options = options;
+            this.handlers = [];
             this.postCreate();
         }
         Popup.prototype.postCreate = function () {
             var _this = this;
+            this.injectCss(css);
             var options = this.options;
             var domNode = this.domNode = document.createElement('div');
             domNode.className = classNames.olPopup;
             this.setElement(domNode);
+            if (this.options.pointerPosition) {
+                this.setIndicatorPosition(this.options.pointerPosition);
+            }
             if (this.options.dockContainer) {
                 var dockContainer = $(this.options.dockContainer)[0];
                 if (dockContainer) {
@@ -2780,13 +2785,25 @@ define("bower_components/ol3-popup/src/ol3-popup", ["require", "exports", "jquer
                 this.setPosition = debounce(function (args) { return callback_1.apply(_this, args); }, 50);
             }
         };
+        Popup.prototype.injectCss = function (css) {
+            var style = $("<style type='text/css'>" + css + "</style>");
+            style.appendTo('head');
+            this.handlers.push(function () { return style.remove(); });
+        };
+        Popup.prototype.setIndicatorPosition = function (x) {
+            var css = "\n.ol-popup { position: absolute; bottom: 12px; left: -" + x + "px; }\n.ol-popup:after { bottom: -20px; left: " + x + "px; }\n";
+            this.injectCss(css);
+        };
         Popup.prototype.setPosition = function (position) {
             this.options.position = position;
             if (!this.isDocked()) {
                 _super.prototype.setPosition.call(this, position);
             }
             else {
-                this.options.map.getView().setCenter(position);
+                var view = this.options.map.getView();
+                view.animate({
+                    center: position
+                });
             }
         };
         Popup.prototype.panIntoView = function () {
@@ -2798,6 +2815,8 @@ define("bower_components/ol3-popup/src/ol3-popup", ["require", "exports", "jquer
             p && this.setPosition(p.map(function (v) { return v; }));
         };
         Popup.prototype.destroy = function () {
+            this.handlers.forEach(function (h) { return h(); });
+            this.handlers = [];
             this.getMap().removeOverlay(this);
             this.dispose();
             this.dispatch("dispose");
@@ -2865,7 +2884,7 @@ define("labs/popup", ["require", "exports", "jquery", "openlayers", "labs/common
         throw "unknown type: " + type;
     }
     var html = "\n<div class='popup'>\n    <div class='popup-container'>\n    </div>\n</div>\n";
-    var css = "\n<style>\n    html, body, .map {\n        width: 100%;\n        height: 100%;\n        padding: 0;\n        overflow: hidden;\n        margin: 0;    \n    }\n\n    .popup-container {\n        position: absolute;\n        top: 20px;\n        right: 20px;\n        width: 300px;\n        height: 200px;\n        background: transparent;\n        z-index: 1;\n    }\n</style>\n";
+    var css = "\n<style name=\"popup\" type=\"text/css\">\n    html, body, .map {\n        width: 100%;\n        height: 100%;\n        padding: 0;\n        overflow: hidden;\n        margin: 0;    \n    }\n\n    .popup-container {\n        position: absolute;\n        top: 20px;\n        right: 20px;\n        width: 300px;\n        height: 200px;\n        background: transparent;\n        z-index: 1;\n    }\n\n    .ol-popup {\n        background-color: white!important;\n    }\n\n    .ol-popup:after {\n        border-top-color: white!important;\n    }\n\n    .ol-popup .ol-popup-content div {\n        padding-right:40px;\n\n    }\n    .pagination.hidden { display: none; }\n</style>\n";
     function run() {
         $(html).appendTo(".map");
         $(css).appendTo("head");
@@ -2922,9 +2941,10 @@ define("labs/popup", ["require", "exports", "jquery", "openlayers", "labs/common
         });
         popup.setMap(map);
         map.on("click", function (event) {
-            popup.show(event.coordinate, "<div>You clicked on " + event.coordinate + "</div>");
+            var location = event.coordinate.map(function (v) { return v.toFixed(5); }).join(", ");
+            popup.show(event.coordinate, "<div>You clicked on " + location + "</div>");
             var point = new ol.geom.Point(event.coordinate);
-            point.set("location", event.coordinate.join(","));
+            point.set("location", location);
             var feature = new ol.Feature(point);
             source.addFeature(feature);
         });

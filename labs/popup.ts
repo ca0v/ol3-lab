@@ -25,7 +25,7 @@ const html = `
 `;
 
 const css = `
-<style>
+<style name="popup" type="text/css">
     html, body, .map {
         width: 100%;
         height: 100%;
@@ -43,6 +43,20 @@ const css = `
         background: transparent;
         z-index: 1;
     }
+
+    .ol-popup {
+        background-color: white!important;
+    }
+
+    .ol-popup:after {
+        border-top-color: white!important;
+    }
+
+    .ol-popup .ol-popup-content div {
+        padding-right:40px;
+
+    }
+    .pagination.hidden { display: none; }
 </style>
 `;
 
@@ -114,9 +128,10 @@ export function run() {
     map.on("click", (event: {
         coordinate: [number, number];
     }) => {
-        popup.show(event.coordinate, `<div>You clicked on ${event.coordinate}</div>`);
+        let location = event.coordinate.map(v => v.toFixed(5)).join(", ");
+        popup.show(event.coordinate, `<div>You clicked on ${location}</div>`);
         let point = new ol.geom.Point(event.coordinate);
-        point.set("location", event.coordinate.join(","));
+        point.set("location", location);
         let feature = new ol.Feature(point);
         source.addFeature(feature);
     });
