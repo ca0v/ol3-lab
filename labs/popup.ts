@@ -2,7 +2,7 @@ import $ = require("jquery");
 import ol = require("openlayers");
 import { doif, getParameterByName } from "./common/common";
 import { StyleConverter } from "../alpha/format/ol3-symbolizer";
-import pointStyle = require("../ux/styles/circle/alert");
+import pointStyle = require("../ux/styles/star/flower");
 import { Popup } from "../bower_components/ol3-popup/src/ol3-popup";
 
 let styler = new StyleConverter();
@@ -33,31 +33,30 @@ const css = `
         overflow: hidden;
         margin: 0;    
     }
-
-    .popup-container {
-        position: absolute;
-        top: 20px;
-        right: 20px;
-        width: 300px;
-        height: 200px;
-        background: transparent;
-        z-index: 1;
-    }
-
-    .ol-popup {
-        background-color: white!important;
-    }
-
-    .ol-popup:after {
-        border-top-color: white!important;
-    }
-
-    .ol-popup .ol-popup-content div {
-        padding-right:40px;
-
-    }
-    .pagination.hidden { display: none; }
 </style>
+`;
+
+const css_popup = `
+.popup-container {
+    position: absolute;
+    top: 1em;
+    right: 0.5em;
+    width: 10em;
+    bottom: 1em;
+    z-index: 1;
+    pointer-events: none;
+}
+
+.ol-popup {
+    color: white;
+    background-color: rgba(77,77,77,0.7);
+    min-width: 200px;
+}
+
+.ol-popup:after {
+    border-top-color: rgba(77,77,77,0.7);
+}
+
 `;
 
 export function run() {
@@ -113,7 +112,10 @@ export function run() {
     let layer = new ol.layer.Vector({
         source: source,
         style: (feature: ol.render.Feature, resolution: number) => {
-            pointStyle[0].text.text = feature.getGeometry().get("location") || "unknown location";
+            let style = pointStyle.filter(p => p.text)[0];
+            if (style) {
+                style.text.text = feature.getGeometry().get("location") || "unknown location";
+            }
             return pointStyle.map(s => styler.fromJson(s));
         }
     });
@@ -121,7 +123,9 @@ export function run() {
     map.addLayer(layer);
 
     let popup = new Popup({
-        dockContainer: '.popup-container'
+        dockContainer: '.popup-container',
+        pointerPosition: 100,
+        css: css_popup
     });
     popup.setMap(map);
 
@@ -129,11 +133,13 @@ export function run() {
         coordinate: [number, number];
     }) => {
         let location = event.coordinate.map(v => v.toFixed(5)).join(", ");
-        popup.show(event.coordinate, `<div>You clicked on ${location}</div>`);
         let point = new ol.geom.Point(event.coordinate);
         point.set("location", location);
         let feature = new ol.Feature(point);
         source.addFeature(feature);
+
+        setTimeout(() => popup.show(event.coordinate, `<div>You clicked on ${location}</div>`), 50);
+
     });
 
     return map;
