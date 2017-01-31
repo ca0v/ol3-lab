@@ -20,7 +20,7 @@
     "openlayers": "https://github.com/openlayers/ol3/releases/download/v3.20.1/v3.20.1-dist.zip",
     "requirejs": "^2.3.2",
     "jquery": "^3.1.1",
-    "ol3-popup": "ol3-paging-popup#^2.0.5",
+    "ol3-popup": "git://github.com/ca0v/ol3-popup.git#^2.0.6",
     "ResizeSensor": "https://raw.githubusercontent.com/marcj/css-element-queries/master/src/ResizeSensor.js"
   },
   "devDependencies": {
