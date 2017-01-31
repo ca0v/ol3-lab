@@ -4,8 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <style>
-        @import url('./bower_components/ol3/ol.css');
-        @import url('./bower_components/ol3-popup/built/css/ol3-popup.css');
+        @import url('./bower_components/openlayers/ol.css');
         @import url('./app.css');
     </style>
 <script src="bower_components/requirejs/require.js"></script>
@@ -23,6 +22,7 @@
         }
 
         let run = getParameterByName("run") || "labs/index";
+        let debug = getParameterByName("debug") === "1";
 
         requirejs.config({
             packages: [
@@ -34,8 +34,8 @@
             ],
             paths: {
                 "resize-sensor": "bower_components/ResizeSensor/index",
-                "openlayers": "bower_components/ol3/ol-debug",
-                "jquery": "bower_components/jquery/dist/jquery.min"
+                "openlayers": debug ? "bower_components/openlayers/ol-debug" : "bower_components/openlayers/ol",
+                "jquery": debug ? "bower_components/jquery/dist/jquery.min" : "bower_components/jquery/dist/jquery.min"
             },
             deps: ["built/run"],
             callback: () => {

@@ -22,5 +22,8 @@
     "jquery": "^3.1.1",
     "ol3-popup": "ol3-paging-popup#^2.0.5",
     "ResizeSensor": "https://raw.githubusercontent.com/marcj/css-element-queries/master/src/ResizeSensor.js"
+  },
+  "devDependencies": {
+    "ol3-popup": "git://github.com/ca0v/ol3-popup.git#v2.0.6"
   }
 }
