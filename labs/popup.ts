@@ -57,6 +57,9 @@ const css_popup = `
     border-top-color: rgba(77,77,77,0.7);
 }
 
+.ol-popup.docked {
+    min-width: auto;
+}
 `;
 
 export function run() {

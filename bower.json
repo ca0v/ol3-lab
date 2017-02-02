@@ -25,6 +25,6 @@
     "ol3-layerswitcher": "ol3-nested-layerswitcher#v2.0.5"
   },
   "devDependencies": {
-    "ol3-popup": "git://github.com/ca0v/ol3-popup.git#v2.0.6"
+    "ol3-popup": "git://github.com/ca0v/ol3-popup.git#v2.0.7"
   }
 }
