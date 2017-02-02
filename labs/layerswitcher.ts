@@ -4,6 +4,7 @@ import { doif, getParameterByName } from "./common/common";
 import { StyleConverter } from "../alpha/format/ol3-symbolizer";
 import pointStyle = require("../ux/styles/star/flower");
 import { LayerSwitcher } from "../bower_components/ol3-layerswitcher/src/ol3-layerswitcher";
+import { ArcGisVectorSourceFactory } from "../alpha/arcgis-source";
 
 let styler = new StyleConverter();
 
@@ -66,9 +67,8 @@ export function run() {
 
     let options = {
         srs: 'EPSG:4326',
-        center: <[number, number]>[-82.4, 34.85],
-        zoom: 15,
-        basemap: "bing"
+        center: <[number, number]>[-97.4, 37.8],
+        zoom: 10
     }
 
     {
@@ -105,7 +105,7 @@ export function run() {
                 type: 'base',
                 opacity: 0.8,
                 visible: false,
-                source:new ol.source.BingMaps({
+                source: new ol.source.BingMaps({
                     key: 'AuPHWkNxvxVAL_8Z4G8Pcq_eOKGm5eITH_cJMNAyYoIC1S_29_HhE893YrUUbIGl',
                     imagerySet: 'Aerial'
                 })
@@ -131,8 +131,6 @@ export function run() {
         }
     });
 
-    map.addLayer(layer);
-
     map.on("click", (event: {
         coordinate: [number, number];
     }) => {
@@ -143,8 +141,57 @@ export function run() {
         source.addFeature(feature);
     });
 
+    let agsLayer = ArcGisVectorSourceFactory.create({
+        title: "Petro",
+        map: map,
+        url: "https://sampleserver3.arcgisonline.com/ArcGIS/rest/services/Petroleum/KSFields/FeatureServer",
+        layer: "0",
+        styleCache: {
+            'ABANDONED': new ol.style.Style({
+                fill: new ol.style.Fill({
+                    color: 'rgba(225, 225, 225, 255)'
+                }),
+                stroke: new ol.style.Stroke({
+                    color: 'rgba(0, 0, 0, 255)',
+                    width: 0.4
+                })
+            }),
+            'GAS': new ol.style.Style({
+                fill: new ol.style.Fill({
+                    color: 'rgba(255, 0, 0, 255)'
+                }),
+                stroke: new ol.style.Stroke({
+                    color: 'rgba(110, 110, 110, 255)',
+                    width: 0.4
+                })
+            }),
+            'OIL': new ol.style.Style({
+                fill: new ol.style.Fill({
+                    color: 'rgba(56, 168, 0, 255)'
+                }),
+                stroke: new ol.style.Stroke({
+                    color: 'rgba(110, 110, 110, 255)',
+                    width: 0
+                })
+            }),
+            'OILGAS': new ol.style.Style({
+                fill: new ol.style.Fill({
+                    color: 'rgba(168, 112, 0, 255)'
+                }),
+                stroke: new ol.style.Stroke({
+                    color: 'rgba(110, 110, 110, 255)',
+                    width: 0.4
+                })
+            })
+        }
+    });
+
+    map.addLayer(agsLayer);
+    map.addLayer(layer);
+
     let layerSwitcher = new LayerSwitcher();
     layerSwitcher.setMap(map);
+
 
     return map;
 

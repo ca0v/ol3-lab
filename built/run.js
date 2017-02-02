@@ -3,6 +3,81 @@ var __extends = (this && this.__extends) || function (d, b) {
     function __() { this.constructor = d; }
     d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
+define("alpha/arcgis-source", ["require", "exports", "jquery", "openlayers"], function (require, exports, $, ol) {
+    "use strict";
+    var esrijsonFormat = new ol.format.EsriJSON();
+    function asParam(options) {
+        return Object
+            .keys(options)
+            .map(function (k) { return (k + "=" + options[k]); })
+            .join("&");
+    }
+    var ArcGisVectorSourceFactory = (function () {
+        function ArcGisVectorSourceFactory() {
+        }
+        ArcGisVectorSourceFactory.create = function (options) {
+            var srs = options.map.getView().getProjection().getCode().split(":").pop();
+            var strategy = ol.loadingstrategy.tile(ol.tilegrid.createXYZ({
+                tileSize: 512
+            }));
+            var loader = function (extent, resolution, projection) {
+                var url = options.url;
+                var layer = options.layer;
+                var box = {
+                    xmin: extent[0],
+                    ymin: extent[1],
+                    xmax: extent[2],
+                    ymax: extent[3]
+                };
+                var params = {
+                    f: "json",
+                    returnGeometry: true,
+                    spatialRel: "esriSpatialRelIntersects",
+                    geometry: encodeURIComponent(JSON.stringify(box)),
+                    geometryType: "esriGeometryEnvelope",
+                    inSR: srs,
+                    outSR: srs,
+                    outFields: "*",
+                };
+                url = url + "/" + layer + "/query?" + asParam(params);
+                $.ajax({
+                    url: url,
+                    dataType: 'jsonp',
+                    success: function (response) {
+                        if (response.error) {
+                            alert(response.error.message + '\n' +
+                                response.error.details.join('\n'));
+                        }
+                        else {
+                            var features = esrijsonFormat.readFeatures(response, {
+                                featureProjection: projection,
+                                dataProjection: projection
+                            });
+                            if (features.length > 0) {
+                                source.addFeatures(features);
+                            }
+                        }
+                    }
+                });
+            };
+            var source = new ol.source.Vector({
+                strategy: strategy,
+                loader: loader
+            });
+            var layer = new ol.layer.Vector({
+                title: options.title,
+                source: source,
+                style: function (feature) {
+                    var classify = feature.get('activeprod');
+                    return options.styleCache[classify];
+                }
+            });
+            return layer;
+        };
+        return ArcGisVectorSourceFactory;
+    }());
+    exports.ArcGisVectorSourceFactory = ArcGisVectorSourceFactory;
+});
 define("alpha/format/base", ["require", "exports"], function (require, exports) {
     "use strict";
 });
@@ -2570,7 +2645,7 @@ define("bower_components/ol3-layerswitcher/src/ol3-layerswitcher", ["require", "
     }(ol.control.Control));
     exports.LayerSwitcher = LayerSwitcher;
 });
-define("labs/layerswitcher", ["require", "exports", "jquery", "openlayers", "labs/common/common", "alpha/format/ol3-symbolizer", "ux/styles/star/flower", "bower_components/ol3-layerswitcher/src/ol3-layerswitcher"], function (require, exports, $, ol, common_5, ol3_symbolizer_3, pointStyle, ol3_layerswitcher_1) {
+define("labs/layerswitcher", ["require", "exports", "jquery", "openlayers", "labs/common/common", "alpha/format/ol3-symbolizer", "ux/styles/star/flower", "bower_components/ol3-layerswitcher/src/ol3-layerswitcher", "alpha/arcgis-source"], function (require, exports, $, ol, common_5, ol3_symbolizer_3, pointStyle, ol3_layerswitcher_1, arcgis_source_1) {
     "use strict";
     var styler = new ol3_symbolizer_3.StyleConverter();
     function parse(v, type) {
@@ -2593,9 +2668,8 @@ define("labs/layerswitcher", ["require", "exports", "jquery", "openlayers", "lab
         $(css).appendTo("head");
         var options = {
             srs: 'EPSG:4326',
-            center: [-82.4, 34.85],
-            zoom: 15,
-            basemap: "bing"
+            center: [-97.4, 37.8],
+            zoom: 10
         };
         {
             var opts_4 = options;
@@ -2652,7 +2726,6 @@ define("labs/layerswitcher", ["require", "exports", "jquery", "openlayers", "lab
                 return pointStyle.map(function (s) { return styler.fromJson(s); });
             }
         });
-        map.addLayer(layer);
         map.on("click", function (event) {
             var location = event.coordinate.map(function (v) { return v.toFixed(5); }).join(", ");
             var point = new ol.geom.Point(event.coordinate);
@@ -2660,6 +2733,52 @@ define("labs/layerswitcher", ["require", "exports", "jquery", "openlayers", "lab
             var feature = new ol.Feature(point);
             source.addFeature(feature);
         });
+        var agsLayer = arcgis_source_1.ArcGisVectorSourceFactory.create({
+            title: "Petro",
+            map: map,
+            url: "https://sampleserver3.arcgisonline.com/ArcGIS/rest/services/Petroleum/KSFields/FeatureServer",
+            layer: "0",
+            styleCache: {
+                'ABANDONED': new ol.style.Style({
+                    fill: new ol.style.Fill({
+                        color: 'rgba(225, 225, 225, 255)'
+                    }),
+                    stroke: new ol.style.Stroke({
+                        color: 'rgba(0, 0, 0, 255)',
+                        width: 0.4
+                    })
+                }),
+                'GAS': new ol.style.Style({
+                    fill: new ol.style.Fill({
+                        color: 'rgba(255, 0, 0, 255)'
+                    }),
+                    stroke: new ol.style.Stroke({
+                        color: 'rgba(110, 110, 110, 255)',
+                        width: 0.4
+                    })
+                }),
+                'OIL': new ol.style.Style({
+                    fill: new ol.style.Fill({
+                        color: 'rgba(56, 168, 0, 255)'
+                    }),
+                    stroke: new ol.style.Stroke({
+                        color: 'rgba(110, 110, 110, 255)',
+                        width: 0
+                    })
+                }),
+                'OILGAS': new ol.style.Style({
+                    fill: new ol.style.Fill({
+                        color: 'rgba(168, 112, 0, 255)'
+                    }),
+                    stroke: new ol.style.Stroke({
+                        color: 'rgba(110, 110, 110, 255)',
+                        width: 0.4
+                    })
+                })
+            }
+        });
+        map.addLayer(agsLayer);
+        map.addLayer(layer);
         var layerSwitcher = new ol3_layerswitcher_1.LayerSwitcher();
         layerSwitcher.setMap(map);
         return map;
