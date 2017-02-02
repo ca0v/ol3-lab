@@ -2298,7 +2298,7 @@ define("labs/index", ["require", "exports"], function (require, exports) {
     function run() {
         var l = window.location;
         var path = "" + l.origin + l.pathname + "?run=labs/";
-        var labs = "\n    popup\n    style-lab\n\n    style-viewer\n    style-viewer&geom=point&style=icon/png\n    style-viewer&geom=point&style=icon/png,text/text\n    style-viewer&geom=point&style=%5B%7B\"image\":%7B\"imgSize\":%5B45,45%5D,\"rotation\":0,\"stroke\":%7B\"color\":\"rgba(255,25,0,0.8)\",\"width\":3%7D,\"path\":\"M23%202%20L23%2023%20L43%2016.5%20L23%2023%20L35%2040%20L23%2023%20L11%2040%20L23%2023%20L3%2017%20L23%2023%20L23%202%20Z\"%7D%7D%5D\n\n    style-viewer&geom=point&style=%5B%7B\"circle\":%7B\"fill\":%7B\"gradient\":%7B\"type\":\"linear(32,32,96,96)\",\"stops\":\"rgba(0,255,0,0.1)%200%25;rgba(0,255,0,0.8)%20100%25\"%7D%7D,\"opacity\":1,\"stroke\":%7B\"color\":\"rgba(0,255,0,1)\",\"width\":1%7D,\"radius\":64%7D%7D,%7B\"image\":%7B\"anchor\":%5B16,48%5D,\"size\":%5B32,48%5D,\"anchorXUnits\":\"pixels\",\"anchorYUnits\":\"pixels\",\"src\":\"http://openlayers.org/en/v3.20.1/examples/data/icon.png\"%7D%7D,%7B\"text\":%7B\"fill\":%7B\"color\":\"rgba(75,92,85,0.85)\"%7D,\"stroke\":%7B\"color\":\"rgba(255,255,255,1)\",\"width\":5%7D,\"offset-x\":0,\"offset-y\":16,\"text\":\"fantasy%20light\",\"font\":\"18px%20serif\"%7D%7D%5D    \n\n    style-viewer&geom=point&style=%5B%7B\"image\":%7B\"imgSize\":%5B13,21%5D,\"fill\":%7B\"color\":\"rgba(0,0,0,0.5)\"%7D,\"path\":\"M6.3,0C6.3,0,0,0.1,0,7.5c0,3.8,6.3,12.6,6.3,12.6s6.3-8.8,6.3-12.7C12.6,0.1,6.3,0,6.3,0z%20M6.3,8.8%20c-1.4,0-2.5-1.1-2.5-2.5c0-1.4,1.1-2.5,2.5-2.5c1.4,0,2.5,1.1,2.5,2.5C8.8,7.7,7.7,8.8,6.3,8.8z\"%7D%7D%5D\n\n    style-viewer&geom=point&style=%5B%7B\"image\":%7B\"imgSize\":%5B15,15%5D,\"anchor\":%5B0,0.5%5D,\"fill\":%7B\"color\":\"rgba(255,0,0,0.1)\"%7D,\"stroke\":%7B\"color\":\"rgba(255,0,0,1)\",\"width\":0.1%7D,\"scale\":8,\"rotation\":0.7,\"img\":\"lock\"%7D%7D,%7B\"image\":%7B\"imgSize\":%5B15,15%5D,\"anchor\":%5B100,0.5%5D,\"anchorXUnits\":\"pixels\",\"fill\":%7B\"color\":\"rgba(0,255,0,0.4)\"%7D,\"stroke\":%7B\"color\":\"rgba(255,0,0,1)\",\"width\":0.1%7D,\"scale\":1.5,\"rotation\":0.7,\"img\":\"lock\"%7D%7D,%7B\"image\":%7B\"imgSize\":%5B15,15%5D,\"anchor\":%5B-10,0%5D,\"anchorXUnits\":\"pixels\",\"anchorOrigin\":\"top-right\",\"fill\":%7B\"color\":\"rgba(230,230,80,1)\"%7D,\"stroke\":%7B\"color\":\"rgba(0,0,0,1)\",\"width\":0.5%7D,\"scale\":2,\"rotation\":0.8,\"img\":\"lock\"%7D%7D%5D\n\n\n    style-viewer&geom=multipoint&style=icon/png\n\n    style-viewer&geom=polyline&style=stroke/dot\n\n    style-viewer&geom=polygon&style=fill/diagonal\n    style-viewer&geom=polygon&style=fill/horizontal,fill/vertical,stroke/dashdotdot\n    style-viewer&geom=polygon&style=stroke/solid,text/text\n    style-viewer&geom=polygon-with-holes&style=fill/cross,stroke/solid\n\n    style-viewer&geom=multipolygon&style=stroke/solid,fill/horizontal,text/text\n\n    style-to-canvas\n    polyline-encoder\n    image-data-viewer\n\n    mapmaker\n    mapmaker&background=light\n    mapmaker&geom=t`syzE}gm_dAm_@A?r@p@Bp@Hp@Ph@Td@Z`@`@Vb@Nd@xUABmF\n    mapmaker&geom=t`syzE}gm_dAm_@A?r@p@Bp@Hp@Ph@Td@Z`@`@Vb@Nd@xUABmF&color=yellow&background=dark&modify=1\n    \n    geocoder&modify=1\n\n    facebook\n    google-identity\n    index\n    ";
+        var labs = "\n    popup\n    layerswitcher\n    \n    style-lab\n\n    style-viewer\n    style-viewer&geom=point&style=icon/png\n    style-viewer&geom=point&style=icon/png,text/text\n    style-viewer&geom=point&style=%5B%7B\"image\":%7B\"imgSize\":%5B45,45%5D,\"rotation\":0,\"stroke\":%7B\"color\":\"rgba(255,25,0,0.8)\",\"width\":3%7D,\"path\":\"M23%202%20L23%2023%20L43%2016.5%20L23%2023%20L35%2040%20L23%2023%20L11%2040%20L23%2023%20L3%2017%20L23%2023%20L23%202%20Z\"%7D%7D%5D\n\n    style-viewer&geom=point&style=%5B%7B\"circle\":%7B\"fill\":%7B\"gradient\":%7B\"type\":\"linear(32,32,96,96)\",\"stops\":\"rgba(0,255,0,0.1)%200%25;rgba(0,255,0,0.8)%20100%25\"%7D%7D,\"opacity\":1,\"stroke\":%7B\"color\":\"rgba(0,255,0,1)\",\"width\":1%7D,\"radius\":64%7D%7D,%7B\"image\":%7B\"anchor\":%5B16,48%5D,\"size\":%5B32,48%5D,\"anchorXUnits\":\"pixels\",\"anchorYUnits\":\"pixels\",\"src\":\"http://openlayers.org/en/v3.20.1/examples/data/icon.png\"%7D%7D,%7B\"text\":%7B\"fill\":%7B\"color\":\"rgba(75,92,85,0.85)\"%7D,\"stroke\":%7B\"color\":\"rgba(255,255,255,1)\",\"width\":5%7D,\"offset-x\":0,\"offset-y\":16,\"text\":\"fantasy%20light\",\"font\":\"18px%20serif\"%7D%7D%5D    \n\n    style-viewer&geom=point&style=%5B%7B\"image\":%7B\"imgSize\":%5B13,21%5D,\"fill\":%7B\"color\":\"rgba(0,0,0,0.5)\"%7D,\"path\":\"M6.3,0C6.3,0,0,0.1,0,7.5c0,3.8,6.3,12.6,6.3,12.6s6.3-8.8,6.3-12.7C12.6,0.1,6.3,0,6.3,0z%20M6.3,8.8%20c-1.4,0-2.5-1.1-2.5-2.5c0-1.4,1.1-2.5,2.5-2.5c1.4,0,2.5,1.1,2.5,2.5C8.8,7.7,7.7,8.8,6.3,8.8z\"%7D%7D%5D\n\n    style-viewer&geom=point&style=%5B%7B\"image\":%7B\"imgSize\":%5B15,15%5D,\"anchor\":%5B0,0.5%5D,\"fill\":%7B\"color\":\"rgba(255,0,0,0.1)\"%7D,\"stroke\":%7B\"color\":\"rgba(255,0,0,1)\",\"width\":0.1%7D,\"scale\":8,\"rotation\":0.7,\"img\":\"lock\"%7D%7D,%7B\"image\":%7B\"imgSize\":%5B15,15%5D,\"anchor\":%5B100,0.5%5D,\"anchorXUnits\":\"pixels\",\"fill\":%7B\"color\":\"rgba(0,255,0,0.4)\"%7D,\"stroke\":%7B\"color\":\"rgba(255,0,0,1)\",\"width\":0.1%7D,\"scale\":1.5,\"rotation\":0.7,\"img\":\"lock\"%7D%7D,%7B\"image\":%7B\"imgSize\":%5B15,15%5D,\"anchor\":%5B-10,0%5D,\"anchorXUnits\":\"pixels\",\"anchorOrigin\":\"top-right\",\"fill\":%7B\"color\":\"rgba(230,230,80,1)\"%7D,\"stroke\":%7B\"color\":\"rgba(0,0,0,1)\",\"width\":0.5%7D,\"scale\":2,\"rotation\":0.8,\"img\":\"lock\"%7D%7D%5D\n\n\n    style-viewer&geom=multipoint&style=icon/png\n\n    style-viewer&geom=polyline&style=stroke/dot\n\n    style-viewer&geom=polygon&style=fill/diagonal\n    style-viewer&geom=polygon&style=fill/horizontal,fill/vertical,stroke/dashdotdot\n    style-viewer&geom=polygon&style=stroke/solid,text/text\n    style-viewer&geom=polygon-with-holes&style=fill/cross,stroke/solid\n\n    style-viewer&geom=multipolygon&style=stroke/solid,fill/horizontal,text/text\n\n    style-to-canvas\n    polyline-encoder\n    image-data-viewer\n\n    mapmaker\n    mapmaker&background=light\n    mapmaker&geom=t`syzE}gm_dAm_@A?r@p@Bp@Hp@Ph@Td@Z`@`@Vb@Nd@xUABmF\n    mapmaker&geom=t`syzE}gm_dAm_@A?r@p@Bp@Hp@Ph@Td@Z`@`@Vb@Nd@xUABmF&color=yellow&background=dark&modify=1\n    \n    geocoder&modify=1\n\n    facebook\n    google-identity\n    index\n    ";
         var styles = document.createElement("style");
         document.head.appendChild(styles);
         styles.innerText += "\n    #map {\n        display: none;\n    }\n    .test {\n        margin: 20px;\n    }\n    ";
@@ -2316,6 +2316,355 @@ define("labs/index", ["require", "exports"], function (require, exports) {
     }
     exports.run = run;
     ;
+});
+define("ux/styles/star/flower", ["require", "exports"], function (require, exports) {
+    "use strict";
+    return [
+        {
+            "star": {
+                "fill": {
+                    "color": "rgba(106,9,251,0.7)"
+                },
+                "opacity": 1,
+                "stroke": {
+                    "color": "rgba(42,128,244,0.8)",
+                    "width": 8
+                },
+                "radius": 14,
+                "radius2": 9,
+                "points": 10
+            },
+            "text": {
+                "fill": {
+                    "color": "rgba(255,255,255,1)"
+                },
+                "stroke": {
+                    "color": "rgba(0,0,0,1)",
+                    "width": 2
+                },
+                "text": "Test",
+                "offset-x": 0,
+                "offset-y": 20,
+                "font": "18px fantasy"
+            }
+        }
+    ];
+});
+define("bower_components/ol3-layerswitcher/src/ol3-layerswitcher", ["require", "exports", "openlayers"], function (require, exports, ol) {
+    "use strict";
+    function defaults(a) {
+        var b = [];
+        for (var _i = 1; _i < arguments.length; _i++) {
+            b[_i - 1] = arguments[_i];
+        }
+        b.forEach(function (b) {
+            Object.keys(b).filter(function (k) { return a[k] === undefined; }).forEach(function (k) { return a[k] = b[k]; });
+        });
+        return a;
+    }
+    function asArray(list) {
+        var result = new Array(list.length);
+        for (var i = 0; i < list.length; i++) {
+            result.push(list[i]);
+        }
+        return result;
+    }
+    function allLayers(lyr) {
+        var result = [];
+        lyr.getLayers().forEach(function (lyr, idx, a) {
+            result.push(lyr);
+            if ("getLayers" in lyr) {
+                result = result.concat(allLayers(lyr));
+            }
+        });
+        return result;
+    }
+    function uuid() {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+            var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        });
+    }
+    var DEFAULT_OPTIONS = {
+        tipLabel: 'Layers',
+        openOnMouseOver: false,
+        closeOnMouseOut: false,
+        openOnClick: true,
+        closeOnClick: true,
+        className: 'layer-switcher',
+        target: null
+    };
+    var LayerSwitcher = (function (_super) {
+        __extends(LayerSwitcher, _super);
+        function LayerSwitcher(options) {
+            options = defaults(options || {}, DEFAULT_OPTIONS);
+            _super.call(this, options);
+            this.afterCreate(options);
+        }
+        LayerSwitcher.prototype.afterCreate = function (options) {
+            var _this = this;
+            this.hiddenClassName = "ol-unselectable ol-control " + options.className;
+            this.shownClassName = this.hiddenClassName + ' shown';
+            var element = document.createElement('div');
+            element.className = this.hiddenClassName;
+            var button = this.button = document.createElement('button');
+            button.setAttribute('title', options.tipLabel);
+            element.appendChild(button);
+            this.panel = document.createElement('div');
+            this.panel.className = 'panel';
+            element.appendChild(this.panel);
+            this.unwatch = [];
+            this.element = element;
+            this.setTarget(options.target);
+            if (options.openOnMouseOver) {
+                element.addEventListener("mouseover", function () { return _this.showPanel(); });
+            }
+            if (options.closeOnMouseOut) {
+                element.addEventListener("mouseout", function () { return _this.hidePanel(); });
+            }
+            if (options.openOnClick || options.closeOnClick) {
+                button.addEventListener('click', function (e) {
+                    _this.isVisible() ? options.closeOnClick && _this.hidePanel() : options.openOnClick && _this.showPanel();
+                    e.preventDefault();
+                });
+            }
+        };
+        LayerSwitcher.prototype.dispatch = function (name, args) {
+            var event = new Event(name);
+            args && Object.keys(args).forEach(function (k) { return event[k] = args[k]; });
+            this["dispatchEvent"](event);
+        };
+        LayerSwitcher.prototype.isVisible = function () {
+            return this.element.className != this.hiddenClassName;
+        };
+        LayerSwitcher.prototype.showPanel = function () {
+            if (this.element.className != this.shownClassName) {
+                this.element.className = this.shownClassName;
+                this.renderPanel();
+            }
+        };
+        LayerSwitcher.prototype.hidePanel = function () {
+            this.element.className = this.hiddenClassName;
+            this.unwatch.forEach(function (f) { return f(); });
+        };
+        LayerSwitcher.prototype.renderPanel = function () {
+            var _this = this;
+            this.ensureTopVisibleBaseLayerShown();
+            while (this.panel.firstChild) {
+                this.panel.removeChild(this.panel.firstChild);
+            }
+            var ul = document.createElement('ul');
+            this.panel.appendChild(ul);
+            this.state = [];
+            var map = this.getMap();
+            var view = map.getView();
+            this.renderLayers(map, ul);
+            {
+                var doit = function () {
+                    var res = view.getResolution();
+                    _this.state.filter(function (s) { return !!s.input; }).forEach(function (s) {
+                        var min = s.layer.getMinResolution();
+                        var max = s.layer.getMaxResolution();
+                        console.log(res, min, max, s.layer.get("title"));
+                        s.input.disabled = !(min <= res && (max === 0 || res < max));
+                    });
+                };
+                var h_1 = view.on("change:resolution", doit);
+                doit();
+                this.unwatch.push(function () { return view.unByKey(h_1); });
+            }
+        };
+        ;
+        LayerSwitcher.prototype.ensureTopVisibleBaseLayerShown = function () {
+            var visibleBaseLyrs = allLayers(this.getMap()).filter(function (l) { return l.get('type') === 'base' && l.getVisible(); });
+            if (visibleBaseLyrs.length)
+                this.setVisible(visibleBaseLyrs.shift(), true);
+        };
+        ;
+        LayerSwitcher.prototype.setVisible = function (lyr, visible) {
+            var _this = this;
+            if (lyr.getVisible() !== visible) {
+                if (visible && lyr.get('type') === 'base') {
+                    allLayers(this.getMap()).filter(function (l) { return l !== lyr && l.get('type') === 'base' && l.getVisible(); }).forEach(function (l) { return _this.setVisible(l, false); });
+                }
+                lyr.setVisible(visible);
+                this.dispatch(visible ? "show-layer" : "hide-layer", { layer: lyr });
+            }
+        };
+        ;
+        LayerSwitcher.prototype.renderLayer = function (lyr, container) {
+            var _this = this;
+            var result;
+            var li = document.createElement('li');
+            container.appendChild(li);
+            var lyrTitle = lyr.get('title');
+            var label = document.createElement('label');
+            label.htmlFor = uuid();
+            lyr.on('load:start', function () { return li.classList.add("loading"); });
+            lyr.on('load:end', function () { return li.classList.remove("loading"); });
+            li.classList.toggle("loading", true === lyr.get("loading"));
+            if ('getLayers' in lyr && !lyr.get('combine')) {
+                if (!lyr.get('label-only')) {
+                    var input_2 = result = document.createElement('input');
+                    input_2.id = label.htmlFor;
+                    input_2.type = 'checkbox';
+                    input_2.checked = lyr.getVisible();
+                    input_2.addEventListener('change', function () {
+                        ul_1.classList.toggle('hide-layer-group', !input_2.checked);
+                        _this.setVisible(lyr, input_2.checked);
+                        var childLayers = lyr.getLayers();
+                        _this.state.filter(function (s) { return s.container === ul_1 && s.input && s.input.checked; }).forEach(function (state) {
+                            _this.setVisible(state.layer, input_2.checked);
+                        });
+                    });
+                    li.appendChild(input_2);
+                }
+                li.classList.add('group');
+                label.innerHTML = lyrTitle;
+                li.appendChild(label);
+                var ul_1 = document.createElement('ul');
+                result && ul_1.classList.toggle('hide-layer-group', !result.checked);
+                li.appendChild(ul_1);
+                this.renderLayers(lyr, ul_1);
+            }
+            else {
+                li.classList.add('layer');
+                var input_3 = result = document.createElement('input');
+                input_3.id = label.htmlFor;
+                if (lyr.get('type') === 'base') {
+                    input_3.classList.add('basemap');
+                    input_3.type = 'radio';
+                    input_3.addEventListener("change", function () {
+                        if (input_3.checked) {
+                            asArray(_this.panel.getElementsByClassName("basemap")).filter(function (i) { return i.tagName === "INPUT"; }).forEach(function (i) {
+                                if (i.checked && i !== input_3)
+                                    i.checked = false;
+                            });
+                        }
+                        _this.setVisible(lyr, input_3.checked);
+                    });
+                }
+                else {
+                    input_3.type = 'checkbox';
+                    input_3.addEventListener("change", function () {
+                        _this.setVisible(lyr, input_3.checked);
+                    });
+                }
+                input_3.checked = lyr.get('visible');
+                li.appendChild(input_3);
+                label.innerHTML = lyrTitle;
+                li.appendChild(label);
+            }
+            this.state.push({
+                container: container,
+                input: result,
+                layer: lyr
+            });
+        };
+        LayerSwitcher.prototype.renderLayers = function (map, elm) {
+            var _this = this;
+            var lyrs = map.getLayers().getArray().slice().reverse();
+            return lyrs.filter(function (l) { return !!l.get('title'); }).forEach(function (l) { return _this.renderLayer(l, elm); });
+        };
+        return LayerSwitcher;
+    }(ol.control.Control));
+    exports.LayerSwitcher = LayerSwitcher;
+});
+define("labs/layerswitcher", ["require", "exports", "jquery", "openlayers", "labs/common/common", "alpha/format/ol3-symbolizer", "ux/styles/star/flower", "bower_components/ol3-layerswitcher/src/ol3-layerswitcher"], function (require, exports, $, ol, common_5, ol3_symbolizer_3, pointStyle, ol3_layerswitcher_1) {
+    "use strict";
+    var styler = new ol3_symbolizer_3.StyleConverter();
+    function parse(v, type) {
+        if (typeof type === "string")
+            return v;
+        if (typeof type === "number")
+            return parseFloat(v);
+        if (typeof type === "boolean")
+            return (v === "1" || v === "true");
+        if (Array.isArray(type)) {
+            return (v.split(",").map(function (v) { return parse(v, type[0]); }));
+        }
+        throw "unknown type: " + type;
+    }
+    var html = "\n<div class='popup'>\n    <div class='popup-container'>\n    </div>\n</div>\n";
+    var css = "\n<style name=\"popup\" type=\"text/css\">\n    html, body, .map {\n        width: 100%;\n        height: 100%;\n        padding: 0;\n        overflow: hidden;\n        margin: 0;    \n    }\n</style>\n";
+    var css_popup = "\n.popup-container {\n    position: absolute;\n    top: 1em;\n    right: 0.5em;\n    width: 10em;\n    bottom: 1em;\n    z-index: 1;\n    pointer-events: none;\n}\n\n.ol-popup {\n    color: white;\n    background-color: rgba(77,77,77,0.7);\n    min-width: 200px;\n}\n\n.ol-popup:after {\n    border-top-color: rgba(77,77,77,0.7);\n}\n\n";
+    function run() {
+        $(html).appendTo(".map");
+        $(css).appendTo("head");
+        var options = {
+            srs: 'EPSG:4326',
+            center: [-82.4, 34.85],
+            zoom: 15,
+            basemap: "bing"
+        };
+        {
+            var opts_4 = options;
+            Object.keys(opts_4).forEach(function (k) {
+                common_5.doif(common_5.getParameterByName(k), function (v) {
+                    var value = parse(v, opts_4[k]);
+                    if (value !== undefined)
+                        opts_4[k] = value;
+                });
+            });
+        }
+        var map = new ol.Map({
+            target: "map",
+            keyboardEventTarget: document,
+            loadTilesWhileAnimating: true,
+            loadTilesWhileInteracting: true,
+            controls: ol.control.defaults({ attribution: false }),
+            view: new ol.View({
+                projection: options.srs,
+                center: options.center,
+                zoom: options.zoom
+            }),
+            layers: [
+                new ol.layer.Tile({
+                    title: "OSM",
+                    type: 'base',
+                    opacity: 0.8,
+                    visible: true,
+                    source: new ol.source.OSM()
+                }),
+                new ol.layer.Tile({
+                    title: "Bing",
+                    type: 'base',
+                    opacity: 0.8,
+                    visible: false,
+                    source: new ol.source.BingMaps({
+                        key: 'AuPHWkNxvxVAL_8Z4G8Pcq_eOKGm5eITH_cJMNAyYoIC1S_29_HhE893YrUUbIGl',
+                        imagerySet: 'Aerial'
+                    })
+                })]
+        });
+        var features = new ol.Collection();
+        var source = new ol.source.Vector({
+            features: features
+        });
+        var layer = new ol.layer.Vector({
+            title: "Features",
+            source: source,
+            style: function (feature, resolution) {
+                var style = pointStyle.filter(function (p) { return p.text; })[0];
+                if (style) {
+                    style.text.text = feature.getGeometry().get("location") || "unknown location";
+                }
+                return pointStyle.map(function (s) { return styler.fromJson(s); });
+            }
+        });
+        map.addLayer(layer);
+        map.on("click", function (event) {
+            var location = event.coordinate.map(function (v) { return v.toFixed(5); }).join(", ");
+            var point = new ol.geom.Point(event.coordinate);
+            point.set("location", location);
+            var feature = new ol.Feature(point);
+            source.addFeature(feature);
+        });
+        var layerSwitcher = new ol3_layerswitcher_1.LayerSwitcher();
+        layerSwitcher.setMap(map);
+        return map;
+    }
+    exports.run = run;
 });
 define("labs/polyline-encoder", ["require", "exports", "jquery", "openlayers", "labs/common/ol3-polyline", "labs/common/google-polyline"], function (require, exports, $, ol, PolylineEncoder, GoogleEncoder) {
     "use strict";
@@ -2403,39 +2752,6 @@ define("labs/polyline-encoder", ["require", "exports", "jquery", "openlayers", "
             .change();
     }
     exports.run = run;
-});
-define("ux/styles/star/flower", ["require", "exports"], function (require, exports) {
-    "use strict";
-    return [
-        {
-            "star": {
-                "fill": {
-                    "color": "rgba(106,9,251,0.7)"
-                },
-                "opacity": 1,
-                "stroke": {
-                    "color": "rgba(42,128,244,0.8)",
-                    "width": 8
-                },
-                "radius": 14,
-                "radius2": 9,
-                "points": 10
-            },
-            "text": {
-                "fill": {
-                    "color": "rgba(255,255,255,1)"
-                },
-                "stroke": {
-                    "color": "rgba(0,0,0,1)",
-                    "width": 2
-                },
-                "text": "Test",
-                "offset-x": 0,
-                "offset-y": 20,
-                "font": "18px fantasy"
-            }
-        }
-    ];
 });
 define("bower_components/ol3-popup/src/paging/paging", ["require", "exports", "openlayers"], function (require, exports, ol) {
     "use strict";
@@ -2872,9 +3188,9 @@ define("bower_components/ol3-popup/src/ol3-popup", ["require", "exports", "jquer
     }(ol.Overlay));
     exports.Popup = Popup;
 });
-define("labs/popup", ["require", "exports", "jquery", "openlayers", "labs/common/common", "alpha/format/ol3-symbolizer", "ux/styles/star/flower", "bower_components/ol3-popup/src/ol3-popup"], function (require, exports, $, ol, common_5, ol3_symbolizer_3, pointStyle, ol3_popup_1) {
+define("labs/popup", ["require", "exports", "jquery", "openlayers", "labs/common/common", "alpha/format/ol3-symbolizer", "ux/styles/star/flower", "bower_components/ol3-popup/src/ol3-popup"], function (require, exports, $, ol, common_6, ol3_symbolizer_4, pointStyle, ol3_popup_1) {
     "use strict";
-    var styler = new ol3_symbolizer_3.StyleConverter();
+    var styler = new ol3_symbolizer_4.StyleConverter();
     function parse(v, type) {
         if (typeof type === "string")
             return v;
@@ -2900,12 +3216,12 @@ define("labs/popup", ["require", "exports", "jquery", "openlayers", "labs/common
             basemap: "bing"
         };
         {
-            var opts_4 = options;
-            Object.keys(opts_4).forEach(function (k) {
-                common_5.doif(common_5.getParameterByName(k), function (v) {
-                    var value = parse(v, opts_4[k]);
+            var opts_5 = options;
+            Object.keys(opts_5).forEach(function (k) {
+                common_6.doif(common_6.getParameterByName(k), function (v) {
+                    var value = parse(v, opts_5[k]);
                     if (value !== undefined)
-                        opts_4[k] = value;
+                        opts_5[k] = value;
                 });
             });
         }
@@ -2962,10 +3278,10 @@ define("labs/popup", ["require", "exports", "jquery", "openlayers", "labs/common
     }
     exports.run = run;
 });
-define("labs/route-editor", ["require", "exports", "openlayers", "alpha/format/ol3-symbolizer", "labs/common/common"], function (require, exports, ol, ol3_symbolizer_4, common_6) {
+define("labs/route-editor", ["require", "exports", "openlayers", "alpha/format/ol3-symbolizer", "labs/common/common"], function (require, exports, ol, ol3_symbolizer_5, common_7) {
     "use strict";
     var delta = 16;
-    var formatter = new ol3_symbolizer_4.StyleConverter();
+    var formatter = new ol3_symbolizer_5.StyleConverter();
     function fromJson(styles) {
         return styles.map(function (style) { return formatter.fromJson(style); });
     }
@@ -2986,7 +3302,7 @@ define("labs/route-editor", ["require", "exports", "openlayers", "alpha/format/o
         }]; };
     var Route = (function () {
         function Route(options) {
-            this.options = common_6.defaults(options, {
+            this.options = common_7.defaults(options, {
                 color: "black",
                 delta: delta,
                 stops: [],
@@ -3549,10 +3865,10 @@ define("ux/serializers/ags-simplemarkersymbol", ["require", "exports", "openlaye
     }());
     exports.SimpleMarkerConverter = SimpleMarkerConverter;
 });
-define("labs/style-lab", ["require", "exports", "openlayers", "jquery", "alpha/format/ol3-symbolizer", "ux/serializers/ags-simplemarkersymbol", "labs/common/style-generator"], function (require, exports, ol, $, ol3_symbolizer_5, AgsMarkerSerializer, StyleGenerator) {
+define("labs/style-lab", ["require", "exports", "openlayers", "jquery", "alpha/format/ol3-symbolizer", "ux/serializers/ags-simplemarkersymbol", "labs/common/style-generator"], function (require, exports, ol, $, ol3_symbolizer_6, AgsMarkerSerializer, StyleGenerator) {
     "use strict";
     var center = [-82.4, 34.85];
-    var formatter = new ol3_symbolizer_5.StyleConverter();
+    var formatter = new ol3_symbolizer_6.StyleConverter();
     var generator = new StyleGenerator({
         center: center,
         fromJson: function (json) { return formatter.fromJson(json); }
@@ -3568,7 +3884,7 @@ define("labs/style-lab", ["require", "exports", "openlayers", "jquery", "alpha/f
                 formatter = new AgsMarkerSerializer.SimpleMarkerConverter();
             }
             else {
-                formatter = new ol3_symbolizer_5.StyleConverter();
+                formatter = new ol3_symbolizer_6.StyleConverter();
             }
         }).change();
         var map = new ol.Map({
@@ -3723,7 +4039,7 @@ define("ux/styles/icon/png", ["require", "exports"], function (require, exports)
         }
     ];
 });
-define("labs/style-viewer", ["require", "exports", "openlayers", "jquery", "labs/common/snapshot", "labs/common/common", "alpha/format/ol3-symbolizer", "ux/styles/icon/png"], function (require, exports, ol, $, Snapshot, common_7, ol3_symbolizer_6, pointStyle) {
+define("labs/style-viewer", ["require", "exports", "openlayers", "jquery", "labs/common/snapshot", "labs/common/common", "alpha/format/ol3-symbolizer", "ux/styles/icon/png"], function (require, exports, ol, $, Snapshot, common_8, ol3_symbolizer_7, pointStyle) {
     "use strict";
     var html = "\n<div class='style-to-canvas'>\n    <h3>Renders a feature on a canvas</h3>\n    <div class=\"area\">\n        <label>256 x 256 Canvas</label>\n        <div id='canvas-collection'></div>\n    </div>\n    <div class=\"area\">\n        <label>Style</label>\n        <textarea class='style'></textarea>\n        <button class=\"save\">Save</button>\n    </div>\n    <div class=\"area\">\n        <label>Potential control for setting linear gradient start/stop locations</label>\n        <div class=\"colorramp\">\n            <input class=\"top\" type=\"range\" min=\"0\" max=\"100\" value=\"20\"/>\n            <input class=\"bottom\" type=\"range\" min=\"0\" max=\"100\" value=\"80\"/>\n        </div>\n    </div>\n</div>\n";
     var css = "\n<style>\n    #map {\n        display: none;\n    }\n\n    .style-to-canvas {\n    }\n\n    .style-to-canvas .area label {\n        display: block;\n        vertical-align: top;\n    }\n\n    .style-to-canvas .area {\n        border: 1px solid black;\n        padding: 20px;\n        margin: 20px;\n    }\n\n    .style-to-canvas .area .style {\n        width: 100%;\n        height: 400px;\n    }\n\n    .style-to-canvas #canvas-collection canvas {\n        font-family: sans serif;\n        font-size: 20px;\n        border: 1px solid black;\n        padding: 20px;\n        margin: 20px;\n    }\n\n    div.colorramp {\n        display: inline-block;\n        background: linear-gradient(to right, rgba(250,0,0,0), rgba(250,0,0,1) 60%, rgba(250,100,0,1) 85%, rgb(250,250,0) 95%);\n        width:100%;\n    }\n\n    div.colorramp > input[type=range] {\n        -webkit-appearance: slider-horizontal;\n        display:block;\n        width:100%;\n        background-color:transparent;\n    }\n\n    div.colorramp > label {\n        display: inline-block;\n    }\n\n    div.colorramp > input[type='range'] {\n        box-shadow: 0 0 0 white;\n    }\n\n    div.colorramp > input[type=range]::-webkit-slider-runnable-track {\n        height: 0px;     \n    }\n\n    div.colorramp > input[type='range'].top::-webkit-slider-thumb {\n        margin-top: -10px;\n    }\n\n    div.colorramp > input[type='range'].bottom::-webkit-slider-thumb {\n        margin-top: -12px;\n    }\n    \n</style>\n";
@@ -3762,7 +4078,7 @@ define("labs/style-viewer", ["require", "exports", "openlayers", "jquery", "labs
     var styles = {
         point: pointStyle
     };
-    var serializer = new ol3_symbolizer_6.StyleConverter();
+    var serializer = new ol3_symbolizer_7.StyleConverter();
     var Renderer = (function () {
         function Renderer(geom) {
             this.feature = new ol.Feature(geom);
@@ -3788,8 +4104,8 @@ define("labs/style-viewer", ["require", "exports", "openlayers", "jquery", "labs
         $(html).appendTo("body");
         $(svg).appendTo("body");
         $(css).appendTo("head");
-        var geom = common_7.getParameterByName("geom") || "polygon-with-holes";
-        var style = common_7.getParameterByName("style") || "fill/gradient";
+        var geom = common_8.getParameterByName("geom") || "polygon-with-holes";
+        var style = common_8.getParameterByName("style") || "fill/gradient";
         $(".save").click(function () {
             var style = JSON.stringify(JSON.parse($(".style").val()));
             var loc = window.location;
