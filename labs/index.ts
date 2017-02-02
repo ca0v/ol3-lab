@@ -3,6 +3,8 @@ export function run() {
     let path = `${l.origin}${l.pathname}?run=labs/`;
     let labs = `
     popup
+    layerswitcher
+    
     style-lab
 
     style-viewer
