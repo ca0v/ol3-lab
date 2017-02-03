@@ -4,6 +4,7 @@ import { doif, getParameterByName } from "./common/common";
 import { StyleConverter } from "../alpha/format/ol3-symbolizer";
 import pointStyle = require("../ux/styles/star/flower");
 import { LayerSwitcher } from "../bower_components/ol3-layerswitcher/src/ol3-layerswitcher";
+import { ArcGisVectorSourceFactory } from "../alpha/arcgis-source";
 
 let styler = new StyleConverter();
 
@@ -66,9 +67,8 @@ export function run() {
 
     let options = {
         srs: 'EPSG:4326',
-        center: <[number, number]>[-82.4, 34.85],
-        zoom: 15,
-        basemap: "bing"
+        center: <[number, number]>[-97.4, 37.8],
+        zoom: 10
     }
 
     {
@@ -105,7 +105,7 @@ export function run() {
                 type: 'base',
                 opacity: 0.8,
                 visible: false,
-                source:new ol.source.BingMaps({
+                source: new ol.source.BingMaps({
                     key: 'AuPHWkNxvxVAL_8Z4G8Pcq_eOKGm5eITH_cJMNAyYoIC1S_29_HhE893YrUUbIGl',
                     imagerySet: 'Aerial'
                 })
@@ -131,8 +131,6 @@ export function run() {
         }
     });
 
-    map.addLayer(layer);
-
     map.on("click", (event: {
         coordinate: [number, number];
     }) => {
@@ -143,8 +141,23 @@ export function run() {
         source.addFeature(feature);
     });
 
-    let layerSwitcher = new LayerSwitcher();
-    layerSwitcher.setMap(map);
+    ArcGisVectorSourceFactory.create({
+        title: "Petro",
+        tileSize: 256,
+        map: map,
+        services: "https://sampleserver3.arcgisonline.com/ArcGIS/rest/services",
+        serviceName: "Petroleum/KSFields",
+        layer: 0
+    }).then(agsLayer => {
+        
+        map.addLayer(agsLayer);
+        map.addLayer(layer);
+
+        let layerSwitcher = new LayerSwitcher();
+        layerSwitcher.setMap(map);
+
+    });
+
 
     return map;
 

@@ -3,7 +3,7 @@
         "removeComments": true,
         "declaration": false,
         "module": "amd",
-        "target": "es5",
+        "target": "es3",
         "noImplicitAny": true,
         "sourceMap": true,
         "outFile": "./built/run.js",
