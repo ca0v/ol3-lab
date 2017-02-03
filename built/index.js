@@ -869,6 +869,7 @@ define("alpha/arcgis-source", ["require", "exports", "jquery", "openlayers", "bo
                     spatialRel: "esriSpatialRelIntersects",
                     geometry: encodeURIComponent(JSON.stringify(box)),
                     geometryType: "esriGeometryEnvelope",
+                    resultType: "tile",
                     inSR: srs,
                     outSR: srs,
                     outFields: "*"
@@ -2983,198 +2984,6 @@ define("bower_components/ol3-layerswitcher/src/ol3-layerswitcher", ["require", "
     }(ol.control.Control));
     exports.LayerSwitcher = LayerSwitcher;
 });
-define("labs/layerswitcher", ["require", "exports", "jquery", "openlayers", "labs/common/common", "alpha/format/ol3-symbolizer", "ux/styles/star/flower", "bower_components/ol3-layerswitcher/src/ol3-layerswitcher", "alpha/arcgis-source"], function (require, exports, $, ol, common_5, ol3_symbolizer_3, pointStyle, ol3_layerswitcher_1, arcgis_source_1) {
-    "use strict";
-    var styler = new ol3_symbolizer_3.StyleConverter();
-    function parse(v, type) {
-        if (typeof type === "string")
-            return v;
-        if (typeof type === "number")
-            return parseFloat(v);
-        if (typeof type === "boolean")
-            return (v === "1" || v === "true");
-        if (Array.isArray(type)) {
-            return (v.split(",").map(function (v) { return parse(v, type[0]); }));
-        }
-        throw "unknown type: " + type;
-    }
-    var html = "\n<div class='popup'>\n    <div class='popup-container'>\n    </div>\n</div>\n";
-    var css = "\n<style name=\"popup\" type=\"text/css\">\n    html, body, .map {\n        width: 100%;\n        height: 100%;\n        padding: 0;\n        overflow: hidden;\n        margin: 0;    \n    }\n</style>\n";
-    var css_popup = "\n.popup-container {\n    position: absolute;\n    top: 1em;\n    right: 0.5em;\n    width: 10em;\n    bottom: 1em;\n    z-index: 1;\n    pointer-events: none;\n}\n\n.ol-popup {\n    color: white;\n    background-color: rgba(77,77,77,0.7);\n    min-width: 200px;\n}\n\n.ol-popup:after {\n    border-top-color: rgba(77,77,77,0.7);\n}\n\n";
-    function run() {
-        $(html).appendTo(".map");
-        $(css).appendTo("head");
-        var options = {
-            srs: 'EPSG:4326',
-            center: [-97.4, 37.8],
-            zoom: 10
-        };
-        {
-            var opts_4 = options;
-            Object.keys(opts_4).forEach(function (k) {
-                common_5.doif(common_5.getParameterByName(k), function (v) {
-                    var value = parse(v, opts_4[k]);
-                    if (value !== undefined)
-                        opts_4[k] = value;
-                });
-            });
-        }
-        var map = new ol.Map({
-            target: "map",
-            keyboardEventTarget: document,
-            loadTilesWhileAnimating: true,
-            loadTilesWhileInteracting: true,
-            controls: ol.control.defaults({ attribution: false }),
-            view: new ol.View({
-                projection: options.srs,
-                center: options.center,
-                zoom: options.zoom
-            }),
-            layers: [
-                new ol.layer.Tile({
-                    title: "OSM",
-                    type: 'base',
-                    opacity: 0.8,
-                    visible: true,
-                    source: new ol.source.OSM()
-                }),
-                new ol.layer.Tile({
-                    title: "Bing",
-                    type: 'base',
-                    opacity: 0.8,
-                    visible: false,
-                    source: new ol.source.BingMaps({
-                        key: 'AuPHWkNxvxVAL_8Z4G8Pcq_eOKGm5eITH_cJMNAyYoIC1S_29_HhE893YrUUbIGl',
-                        imagerySet: 'Aerial'
-                    })
-                })]
-        });
-        var features = new ol.Collection();
-        var source = new ol.source.Vector({
-            features: features
-        });
-        var layer = new ol.layer.Vector({
-            title: "Features",
-            source: source,
-            style: function (feature, resolution) {
-                var style = pointStyle.filter(function (p) { return p.text; })[0];
-                if (style) {
-                    style.text.text = feature.getGeometry().get("location") || "unknown location";
-                }
-                return pointStyle.map(function (s) { return styler.fromJson(s); });
-            }
-        });
-        map.on("click", function (event) {
-            var location = event.coordinate.map(function (v) { return v.toFixed(5); }).join(", ");
-            var point = new ol.geom.Point(event.coordinate);
-            point.set("location", location);
-            var feature = new ol.Feature(point);
-            source.addFeature(feature);
-        });
-        arcgis_source_1.ArcGisVectorSourceFactory.create({
-            title: "Petro",
-            tileSize: 256,
-            map: map,
-            services: "https://sampleserver3.arcgisonline.com/ArcGIS/rest/services",
-            serviceName: "Petroleum/KSFields",
-            layer: 0
-        }).then(function (agsLayer) {
-            map.addLayer(agsLayer);
-            map.addLayer(layer);
-            var layerSwitcher = new ol3_layerswitcher_1.LayerSwitcher();
-            layerSwitcher.setMap(map);
-        });
-        return map;
-    }
-    exports.run = run;
-});
-define("labs/polyline-encoder", ["require", "exports", "jquery", "openlayers", "labs/common/ol3-polyline", "labs/common/google-polyline"], function (require, exports, $, ol, PolylineEncoder, GoogleEncoder) {
-    "use strict";
-    var PRECISION = 6;
-    var css = "\n<style>\n    .polyline-encoder .area {\n        margin: 20px;\n    }\n\n    .polyline-encoder .area p {\n        font-size: smaller;\n    }\n\n    .polyline-encoder .area canvas {\n        vertical-align: top;\n    }\n\n    .polyline-encoder .area label {\n        display: block;\n        margin: 10px;\n        border-bottom: 1px solid black;\n    }\n\n    .polyline-encoder .area textarea {\n        min-width: 400px;\n        min-height: 200px;\n    }\n</style>\n";
-    var ux = "\n<div class='polyline-encoder'>\n    <p>\n    Demonstrates simplifying a geometry and then encoding it.  Enter an Input Geometry (e.g. [[1,2],[3,4]]) and watch the magic happen\n    </p>\n\n    <div class='input area'>\n        <label>Input Geometry</label>\n        <p>Enter a geometry here as an array of points in the form [[x1,y1], [x2,y2], ..., [xn, yn]]</p>\n        <textarea></textarea>\n        <canvas></canvas>\n    </div>\n\n    <div class='simplified area'>\n        <label>Simplified Geometry</label>\n        <p>This is a 'simplified' version of the Input Geometry.  \n        You can also enter a geometry here as an array of points in the form [[x1,y1], [x2,y2], ..., [xn, yn]]</p>\n        <textarea></textarea>\n        <canvas></canvas>\n    </div>\n\n    <div class='encoded area'>\n        <label>Encoded Simplified Geometry</label>\n        <p>This is an encoding of the Simplified Geometry.  You can also enter an encoded value here</p>\n        <textarea>[encoding]</textarea>\n        <div>Use google encoder?</div>\n        <input type='checkbox' id='use-google' />\n        <p>Ported to Typescript from https://github.com/DeMoehn/Cloudant-nyctaxi/blob/master/app/js/polyline.js</p>\n    </div>\n\n    <div class='decoded area'>\n        <label>Decoded Simplified Geometry</label>\n        <p>This is the decoding of the Encoded Geometry</p>\n        <textarea>[decoded]</textarea>\n        <canvas></canvas>\n    </div>\n\n</div>\n";
-    var encoder;
-    var sample_input = [
-        [-115.25532322799027, 36.18318333413792], [-115.25480459088912, 36.18318418322269], [-115.25480456865377, 36.18318418316166], [-115.25480483306748, 36.1831581364999], [-115.25480781267404, 36.18315812665095], [-115.2548095138256, 36.183158095267615], [-115.25481120389723, 36.183158054840916], [-115.2548128940441, 36.18315799638853], [-115.2548145842662, 36.18315791991047], [-115.25481628564361, 36.18315783445006], [-115.25481797597863, 36.18315773093339], [-115.25481965527126, 36.18315760936059], [-115.25482134571912, 36.18315747880541], [-115.2548230362423, 36.18315733022459], [-115.25482471568543, 36.183157172600346], [-115.25482639524148, 36.183156987937565], [-115.25482807479749, 36.183156803274784], [-115.25482974334876, 36.183156591542996], [-115.2548314230553, 36.18315637082881], [-115.25483309171943, 36.18315613205847], [-115.25483476042122, 36.183155884275266], [-115.25483641808054, 36.18315561843585], [-115.25483807581516, 36.18315533457071], [-115.25483973358743, 36.18315504169277], [-115.25484138031726, 36.183154730758616], [-115.25484302712233, 36.18315440179879], [-115.25484467396501, 36.183154063826066], [-115.25484630976528, 36.1831537077972], [-115.2548479456032, 36.18315334275542], [-115.25484957043632, 36.183152950644654], [-115.25485119526944, 36.183152558533834], [-115.25485280906014, 36.183152148366815], [-115.2548544229261, 36.18315172017415], [-115.2548560257496, 36.18315127392525], [-115.25485762861075, 36.18315081866349], [-115.25485922039188, 36.18315035435842], [-115.25486081224824, 36.18314987202764], [-115.25486239306215, 36.183149371640624], [-115.25486396279601, 36.1831488622103], [-115.25486553260517, 36.18314833475428], [-115.2548670913342, 36.18314779825488], [-115.25486863902088, 36.183147243699295], [-115.25487018674515, 36.18314668013086], [-115.25487172342703, 36.18314609850624], [-115.25487324902879, 36.18314550783829], [-115.25487476358818, 36.18314489911408], [-115.25487627818518, 36.18314428137708], [-115.25487778173971, 36.18314364558384], [-115.25487928533187, 36.18314300077779], [-115.25488076676396, 36.18314233788503], [-115.25488224823366, 36.183141665979406], [-115.25488370754327, 36.1831409759871], [-115.25488516689049, 36.18314027698193], [-115.25488661519529, 36.183139559920576], [-115.25488805238238, 36.183138842828726], [-115.25488948968233, 36.183138098698365], [-115.2548909047846, 36.18313734549412], [-115.25489231992445, 36.18313658327705], [-115.25489371286662, 36.18313581198606], [-115.25489510588402, 36.18313502266943], [-115.25489647670366, 36.183134224279], [-115.25489784759858, 36.18313340786281], [-115.25489919629575, 36.18313258237279], [-115.25490054503052, 36.18313174786991], [-115.25490187156761, 36.18313090429319], [-115.25490319817993, 36.18313004269079], [-115.25490450259451, 36.183129172014546], [-115.25490580704671, 36.183128292325435], [-115.25490708933879, 36.18312739454964], [-115.25490836055086, 36.18312648773055], [-115.25490962068287, 36.183125571868075], [-115.25491086973481, 36.18312464696224], [-115.25491210774435, 36.183123704000224], [-115.25491332355611, 36.18312275196436], [-115.25491453940552, 36.183121790915635], [-115.25491573305723, 36.18312082079315], [-115.25491691562885, 36.183119841627246], [-115.25491808715805, 36.18311884440516], [-115.25491924756955, 36.18311784715259], [-115.25492038582102, 36.18311683181332], [-115.2549215129924, 36.18311580743071], [-115.25492262908377, 36.183114774004764], [-115.25492373409503, 36.18311373153546], [-115.25492481690861, 36.183112679992306], [-115.2549258886421, 36.18311161940585], [-115.25492694929561, 36.183110549776046], [-115.25492798775133, 36.183109471072356], [-115.25492901516465, 36.183108374312525], [-115.25493003146033, 36.1831072775222], [-115.25493102555829, 36.18310617165801], [-115.25493200857615, 36.18310505675048], [-115.25493298051404, 36.183103932799625], [-115.25493393025415, 36.18310279977493], [-115.25493486891426, 36.18310165770687], [-115.25493579649431, 36.183100506595494], [-115.25493670187666, 36.18309934641027], [-115.25493759614129, 36.18309818619454], [-115.25493846824591, 36.183097007892144], [-115.25493931811518, 36.18309582952875], [-115.25494016802205, 36.183094642152525], [-115.25494099573123, 36.18309344570244], [-115.25494180124268, 36.18309224017851], [-115.25494259567414, 36.183091025611276], [-115.25494336787024, 36.18308981098305], [-115.25494412898631, 36.183088587311474], [-115.2549448790223, 36.183087354596566], [-115.25494560682303, 36.18308612182065], [-115.25494631246364, 36.18308487095804], [-115.25494700698661, 36.18308362006498], [-115.25494767927427, 36.18308236911088], [-115.2549483404819, 36.18308110911343], [-115.25494897949177, 36.183079840042225], [-115.25494960742166, 36.183078561927644], [-115.25495021311626, 36.183077283752056], [-115.25495080769318, 36.183076005545956], [-115.25495138011001, 36.18307470925323], [-115.25495193025388, 36.183073421912326], [-115.25495246935542, 36.18307211651528], [-115.25495298618397, 36.18307082007], [-115.25495349197016, 36.183069505568625], [-115.2549539754834, 36.183068200019065], [-115.25495443679894, 36.18306688539569], [-115.25495488703444, 36.183065561728924], [-115.25495531503466, 36.183064238001236], [-115.25495573195485, 36.18306290523016], [-115.2553212003638, 36.183064339787606], [-115.25532322799027, 36.18318333413792]
-    ];
-    function updateEncoder() {
-        var input = $(".simplified textarea")[0];
-        var geom = new ol.geom.LineString(JSON.parse(input.value));
-        var encoded = encoder.encode(geom.getCoordinates(), PRECISION);
-        $(".encoded textarea").val(encoded).change();
-    }
-    function updateDecoder() {
-        var input = $(".encoded textarea")[0];
-        $(".decoded textarea").val(JSON.stringify(encoder.decode(input.value, PRECISION))).change();
-        updateCanvas(".decoded canvas", ".decoded textarea");
-    }
-    function updateCanvas(canvas_id, features_id) {
-        var canvas = $(canvas_id)[0];
-        canvas.width = canvas.height = 200;
-        var geom = new ol.geom.LineString(JSON.parse($(features_id)[0].value));
-        var extent = geom.getExtent();
-        var scale = (function () {
-            var _a = [ol.extent.getWidth(extent), ol.extent.getHeight(extent)], w = _a[0], h = _a[1];
-            var _b = ol.extent.getCenter(extent), x0 = _b[0], y0 = _b[1];
-            var _c = [canvas.width / 2, canvas.height / 2], dx = _c[0], dy = _c[1];
-            var _d = [dx / w, dy / h], sx = _d[0], sy = _d[1];
-            return function (x, y) {
-                return [sx * (x - x0) + dx, -sy * (y - y0) + dy];
-            };
-        })();
-        var c = canvas.getContext("2d");
-        c.beginPath();
-        {
-            c.strokeStyle = "#000000";
-            c.lineWidth = 1;
-            geom.getCoordinates().forEach(function (p, i) {
-                var _a = scale(p[0], p[1]), x = _a[0], y = _a[1];
-                console.log(x, y);
-                (i === 0) && c.moveTo(x, y);
-                c.lineTo(x, y);
-            });
-            c.stroke();
-            c.closePath();
-        }
-        c.beginPath();
-        {
-            c.strokeStyle = "#FF0000";
-            c.lineWidth = 1;
-            geom.getCoordinates().forEach(function (p, i) {
-                var _a = scale(p[0], p[1]), x = _a[0], y = _a[1];
-                c.moveTo(x, y);
-                c.rect(x, y, 1, 1);
-            });
-            c.stroke();
-            c.closePath();
-        }
-    }
-    function run() {
-        $(css).appendTo("head");
-        $(ux).appendTo(".map");
-        $("#use-google").change(function (args) {
-            encoder = $("#use-google:checked").length ? new GoogleEncoder() : new PolylineEncoder(6, 2);
-            $(".simplified textarea").change();
-        }).change();
-        $(".encoded textarea").change(updateDecoder);
-        $(".simplified textarea").change(function () {
-            updateCanvas(".simplified canvas", ".simplified textarea");
-            updateEncoder();
-        });
-        $(".input textarea")
-            .val(JSON.stringify(sample_input))
-            .change(function (args) {
-            var input = $(".input textarea")[0];
-            var coords = JSON.parse("" + input.value);
-            var geom = new ol.geom.LineString(coords);
-            geom = geom.simplify(Math.pow(10, -PRECISION));
-            $(".simplified textarea").val(JSON.stringify(geom.getCoordinates())).change();
-            updateCanvas(".input canvas", ".input textarea");
-        })
-            .change();
-    }
-    exports.run = run;
-});
 define("bower_components/ol3-popup/src/paging/paging", ["require", "exports", "openlayers"], function (require, exports, ol) {
     "use strict";
     function getInteriorPoint(geom) {
@@ -3610,7 +3419,202 @@ define("bower_components/ol3-popup/src/ol3-popup", ["require", "exports", "jquer
     }(ol.Overlay));
     exports.Popup = Popup;
 });
-define("labs/popup", ["require", "exports", "jquery", "openlayers", "labs/common/common", "alpha/format/ol3-symbolizer", "ux/styles/star/flower", "bower_components/ol3-popup/src/ol3-popup"], function (require, exports, $, ol, common_6, ol3_symbolizer_4, pointStyle, ol3_popup_1) {
+define("labs/layerswitcher", ["require", "exports", "jquery", "openlayers", "labs/common/common", "alpha/format/ol3-symbolizer", "bower_components/ol3-layerswitcher/src/ol3-layerswitcher", "bower_components/ol3-popup/src/ol3-popup", "alpha/arcgis-source"], function (require, exports, $, ol, common_5, ol3_symbolizer_3, ol3_layerswitcher_1, ol3_popup_1, arcgis_source_1) {
+    "use strict";
+    var styler = new ol3_symbolizer_3.StyleConverter();
+    function parse(v, type) {
+        if (typeof type === "string")
+            return v;
+        if (typeof type === "number")
+            return parseFloat(v);
+        if (typeof type === "boolean")
+            return (v === "1" || v === "true");
+        if (Array.isArray(type)) {
+            return (v.split(",").map(function (v) { return parse(v, type[0]); }));
+        }
+        throw "unknown type: " + type;
+    }
+    var html = "\n<div class='popup'>\n    <div class='popup-container'>\n    </div>\n</div>\n";
+    var css = "\n<style name=\"popup\" type=\"text/css\">\n    html, body, .map {\n        width: 100%;\n        height: 100%;\n        padding: 0;\n        overflow: hidden;\n        margin: 0;    \n    }\n</style>\n";
+    var css_popup = "\n.popup-container {\n    position: absolute;\n    top: 1em;\n    right: 0.5em;\n    width: 10em;\n    bottom: 1em;\n    z-index: 1;\n    pointer-events: none;\n}\n\n.ol-popup {\n    color: white;\n    background-color: rgba(77,77,77,0.7);\n    min-width: 200px;\n}\n\n.ol-popup:after {\n    border-top-color: rgba(77,77,77,0.7);\n}\n\n";
+    function run() {
+        $(html).appendTo(".map");
+        $(css).appendTo("head");
+        var options = {
+            srs: 'EPSG:4326',
+            center: [-97.4, 37.8],
+            zoom: 10
+        };
+        {
+            var opts_4 = options;
+            Object.keys(opts_4).forEach(function (k) {
+                common_5.doif(common_5.getParameterByName(k), function (v) {
+                    var value = parse(v, opts_4[k]);
+                    if (value !== undefined)
+                        opts_4[k] = value;
+                });
+            });
+        }
+        var map = new ol.Map({
+            target: "map",
+            keyboardEventTarget: document,
+            loadTilesWhileAnimating: true,
+            loadTilesWhileInteracting: true,
+            controls: ol.control.defaults({ attribution: false }),
+            view: new ol.View({
+                projection: options.srs,
+                center: options.center,
+                zoom: options.zoom
+            }),
+            layers: [
+                new ol.layer.Tile({
+                    title: "OSM",
+                    type: 'base',
+                    opacity: 0.8,
+                    visible: true,
+                    source: new ol.source.OSM()
+                }),
+                new ol.layer.Tile({
+                    title: "Bing",
+                    type: 'base',
+                    opacity: 0.8,
+                    visible: false,
+                    source: new ol.source.BingMaps({
+                        key: 'AuPHWkNxvxVAL_8Z4G8Pcq_eOKGm5eITH_cJMNAyYoIC1S_29_HhE893YrUUbIGl',
+                        imagerySet: 'Aerial'
+                    })
+                })]
+        });
+        arcgis_source_1.ArcGisVectorSourceFactory.create({
+            title: "Petro",
+            tileSize: 1024,
+            map: map,
+            services: "https://sampleserver3.arcgisonline.com/ArcGIS/rest/services",
+            serviceName: "Petroleum/KSFields",
+            layer: 0
+        }).then(function (agsLayer) {
+            map.addLayer(agsLayer);
+            var layerSwitcher = new ol3_layerswitcher_1.LayerSwitcher();
+            layerSwitcher.setMap(map);
+            var popup = new ol3_popup_1.Popup({
+                css: "\n            .ol-popup {\n                background-color: white;\n            }\n            .ol-popup .page {\n                max-height: 200px;\n                overflow-y: auto;\n            }\n            "
+            });
+            map.addOverlay(popup);
+            map.on("click", function (event) {
+                console.log("click");
+                var coord = event.coordinate;
+                popup.hide();
+                var pageNum = 0;
+                map.forEachFeatureAtPixel(event.pixel, function (feature, layer) {
+                    var page = document.createElement('p');
+                    var keys = Object.keys(feature.getProperties()).filter(function (key) {
+                        var v = feature.get(key);
+                        if (typeof v === "string")
+                            return true;
+                        if (typeof v === "number")
+                            return true;
+                        return false;
+                    });
+                    page.title = "" + ++pageNum;
+                    page.innerHTML = "<table>" + keys.map(function (k) { return ("<tr><td>" + k + "</td><td>" + feature.get(k) + "</td></tr>"); }).join("") + "</table>";
+                    popup.pages.add(page, feature.getGeometry());
+                });
+                popup.show(coord, "<label>" + pageNum + " Features Found</label>");
+                popup.pages.goto(0);
+            });
+        });
+        return map;
+    }
+    exports.run = run;
+});
+define("labs/polyline-encoder", ["require", "exports", "jquery", "openlayers", "labs/common/ol3-polyline", "labs/common/google-polyline"], function (require, exports, $, ol, PolylineEncoder, GoogleEncoder) {
+    "use strict";
+    var PRECISION = 6;
+    var css = "\n<style>\n    .polyline-encoder .area {\n        margin: 20px;\n    }\n\n    .polyline-encoder .area p {\n        font-size: smaller;\n    }\n\n    .polyline-encoder .area canvas {\n        vertical-align: top;\n    }\n\n    .polyline-encoder .area label {\n        display: block;\n        margin: 10px;\n        border-bottom: 1px solid black;\n    }\n\n    .polyline-encoder .area textarea {\n        min-width: 400px;\n        min-height: 200px;\n    }\n</style>\n";
+    var ux = "\n<div class='polyline-encoder'>\n    <p>\n    Demonstrates simplifying a geometry and then encoding it.  Enter an Input Geometry (e.g. [[1,2],[3,4]]) and watch the magic happen\n    </p>\n\n    <div class='input area'>\n        <label>Input Geometry</label>\n        <p>Enter a geometry here as an array of points in the form [[x1,y1], [x2,y2], ..., [xn, yn]]</p>\n        <textarea></textarea>\n        <canvas></canvas>\n    </div>\n\n    <div class='simplified area'>\n        <label>Simplified Geometry</label>\n        <p>This is a 'simplified' version of the Input Geometry.  \n        You can also enter a geometry here as an array of points in the form [[x1,y1], [x2,y2], ..., [xn, yn]]</p>\n        <textarea></textarea>\n        <canvas></canvas>\n    </div>\n\n    <div class='encoded area'>\n        <label>Encoded Simplified Geometry</label>\n        <p>This is an encoding of the Simplified Geometry.  You can also enter an encoded value here</p>\n        <textarea>[encoding]</textarea>\n        <div>Use google encoder?</div>\n        <input type='checkbox' id='use-google' />\n        <p>Ported to Typescript from https://github.com/DeMoehn/Cloudant-nyctaxi/blob/master/app/js/polyline.js</p>\n    </div>\n\n    <div class='decoded area'>\n        <label>Decoded Simplified Geometry</label>\n        <p>This is the decoding of the Encoded Geometry</p>\n        <textarea>[decoded]</textarea>\n        <canvas></canvas>\n    </div>\n\n</div>\n";
+    var encoder;
+    var sample_input = [
+        [-115.25532322799027, 36.18318333413792], [-115.25480459088912, 36.18318418322269], [-115.25480456865377, 36.18318418316166], [-115.25480483306748, 36.1831581364999], [-115.25480781267404, 36.18315812665095], [-115.2548095138256, 36.183158095267615], [-115.25481120389723, 36.183158054840916], [-115.2548128940441, 36.18315799638853], [-115.2548145842662, 36.18315791991047], [-115.25481628564361, 36.18315783445006], [-115.25481797597863, 36.18315773093339], [-115.25481965527126, 36.18315760936059], [-115.25482134571912, 36.18315747880541], [-115.2548230362423, 36.18315733022459], [-115.25482471568543, 36.183157172600346], [-115.25482639524148, 36.183156987937565], [-115.25482807479749, 36.183156803274784], [-115.25482974334876, 36.183156591542996], [-115.2548314230553, 36.18315637082881], [-115.25483309171943, 36.18315613205847], [-115.25483476042122, 36.183155884275266], [-115.25483641808054, 36.18315561843585], [-115.25483807581516, 36.18315533457071], [-115.25483973358743, 36.18315504169277], [-115.25484138031726, 36.183154730758616], [-115.25484302712233, 36.18315440179879], [-115.25484467396501, 36.183154063826066], [-115.25484630976528, 36.1831537077972], [-115.2548479456032, 36.18315334275542], [-115.25484957043632, 36.183152950644654], [-115.25485119526944, 36.183152558533834], [-115.25485280906014, 36.183152148366815], [-115.2548544229261, 36.18315172017415], [-115.2548560257496, 36.18315127392525], [-115.25485762861075, 36.18315081866349], [-115.25485922039188, 36.18315035435842], [-115.25486081224824, 36.18314987202764], [-115.25486239306215, 36.183149371640624], [-115.25486396279601, 36.1831488622103], [-115.25486553260517, 36.18314833475428], [-115.2548670913342, 36.18314779825488], [-115.25486863902088, 36.183147243699295], [-115.25487018674515, 36.18314668013086], [-115.25487172342703, 36.18314609850624], [-115.25487324902879, 36.18314550783829], [-115.25487476358818, 36.18314489911408], [-115.25487627818518, 36.18314428137708], [-115.25487778173971, 36.18314364558384], [-115.25487928533187, 36.18314300077779], [-115.25488076676396, 36.18314233788503], [-115.25488224823366, 36.183141665979406], [-115.25488370754327, 36.1831409759871], [-115.25488516689049, 36.18314027698193], [-115.25488661519529, 36.183139559920576], [-115.25488805238238, 36.183138842828726], [-115.25488948968233, 36.183138098698365], [-115.2548909047846, 36.18313734549412], [-115.25489231992445, 36.18313658327705], [-115.25489371286662, 36.18313581198606], [-115.25489510588402, 36.18313502266943], [-115.25489647670366, 36.183134224279], [-115.25489784759858, 36.18313340786281], [-115.25489919629575, 36.18313258237279], [-115.25490054503052, 36.18313174786991], [-115.25490187156761, 36.18313090429319], [-115.25490319817993, 36.18313004269079], [-115.25490450259451, 36.183129172014546], [-115.25490580704671, 36.183128292325435], [-115.25490708933879, 36.18312739454964], [-115.25490836055086, 36.18312648773055], [-115.25490962068287, 36.183125571868075], [-115.25491086973481, 36.18312464696224], [-115.25491210774435, 36.183123704000224], [-115.25491332355611, 36.18312275196436], [-115.25491453940552, 36.183121790915635], [-115.25491573305723, 36.18312082079315], [-115.25491691562885, 36.183119841627246], [-115.25491808715805, 36.18311884440516], [-115.25491924756955, 36.18311784715259], [-115.25492038582102, 36.18311683181332], [-115.2549215129924, 36.18311580743071], [-115.25492262908377, 36.183114774004764], [-115.25492373409503, 36.18311373153546], [-115.25492481690861, 36.183112679992306], [-115.2549258886421, 36.18311161940585], [-115.25492694929561, 36.183110549776046], [-115.25492798775133, 36.183109471072356], [-115.25492901516465, 36.183108374312525], [-115.25493003146033, 36.1831072775222], [-115.25493102555829, 36.18310617165801], [-115.25493200857615, 36.18310505675048], [-115.25493298051404, 36.183103932799625], [-115.25493393025415, 36.18310279977493], [-115.25493486891426, 36.18310165770687], [-115.25493579649431, 36.183100506595494], [-115.25493670187666, 36.18309934641027], [-115.25493759614129, 36.18309818619454], [-115.25493846824591, 36.183097007892144], [-115.25493931811518, 36.18309582952875], [-115.25494016802205, 36.183094642152525], [-115.25494099573123, 36.18309344570244], [-115.25494180124268, 36.18309224017851], [-115.25494259567414, 36.183091025611276], [-115.25494336787024, 36.18308981098305], [-115.25494412898631, 36.183088587311474], [-115.2549448790223, 36.183087354596566], [-115.25494560682303, 36.18308612182065], [-115.25494631246364, 36.18308487095804], [-115.25494700698661, 36.18308362006498], [-115.25494767927427, 36.18308236911088], [-115.2549483404819, 36.18308110911343], [-115.25494897949177, 36.183079840042225], [-115.25494960742166, 36.183078561927644], [-115.25495021311626, 36.183077283752056], [-115.25495080769318, 36.183076005545956], [-115.25495138011001, 36.18307470925323], [-115.25495193025388, 36.183073421912326], [-115.25495246935542, 36.18307211651528], [-115.25495298618397, 36.18307082007], [-115.25495349197016, 36.183069505568625], [-115.2549539754834, 36.183068200019065], [-115.25495443679894, 36.18306688539569], [-115.25495488703444, 36.183065561728924], [-115.25495531503466, 36.183064238001236], [-115.25495573195485, 36.18306290523016], [-115.2553212003638, 36.183064339787606], [-115.25532322799027, 36.18318333413792]
+    ];
+    function updateEncoder() {
+        var input = $(".simplified textarea")[0];
+        var geom = new ol.geom.LineString(JSON.parse(input.value));
+        var encoded = encoder.encode(geom.getCoordinates(), PRECISION);
+        $(".encoded textarea").val(encoded).change();
+    }
+    function updateDecoder() {
+        var input = $(".encoded textarea")[0];
+        $(".decoded textarea").val(JSON.stringify(encoder.decode(input.value, PRECISION))).change();
+        updateCanvas(".decoded canvas", ".decoded textarea");
+    }
+    function updateCanvas(canvas_id, features_id) {
+        var canvas = $(canvas_id)[0];
+        canvas.width = canvas.height = 200;
+        var geom = new ol.geom.LineString(JSON.parse($(features_id)[0].value));
+        var extent = geom.getExtent();
+        var scale = (function () {
+            var _a = [ol.extent.getWidth(extent), ol.extent.getHeight(extent)], w = _a[0], h = _a[1];
+            var _b = ol.extent.getCenter(extent), x0 = _b[0], y0 = _b[1];
+            var _c = [canvas.width / 2, canvas.height / 2], dx = _c[0], dy = _c[1];
+            var _d = [dx / w, dy / h], sx = _d[0], sy = _d[1];
+            return function (x, y) {
+                return [sx * (x - x0) + dx, -sy * (y - y0) + dy];
+            };
+        })();
+        var c = canvas.getContext("2d");
+        c.beginPath();
+        {
+            c.strokeStyle = "#000000";
+            c.lineWidth = 1;
+            geom.getCoordinates().forEach(function (p, i) {
+                var _a = scale(p[0], p[1]), x = _a[0], y = _a[1];
+                console.log(x, y);
+                (i === 0) && c.moveTo(x, y);
+                c.lineTo(x, y);
+            });
+            c.stroke();
+            c.closePath();
+        }
+        c.beginPath();
+        {
+            c.strokeStyle = "#FF0000";
+            c.lineWidth = 1;
+            geom.getCoordinates().forEach(function (p, i) {
+                var _a = scale(p[0], p[1]), x = _a[0], y = _a[1];
+                c.moveTo(x, y);
+                c.rect(x, y, 1, 1);
+            });
+            c.stroke();
+            c.closePath();
+        }
+    }
+    function run() {
+        $(css).appendTo("head");
+        $(ux).appendTo(".map");
+        $("#use-google").change(function (args) {
+            encoder = $("#use-google:checked").length ? new GoogleEncoder() : new PolylineEncoder(6, 2);
+            $(".simplified textarea").change();
+        }).change();
+        $(".encoded textarea").change(updateDecoder);
+        $(".simplified textarea").change(function () {
+            updateCanvas(".simplified canvas", ".simplified textarea");
+            updateEncoder();
+        });
+        $(".input textarea")
+            .val(JSON.stringify(sample_input))
+            .change(function (args) {
+            var input = $(".input textarea")[0];
+            var coords = JSON.parse("" + input.value);
+            var geom = new ol.geom.LineString(coords);
+            geom = geom.simplify(Math.pow(10, -PRECISION));
+            $(".simplified textarea").val(JSON.stringify(geom.getCoordinates())).change();
+            updateCanvas(".input canvas", ".input textarea");
+        })
+            .change();
+    }
+    exports.run = run;
+});
+define("labs/popup", ["require", "exports", "jquery", "openlayers", "labs/common/common", "alpha/format/ol3-symbolizer", "ux/styles/star/flower", "bower_components/ol3-popup/src/ol3-popup"], function (require, exports, $, ol, common_6, ol3_symbolizer_4, pointStyle, ol3_popup_2) {
     "use strict";
     var styler = new ol3_symbolizer_4.StyleConverter();
     function parse(v, type) {
@@ -3682,7 +3686,7 @@ define("labs/popup", ["require", "exports", "jquery", "openlayers", "labs/common
             }
         });
         map.addLayer(layer);
-        var popup = new ol3_popup_1.Popup({
+        var popup = new ol3_popup_2.Popup({
             dockContainer: '.popup-container',
             pointerPosition: 100,
             css: css_popup
@@ -6933,4 +6937,4 @@ define("ux/styles/stroke/dot", ["require", "exports", "ux/styles/stroke/linedash
         }
     ];
 });
-//# sourceMappingURL=run.js.map
+//# sourceMappingURL=index.js.map

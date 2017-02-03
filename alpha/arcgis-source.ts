@@ -68,6 +68,7 @@ export class ArcGisVectorSourceFactory {
                 spatialRel: "esriSpatialRelIntersects",
                 geometry: encodeURIComponent(JSON.stringify(box)),
                 geometryType: "esriGeometryEnvelope",
+                resultType: "tile",
                 inSR: srs,
                 outSR: srs,
                 outFields: "*",
