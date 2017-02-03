@@ -4,6 +4,7 @@ import { doif, getParameterByName } from "./common/common";
 import { StyleConverter } from "../alpha/format/ol3-symbolizer";
 import pointStyle = require("../ux/styles/star/flower");
 import { LayerSwitcher } from "../bower_components/ol3-layerswitcher/src/ol3-layerswitcher";
+import { Popup } from "../bower_components/ol3-popup/src/ol3-popup";
 import { ArcGisVectorSourceFactory } from "../alpha/arcgis-source";
 
 let styler = new StyleConverter();
@@ -112,49 +113,57 @@ export function run() {
             })]
     });
 
-    let features = new ol.Collection<ol.Feature>();
-
-    let source = new ol.source.Vector({
-        features: features
-    });
-
-
-    let layer = new ol.layer.Vector({
-        title: "Features",
-        source: source,
-        style: (feature: ol.render.Feature, resolution: number) => {
-            let style = pointStyle.filter(p => p.text)[0];
-            if (style) {
-                style.text.text = feature.getGeometry().get("location") || "unknown location";
-            }
-            return pointStyle.map(s => styler.fromJson(s));
-        }
-    });
-
-    map.on("click", (event: {
-        coordinate: [number, number];
-    }) => {
-        let location = event.coordinate.map(v => v.toFixed(5)).join(", ");
-        let point = new ol.geom.Point(event.coordinate);
-        point.set("location", location);
-        let feature = new ol.Feature(point);
-        source.addFeature(feature);
-    });
-
     ArcGisVectorSourceFactory.create({
         title: "Petro",
-        tileSize: 256,
+        tileSize: 1024,
         map: map,
         services: "https://sampleserver3.arcgisonline.com/ArcGIS/rest/services",
         serviceName: "Petroleum/KSFields",
+        // services: "https://services7.arcgis.com/k0UprFPHKieFB9UY/arcgis/rest/services",
+        // serviceName: "Subdivisions",
         layer: 0
     }).then(agsLayer => {
-        
+
         map.addLayer(agsLayer);
-        map.addLayer(layer);
 
         let layerSwitcher = new LayerSwitcher();
         layerSwitcher.setMap(map);
+
+        let popup = new Popup({
+            css: `
+            .ol-popup {
+                background-color: white;
+            }
+            .ol-popup .page {
+                max-height: 200px;
+                overflow-y: auto;
+            }
+            `
+        });
+        map.addOverlay(popup);
+
+        map.on("click", (event: { coordinate: any; pixel: any }) => {
+            console.log("click");
+            let coord = event.coordinate;
+            popup.hide();
+
+            let pageNum = 0;
+            map.forEachFeatureAtPixel(event.pixel, (feature: ol.Feature, layer) => {
+                let page = document.createElement('p');
+                let keys = Object.keys(feature.getProperties()).filter(key => {
+                    let v = feature.get(key);
+                    if (typeof v === "string") return true;
+                    if (typeof v === "number") return true;
+                    return false;
+                });
+                page.title = "" + ++pageNum;
+                page.innerHTML = `<table>${keys.map(k => `<tr><td>${k}</td><td>${feature.get(k)}</td></tr>`).join("")}</table>`;
+                popup.pages.add(page, feature.getGeometry());
+            });
+
+            popup.show(coord, `<label>${pageNum} Features Found</label>`);
+            popup.pages.goto(0);
+        });
 
     });
 
