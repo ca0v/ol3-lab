@@ -6,6 +6,8 @@
  */
 import $ = require("jquery");
 import ol = require("openlayers");
+import AgsCatalog = require("../bower_components/ol3-layerswitcher/src/extras/ags-catalog");
+import Symbolizer = require("./format/ags-symbolizer");
 
 const esrijsonFormat = new ol.format.EsriJSON();
 
@@ -16,24 +18,41 @@ function asParam(options: any) {
         .join("&");
 }
 
+export interface IOptions extends olx.source.VectorOptions {
+    services: string;
+    serviceName: string;
+    map: ol.Map;
+    layer: number;
+    title: string;
+    tileSize: number;
+};
+
+const DEFAULT_OPTIONS = {
+    tileSize: 512
+};
+
 export class ArcGisVectorSourceFactory {
 
-    static create(options?: olx.source.VectorOptions & {
-        url: string;
-        map: ol.Map;
-        layer: string;
-        title: string;
-        styleCache: { [name: string]: ol.style.Style };
-    }) {
+    static create(options: IOptions) {
 
-        let srs = options.map.getView().getProjection().getCode().split(":").pop();
+        let d = $.Deferred<ol.layer.Vector>();
 
-        let strategy = ol.loadingstrategy.tile(ol.tilegrid.createXYZ({
-            tileSize: 512
-        }));
+        options = $.extend(options, DEFAULT_OPTIONS);
+
+        let srs = options.map.getView()
+            .getProjection()
+            .getCode()
+            .split(":")
+            .pop();
+
+        let tileGrid = ol.tilegrid.createXYZ({
+            tileSize: options.tileSize
+        });
+
+        let strategy = ol.loadingstrategy.tile(tileGrid);
 
         let loader = (extent: ol.Extent, resolution: number, projection: ol.proj.Projection) => {
-            let url = <string>options.url;
+            //let url = <string>options.url;
             let layer = options.layer;
 
             let box = {
@@ -54,10 +73,10 @@ export class ArcGisVectorSourceFactory {
                 outFields: "*",
             }
 
-            url = `${url}/${layer}/query?${asParam(params)}`;
+            let query = `${options.services}/${options.serviceName}/FeatureServer/${layer}/query?${asParam(params)}`;
 
             $.ajax({
-                url: url,
+                url: query,
                 dataType: 'jsonp',
                 success: response => {
                     if (response.error) {
@@ -84,15 +103,28 @@ export class ArcGisVectorSourceFactory {
 
         let layer = new ol.layer.Vector({
             title: options.title,
-            source: source,
-            style: (feature: ol.Feature) => {
-                var classify = feature.get('activeprod');
-                return options.styleCache[classify];
-            }
+            source: source
         })
 
+        let catalog = new AgsCatalog.Catalog(`${options.services}/${options.serviceName}/FeatureServer`);
+        let converter = new Symbolizer.StyleConverter();
 
-        return layer;
+        catalog.aboutLayer(options.layer).then(layerInfo => {
+
+            let styleMap = converter.fromRenderer(<any>layerInfo.drawingInfo.renderer, { url: "for icons?" });
+            layer.setStyle((feature: ol.Feature, resolution: number) => {
+                if (styleMap instanceof ol.style.Style) {
+                    return styleMap;
+                } else {
+                    return styleMap(feature);
+                }
+            });
+
+            d.resolve(layer);
+        });
+
+
+        return d;
     }
 
 }

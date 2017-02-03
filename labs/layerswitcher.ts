@@ -141,56 +141,22 @@ export function run() {
         source.addFeature(feature);
     });
 
-    let agsLayer = ArcGisVectorSourceFactory.create({
+    ArcGisVectorSourceFactory.create({
         title: "Petro",
+        tileSize: 256,
         map: map,
-        url: "https://sampleserver3.arcgisonline.com/ArcGIS/rest/services/Petroleum/KSFields/FeatureServer",
-        layer: "0",
-        styleCache: {
-            'ABANDONED': new ol.style.Style({
-                fill: new ol.style.Fill({
-                    color: 'rgba(225, 225, 225, 255)'
-                }),
-                stroke: new ol.style.Stroke({
-                    color: 'rgba(0, 0, 0, 255)',
-                    width: 0.4
-                })
-            }),
-            'GAS': new ol.style.Style({
-                fill: new ol.style.Fill({
-                    color: 'rgba(255, 0, 0, 255)'
-                }),
-                stroke: new ol.style.Stroke({
-                    color: 'rgba(110, 110, 110, 255)',
-                    width: 0.4
-                })
-            }),
-            'OIL': new ol.style.Style({
-                fill: new ol.style.Fill({
-                    color: 'rgba(56, 168, 0, 255)'
-                }),
-                stroke: new ol.style.Stroke({
-                    color: 'rgba(110, 110, 110, 255)',
-                    width: 0
-                })
-            }),
-            'OILGAS': new ol.style.Style({
-                fill: new ol.style.Fill({
-                    color: 'rgba(168, 112, 0, 255)'
-                }),
-                stroke: new ol.style.Stroke({
-                    color: 'rgba(110, 110, 110, 255)',
-                    width: 0.4
-                })
-            })
-        }
+        services: "https://sampleserver3.arcgisonline.com/ArcGIS/rest/services",
+        serviceName: "Petroleum/KSFields",
+        layer: 0
+    }).then(agsLayer => {
+        
+        map.addLayer(agsLayer);
+        map.addLayer(layer);
+
+        let layerSwitcher = new LayerSwitcher();
+        layerSwitcher.setMap(map);
+
     });
-
-    map.addLayer(agsLayer);
-    map.addLayer(layer);
-
-    let layerSwitcher = new LayerSwitcher();
-    layerSwitcher.setMap(map);
 
 
     return map;

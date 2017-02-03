@@ -3,83 +3,138 @@ var __extends = (this && this.__extends) || function (d, b) {
     function __() { this.constructor = d; }
     d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
-define("alpha/arcgis-source", ["require", "exports", "jquery", "openlayers"], function (require, exports, $, ol) {
+define("bower_components/ol3-layerswitcher/src/extras/ajax", ["require", "exports", "jquery"], function (require, exports, $) {
     "use strict";
-    var esrijsonFormat = new ol.format.EsriJSON();
-    function asParam(options) {
-        return Object
-            .keys(options)
-            .map(function (k) { return (k + "=" + options[k]); })
-            .join("&");
-    }
-    var ArcGisVectorSourceFactory = (function () {
-        function ArcGisVectorSourceFactory() {
+    var Ajax = (function () {
+        function Ajax(url) {
+            this.url = url;
+            this.options = {
+                use_json: true,
+                use_cors: true
+            };
         }
-        ArcGisVectorSourceFactory.create = function (options) {
-            var srs = options.map.getView().getProjection().getCode().split(":").pop();
-            var strategy = ol.loadingstrategy.tile(ol.tilegrid.createXYZ({
-                tileSize: 512
-            }));
-            var loader = function (extent, resolution, projection) {
-                var url = options.url;
-                var layer = options.layer;
-                var box = {
-                    xmin: extent[0],
-                    ymin: extent[1],
-                    xmax: extent[2],
-                    ymax: extent[3]
-                };
-                var params = {
-                    f: "json",
-                    returnGeometry: true,
-                    spatialRel: "esriSpatialRelIntersects",
-                    geometry: encodeURIComponent(JSON.stringify(box)),
-                    geometryType: "esriGeometryEnvelope",
-                    inSR: srs,
-                    outSR: srs,
-                    outFields: "*"
-                };
-                url = url + "/" + layer + "/query?" + asParam(params);
-                $.ajax({
-                    url: url,
-                    dataType: 'jsonp',
-                    success: function (response) {
-                        if (response.error) {
-                            alert(response.error.message + '\n' +
-                                response.error.details.join('\n'));
-                        }
-                        else {
-                            var features = esrijsonFormat.readFeatures(response, {
-                                featureProjection: projection,
-                                dataProjection: projection
-                            });
-                            if (features.length > 0) {
-                                source.addFeatures(features);
+        Ajax.prototype.jsonp = function (args, url) {
+            if (url === void 0) { url = this.url; }
+            var d = $.Deferred();
+            args["callback"] = "define";
+            var uri = url + "?" + Object.keys(args).map(function (k) { return (k + "=" + args[k]); }).join('&');
+            require([uri], function (data) { return d.resolve(data); });
+            return d;
+        };
+        Ajax.prototype.ajax = function (method, args, url) {
+            if (url === void 0) { url = this.url; }
+            var isData = method === "POST" || method === "PUT";
+            var isJson = this.options.use_json;
+            var isCors = this.options.use_cors;
+            var d = $.Deferred();
+            var client = new XMLHttpRequest();
+            if (isCors)
+                client.withCredentials = true;
+            var uri = url;
+            var data = null;
+            if (args) {
+                if (isData) {
+                    data = JSON.stringify(args);
+                }
+                else {
+                    uri += '?';
+                    var argcount = 0;
+                    for (var key in args) {
+                        if (args.hasOwnProperty(key)) {
+                            if (argcount++) {
+                                uri += '&';
                             }
+                            uri += encodeURIComponent(key) + '=' + encodeURIComponent(args[key]);
                         }
                     }
-                });
-            };
-            var source = new ol.source.Vector({
-                strategy: strategy,
-                loader: loader
-            });
-            var layer = new ol.layer.Vector({
-                title: options.title,
-                source: source,
-                style: function (feature) {
-                    var classify = feature.get('activeprod');
-                    return options.styleCache[classify];
                 }
-            });
-            return layer;
+            }
+            client.open(method, uri, true);
+            if (isData && isJson)
+                client.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+            client.send(data);
+            client.onload = function () {
+                console.log("content-type", client.getResponseHeader("Content-Type"));
+                if (client.status >= 200 && client.status < 300) {
+                    isJson = isJson || 0 === client.getResponseHeader("Content-Type").indexOf("application/json");
+                    d.resolve(isJson ? JSON.parse(client.response) : client.response);
+                }
+                else {
+                    d.reject(client.statusText);
+                }
+            };
+            client.onerror = function () { return d.reject(client.statusText); };
+            return d;
         };
-        return ArcGisVectorSourceFactory;
+        Ajax.prototype.get = function (args) {
+            return this.ajax('GET', args);
+        };
+        Ajax.prototype.post = function (args) {
+            return this.ajax('POST', args);
+        };
+        Ajax.prototype.put = function (args) {
+            return this.ajax('PUT', args);
+        };
+        Ajax.prototype.delete = function (args) {
+            return this.ajax('DELETE', args);
+        };
+        return Ajax;
     }());
-    exports.ArcGisVectorSourceFactory = ArcGisVectorSourceFactory;
+    return Ajax;
 });
-define("alpha/format/base", ["require", "exports"], function (require, exports) {
+define("bower_components/ol3-layerswitcher/src/extras/ags-catalog", ["require", "exports", "bower_components/ol3-layerswitcher/src/extras/ajax"], function (require, exports, Ajax) {
     "use strict";
+    function defaults(a) {
+        var b = [];
+        for (var _i = 1; _i < arguments.length; _i++) {
+            b[_i - 1] = arguments[_i];
+        }
+        b.filter(function (b) { return !!b; }).forEach(function (b) {
+            Object.keys(b).filter(function (k) { return a[k] === undefined; }).forEach(function (k) { return a[k] = b[k]; });
+        });
+        return a;
+    }
+    var Catalog = (function () {
+        function Catalog(url) {
+            this.ajax = new Ajax(url);
+        }
+        Catalog.prototype.about = function (data) {
+            var req = defaults({
+                f: "pjson"
+            }, data);
+            return this.ajax.jsonp(req);
+        };
+        Catalog.prototype.aboutFolder = function (folder) {
+            var ajax = new Ajax(this.ajax.url + "/" + folder);
+            var req = {
+                f: "pjson"
+            };
+            return ajax.jsonp(req);
+        };
+        Catalog.prototype.aboutFeatureServer = function (name) {
+            var ajax = new Ajax(this.ajax.url + "/" + name + "/FeatureServer");
+            var req = {
+                f: "pjson"
+            };
+            return defaults(ajax.jsonp(req), { url: ajax.url });
+        };
+        Catalog.prototype.aboutMapServer = function (name) {
+            var ajax = new Ajax(this.ajax.url + "/" + name + "/MapServer");
+            var req = {
+                f: "pjson"
+            };
+            return defaults(ajax.jsonp(req), { url: ajax.url });
+        };
+        Catalog.prototype.aboutLayer = function (layer) {
+            var ajax = new Ajax(this.ajax.url + "/" + layer);
+            var req = {
+                f: "pjson"
+            };
+            return ajax.jsonp(req);
+        };
+        return Catalog;
+    }());
+    exports.Catalog = Catalog;
 });
 define("labs/common/common", ["require", "exports"], function (require, exports) {
     "use strict";
@@ -160,6 +215,9 @@ define("labs/common/ol3-patch", ["require", "exports", "openlayers", "labs/commo
         });
     }
     return ol3;
+});
+define("alpha/format/base", ["require", "exports"], function (require, exports) {
+    "use strict";
 });
 define("alpha/format/ol3-symbolizer", ["require", "exports", "labs/common/ol3-patch", "labs/common/common"], function (require, exports, ol, common_2) {
     "use strict";
@@ -583,6 +641,286 @@ define("alpha/format/ol3-symbolizer", ["require", "exports", "labs/common/ol3-pa
         return StyleConverter;
     }());
     exports.StyleConverter = StyleConverter;
+});
+define("alpha/format/ags-symbolizer", ["require", "exports", "jquery", "alpha/format/ol3-symbolizer"], function (require, exports, $, Symbolizer) {
+    "use strict";
+    var symbolizer = new Symbolizer.StyleConverter();
+    var styleMap = {
+        "esriSMSCircle": "circle",
+        "esriSMSDiamond": "diamond",
+        "esriSMSX": "x",
+        "esriSMSCross": "cross",
+        "esriSLSSolid": "solid",
+        "esriSFSSolid": "solid",
+        "esriSLSDot": "dot",
+        "esriSLSDash": "dash",
+        "esriSLSDashDot": "dashdot",
+        "esriSLSDashDotDot": "dashdotdot",
+        "esriSFSForwardDiagonal": "forward-diagonal"
+    };
+    var typeMap = {
+        "esriSMS": "sms",
+        "esriSLS": "sls",
+        "esriSFS": "sfs",
+        "esriPMS": "pms",
+        "esriPFS": "pfs",
+        "esriTS": "txt"
+    };
+    function as(v) {
+        return "" + v + "px";
+    }
+    function range(a, b) {
+        var result = new Array(b - a + 1);
+        while (a <= b)
+            result.push(a++);
+        return result;
+    }
+    function clone(o) {
+        return JSON.parse(JSON.stringify(o));
+    }
+    var StyleConverter = (function () {
+        function StyleConverter() {
+        }
+        StyleConverter.prototype.asColor = function (color) {
+            if (color.length === 4)
+                return "rgba(" + color[0] + "," + color[1] + "," + color[2] + "," + color[3] / 255 + ")";
+            if (color.length === 3)
+                return "rgb(" + color[0] + "," + color[1] + "," + color[2] + "})";
+            return "#" + color.map(function (v) { return ("0" + v.toString(16)).substr(0, 2); }).join("");
+        };
+        StyleConverter.prototype.asStroke = function (outline) {
+            var stroke = {};
+            switch (outline.type) {
+                case "esriSLS": {
+                    switch (outline.style) {
+                        case "esriSLSSolid": {
+                            stroke.color = this.asColor(outline.color);
+                            stroke.width = outline.width;
+                            break;
+                        }
+                        default: {
+                            debugger;
+                            break;
+                        }
+                    }
+                    break;
+                }
+                default: {
+                    debugger;
+                    break;
+                }
+            }
+            return stroke;
+        };
+        StyleConverter.prototype.fromJson = function (symbol) {
+            var style = {};
+            switch (symbol.type) {
+                case "esriSFS": {
+                    switch (symbol.style) {
+                        case "esriSFSSolid": {
+                            style.fill = {
+                                color: this.asColor(symbol.color)
+                            };
+                            style.stroke = this.asStroke(symbol.outline);
+                            break;
+                        }
+                        default: {
+                            debugger;
+                            break;
+                        }
+                    }
+                    break;
+                }
+                case "esriSMS": {
+                    switch (symbol.style) {
+                        case "esriSMSCircle": {
+                            style.circle = {
+                                fill: symbol.color,
+                                opacity: 1,
+                                radius: symbol.size,
+                                stroke: {
+                                    color: this.asColor(symbol.outline.color)
+                                },
+                                snapToPixel: true
+                            };
+                            style.circle.stroke.color;
+                            break;
+                        }
+                        default: {
+                            debugger;
+                            break;
+                        }
+                    }
+                }
+                default: {
+                    debugger;
+                    break;
+                }
+            }
+            return symbolizer.fromJson(style);
+        };
+        StyleConverter.prototype.fromRenderer = function (renderer, args) {
+            var _this = this;
+            switch (renderer.type) {
+                case "simple":
+                    {
+                        return this.fromJson(renderer.symbol);
+                    }
+                case "uniqueValue":
+                    {
+                        var styles_1 = {};
+                        var defaultStyle_1 = (renderer.defaultSymbol) && this.fromJson(renderer.defaultSymbol);
+                        if (renderer.uniqueValueInfos) {
+                            renderer.uniqueValueInfos.forEach(function (info) {
+                                styles_1[info.value] = _this.fromJson(info.symbol);
+                            });
+                        }
+                        return function (feature) { return styles_1[feature.get(renderer.field1)] || defaultStyle_1; };
+                    }
+                case "classBreaks": {
+                    var styles_2 = {};
+                    var classBreakRenderer_1 = renderer;
+                    if (classBreakRenderer_1.classBreakInfos) {
+                        console.log("processing classBreakInfos");
+                        if (classBreakRenderer_1.visualVariables) {
+                            classBreakRenderer_1.visualVariables.forEach(function (vars) {
+                                switch (vars.type) {
+                                    case "sizeInfo": {
+                                        var steps_1 = range(classBreakRenderer_1.authoringInfo.visualVariables[0].minSliderValue, classBreakRenderer_1.authoringInfo.visualVariables[0].maxSliderValue);
+                                        var dx_1 = (vars.maxSize - vars.minSize) / steps_1.length;
+                                        var dataValue_1 = (vars.maxDataValue - vars.minDataValue) / steps_1.length;
+                                        classBreakRenderer_1.classBreakInfos.forEach(function (classBreakInfo) {
+                                            var icons = steps_1.map(function (step) {
+                                                var json = $.extend({}, classBreakInfo.symbol);
+                                                json.size = vars.minSize + dx_1 * (dataValue_1 - vars.minDataValue);
+                                                var style = _this.fromJson(json);
+                                                styles_2[dataValue_1] = style;
+                                            });
+                                        });
+                                        debugger;
+                                        break;
+                                    }
+                                    default:
+                                        debugger;
+                                        break;
+                                }
+                            });
+                        }
+                    }
+                    return function (feature) {
+                        debugger;
+                        var value = feature.get(renderer.field1);
+                        for (var key in styles_2) {
+                            return styles_2[key];
+                        }
+                    };
+                }
+                default:
+                    {
+                        debugger;
+                        console.error("unsupported renderer type: ", renderer.type);
+                        break;
+                    }
+            }
+        };
+        return StyleConverter;
+    }());
+    exports.StyleConverter = StyleConverter;
+});
+define("alpha/arcgis-source", ["require", "exports", "jquery", "openlayers", "bower_components/ol3-layerswitcher/src/extras/ags-catalog", "alpha/format/ags-symbolizer"], function (require, exports, $, ol, AgsCatalog, Symbolizer) {
+    "use strict";
+    var esrijsonFormat = new ol.format.EsriJSON();
+    function asParam(options) {
+        return Object
+            .keys(options)
+            .map(function (k) { return (k + "=" + options[k]); })
+            .join("&");
+    }
+    ;
+    var DEFAULT_OPTIONS = {
+        tileSize: 512
+    };
+    var ArcGisVectorSourceFactory = (function () {
+        function ArcGisVectorSourceFactory() {
+        }
+        ArcGisVectorSourceFactory.create = function (options) {
+            var d = $.Deferred();
+            options = $.extend(options, DEFAULT_OPTIONS);
+            var srs = options.map.getView()
+                .getProjection()
+                .getCode()
+                .split(":")
+                .pop();
+            var tileGrid = ol.tilegrid.createXYZ({
+                tileSize: options.tileSize
+            });
+            var strategy = ol.loadingstrategy.tile(tileGrid);
+            var loader = function (extent, resolution, projection) {
+                var layer = options.layer;
+                var box = {
+                    xmin: extent[0],
+                    ymin: extent[1],
+                    xmax: extent[2],
+                    ymax: extent[3]
+                };
+                var params = {
+                    f: "json",
+                    returnGeometry: true,
+                    spatialRel: "esriSpatialRelIntersects",
+                    geometry: encodeURIComponent(JSON.stringify(box)),
+                    geometryType: "esriGeometryEnvelope",
+                    inSR: srs,
+                    outSR: srs,
+                    outFields: "*"
+                };
+                var query = options.services + "/" + options.serviceName + "/FeatureServer/" + layer + "/query?" + asParam(params);
+                $.ajax({
+                    url: query,
+                    dataType: 'jsonp',
+                    success: function (response) {
+                        if (response.error) {
+                            alert(response.error.message + '\n' +
+                                response.error.details.join('\n'));
+                        }
+                        else {
+                            var features = esrijsonFormat.readFeatures(response, {
+                                featureProjection: projection,
+                                dataProjection: projection
+                            });
+                            if (features.length > 0) {
+                                source.addFeatures(features);
+                            }
+                        }
+                    }
+                });
+            };
+            var source = new ol.source.Vector({
+                strategy: strategy,
+                loader: loader
+            });
+            var layer = new ol.layer.Vector({
+                title: options.title,
+                source: source
+            });
+            var catalog = new AgsCatalog.Catalog(options.services + "/" + options.serviceName + "/FeatureServer");
+            var converter = new Symbolizer.StyleConverter();
+            catalog.aboutLayer(options.layer).then(function (layerInfo) {
+                var styleMap = converter.fromRenderer(layerInfo.drawingInfo.renderer, { url: "for icons?" });
+                layer.setStyle(function (feature, resolution) {
+                    if (styleMap instanceof ol.style.Style) {
+                        return styleMap;
+                    }
+                    else {
+                        return styleMap(feature);
+                    }
+                });
+                d.resolve(layer);
+            });
+            return d;
+        };
+        return ArcGisVectorSourceFactory;
+    }());
+    exports.ArcGisVectorSourceFactory = ArcGisVectorSourceFactory;
 });
 define("labs/common/ajax", ["require", "exports", "jquery"], function (require, exports, $) {
     "use strict";
@@ -2733,54 +3071,19 @@ define("labs/layerswitcher", ["require", "exports", "jquery", "openlayers", "lab
             var feature = new ol.Feature(point);
             source.addFeature(feature);
         });
-        var agsLayer = arcgis_source_1.ArcGisVectorSourceFactory.create({
+        arcgis_source_1.ArcGisVectorSourceFactory.create({
             title: "Petro",
+            tileSize: 256,
             map: map,
-            url: "https://sampleserver3.arcgisonline.com/ArcGIS/rest/services/Petroleum/KSFields/FeatureServer",
-            layer: "0",
-            styleCache: {
-                'ABANDONED': new ol.style.Style({
-                    fill: new ol.style.Fill({
-                        color: 'rgba(225, 225, 225, 255)'
-                    }),
-                    stroke: new ol.style.Stroke({
-                        color: 'rgba(0, 0, 0, 255)',
-                        width: 0.4
-                    })
-                }),
-                'GAS': new ol.style.Style({
-                    fill: new ol.style.Fill({
-                        color: 'rgba(255, 0, 0, 255)'
-                    }),
-                    stroke: new ol.style.Stroke({
-                        color: 'rgba(110, 110, 110, 255)',
-                        width: 0.4
-                    })
-                }),
-                'OIL': new ol.style.Style({
-                    fill: new ol.style.Fill({
-                        color: 'rgba(56, 168, 0, 255)'
-                    }),
-                    stroke: new ol.style.Stroke({
-                        color: 'rgba(110, 110, 110, 255)',
-                        width: 0
-                    })
-                }),
-                'OILGAS': new ol.style.Style({
-                    fill: new ol.style.Fill({
-                        color: 'rgba(168, 112, 0, 255)'
-                    }),
-                    stroke: new ol.style.Stroke({
-                        color: 'rgba(110, 110, 110, 255)',
-                        width: 0.4
-                    })
-                })
-            }
+            services: "https://sampleserver3.arcgisonline.com/ArcGIS/rest/services",
+            serviceName: "Petroleum/KSFields",
+            layer: 0
+        }).then(function (agsLayer) {
+            map.addLayer(agsLayer);
+            map.addLayer(layer);
+            var layerSwitcher = new ol3_layerswitcher_1.LayerSwitcher();
+            layerSwitcher.setMap(map);
         });
-        map.addLayer(agsLayer);
-        map.addLayer(layer);
-        var layerSwitcher = new ol3_layerswitcher_1.LayerSwitcher();
-        layerSwitcher.setMap(map);
         return map;
     }
     exports.run = run;
