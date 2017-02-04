@@ -994,13 +994,13 @@ define("alpha/arcgis-source", ["require", "exports", "jquery", "openlayers", "bo
                     strategy: strategy,
                     loader: loader
                 });
-                var layer = new ol.layer.Vector({
-                    title: options.title,
-                    source: source
-                });
                 var catalog = new AgsCatalog.Catalog(options.services + "/" + options.serviceName + "/FeatureServer");
                 var converter = new Symbolizer.StyleConverter();
                 catalog.aboutLayer(layerId).then(function (layerInfo) {
+                    var layer = new ol.layer.Vector({
+                        title: layerInfo.name,
+                        source: source
+                    });
                     var styleMap = converter.fromRenderer(layerInfo.drawingInfo.renderer, { url: "for icons?" });
                     layer.setStyle(function (feature, resolution) {
                         if (styleMap instanceof ol.style.Style) {
@@ -1019,8 +1019,7 @@ define("alpha/arcgis-source", ["require", "exports", "jquery", "openlayers", "bo
                 for (var _i = 0; _i < arguments.length; _i++) {
                     args[_i - 0] = arguments[_i];
                 }
-                debugger;
-                d.resolve(args);
+                return d.resolve(args);
             });
             return d;
         };
@@ -3544,14 +3543,15 @@ define("labs/layerswitcher", ["require", "exports", "jquery", "openlayers", "lab
     var css_popup = "\n.popup-container {\n    position: absolute;\n    top: 1em;\n    right: 0.5em;\n    width: 10em;\n    bottom: 1em;\n    z-index: 1;\n    pointer-events: none;\n}\n\n.ol-popup {\n    color: white;\n    background-color: rgba(77,77,77,0.7);\n    min-width: 200px;\n}\n\n.ol-popup:after {\n    border-top-color: rgba(77,77,77,0.7);\n}\n\n";
     var center = {
         fire: [-117.754430386, 34.2606862490001],
-        wichita: [-97.4, 37.8]
+        wichita: [-97.4, 37.8],
+        vegas: [-115.235, 36.173]
     };
     function run() {
         $(html).appendTo(".map");
         $(css).appendTo("head");
         var options = {
             srs: 'EPSG:4326',
-            center: center.fire,
+            center: center.vegas,
             zoom: 10
         };
         {
@@ -3595,12 +3595,11 @@ define("labs/layerswitcher", ["require", "exports", "jquery", "openlayers", "lab
                 })]
         });
         arcgis_source_1.ArcGisVectorSourceFactory.create({
-            title: "Petro",
-            tileSize: 1024,
+            tileSize: 256,
             map: map,
-            services: "https://sampleserver3.arcgisonline.com/ArcGIS/rest/services",
-            serviceName: "Fire/Sheep",
-            layers: [0, 2]
+            services: "https://services7.arcgis.com/k0UprFPHKieFB9UY/arcgis/rest/services",
+            serviceName: "GoldServer860",
+            layers: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20].reverse()
         }).then(function (agsLayers) {
             agsLayers.forEach(function (agsLayer) { return map.addLayer(agsLayer); });
             var layerSwitcher = new ol3_layerswitcher_1.LayerSwitcher();

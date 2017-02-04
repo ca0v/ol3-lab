@@ -33,7 +33,6 @@ export interface IOptions extends olx.source.VectorOptions {
     serviceName: string;
     map: ol.Map;
     layers: number[];
-    title: string;
     tileSize: number;
 };
 
@@ -115,15 +114,15 @@ export class ArcGisVectorSourceFactory {
                 loader: loader
             });
 
-            let layer = new ol.layer.Vector({
-                title: options.title,
-                source: source
-            })
-
             let catalog = new AgsCatalog.Catalog(`${options.services}/${options.serviceName}/FeatureServer`);
             let converter = new Symbolizer.StyleConverter();
 
             catalog.aboutLayer(layerId).then(layerInfo => {
+                
+                let layer = new ol.layer.Vector({
+                    title: layerInfo.name,
+                    source: source
+                })
 
                 let styleMap = converter.fromRenderer(<any>layerInfo.drawingInfo.renderer, { url: "for icons?" });
                 layer.setStyle((feature: ol.Feature, resolution: number) => {
@@ -140,10 +139,7 @@ export class ArcGisVectorSourceFactory {
             return d;
         });
 
-        $.when.apply($, all).then((...args: Array<ol.layer.Vector>) => {
-            debugger;
-            d.resolve(args);
-        });
+        $.when.apply($, all).then((...args: Array<ol.layer.Vector>) => d.resolve(args));
 
         return d;
     }
