@@ -10,6 +10,8 @@ import squareSymbol = require("./styles/ags/simplemarkersymbol-square");
 import diamondSymbol = require("./styles/ags/simplemarkersymbol-diamond");
 import pathSymbol = require("./styles/ags/simplemarkersymbol-path");
 import xSymbol = require("./styles/ags/simplemarkersymbol-x");
+import iconurl = require("./styles/ags/picturemarkersymbol");
+import iconimagedata = require("./styles/ags/picturemarkersymbol-imagedata");
 
 
 import { StyleConverter } from "../alpha/format/ags-symbolizer";
@@ -53,7 +55,9 @@ export function run() {
         diamondStyle,
         pathStyle,
         squareStyle,
-        xStyle
+        xStyle,
+        formatter.fromJson(iconurl[0]),
+        formatter.fromJson(iconimagedata[0])
     ];
 
     layer.getSource().getFeatures().forEach((f, i) => f.setStyle([styles[i % styles.length]]));

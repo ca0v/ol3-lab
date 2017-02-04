@@ -94,8 +94,8 @@ export namespace Format {
     }
 
     export interface Icon {
-        "anchor-x": number;
-        "anchor-y": number;
+        "anchor-x"?: number;
+        "anchor-y"?: number;
     }
 
     export interface Text {

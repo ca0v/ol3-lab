@@ -32,8 +32,7 @@ export interface IOptions extends olx.source.VectorOptions {
     services: string;
     serviceName: string;
     map: ol.Map;
-    layer: number;
-    title: string;
+    layers: number[];
     tileSize: number;
 };
 
@@ -45,7 +44,7 @@ export class ArcGisVectorSourceFactory {
 
     static create(options: IOptions) {
 
-        let d = $.Deferred<ol.layer.Vector>();
+        let d = $.Deferred<ol.layer.Vector[]>();
 
         options = $.extend(options, DEFAULT_OPTIONS);
 
@@ -55,85 +54,92 @@ export class ArcGisVectorSourceFactory {
             .split(":")
             .pop();
 
-        let tileGrid = ol.tilegrid.createXYZ({
-            tileSize: options.tileSize
-        });
 
-        let strategy = ol.loadingstrategy.tile(tileGrid);
+        let all = options.layers.map(layerId => {
 
-        let loader = (extent: ol.Extent, resolution: number, projection: ol.proj.Projection) => {
-            //let url = <string>options.url;
-            let layer = options.layer;
+            let d = $.Deferred<ol.layer.Vector>();
 
-            let box = {
-                xmin: extent[0],
-                ymin: extent[1],
-                xmax: extent[2],
-                ymax: extent[3]
-            };
+            let tileGrid = ol.tilegrid.createXYZ({
+                tileSize: options.tileSize
+            });
 
-            let params = {
-                f: "json",
-                returnGeometry: true,
-                spatialRel: "esriSpatialRelIntersects",
-                geometry: encodeURIComponent(JSON.stringify(box)),
-                geometryType: "esriGeometryEnvelope",
-                resultType: "tile",
-                inSR: srs,
-                outSR: srs,
-                outFields: "*",
-            }
+            let strategy = ol.loadingstrategy.tile(tileGrid);
 
-            let query = `${options.services}/${options.serviceName}/FeatureServer/${layer}/query?${asParam(params)}`;
+            let loader = (extent: ol.Extent, resolution: number, projection: ol.proj.Projection) => {
 
-            $.ajax({
-                url: query,
-                dataType: 'jsonp',
-                success: response => {
-                    if (response.error) {
-                        alert(response.error.message + '\n' +
-                            response.error.details.join('\n'));
-                    } else {
-                        // dataProjection will be read from document
-                        var features = esrijsonFormat.readFeatures(response, {
-                            featureProjection: projection,
-                            dataProjection: projection
-                        });
-                        if (features.length > 0) {
-                            source.addFeatures(features);
+                let box = {
+                    xmin: extent[0],
+                    ymin: extent[1],
+                    xmax: extent[2],
+                    ymax: extent[3]
+                };
+
+                let params = {
+                    f: "json",
+                    returnGeometry: true,
+                    spatialRel: "esriSpatialRelIntersects",
+                    geometry: encodeURIComponent(JSON.stringify(box)),
+                    geometryType: "esriGeometryEnvelope",
+                    resultType: "tile",
+                    inSR: srs,
+                    outSR: srs,
+                    outFields: "*",
+                }
+
+                let query = `${options.services}/${options.serviceName}/FeatureServer/${layerId}/query?${asParam(params)}`;
+
+                $.ajax({
+                    url: query,
+                    dataType: 'jsonp',
+                    success: response => {
+                        if (response.error) {
+                            alert(response.error.message + '\n' +
+                                response.error.details.join('\n'));
+                        } else {
+                            // dataProjection will be read from document
+                            var features = esrijsonFormat.readFeatures(response, {
+                                featureProjection: projection,
+                                dataProjection: projection
+                            });
+                            if (features.length > 0) {
+                                source.addFeatures(features);
+                            }
                         }
                     }
-                }
-            });
-        };
+                });
+            };
 
-        let source = new ol.source.Vector({
-            strategy: strategy,
-            loader: loader
-        });
-
-        let layer = new ol.layer.Vector({
-            title: options.title,
-            source: source
-        })
-
-        let catalog = new AgsCatalog.Catalog(`${options.services}/${options.serviceName}/FeatureServer`);
-        let converter = new Symbolizer.StyleConverter();
-
-        catalog.aboutLayer(options.layer).then(layerInfo => {
-
-            let styleMap = converter.fromRenderer(<any>layerInfo.drawingInfo.renderer, { url: "for icons?" });
-            layer.setStyle((feature: ol.Feature, resolution: number) => {
-                if (styleMap instanceof ol.style.Style) {
-                    return styleMap;
-                } else {
-                    return styleMap(feature);
-                }
+            let source = new ol.source.Vector({
+                strategy: strategy,
+                loader: loader
             });
 
-            d.resolve(layer);
+            let catalog = new AgsCatalog.Catalog(`${options.services}/${options.serviceName}/FeatureServer`);
+            let converter = new Symbolizer.StyleConverter();
+
+            catalog.aboutLayer(layerId).then(layerInfo => {
+                
+                let layer = new ol.layer.Vector({
+                    title: layerInfo.name,
+                    source: source
+                })
+
+                let styleMap = converter.fromRenderer(<any>layerInfo.drawingInfo.renderer, { url: "for icons?" });
+                layer.setStyle((feature: ol.Feature, resolution: number) => {
+                    if (styleMap instanceof ol.style.Style) {
+                        return styleMap;
+                    } else {
+                        return styleMap(feature);
+                    }
+                });
+
+                d.resolve(layer);
+            });
+
+            return d;
         });
 
+        $.when.apply($, all).then((...args: Array<ol.layer.Vector>) => d.resolve(args));
 
         return d;
     }

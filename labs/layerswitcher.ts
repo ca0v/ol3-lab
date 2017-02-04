@@ -61,6 +61,12 @@ const css_popup = `
 
 `;
 
+let center = {
+    fire: [-117.754430386, 34.2606862490001],
+    wichita: [-97.4, 37.8],
+    vegas: [-115.235, 36.173]
+}
+
 export function run() {
 
     $(html).appendTo(".map");
@@ -68,7 +74,7 @@ export function run() {
 
     let options = {
         srs: 'EPSG:4326',
-        center: <[number, number]>[-97.4, 37.8],
+        center: <[number, number]>center.vegas,
         zoom: 10
     }
 
@@ -114,17 +120,14 @@ export function run() {
     });
 
     ArcGisVectorSourceFactory.create({
-        title: "Petro",
-        tileSize: 1024,
+        tileSize: 256,
         map: map,
-        services: "https://sampleserver3.arcgisonline.com/ArcGIS/rest/services",
-        serviceName: "Petroleum/KSFields",
-        // services: "https://services7.arcgis.com/k0UprFPHKieFB9UY/arcgis/rest/services",
-        // serviceName: "Subdivisions",
-        layer: 0
-    }).then(agsLayer => {
+        services: "https://services7.arcgis.com/k0UprFPHKieFB9UY/arcgis/rest/services",
+        serviceName: "GoldServer860",
+        layers: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20].reverse()
+    }).then(agsLayers => {
 
-        map.addLayer(agsLayer);
+        agsLayers.forEach(agsLayer => map.addLayer(agsLayer));
 
         let layerSwitcher = new LayerSwitcher();
         layerSwitcher.setMap(map);
