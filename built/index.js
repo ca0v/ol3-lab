@@ -681,9 +681,6 @@ define("alpha/format/ags-symbolizer", ["require", "exports", "jquery", "alpha/fo
         StyleConverter.prototype.asWidth = function (v) {
             return v * 4 / 3;
         };
-        StyleConverter.prototype.asRadius = function (v) {
-            return v * 2 / 3;
-        };
         StyleConverter.prototype.asColor = function (color) {
             if (color.length === 4)
                 return "rgba(" + color[0] + "," + color[1] + "," + color[2] + "," + color[3] / 255 + ")";
@@ -710,7 +707,7 @@ define("alpha/format/ags-symbolizer", ["require", "exports", "jquery", "alpha/fo
         StyleConverter.prototype.fromSMSCircle = function (symbol, style) {
             style.circle = {
                 opacity: 1,
-                radius: this.asRadius(symbol.size),
+                radius: this.asWidth(symbol.size / 2),
                 stroke: {
                     color: this.asColor(symbol.outline.color)
                 },
@@ -723,7 +720,7 @@ define("alpha/format/ags-symbolizer", ["require", "exports", "jquery", "alpha/fo
             style.star = {
                 points: 4,
                 angle: 0,
-                radius: this.asRadius(symbol.size),
+                radius: this.asWidth(symbol.size / Math.sqrt(2)),
                 radius2: 0
             };
             this.fromSFSSolid(symbol, style.star);
@@ -733,8 +730,8 @@ define("alpha/format/ags-symbolizer", ["require", "exports", "jquery", "alpha/fo
             style.star = {
                 points: 4,
                 angle: 0,
-                radius: this.asRadius(symbol.size),
-                radius2: this.asRadius(symbol.size)
+                radius: this.asWidth(symbol.size / Math.sqrt(2)),
+                radius2: this.asWidth(symbol.size / Math.sqrt(2))
             };
             this.fromSFSSolid(symbol, style.star);
             this.fromSLS(symbol.outline, style.star);
@@ -753,8 +750,8 @@ define("alpha/format/ags-symbolizer", ["require", "exports", "jquery", "alpha/fo
             style.star = {
                 points: 4,
                 angle: Math.PI / 4,
-                radius: this.asRadius(symbol.size / Math.sqrt(2)),
-                radius2: this.asRadius(symbol.size / Math.sqrt(2))
+                radius: this.asWidth(symbol.size / Math.sqrt(2)),
+                radius2: this.asWidth(symbol.size / Math.sqrt(2))
             };
             this.fromSFSSolid(symbol, style.star);
             this.fromSLS(symbol.outline, style.star);
@@ -762,8 +759,8 @@ define("alpha/format/ags-symbolizer", ["require", "exports", "jquery", "alpha/fo
         StyleConverter.prototype.fromSMSX = function (symbol, style) {
             style.star = {
                 points: 4,
-                angle: 0,
-                radius: this.asRadius(symbol.size / Math.sqrt(2)),
+                angle: Math.PI / 4,
+                radius: this.asWidth(symbol.size / Math.sqrt(2)),
                 radius2: 0
             };
             this.fromSFSSolid(symbol, style.star);

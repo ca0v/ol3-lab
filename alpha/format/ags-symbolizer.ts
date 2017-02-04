@@ -253,10 +253,6 @@ export class StyleConverter {
         return v * 4 / 3; // not sure why
     }
 
-    private asRadius(v: number) {
-        return v * 2 / 3; // not sure why
-    }
-
     // see ol.color.asString
     private asColor(color: ArcGisFeatureServerLayer.Color) {
         if (color.length === 4) return `rgba(${color[0]},${color[1]},${color[2]},${color[3] / 255})`;
@@ -285,7 +281,7 @@ export class StyleConverter {
     private fromSMSCircle(symbol: ArcGisFeatureServerLayer.Symbol, style: Symbolizer.Format.Style) {
         style.circle = {
             opacity: 1,
-            radius: this.asRadius(symbol.size),
+            radius: this.asWidth(symbol.size / 2),
             stroke: {
                 color: this.asColor(symbol.outline.color),
             },
@@ -299,7 +295,7 @@ export class StyleConverter {
         style.star = {
             points: 4,
             angle: 0,
-            radius: this.asRadius(symbol.size),
+            radius: this.asWidth(symbol.size / Math.sqrt(2)),
             radius2: 0
         };
         this.fromSFSSolid(symbol, style.star);
@@ -310,8 +306,8 @@ export class StyleConverter {
         style.star = {
             points: 4,
             angle: 0,
-            radius: this.asRadius(symbol.size),
-            radius2: this.asRadius(symbol.size)
+            radius: this.asWidth(symbol.size / Math.sqrt(2)),
+            radius2: this.asWidth(symbol.size / Math.sqrt(2))
         };
         this.fromSFSSolid(symbol, style.star);
         this.fromSLS(symbol.outline, style.star);
@@ -332,8 +328,8 @@ export class StyleConverter {
         style.star = {
             points: 4,
             angle: Math.PI / 4,
-            radius: this.asRadius(symbol.size / Math.sqrt(2)),
-            radius2: this.asRadius(symbol.size / Math.sqrt(2))
+            radius: this.asWidth(symbol.size / Math.sqrt(2)),
+            radius2: this.asWidth(symbol.size / Math.sqrt(2))
         };
         this.fromSFSSolid(symbol, style.star);
         this.fromSLS(symbol.outline, style.star);
@@ -342,8 +338,8 @@ export class StyleConverter {
     private fromSMSX(symbol: ArcGisFeatureServerLayer.Symbol, style: Symbolizer.Format.Style) {
         style.star = {
             points: 4,
-            angle: 0,
-            radius: this.asRadius(symbol.size / Math.sqrt(2)),
+            angle: Math.PI / 4,
+            radius: this.asWidth(symbol.size / Math.sqrt(2)),
             radius2: 0
         };
         this.fromSFSSolid(symbol, style.star);
