@@ -372,7 +372,14 @@ export class StyleConverter {
     }
 
     private fromPMS(symbol: ArcGisFeatureServerLayer.Symbol, style: Symbolizer.Format.Style) {
-        throw "not-implemented";
+        style.image = {};
+        style.image.src = symbol.url;
+        if (symbol.imageData) {
+            style.image.src = `data:image/png;base64,${symbol.imageData}`;
+        }
+        style.image["anchor-x"] = this.asWidth(symbol.xoffset);
+        style.image["anchor-y"] = this.asWidth(symbol.yoffset);
+        style.image.imgSize = [this.asWidth(symbol.width), this.asWidth(symbol.height)];
     }
 
     private fromSLSSolid(symbol: ArcGisFeatureServerLayer.Outline, style: Symbolizer.Format.Style) {

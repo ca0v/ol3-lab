@@ -791,7 +791,14 @@ define("alpha/format/ags-symbolizer", ["require", "exports", "jquery", "alpha/fo
             }
         };
         StyleConverter.prototype.fromPMS = function (symbol, style) {
-            throw "not-implemented";
+            style.image = {};
+            style.image.src = symbol.url;
+            if (symbol.imageData) {
+                style.image.src = "data:image/png;base64," + symbol.imageData;
+            }
+            style.image["anchor-x"] = this.asWidth(symbol.xoffset);
+            style.image["anchor-y"] = this.asWidth(symbol.yoffset);
+            style.image.imgSize = [this.asWidth(symbol.width), this.asWidth(symbol.height)];
         };
         StyleConverter.prototype.fromSLSSolid = function (symbol, style) {
             style.stroke = {
@@ -938,71 +945,82 @@ define("alpha/arcgis-source", ["require", "exports", "jquery", "openlayers", "bo
                 .getCode()
                 .split(":")
                 .pop();
-            var tileGrid = ol.tilegrid.createXYZ({
-                tileSize: options.tileSize
-            });
-            var strategy = ol.loadingstrategy.tile(tileGrid);
-            var loader = function (extent, resolution, projection) {
-                var layer = options.layer;
-                var box = {
-                    xmin: extent[0],
-                    ymin: extent[1],
-                    xmax: extent[2],
-                    ymax: extent[3]
-                };
-                var params = {
-                    f: "json",
-                    returnGeometry: true,
-                    spatialRel: "esriSpatialRelIntersects",
-                    geometry: encodeURIComponent(JSON.stringify(box)),
-                    geometryType: "esriGeometryEnvelope",
-                    resultType: "tile",
-                    inSR: srs,
-                    outSR: srs,
-                    outFields: "*"
-                };
-                var query = options.services + "/" + options.serviceName + "/FeatureServer/" + layer + "/query?" + asParam(params);
-                $.ajax({
-                    url: query,
-                    dataType: 'jsonp',
-                    success: function (response) {
-                        if (response.error) {
-                            alert(response.error.message + '\n' +
-                                response.error.details.join('\n'));
-                        }
-                        else {
-                            var features = esrijsonFormat.readFeatures(response, {
-                                featureProjection: projection,
-                                dataProjection: projection
-                            });
-                            if (features.length > 0) {
-                                source.addFeatures(features);
+            var all = options.layers.map(function (layerId) {
+                var d = $.Deferred();
+                var tileGrid = ol.tilegrid.createXYZ({
+                    tileSize: options.tileSize
+                });
+                var strategy = ol.loadingstrategy.tile(tileGrid);
+                var loader = function (extent, resolution, projection) {
+                    var box = {
+                        xmin: extent[0],
+                        ymin: extent[1],
+                        xmax: extent[2],
+                        ymax: extent[3]
+                    };
+                    var params = {
+                        f: "json",
+                        returnGeometry: true,
+                        spatialRel: "esriSpatialRelIntersects",
+                        geometry: encodeURIComponent(JSON.stringify(box)),
+                        geometryType: "esriGeometryEnvelope",
+                        resultType: "tile",
+                        inSR: srs,
+                        outSR: srs,
+                        outFields: "*"
+                    };
+                    var query = options.services + "/" + options.serviceName + "/FeatureServer/" + layerId + "/query?" + asParam(params);
+                    $.ajax({
+                        url: query,
+                        dataType: 'jsonp',
+                        success: function (response) {
+                            if (response.error) {
+                                alert(response.error.message + '\n' +
+                                    response.error.details.join('\n'));
+                            }
+                            else {
+                                var features = esrijsonFormat.readFeatures(response, {
+                                    featureProjection: projection,
+                                    dataProjection: projection
+                                });
+                                if (features.length > 0) {
+                                    source.addFeatures(features);
+                                }
                             }
                         }
-                    }
+                    });
+                };
+                var source = new ol.source.Vector({
+                    strategy: strategy,
+                    loader: loader
                 });
-            };
-            var source = new ol.source.Vector({
-                strategy: strategy,
-                loader: loader
-            });
-            var layer = new ol.layer.Vector({
-                title: options.title,
-                source: source
-            });
-            var catalog = new AgsCatalog.Catalog(options.services + "/" + options.serviceName + "/FeatureServer");
-            var converter = new Symbolizer.StyleConverter();
-            catalog.aboutLayer(options.layer).then(function (layerInfo) {
-                var styleMap = converter.fromRenderer(layerInfo.drawingInfo.renderer, { url: "for icons?" });
-                layer.setStyle(function (feature, resolution) {
-                    if (styleMap instanceof ol.style.Style) {
-                        return styleMap;
-                    }
-                    else {
-                        return styleMap(feature);
-                    }
+                var layer = new ol.layer.Vector({
+                    title: options.title,
+                    source: source
                 });
-                d.resolve(layer);
+                var catalog = new AgsCatalog.Catalog(options.services + "/" + options.serviceName + "/FeatureServer");
+                var converter = new Symbolizer.StyleConverter();
+                catalog.aboutLayer(layerId).then(function (layerInfo) {
+                    var styleMap = converter.fromRenderer(layerInfo.drawingInfo.renderer, { url: "for icons?" });
+                    layer.setStyle(function (feature, resolution) {
+                        if (styleMap instanceof ol.style.Style) {
+                            return styleMap;
+                        }
+                        else {
+                            return styleMap(feature);
+                        }
+                    });
+                    d.resolve(layer);
+                });
+                return d;
+            });
+            $.when.apply($, all).then(function () {
+                var args = [];
+                for (var _i = 0; _i < arguments.length; _i++) {
+                    args[_i - 0] = arguments[_i];
+                }
+                debugger;
+                d.resolve(args);
             });
             return d;
         };
@@ -3524,12 +3542,16 @@ define("labs/layerswitcher", ["require", "exports", "jquery", "openlayers", "lab
     var html = "\n<div class='popup'>\n    <div class='popup-container'>\n    </div>\n</div>\n";
     var css = "\n<style name=\"popup\" type=\"text/css\">\n    html, body, .map {\n        width: 100%;\n        height: 100%;\n        padding: 0;\n        overflow: hidden;\n        margin: 0;    \n    }\n</style>\n";
     var css_popup = "\n.popup-container {\n    position: absolute;\n    top: 1em;\n    right: 0.5em;\n    width: 10em;\n    bottom: 1em;\n    z-index: 1;\n    pointer-events: none;\n}\n\n.ol-popup {\n    color: white;\n    background-color: rgba(77,77,77,0.7);\n    min-width: 200px;\n}\n\n.ol-popup:after {\n    border-top-color: rgba(77,77,77,0.7);\n}\n\n";
+    var center = {
+        fire: [-117.754430386, 34.2606862490001],
+        wichita: [-97.4, 37.8]
+    };
     function run() {
         $(html).appendTo(".map");
         $(css).appendTo("head");
         var options = {
             srs: 'EPSG:4326',
-            center: [-97.4, 37.8],
+            center: center.fire,
             zoom: 10
         };
         {
@@ -3577,10 +3599,10 @@ define("labs/layerswitcher", ["require", "exports", "jquery", "openlayers", "lab
             tileSize: 1024,
             map: map,
             services: "https://sampleserver3.arcgisonline.com/ArcGIS/rest/services",
-            serviceName: "Petroleum/KSFields",
-            layer: 0
-        }).then(function (agsLayer) {
-            map.addLayer(agsLayer);
+            serviceName: "Fire/Sheep",
+            layers: [0, 2]
+        }).then(function (agsLayers) {
+            agsLayers.forEach(function (agsLayer) { return map.addLayer(agsLayer); });
             var layerSwitcher = new ol3_layerswitcher_1.LayerSwitcher();
             layerSwitcher.setMap(map);
             var popup = new ol3_popup_1.Popup({
@@ -6301,7 +6323,37 @@ define("ux/styles/ags/simplemarkersymbol-x", ["require", "exports"], function (r
         }
     ];
 });
-define("ux/ags-symbols", ["require", "exports", "openlayers", "labs/common/style-generator", "ux/styles/ags/simplemarkersymbol-circle", "ux/styles/ags/simplemarkersymbol-cross", "ux/styles/ags/simplemarkersymbol-square", "ux/styles/ags/simplemarkersymbol-diamond", "ux/styles/ags/simplemarkersymbol-path", "ux/styles/ags/simplemarkersymbol-x", "alpha/format/ags-symbolizer"], function (require, exports, ol, StyleGenerator, circleSymbol, crossSymbol, squareSymbol, diamondSymbol, pathSymbol, xSymbol, ags_symbolizer_2) {
+define("ux/styles/ags/picturemarkersymbol", ["require", "exports"], function (require, exports) {
+    "use strict";
+    return [
+        {
+            "angle": 0,
+            "xoffset": 0,
+            "yoffset": 0,
+            "type": "esriPMS",
+            "url": "https://rawgit.com/mapbox/maki/master/icons/aerialway-11.svg",
+            "width": 30,
+            "height": 30
+        }
+    ];
+});
+define("ux/styles/ags/picturemarkersymbol-imagedata", ["require", "exports"], function (require, exports) {
+    "use strict";
+    var style = [{
+            "type": "esriPMS",
+            "url": "4A138C60",
+            "imageData": "iVBORw0KGgoAAAANSUhEUgAAACMAAAAjCAYAAAAe2bNZAAAAAXNSR0IB2cksfwAAAAlwSFlzAAAOxAAADsQBlSsOGwAAAy1JREFUWIXtl0tIG1EUhv84Ymp0AhqsJhUqmmAUtRSlPjbW4mOhaSlushANNiCBiG7GgEZCQGiD4qYSXFiQlkAXBRdWECx2o4JiwE0Jtq60ICKBKsaYSeLtolY7nRmdiYKl5N/de85/7jfnDPNIxT+k1NsG+FNJGDElYcSUhBHTjcAEg0Gi0WgUtw4TDAaJTqfDxMQEsdvt1wK6NszY2BhKnpXAbreDZVmSlpaWMNC1YNrb28kGtQHLWwsOPYeg82isrq6S6urqhIAShvH5fKTX1QvGyyAWj0F1V4U2ZxucTmeiJROHGRwchOmVCYo7CsRiMQBAlaUKkx8m4fF4iMPhkN2dhGD6+vrI/NY8DI0GxNgYJ9bibIHjuQPhcJikp6fLApINs7m5SSoqKmBdtIJlWV4870EeKs2VsNlsckvLhxkYGEBtXy3U99SIRqOCOTX2Gky1TGFhYYE0NTVJ7o5cGAITUPqoFAeHB+JZSqB7sRudLzplFZcFo2/VI+dhDtgodzxH34+QmZ/Jy6/pr4Gv3UdUKpWk7kiGWVtbI55tD6In/NGsT62jvKMc6nw1Z19dqIbVapV6hHSY4eFhZDmyEIlEOPvBL0FszW4hFAqh3lnP8818nsHc3BxpbW29sjuSYMbHx8mIdwQNbANn/xSn8E/6MTo6CoZhsP1kG9oqLSenrKsMQ0NDUo65GubseYG6l3W8e2Xn0w4MmQYwDKOYnp4mPa4eNBobkaJMOc/R1eqwPL8Ml8tF3G73pd25EsZms0HbogVtoMFGLmCiR1EE3gUw+34Wzc3NsFgsCpPJRAIfAyhqK+LUMHYY4R5yY29vj+Tm5ooCCcIo7ytJRlYGQuEQllRL0HfocRw+Po+zP1h8e/MNGTkZMPeakV2cTQBg+esyQvEQQAHaxxfjonIp1L2uQ8nTEiiLlQQAIpsRHpQgTEFXATSFmvN1PB7nxCmagrHfKHaBgh6kAUbbhWfFssLzCMLsr+7jZPvk14KInHbZ9MU8Zz6h14gojLnIDL/fD4qiQFGUoJF35X9JyPfbQ9M0drErDcbr9V77ezYR/X9/BzelJIyYkjBi+gkX4w++7OoZ3gAAAABJRU5ErkJggg==",
+            "contentType": "image/png",
+            "color": null,
+            "width": 26,
+            "height": 26,
+            "angle": 0,
+            "xoffset": 0,
+            "yoffset": 0
+        }];
+    return style;
+});
+define("ux/ags-symbols", ["require", "exports", "openlayers", "labs/common/style-generator", "ux/styles/ags/simplemarkersymbol-circle", "ux/styles/ags/simplemarkersymbol-cross", "ux/styles/ags/simplemarkersymbol-square", "ux/styles/ags/simplemarkersymbol-diamond", "ux/styles/ags/simplemarkersymbol-path", "ux/styles/ags/simplemarkersymbol-x", "ux/styles/ags/picturemarkersymbol", "ux/styles/ags/picturemarkersymbol-imagedata", "alpha/format/ags-symbolizer"], function (require, exports, ol, StyleGenerator, circleSymbol, crossSymbol, squareSymbol, diamondSymbol, pathSymbol, xSymbol, iconurl, iconimagedata, ags_symbolizer_2) {
     "use strict";
     var center = [-82.4, 34.85];
     function run() {
@@ -6335,7 +6387,9 @@ define("ux/ags-symbols", ["require", "exports", "openlayers", "labs/common/style
             diamondStyle,
             pathStyle,
             squareStyle,
-            xStyle
+            xStyle,
+            formatter.fromJson(iconurl[0]),
+            formatter.fromJson(iconimagedata[0])
         ];
         layer.getSource().getFeatures().forEach(function (f, i) { return f.setStyle([styles[i % styles.length]]); });
     }
@@ -6464,20 +6518,6 @@ define("ux/styles/ags/picturefillsymbol", ["require", "exports"], function (requ
             "xscale": 1,
             "yscale": 1
         }];
-});
-define("ux/styles/ags/picturemarkersymbol", ["require", "exports"], function (require, exports) {
-    "use strict";
-    return [
-        {
-            "angle": 0,
-            "xoffset": 0,
-            "yoffset": 0,
-            "type": "esriPMS",
-            "url": "https://rawgit.com/mapbox/maki/master/icons/aerialway-11.svg",
-            "width": 30,
-            "height": 30
-        }
-    ];
 });
 define("ux/styles/ags/simplefillsymbol", ["require", "exports"], function (require, exports) {
     "use strict";

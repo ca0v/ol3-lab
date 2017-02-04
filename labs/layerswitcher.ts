@@ -61,6 +61,11 @@ const css_popup = `
 
 `;
 
+let center = {
+    fire: [-117.754430386, 34.2606862490001],
+    wichita: [-97.4, 37.8]
+}
+
 export function run() {
 
     $(html).appendTo(".map");
@@ -68,7 +73,7 @@ export function run() {
 
     let options = {
         srs: 'EPSG:4326',
-        center: <[number, number]>[-97.4, 37.8],
+        center: <[number, number]>center.fire,
         zoom: 10
     }
 
@@ -118,13 +123,13 @@ export function run() {
         tileSize: 1024,
         map: map,
         services: "https://sampleserver3.arcgisonline.com/ArcGIS/rest/services",
-        serviceName: "Petroleum/KSFields",
+        serviceName: "Fire/Sheep",
         // services: "https://services7.arcgis.com/k0UprFPHKieFB9UY/arcgis/rest/services",
         // serviceName: "Subdivisions",
-        layer: 0
-    }).then(agsLayer => {
+        layers: [0, 2]
+    }).then(agsLayers => {
 
-        map.addLayer(agsLayer);
+        agsLayers.forEach(agsLayer => map.addLayer(agsLayer));
 
         let layerSwitcher = new LayerSwitcher();
         layerSwitcher.setMap(map);
