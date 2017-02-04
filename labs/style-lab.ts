@@ -1,10 +1,10 @@
 import ol = require("openlayers");
 import $ = require("jquery");
-import {Format,StyleConverter} from "../alpha/format/ol3-symbolizer";
+import { Format, StyleConverter } from "../alpha/format/ol3-symbolizer";
 import AgsMarkerSerializer = require("../ux/serializers/ags-simplemarkersymbol");
 import StyleGenerator = require("./common/style-generator");
 
-const center = [-82.4, 34.85];
+const center = <[number, number]>[-82.4, 34.85];
 
 let formatter = new StyleConverter();
 
@@ -15,8 +15,6 @@ let generator = new StyleGenerator({
 
 let ux = `
 <div class='style-lab'>
-    <label for='use-ags-serializer'>use-ags-serializer?</label>
-    <input type="checkbox" id="use-ags-serializer"/>
     <label for='style-count'>How many styles per symbol?</label>
     <input id='style-count' type="number" value="1" min="1" max="5"/><button id='more'>More</button>
     <label for='style-out'>Click marker to see style here:</label>
@@ -122,18 +120,10 @@ let css = `
 
 export function run() {
 
-    let formatter: StyleConverter;
-
     $(ux).appendTo(".map");
     $(css).appendTo("head");
 
-    $("#use-ags-serializer").change(args => {
-        if (args.target.checked) {
-            formatter = <any>new AgsMarkerSerializer.SimpleMarkerConverter();
-        } else {
-            formatter = new StyleConverter();
-        }
-    }).change();
+    let formatter = new StyleConverter();
 
     let map = new ol.Map({
         target: "map",
@@ -169,7 +159,7 @@ export function run() {
         });
     });
 
-    map.on("click", (args: ol.MapBrowserEvent) => map.forEachFeatureAtPixel(args.pixel, (feature, layer) => {
+    map.on("click", (args: ol.MapBrowserEvent) => map.forEachFeatureAtPixel(args.pixel, (feature: ol.Feature, layer) => {
         let style = feature.getStyle();
         let json = "";
         if (Array.isArray(style)) {
@@ -191,7 +181,7 @@ export function run() {
                     }
                     if (s instanceof HTMLImageElement) {
                         $(".last-image-clicked").attr("src", s.src);
-                        break;                        
+                        break;
                     }
                     s = (<ol.style.Style>s).getImage();
                 }

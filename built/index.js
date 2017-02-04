@@ -666,9 +666,6 @@ define("alpha/format/ags-symbolizer", ["require", "exports", "jquery", "alpha/fo
         "esriPFS": "pfs",
         "esriTS": "txt"
     };
-    function as(v) {
-        return "" + v + "px";
-    }
     function range(a, b) {
         var result = new Array(b - a + 1);
         while (a <= b)
@@ -681,6 +678,12 @@ define("alpha/format/ags-symbolizer", ["require", "exports", "jquery", "alpha/fo
     var StyleConverter = (function () {
         function StyleConverter() {
         }
+        StyleConverter.prototype.asWidth = function (v) {
+            return v * 4 / 3;
+        };
+        StyleConverter.prototype.asRadius = function (v) {
+            return v * 2 / 3;
+        };
         StyleConverter.prototype.asColor = function (color) {
             if (color.length === 4)
                 return "rgba(" + color[0] + "," + color[1] + "," + color[2] + "," + color[3] / 255 + ")";
@@ -688,76 +691,163 @@ define("alpha/format/ags-symbolizer", ["require", "exports", "jquery", "alpha/fo
                 return "rgb(" + color[0] + "," + color[1] + "," + color[2] + "})";
             return "#" + color.map(function (v) { return ("0" + v.toString(16)).substr(0, 2); }).join("");
         };
-        StyleConverter.prototype.asStroke = function (outline) {
-            var stroke = {};
-            switch (outline.type) {
-                case "esriSLS": {
-                    switch (outline.style) {
-                        case "esriSLSSolid": {
-                            stroke.color = this.asColor(outline.color);
-                            stroke.width = outline.width;
-                            break;
-                        }
-                        default: {
-                            debugger;
-                            break;
-                        }
-                    }
+        StyleConverter.prototype.fromSFSSolid = function (symbol, style) {
+            style.fill = {
+                color: this.asColor(symbol.color)
+            };
+            this.fromSLS(symbol.outline, style);
+        };
+        StyleConverter.prototype.fromSFS = function (symbol, style) {
+            switch (symbol.style) {
+                case "esriSFSSolid":
+                    this.fromSFSSolid(symbol, style);
                     break;
-                }
-                default: {
+                default:
                     debugger;
                     break;
-                }
             }
-            return stroke;
+        };
+        StyleConverter.prototype.fromSMSCircle = function (symbol, style) {
+            style.circle = {
+                opacity: 1,
+                radius: this.asRadius(symbol.size),
+                stroke: {
+                    color: this.asColor(symbol.outline.color)
+                },
+                snapToPixel: true
+            };
+            this.fromSFSSolid(symbol, style.circle);
+            this.fromSLS(symbol.outline, style.circle);
+        };
+        StyleConverter.prototype.fromSMSCross = function (symbol, style) {
+            style.star = {
+                points: 4,
+                angle: 0,
+                radius: this.asRadius(symbol.size),
+                radius2: 0
+            };
+            this.fromSFSSolid(symbol, style.star);
+            this.fromSLS(symbol.outline, style.star);
+        };
+        StyleConverter.prototype.fromSMSDiamond = function (symbol, style) {
+            style.star = {
+                points: 4,
+                angle: 0,
+                radius: this.asRadius(symbol.size),
+                radius2: this.asRadius(symbol.size)
+            };
+            this.fromSFSSolid(symbol, style.star);
+            this.fromSLS(symbol.outline, style.star);
+        };
+        StyleConverter.prototype.fromSMSPath = function (symbol, style) {
+            var size = 2 * this.asWidth(symbol.size);
+            style.svg = {
+                imgSize: [size, size],
+                path: symbol.path,
+                rotation: symbol.angle
+            };
+            this.fromSLSSolid(symbol, style.svg);
+            this.fromSLS(symbol.outline, style.svg);
+        };
+        StyleConverter.prototype.fromSMSSquare = function (symbol, style) {
+            style.star = {
+                points: 4,
+                angle: Math.PI / 4,
+                radius: this.asRadius(symbol.size / Math.sqrt(2)),
+                radius2: this.asRadius(symbol.size / Math.sqrt(2))
+            };
+            this.fromSFSSolid(symbol, style.star);
+            this.fromSLS(symbol.outline, style.star);
+        };
+        StyleConverter.prototype.fromSMSX = function (symbol, style) {
+            style.star = {
+                points: 4,
+                angle: 0,
+                radius: this.asRadius(symbol.size / Math.sqrt(2)),
+                radius2: 0
+            };
+            this.fromSFSSolid(symbol, style.star);
+            this.fromSLS(symbol.outline, style.star);
+        };
+        StyleConverter.prototype.fromSMS = function (symbol, style) {
+            switch (symbol.style) {
+                case "esriSMSCircle":
+                    this.fromSMSCircle(symbol, style);
+                    break;
+                case "esriSMSCross":
+                    this.fromSMSCross(symbol, style);
+                    break;
+                case "esriSMSDiamond":
+                    this.fromSMSDiamond(symbol, style);
+                    break;
+                case "esriSMSPath":
+                    this.fromSMSPath(symbol, style);
+                    break;
+                case "esriSMSSquare":
+                    this.fromSMSSquare(symbol, style);
+                    break;
+                case "esriSMSX":
+                    this.fromSMSX(symbol, style);
+                    break;
+                default:
+                    throw "invalid-style: " + symbol.style;
+            }
+        };
+        StyleConverter.prototype.fromPMS = function (symbol, style) {
+            throw "not-implemented";
+        };
+        StyleConverter.prototype.fromSLSSolid = function (symbol, style) {
+            style.stroke = {
+                color: this.asColor(symbol.color),
+                width: this.asWidth(symbol.width),
+                lineDash: [],
+                lineJoin: "",
+                miterLimit: 4
+            };
+        };
+        StyleConverter.prototype.fromSLS = function (symbol, style) {
+            switch (symbol.style) {
+                case "esriSLSSolid":
+                    this.fromSLSSolid(symbol, style);
+                    break;
+                default:
+                    throw "invalid-style: " + symbol.style;
+            }
+        };
+        StyleConverter.prototype.fromPFS = function (symbol, style) {
+            throw "not-implemented";
+        };
+        StyleConverter.prototype.fromTS = function (symbol, style) {
+            throw "not-implemented";
         };
         StyleConverter.prototype.fromJson = function (symbol) {
             var style = {};
-            switch (symbol.type) {
-                case "esriSFS": {
-                    switch (symbol.style) {
-                        case "esriSFSSolid": {
-                            style.fill = {
-                                color: this.asColor(symbol.color)
-                            };
-                            style.stroke = this.asStroke(symbol.outline);
-                            break;
-                        }
-                        default: {
-                            debugger;
-                            break;
-                        }
-                    }
-                    break;
-                }
-                case "esriSMS": {
-                    switch (symbol.style) {
-                        case "esriSMSCircle": {
-                            style.circle = {
-                                fill: symbol.color,
-                                opacity: 1,
-                                radius: symbol.size,
-                                stroke: {
-                                    color: this.asColor(symbol.outline.color)
-                                },
-                                snapToPixel: true
-                            };
-                            style.circle.stroke.color;
-                            break;
-                        }
-                        default: {
-                            debugger;
-                            break;
-                        }
-                    }
-                }
-                default: {
-                    debugger;
-                    break;
-                }
-            }
+            this.fromSymbol(symbol, style);
             return symbolizer.fromJson(style);
+        };
+        StyleConverter.prototype.fromSymbol = function (symbol, style) {
+            switch (symbol.type) {
+                case "esriSFS":
+                    this.fromSFS(symbol, style);
+                    break;
+                case "esriSLS":
+                    this.fromSLS(symbol, style);
+                    break;
+                case "esriPMS":
+                    this.fromPMS(symbol, style);
+                    break;
+                case "esriPFS":
+                    this.fromPFS(symbol, style);
+                    break;
+                case "esriSMS":
+                    this.fromSMS(symbol, style);
+                    break;
+                case "esriTS":
+                    this.fromTS(symbol, style);
+                    break;
+                default:
+                    throw "invalid-symbol-type: " + symbol.type;
+            }
         };
         StyleConverter.prototype.fromRenderer = function (renderer, args) {
             var _this = this;
@@ -2712,7 +2802,7 @@ define("labs/index", ["require", "exports"], function (require, exports) {
     function run() {
         var l = window.location;
         var path = "" + l.origin + l.pathname + "?run=labs/";
-        var labs = "\n    popup\n    layerswitcher\n    \n    style-lab\n\n    style-viewer\n    style-viewer&geom=point&style=icon/png\n    style-viewer&geom=point&style=icon/png,text/text\n    style-viewer&geom=point&style=%5B%7B\"image\":%7B\"imgSize\":%5B45,45%5D,\"rotation\":0,\"stroke\":%7B\"color\":\"rgba(255,25,0,0.8)\",\"width\":3%7D,\"path\":\"M23%202%20L23%2023%20L43%2016.5%20L23%2023%20L35%2040%20L23%2023%20L11%2040%20L23%2023%20L3%2017%20L23%2023%20L23%202%20Z\"%7D%7D%5D\n\n    style-viewer&geom=point&style=%5B%7B\"circle\":%7B\"fill\":%7B\"gradient\":%7B\"type\":\"linear(32,32,96,96)\",\"stops\":\"rgba(0,255,0,0.1)%200%25;rgba(0,255,0,0.8)%20100%25\"%7D%7D,\"opacity\":1,\"stroke\":%7B\"color\":\"rgba(0,255,0,1)\",\"width\":1%7D,\"radius\":64%7D%7D,%7B\"image\":%7B\"anchor\":%5B16,48%5D,\"size\":%5B32,48%5D,\"anchorXUnits\":\"pixels\",\"anchorYUnits\":\"pixels\",\"src\":\"http://openlayers.org/en/v3.20.1/examples/data/icon.png\"%7D%7D,%7B\"text\":%7B\"fill\":%7B\"color\":\"rgba(75,92,85,0.85)\"%7D,\"stroke\":%7B\"color\":\"rgba(255,255,255,1)\",\"width\":5%7D,\"offset-x\":0,\"offset-y\":16,\"text\":\"fantasy%20light\",\"font\":\"18px%20serif\"%7D%7D%5D    \n\n    style-viewer&geom=point&style=%5B%7B\"image\":%7B\"imgSize\":%5B13,21%5D,\"fill\":%7B\"color\":\"rgba(0,0,0,0.5)\"%7D,\"path\":\"M6.3,0C6.3,0,0,0.1,0,7.5c0,3.8,6.3,12.6,6.3,12.6s6.3-8.8,6.3-12.7C12.6,0.1,6.3,0,6.3,0z%20M6.3,8.8%20c-1.4,0-2.5-1.1-2.5-2.5c0-1.4,1.1-2.5,2.5-2.5c1.4,0,2.5,1.1,2.5,2.5C8.8,7.7,7.7,8.8,6.3,8.8z\"%7D%7D%5D\n\n    style-viewer&geom=point&style=%5B%7B\"image\":%7B\"imgSize\":%5B15,15%5D,\"anchor\":%5B0,0.5%5D,\"fill\":%7B\"color\":\"rgba(255,0,0,0.1)\"%7D,\"stroke\":%7B\"color\":\"rgba(255,0,0,1)\",\"width\":0.1%7D,\"scale\":8,\"rotation\":0.7,\"img\":\"lock\"%7D%7D,%7B\"image\":%7B\"imgSize\":%5B15,15%5D,\"anchor\":%5B100,0.5%5D,\"anchorXUnits\":\"pixels\",\"fill\":%7B\"color\":\"rgba(0,255,0,0.4)\"%7D,\"stroke\":%7B\"color\":\"rgba(255,0,0,1)\",\"width\":0.1%7D,\"scale\":1.5,\"rotation\":0.7,\"img\":\"lock\"%7D%7D,%7B\"image\":%7B\"imgSize\":%5B15,15%5D,\"anchor\":%5B-10,0%5D,\"anchorXUnits\":\"pixels\",\"anchorOrigin\":\"top-right\",\"fill\":%7B\"color\":\"rgba(230,230,80,1)\"%7D,\"stroke\":%7B\"color\":\"rgba(0,0,0,1)\",\"width\":0.5%7D,\"scale\":2,\"rotation\":0.8,\"img\":\"lock\"%7D%7D%5D\n\n\n    style-viewer&geom=multipoint&style=icon/png\n\n    style-viewer&geom=polyline&style=stroke/dot\n\n    style-viewer&geom=polygon&style=fill/diagonal\n    style-viewer&geom=polygon&style=fill/horizontal,fill/vertical,stroke/dashdotdot\n    style-viewer&geom=polygon&style=stroke/solid,text/text\n    style-viewer&geom=polygon-with-holes&style=fill/cross,stroke/solid\n\n    style-viewer&geom=multipolygon&style=stroke/solid,fill/horizontal,text/text\n\n    style-to-canvas\n    polyline-encoder\n    image-data-viewer\n\n    mapmaker\n    mapmaker&background=light\n    mapmaker&geom=t`syzE}gm_dAm_@A?r@p@Bp@Hp@Ph@Td@Z`@`@Vb@Nd@xUABmF\n    mapmaker&geom=t`syzE}gm_dAm_@A?r@p@Bp@Hp@Ph@Td@Z`@`@Vb@Nd@xUABmF&color=yellow&background=dark&modify=1\n    \n    geocoder&modify=1\n\n    facebook\n    google-identity\n    index\n    ";
+        var labs = "\n    ../ux/ags-symbols\n    popup\n    layerswitcher\n    \n    style-lab\n\n    style-viewer\n    style-viewer&geom=point&style=icon/png\n    style-viewer&geom=point&style=icon/png,text/text\n    style-viewer&geom=point&style=%5B%7B\"image\":%7B\"imgSize\":%5B45,45%5D,\"rotation\":0,\"stroke\":%7B\"color\":\"rgba(255,25,0,0.8)\",\"width\":3%7D,\"path\":\"M23%202%20L23%2023%20L43%2016.5%20L23%2023%20L35%2040%20L23%2023%20L11%2040%20L23%2023%20L3%2017%20L23%2023%20L23%202%20Z\"%7D%7D%5D\n\n    style-viewer&geom=point&style=%5B%7B\"circle\":%7B\"fill\":%7B\"gradient\":%7B\"type\":\"linear(32,32,96,96)\",\"stops\":\"rgba(0,255,0,0.1)%200%25;rgba(0,255,0,0.8)%20100%25\"%7D%7D,\"opacity\":1,\"stroke\":%7B\"color\":\"rgba(0,255,0,1)\",\"width\":1%7D,\"radius\":64%7D%7D,%7B\"image\":%7B\"anchor\":%5B16,48%5D,\"size\":%5B32,48%5D,\"anchorXUnits\":\"pixels\",\"anchorYUnits\":\"pixels\",\"src\":\"http://openlayers.org/en/v3.20.1/examples/data/icon.png\"%7D%7D,%7B\"text\":%7B\"fill\":%7B\"color\":\"rgba(75,92,85,0.85)\"%7D,\"stroke\":%7B\"color\":\"rgba(255,255,255,1)\",\"width\":5%7D,\"offset-x\":0,\"offset-y\":16,\"text\":\"fantasy%20light\",\"font\":\"18px%20serif\"%7D%7D%5D    \n\n    style-viewer&geom=point&style=%5B%7B\"image\":%7B\"imgSize\":%5B13,21%5D,\"fill\":%7B\"color\":\"rgba(0,0,0,0.5)\"%7D,\"path\":\"M6.3,0C6.3,0,0,0.1,0,7.5c0,3.8,6.3,12.6,6.3,12.6s6.3-8.8,6.3-12.7C12.6,0.1,6.3,0,6.3,0z%20M6.3,8.8%20c-1.4,0-2.5-1.1-2.5-2.5c0-1.4,1.1-2.5,2.5-2.5c1.4,0,2.5,1.1,2.5,2.5C8.8,7.7,7.7,8.8,6.3,8.8z\"%7D%7D%5D\n\n    style-viewer&geom=point&style=%5B%7B\"image\":%7B\"imgSize\":%5B15,15%5D,\"anchor\":%5B0,0.5%5D,\"fill\":%7B\"color\":\"rgba(255,0,0,0.1)\"%7D,\"stroke\":%7B\"color\":\"rgba(255,0,0,1)\",\"width\":0.1%7D,\"scale\":8,\"rotation\":0.7,\"img\":\"lock\"%7D%7D,%7B\"image\":%7B\"imgSize\":%5B15,15%5D,\"anchor\":%5B100,0.5%5D,\"anchorXUnits\":\"pixels\",\"fill\":%7B\"color\":\"rgba(0,255,0,0.4)\"%7D,\"stroke\":%7B\"color\":\"rgba(255,0,0,1)\",\"width\":0.1%7D,\"scale\":1.5,\"rotation\":0.7,\"img\":\"lock\"%7D%7D,%7B\"image\":%7B\"imgSize\":%5B15,15%5D,\"anchor\":%5B-10,0%5D,\"anchorXUnits\":\"pixels\",\"anchorOrigin\":\"top-right\",\"fill\":%7B\"color\":\"rgba(230,230,80,1)\"%7D,\"stroke\":%7B\"color\":\"rgba(0,0,0,1)\",\"width\":0.5%7D,\"scale\":2,\"rotation\":0.8,\"img\":\"lock\"%7D%7D%5D\n\n\n    style-viewer&geom=multipoint&style=icon/png\n\n    style-viewer&geom=polyline&style=stroke/dot\n\n    style-viewer&geom=polygon&style=fill/diagonal\n    style-viewer&geom=polygon&style=fill/horizontal,fill/vertical,stroke/dashdotdot\n    style-viewer&geom=polygon&style=stroke/solid,text/text\n    style-viewer&geom=polygon-with-holes&style=fill/cross,stroke/solid\n\n    style-viewer&geom=multipolygon&style=stroke/solid,fill/horizontal,text/text\n\n    style-to-canvas\n    polyline-encoder\n    image-data-viewer\n\n    mapmaker\n    mapmaker&background=light\n    mapmaker&geom=t`syzE}gm_dAm_@A?r@p@Bp@Hp@Ph@Td@Z`@`@Vb@Nd@xUABmF\n    mapmaker&geom=t`syzE}gm_dAm_@A?r@p@Bp@Hp@Ph@Td@Z`@`@Vb@Nd@xUABmF&color=yellow&background=dark&modify=1\n    \n    geocoder&modify=1\n\n    facebook\n    google-identity\n    index\n    ";
         var styles = document.createElement("style");
         document.head.appendChild(styles);
         styles.innerText += "\n    #map {\n        display: none;\n    }\n    .test {\n        margin: 20px;\n    }\n    ";
@@ -4035,263 +4125,23 @@ define("ux/serializers/serializer", ["require", "exports"], function (require, e
             }]
     };
 });
-define("ux/serializers/ags-simplemarkersymbol", ["require", "exports", "openlayers"], function (require, exports, ol) {
+define("ux/serializers/ags-simplemarkersymbol", ["require", "exports", "alpha/format/ags-symbolizer"], function (require, exports, ags_symbolizer_1) {
     "use strict";
-    function doif(v, cb) {
-        if (typeof v !== "undefined")
-            cb(v);
-    }
-    function asAngle(radian) {
-        return Math.round(180 / Math.PI * radian);
-    }
-    function asColor(color) {
-        if (color.length == 4 && color[3] > 1) {
-            color[3] /= 255.0;
-        }
-        return ol.color.asString(color);
-    }
-    function toAgs(value) {
-        return value * 4 / 3;
-    }
-    function fromAgs(value) {
-        return value * 3 / 4;
-    }
+    var converter = new ags_symbolizer_1.StyleConverter();
     var SimpleMarkerConverter = (function () {
         function SimpleMarkerConverter() {
         }
         SimpleMarkerConverter.prototype.toJson = function (style) {
-            var result = {
-                type: "esriSMS"
-            };
-            this.serializeStyle(style, result);
-            return result;
+            throw "not-implemented";
         };
         SimpleMarkerConverter.prototype.fromJson = function (json) {
-            if (json.type !== "esriSMS")
-                throw "invalid symbol type: " + json.type;
-            switch (json.style) {
-                case "esriSMSPath": return this.deserializePath(json);
-                case "esriSMSCircle": return this.deserializeCircle(json);
-                case "esriSMSCross": return this.deserializeCross(json);
-                case "esriSMSDiamond": return this.deserializeDiamond(json);
-                case "esriSMSSquare": return this.deserializeSquare(json);
-                case "esriSMSX": return this.deserializeX(json);
-            }
-            throw "unknown symbol style: " + json.style;
-        };
-        SimpleMarkerConverter.prototype.serializeStyle = function (style, result) {
-            var _this = this;
-            var s = style;
-            if (s instanceof ol.style.Circle) {
-                result.style = "esriSMSCircle";
-                doif(s.getFill(), function (v) { return _this.serializeStyle(v, result); });
-                doif(s.getImage(), function (v) { return _this.serializeStyle(v, result); });
-                s.getOpacity();
-                doif(s.getRotation(), function (v) { return result.angle = v; });
-                s.getScale();
-                doif(s.getStroke(), function (v) { return _this.serializeStyle(v, result); });
-                doif(s.getRadius(), function (v) { return result.size = 1.5 * v; });
-            }
-            else if (s instanceof ol.style.Fill) {
-                result.color = ol.color.asArray(s.getColor());
-            }
-            else if (s instanceof ol.style.Icon) {
-                debugger;
-                result.style = "esriSMSPath";
-                s.getFill();
-                s.getImage();
-                s.getOpacity();
-                s.getRotation();
-                s.getScale();
-                s.getStroke();
-                s.getText();
-            }
-            else if (s instanceof ol.style.RegularShape) {
-                var points = s.getPoints();
-                var r1 = s.getRadius();
-                var r2 = s.getRadius2();
-                var angle = s.getAngle();
-                var rotation = s.getRotation();
-                rotation = asAngle(angle + rotation);
-                result.size = r1;
-                doif(s.getStroke(), function (v) { return _this.serializeStyle(v, result); });
-                if (points === 8 && r2 === 0) {
-                    if (rotation === 0) {
-                        result.style = "esriSMSCross";
-                        result.size *= Math.sqrt(2);
-                    }
-                    else if (rotation === 45) {
-                        result.style = "esriSMSX";
-                    }
-                }
-                else if (points === 4 && r2 === r1) {
-                    if (rotation === 0) {
-                        result.style = "esriSMSDiamond";
-                        result.size *= Math.sqrt(2);
-                    }
-                    else if (rotation === 45) {
-                        result.style = "esriSMSSquare";
-                    }
-                }
-                if (!result.style) {
-                    result.style = "esriSMSPath";
-                    result.size *= Math.sqrt(2);
-                    var strokeWidth = result.outline.width;
-                    var size = 2 * (r1 + strokeWidth) + 1;
-                    var path = [];
-                    for (var i = 0; i <= points; i++) {
-                        var angle0 = i * 2 * Math.PI / points - Math.PI / 2 + angle;
-                        var radiusC = i % 2 === 0 ? r1 : r2;
-                        var _a = [size / 2 + radiusC * Math.cos(angle0), size / 2 + radiusC * Math.sin(angle0)], x = _a[0], y = _a[1];
-                        i === 0 ? path.push("M" + x + " " + y) : path.push("L" + x + " " + y);
-                    }
-                    path.push("Z");
-                    result.path = path.join(" ");
-                }
-                doif(s.getFill(), function (v) { return result.color = v.getColor(); });
-                doif(s.getImage(), function (v) { return _this.serializeStyle(v, result); });
-                s.getOpacity();
-                s.getScale();
-            }
-            else if (s instanceof ol.style.Stroke) {
-                result.outline = result.outline || {};
-                doif(s.getColor(), function (v) { return result.outline.color = v; });
-                s.getLineCap();
-                s.getLineDash();
-                s.getLineJoin();
-                s.getMiterLimit();
-                doif(s.getWidth(), function (v) { return result.outline.width = fromAgs(v); });
-            }
-            else if (s instanceof ol.style.Text) {
-                debugger;
-            }
-            else if (s instanceof ol.style.Image) {
-                s.getOpacity();
-                s.getScale();
-            }
-            else if (s instanceof ol.style.Style) {
-                var fill = s.getFill();
-                if (fill) {
-                    result.color = ol.color.asArray(fill.getColor());
-                }
-                var image = s.getImage();
-                if (image) {
-                    this.serializeStyle(image, result);
-                }
-            }
-        };
-        SimpleMarkerConverter.prototype.deserializePath = function (json) {
-            var canvas = document.createElement("canvas");
-            var size = 2 * toAgs(json.size);
-            var svgdata = "\n        <svg version=\"1.1\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" \n            x=\"" + json.xoffset + "px\" y=\"" + json.yoffset + "px\" width=\"" + size + "px\" height=\"" + size + "px\" \n            xml:space=\"preserve\">\n\n        <path d=\"" + json.path + "\" \n            fill=\"" + asColor(json.color) + "\" \n            stroke=\"" + asColor(json.outline.color) + "\" \n            stroke-width=\"" + toAgs(json.outline.width) + "\" \n            stroke-linecap=\"butt\" \n            stroke-linejoin=\"miter\" \n            stroke-miterlimit=\"4\"\n            stroke-dasharray=\"none\" \n            fill-rule=\"evenodd\"\n            transform=\"rotate(" + json.angle + " " + (json.xoffset + json.size) + " " + (json.yoffset + json.size) + ")\"\n        />\n\n        </svg>";
-            return new ol.style.Style({
-                image: new ol.style.Icon({
-                    src: "data:image/svg+xml;utf8," + svgdata
-                })
-            });
-        };
-        SimpleMarkerConverter.prototype.deserializeCircle = function (json) {
-            return new ol.style.Style({
-                image: new ol.style.Circle({
-                    radius: toAgs(json.size / 2),
-                    fill: new ol.style.Fill({
-                        color: asColor(json.color)
-                    }),
-                    stroke: new ol.style.Stroke({
-                        color: asColor(json.outline.color),
-                        width: toAgs(json.outline.width),
-                        lineJoin: "",
-                        lineDash: [],
-                        miterLimit: 4
-                    })
-                })
-            });
-        };
-        SimpleMarkerConverter.prototype.deserializeCross = function (json) {
-            return new ol.style.Style({
-                image: new ol.style.RegularShape({
-                    points: 4,
-                    angle: 0,
-                    radius: toAgs(json.size / 2),
-                    radius2: 0,
-                    fill: new ol.style.Fill({
-                        color: asColor(json.color)
-                    }),
-                    stroke: new ol.style.Stroke({
-                        color: asColor(json.outline.color),
-                        width: toAgs(json.outline.width),
-                        lineJoin: "",
-                        lineDash: [],
-                        miterLimit: 4
-                    })
-                })
-            });
-        };
-        SimpleMarkerConverter.prototype.deserializeDiamond = function (json) {
-            return new ol.style.Style({
-                image: new ol.style.RegularShape({
-                    points: 4,
-                    radius: toAgs(json.size / 2),
-                    radius2: toAgs(json.size / 2),
-                    angle: json.angle,
-                    fill: new ol.style.Fill({
-                        color: asColor(json.color)
-                    }),
-                    stroke: new ol.style.Stroke({
-                        color: asColor(json.outline.color),
-                        width: toAgs(json.outline.width),
-                        lineJoin: "",
-                        lineDash: [],
-                        miterLimit: 4
-                    })
-                })
-            });
-        };
-        SimpleMarkerConverter.prototype.deserializeSquare = function (json) {
-            return new ol.style.Style({
-                image: new ol.style.RegularShape({
-                    points: 4,
-                    radius: toAgs(json.size / Math.sqrt(2)),
-                    radius2: toAgs(json.size / Math.sqrt(2)),
-                    angle: Math.PI / 4,
-                    fill: new ol.style.Fill({
-                        color: asColor(json.color)
-                    }),
-                    stroke: new ol.style.Stroke({
-                        color: asColor(json.outline.color),
-                        width: toAgs(json.outline.width),
-                        lineJoin: "",
-                        lineDash: [],
-                        miterLimit: 4
-                    })
-                })
-            });
-        };
-        SimpleMarkerConverter.prototype.deserializeX = function (json) {
-            return new ol.style.Style({
-                image: new ol.style.RegularShape({
-                    points: 4,
-                    radius: toAgs(json.size / Math.sqrt(2)),
-                    radius2: 0,
-                    angle: Math.PI / 4,
-                    fill: new ol.style.Fill({
-                        color: asColor(json.color)
-                    }),
-                    stroke: new ol.style.Stroke({
-                        color: asColor(json.outline.color),
-                        width: toAgs(json.outline.width),
-                        lineJoin: "",
-                        lineDash: [],
-                        miterLimit: 4
-                    })
-                })
-            });
+            return converter.fromJson(json);
         };
         return SimpleMarkerConverter;
     }());
     exports.SimpleMarkerConverter = SimpleMarkerConverter;
 });
-define("labs/style-lab", ["require", "exports", "openlayers", "jquery", "alpha/format/ol3-symbolizer", "ux/serializers/ags-simplemarkersymbol", "labs/common/style-generator"], function (require, exports, ol, $, ol3_symbolizer_6, AgsMarkerSerializer, StyleGenerator) {
+define("labs/style-lab", ["require", "exports", "openlayers", "jquery", "alpha/format/ol3-symbolizer", "labs/common/style-generator"], function (require, exports, ol, $, ol3_symbolizer_6, StyleGenerator) {
     "use strict";
     var center = [-82.4, 34.85];
     var formatter = new ol3_symbolizer_6.StyleConverter();
@@ -4299,20 +4149,12 @@ define("labs/style-lab", ["require", "exports", "openlayers", "jquery", "alpha/f
         center: center,
         fromJson: function (json) { return formatter.fromJson(json); }
     });
-    var ux = "\n<div class='style-lab'>\n    <label for='use-ags-serializer'>use-ags-serializer?</label>\n    <input type=\"checkbox\" id=\"use-ags-serializer\"/>\n    <label for='style-count'>How many styles per symbol?</label>\n    <input id='style-count' type=\"number\" value=\"1\" min=\"1\" max=\"5\"/><button id='more'>More</button>\n    <label for='style-out'>Click marker to see style here:</label>\n    <textarea id='style-out'>[\n\t{\n\t\t\"star\": {\n\t\t\t\"fill\": {\n\t\t\t\t\"color\": \"rgba(228,254,211,0.57)\"\n\t\t\t},\n\t\t\t\"opacity\": 1,\n\t\t\t\"stroke\": {\n\t\t\t\t\"color\": \"rgba(67,8,10,0.61)\",\n\t\t\t\t\"width\": 8\n\t\t\t},\n\t\t\t\"radius\": 22,\n\t\t\t\"radius2\": 16,\n\t\t\t\"points\": 11,\n\t\t\t\"angle\": 0,\n\t\t\t\"rotation\": 0\n\t\t}\n\t}\n]</textarea>\n    <label for='apply-style'>Apply this style to some of the features</label>\n    <button id='apply-style'>Apply</button>\n    <div class='area'>\n        <label>Last image clicked:</label>\n        <img class='last-image-clicked light' />\n        <img class='last-image-clicked bright' />\n        <img class='last-image-clicked dark' />\n    </div>\n<div>\n";
+    var ux = "\n<div class='style-lab'>\n    <label for='style-count'>How many styles per symbol?</label>\n    <input id='style-count' type=\"number\" value=\"1\" min=\"1\" max=\"5\"/><button id='more'>More</button>\n    <label for='style-out'>Click marker to see style here:</label>\n    <textarea id='style-out'>[\n\t{\n\t\t\"star\": {\n\t\t\t\"fill\": {\n\t\t\t\t\"color\": \"rgba(228,254,211,0.57)\"\n\t\t\t},\n\t\t\t\"opacity\": 1,\n\t\t\t\"stroke\": {\n\t\t\t\t\"color\": \"rgba(67,8,10,0.61)\",\n\t\t\t\t\"width\": 8\n\t\t\t},\n\t\t\t\"radius\": 22,\n\t\t\t\"radius2\": 16,\n\t\t\t\"points\": 11,\n\t\t\t\"angle\": 0,\n\t\t\t\"rotation\": 0\n\t\t}\n\t}\n]</textarea>\n    <label for='apply-style'>Apply this style to some of the features</label>\n    <button id='apply-style'>Apply</button>\n    <div class='area'>\n        <label>Last image clicked:</label>\n        <img class='last-image-clicked light' />\n        <img class='last-image-clicked bright' />\n        <img class='last-image-clicked dark' />\n    </div>\n<div>\n";
     var css = "\n<style>\n    html, body, .map {\n        width: 100%;\n        height: 100%;\n        padding: 0;\n        overflow: hidden;\n        margin: 0;    \n    }\n\n    .map {\n        background-color: black;\n    }\n\n    .map.dark {\n        background: black;\n    }\n\n    .map.light {\n        background: silver;\n    }\n\n    .map.bright {\n        background: white;\n    }\n\n    .style-lab {\n        padding: 20px;\n        position:absolute;\n        top: 8px;\n        left: 40px;\n        z-index: 1;\n        background-color: rgba(255, 255, 255, 0.8);\n        border: 1px solid black;\n    }\n\n    .style-lab .area {\n        padding-top: 20px;\n    }\n\n    .style-lab label {\n        display: block;\n    }\n\n    .style-lab #style-count {\n        vertical-align: top;\n    }\n\n    .style-lab #style-out {\n        font-family: cursive;\n        font-size: smaller;\n        min-width: 320px;\n        min-height: 240px;\n    }\n\n    .style-lab .dark {\n        background: black;\n    }\n\n    .style-lab .light {\n        background: silver;\n    }\n\n    .style-lab .bright {\n        background: white;\n    }\n\n</style>\n";
     function run() {
-        var formatter;
         $(ux).appendTo(".map");
         $(css).appendTo("head");
-        $("#use-ags-serializer").change(function (args) {
-            if (args.target.checked) {
-                formatter = new AgsMarkerSerializer.SimpleMarkerConverter();
-            }
-            else {
-                formatter = new ol3_symbolizer_6.StyleConverter();
-            }
-        }).change();
+        var formatter = new ol3_symbolizer_6.StyleConverter();
         var map = new ol.Map({
             target: "map",
             view: new ol.View({
@@ -6462,11 +6304,11 @@ define("ux/styles/ags/simplemarkersymbol-x", ["require", "exports"], function (r
         }
     ];
 });
-define("ux/ags-symbols", ["require", "exports", "openlayers", "ux/serializers/ags-simplemarkersymbol", "labs/common/style-generator", "ux/styles/ags/simplemarkersymbol-circle", "ux/styles/ags/simplemarkersymbol-cross", "ux/styles/ags/simplemarkersymbol-square", "ux/styles/ags/simplemarkersymbol-diamond", "ux/styles/ags/simplemarkersymbol-path", "ux/styles/ags/simplemarkersymbol-x"], function (require, exports, ol, Formatter, StyleGenerator, circleSymbol, crossSymbol, squareSymbol, diamondSymbol, pathSymbol, xSymbol) {
+define("ux/ags-symbols", ["require", "exports", "openlayers", "labs/common/style-generator", "ux/styles/ags/simplemarkersymbol-circle", "ux/styles/ags/simplemarkersymbol-cross", "ux/styles/ags/simplemarkersymbol-square", "ux/styles/ags/simplemarkersymbol-diamond", "ux/styles/ags/simplemarkersymbol-path", "ux/styles/ags/simplemarkersymbol-x", "alpha/format/ags-symbolizer"], function (require, exports, ol, StyleGenerator, circleSymbol, crossSymbol, squareSymbol, diamondSymbol, pathSymbol, xSymbol, ags_symbolizer_2) {
     "use strict";
     var center = [-82.4, 34.85];
     function run() {
-        var formatter = new Formatter.SimpleMarkerConverter();
+        var formatter = new ags_symbolizer_2.StyleConverter();
         var generator = new StyleGenerator({
             center: center,
             fromJson: function (json) { return formatter.fromJson(json); }

@@ -4,6 +4,16 @@
  * It will make use the map SRS and the resulttype="tile" and exceededTransferLimit
  * See https://github.com/ca0v/ol3-lab/issues/4
  */
+
+/**
+ * There are several similarly incomplete solutions
+ * See ux/serializer/ags-simplefillsymbol and ags-simplemarkersymbol as two examples
+ * It is also in the ol3-layerswitcher project under extras/ags-webmap
+ * This is in the "alpha" folder because I want it to become a stand-alone solutions
+ * for rendering ArcGIS FeatureServer content in openlayers
+ * 
+ * It couples with a style readi
+ */
 import $ = require("jquery");
 import ol = require("openlayers");
 import AgsCatalog = require("../bower_components/ol3-layerswitcher/src/extras/ags-catalog");

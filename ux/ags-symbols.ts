@@ -1,5 +1,7 @@
+/**
+ * This is a test for rendering ArcGIS features
+ */
 import ol = require("openlayers");
-import Formatter = require("./serializers/ags-simplemarkersymbol");
 import StyleGenerator = require("../labs/common/style-generator");
 
 import circleSymbol = require("./styles/ags/simplemarkersymbol-circle");
@@ -9,11 +11,14 @@ import diamondSymbol = require("./styles/ags/simplemarkersymbol-diamond");
 import pathSymbol = require("./styles/ags/simplemarkersymbol-path");
 import xSymbol = require("./styles/ags/simplemarkersymbol-x");
 
-const center = [-82.4, 34.85];
+
+import { StyleConverter } from "../alpha/format/ags-symbolizer";
+
+const center = <[number, number]>[-82.4, 34.85];
 
 export function run() {
 
-    let formatter = new Formatter.SimpleMarkerConverter();
+    let formatter = new StyleConverter();
 
     let generator = new StyleGenerator({
         center: center,
