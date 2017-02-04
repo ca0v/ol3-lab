@@ -1,3 +1,7 @@
+/**
+ * Converts style information from arcgis.com into a format compatible with the symbolizer
+ * The symbolizer converts the object to an actual ol3 style
+ */
 import $ = require("jquery");
 import Symbolizer = require("./ol3-symbolizer");
 
@@ -14,9 +18,9 @@ declare namespace ArcGisFeatureServerLayer {
     };
 
     type Styles =
-        "esriSMSCircle" | "esriSMSDiamond" | "esriSMSX" | "esriSMSCross" | "esriSLSSolid"
-        | "esriSFSSolid" | "esriSLSDot" | "esriSLSDash"
-        | "esriSLSDashDot" | "esriSLSDashDotDot" | "esriSFSForwardDiagonal";
+        "esriSMSCircle" | "esriSMSCross" | "esriSMSDiamond" | "esriSMSPath" | "esriSLSSolid" | "esriSMSSquare" | "esriSMSX"
+        | "esriSFSSolid" | "esriSFSForwardDiagonal"
+        | "esriSLSDot" | "esriSLSDash" | "esriSLSDashDot" | "esriSLSDashDotDot";
 
     type SymbolTypes = "esriSMS" | "esriSLS" | "esriSFS" | "esriPMS" | "esriPFS" | "esriTS";
 
@@ -61,6 +65,7 @@ declare namespace ArcGisFeatureServerLayer {
         size?: number;
         angle?: number;
         imageData?: string;
+        path?: string;
     }
 
     export interface UniqueValueInfo {
@@ -206,6 +211,7 @@ declare namespace ArcGisFeatureServerLayer {
 
 }
 
+// esri -> ol mappings
 const styleMap = {
     "esriSMSCircle": "circle",
     "esriSMSDiamond": "diamond",
@@ -220,6 +226,7 @@ const styleMap = {
     "esriSFSForwardDiagonal": "forward-diagonal",
 };
 
+// esri -> ol mappings
 const typeMap = {
     "esriSMS": "sms", // simple marker symbol
     "esriSLS": "sls", // simple line symbol
@@ -227,10 +234,6 @@ const typeMap = {
     "esriPMS": "pms", // picture marker symbol
     "esriPFS": "pfs", // picture fill symbol
     "esriTS": "txt", // text symbol
-}
-
-function as(v: number) {
-    return "" + v + "px";
 }
 
 function range(a: number, b: number) {
@@ -246,88 +249,196 @@ function clone(o: Object) {
 // convert from ags style to an internal format
 export class StyleConverter {
 
+    private asWidth(v: number) {
+        return v * 4 / 3; // not sure why
+    }
+
+    // see ol.color.asString
     private asColor(color: ArcGisFeatureServerLayer.Color) {
         if (color.length === 4) return `rgba(${color[0]},${color[1]},${color[2]},${color[3] / 255})`;
         if (color.length === 3) return `rgb(${color[0]},${color[1]},${color[2]}})`;
         return "#" + color.map(v => ("0" + v.toString(16)).substr(0, 2)).join("");
     }
 
-    private asStroke(outline: ArcGisFeatureServerLayer.Outline) {
-        let stroke = <Symbolizer.Format.Stroke>{};
+    private fromSFSSolid(symbol: ArcGisFeatureServerLayer.Symbol, style: Symbolizer.Format.Style) {
+        style.fill = {
+            color: this.asColor(symbol.color)
+        };
+        this.fromSLS(symbol.outline, style);
+    }
 
-        switch (outline.type) {
-            case "esriSLS": {
-                switch (outline.style) {
-                    case "esriSLSSolid": {
-                        stroke.color = this.asColor(outline.color);
-                        stroke.width = outline.width;
-                        break;
-                    }
-                    default: {
-                        debugger;
-                        break;
-                    }
-                }
+    private fromSFS(symbol: ArcGisFeatureServerLayer.Symbol, style: Symbolizer.Format.Style) {
+        switch (symbol.style) {
+            case "esriSFSSolid":
+                this.fromSFSSolid(symbol, style);
                 break;
-            }
-            default: {
+            default:
                 debugger;
                 break;
-            }
         }
-        return stroke;
+    }
+
+    private fromSMSCircle(symbol: ArcGisFeatureServerLayer.Symbol, style: Symbolizer.Format.Style) {
+        style.circle = {
+            opacity: 1,
+            radius: this.asWidth(symbol.size / 2),
+            stroke: {
+                color: this.asColor(symbol.outline.color),
+            },
+            snapToPixel: true
+        };
+        this.fromSFSSolid(symbol, style.circle);
+        this.fromSLS(symbol.outline, style.circle);
+    }
+
+    private fromSMSCross(symbol: ArcGisFeatureServerLayer.Symbol, style: Symbolizer.Format.Style) {
+        style.star = {
+            points: 4,
+            angle: 0,
+            radius: this.asWidth(symbol.size / Math.sqrt(2)),
+            radius2: 0
+        };
+        this.fromSFSSolid(symbol, style.star);
+        this.fromSLS(symbol.outline, style.star);
+    }
+
+    private fromSMSDiamond(symbol: ArcGisFeatureServerLayer.Symbol, style: Symbolizer.Format.Style) {
+        style.star = {
+            points: 4,
+            angle: 0,
+            radius: this.asWidth(symbol.size / Math.sqrt(2)),
+            radius2: this.asWidth(symbol.size / Math.sqrt(2))
+        };
+        this.fromSFSSolid(symbol, style.star);
+        this.fromSLS(symbol.outline, style.star);
+    }
+
+    private fromSMSPath(symbol: ArcGisFeatureServerLayer.Symbol, style: Symbolizer.Format.Style) {
+        let size = 2 * this.asWidth(symbol.size);
+        style.svg = {
+            imgSize: [size, size],
+            path: symbol.path,
+            rotation: symbol.angle
+        };
+        this.fromSLSSolid(symbol, style.svg);
+        this.fromSLS(symbol.outline, style.svg);
+    }
+
+    private fromSMSSquare(symbol: ArcGisFeatureServerLayer.Symbol, style: Symbolizer.Format.Style) {
+        style.star = {
+            points: 4,
+            angle: Math.PI / 4,
+            radius: this.asWidth(symbol.size / Math.sqrt(2)),
+            radius2: this.asWidth(symbol.size / Math.sqrt(2))
+        };
+        this.fromSFSSolid(symbol, style.star);
+        this.fromSLS(symbol.outline, style.star);
+    }
+
+    private fromSMSX(symbol: ArcGisFeatureServerLayer.Symbol, style: Symbolizer.Format.Style) {
+        style.star = {
+            points: 4,
+            angle: Math.PI / 4,
+            radius: this.asWidth(symbol.size / Math.sqrt(2)),
+            radius2: 0
+        };
+        this.fromSFSSolid(symbol, style.star);
+        this.fromSLS(symbol.outline, style.star);
+    }
+
+    private fromSMS(symbol: ArcGisFeatureServerLayer.Symbol, style: Symbolizer.Format.Style) {
+        switch (symbol.style) {
+            case "esriSMSCircle":
+                this.fromSMSCircle(symbol, style);
+                break;
+            case "esriSMSCross":
+                this.fromSMSCross(symbol, style);
+                break;
+            case "esriSMSDiamond":
+                this.fromSMSDiamond(symbol, style);
+                break;
+            case "esriSMSPath":
+                this.fromSMSPath(symbol, style);
+                break;
+            case "esriSMSSquare":
+                this.fromSMSSquare(symbol, style);
+                break;
+            case "esriSMSX":
+                this.fromSMSX(symbol, style);
+                break;
+            default:
+                throw `invalid-style: ${symbol.style}`;
+        }
+    }
+
+    private fromPMS(symbol: ArcGisFeatureServerLayer.Symbol, style: Symbolizer.Format.Style) {
+        throw "not-implemented";
+    }
+
+    private fromSLSSolid(symbol: ArcGisFeatureServerLayer.Outline, style: Symbolizer.Format.Style) {
+        style.stroke = {
+            color: this.asColor(symbol.color),
+            width: this.asWidth(symbol.width),
+            lineDash: [],
+            lineJoin: "",
+            miterLimit: 4
+        };
+    }
+
+    private fromSLS(symbol: ArcGisFeatureServerLayer.Outline, style: Symbolizer.Format.Style) {
+        switch (symbol.style) {
+            case "esriSLSSolid":
+                this.fromSLSSolid(symbol, style);
+                break;
+            default:
+                throw `invalid-style: ${symbol.style}`;
+        }
+    }
+
+    private fromPFS(symbol: ArcGisFeatureServerLayer.Symbol, style: Symbolizer.Format.Style) {
+        throw "not-implemented";
+    }
+
+    private fromTS(symbol: ArcGisFeatureServerLayer.Symbol, style: Symbolizer.Format.Style) {
+        throw "not-implemented";
     }
 
     public fromJson(symbol: ArcGisFeatureServerLayer.Symbol) {
         let style = <Symbolizer.Format.Style>{};
+        this.fromSymbol(symbol, style);
+        return symbolizer.fromJson(style);
+    }
+
+    private fromSymbol(symbol: ArcGisFeatureServerLayer.Symbol, style: Symbolizer.Format.Style) {
 
         switch (symbol.type) {
-            case "esriSFS": {
-                switch (symbol.style) {
-                    case "esriSFSSolid": {
-                        style.fill = {
-                            color: this.asColor(symbol.color)
-                        };
-                        style.stroke = this.asStroke(symbol.outline);
-                        break;
-                    }
-                    default: {
-                        debugger;
-                        break;
-                    }
-                }
+            case "esriSFS":
+                this.fromSFS(symbol, style);
                 break;
-            }
 
-            case "esriSMS": {
-                switch (symbol.style) {
-                    case "esriSMSCircle": {
-                        style.circle = {
-                            fill: symbol.color,
-                            opacity: 1,
-                            radius: symbol.size,
-                            stroke: {
-                                color: this.asColor(symbol.outline.color),
-                            },
-                            snapToPixel: true
-                        };
-                        style.circle.stroke.color
-                        break;
-                    }
-                    default: {
-                        debugger;
-                        break;
-                    }
-                }
-            }
-
-            default: {
-                debugger;
+            case "esriSLS":
+                this.fromSLS(symbol, style);
                 break;
-            }
 
+            case "esriPMS":
+                this.fromPMS(symbol, style);
+                break;
+
+            case "esriPFS":
+                this.fromPFS(symbol, style);
+                break;
+
+            case "esriSMS":
+                this.fromSMS(symbol, style);
+                break;
+
+            case "esriTS":
+                this.fromTS(symbol, style);
+                break;
+
+            default:
+                throw `invalid-symbol-type: ${symbol.type}`
         }
-        return symbolizer.fromJson(style);
     }
 
     // convert drawing info into a symbology rule
