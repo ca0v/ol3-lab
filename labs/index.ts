@@ -4,7 +4,7 @@ export function run() {
     let labs = `
     ../ux/ags-symbols
 
-    ags-viewer&services=http://sampleserver3.arcgisonline.com/ArcGIS/rest/services&serviceName=SanFrancisco/311Incidents&layers=0&debug=1&center=-122.49,37.738
+    ags-viewer&services=//sampleserver3.arcgisonline.com/ArcGIS/rest/services&serviceName=SanFrancisco/311Incidents&layers=0&debug=1&center=-122.49,37.738
     popup
     layerswitcher
     
