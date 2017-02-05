@@ -1555,6 +1555,809 @@ define("app", ["require", "exports", "openlayers", "ux/mapquest-directions-proxy
     }
     return run;
 });
+define("ux/styles/star/flower", ["require", "exports"], function (require, exports) {
+    "use strict";
+    return [
+        {
+            "star": {
+                "fill": {
+                    "color": "rgba(106,9,251,0.7)"
+                },
+                "opacity": 1,
+                "stroke": {
+                    "color": "rgba(42,128,244,0.8)",
+                    "width": 8
+                },
+                "radius": 14,
+                "radius2": 9,
+                "points": 10
+            },
+            "text": {
+                "fill": {
+                    "color": "rgba(255,255,255,1)"
+                },
+                "stroke": {
+                    "color": "rgba(0,0,0,1)",
+                    "width": 2
+                },
+                "text": "Test",
+                "offset-x": 0,
+                "offset-y": 20,
+                "font": "18px fantasy"
+            }
+        }
+    ];
+});
+define("bower_components/ol3-layerswitcher/src/ol3-layerswitcher", ["require", "exports", "openlayers"], function (require, exports, ol) {
+    "use strict";
+    function defaults(a) {
+        var b = [];
+        for (var _i = 1; _i < arguments.length; _i++) {
+            b[_i - 1] = arguments[_i];
+        }
+        b.forEach(function (b) {
+            Object.keys(b).filter(function (k) { return a[k] === undefined; }).forEach(function (k) { return a[k] = b[k]; });
+        });
+        return a;
+    }
+    function asArray(list) {
+        var result = new Array(list.length);
+        for (var i = 0; i < list.length; i++) {
+            result.push(list[i]);
+        }
+        return result;
+    }
+    function allLayers(lyr) {
+        var result = [];
+        lyr.getLayers().forEach(function (lyr, idx, a) {
+            result.push(lyr);
+            if ("getLayers" in lyr) {
+                result = result.concat(allLayers(lyr));
+            }
+        });
+        return result;
+    }
+    function uuid() {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+            var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        });
+    }
+    var DEFAULT_OPTIONS = {
+        tipLabel: 'Layers',
+        openOnMouseOver: false,
+        closeOnMouseOut: false,
+        openOnClick: true,
+        closeOnClick: true,
+        className: 'layer-switcher',
+        target: null
+    };
+    var LayerSwitcher = (function (_super) {
+        __extends(LayerSwitcher, _super);
+        function LayerSwitcher(options) {
+            options = defaults(options || {}, DEFAULT_OPTIONS);
+            _super.call(this, options);
+            this.afterCreate(options);
+        }
+        LayerSwitcher.prototype.afterCreate = function (options) {
+            var _this = this;
+            this.hiddenClassName = "ol-unselectable ol-control " + options.className;
+            this.shownClassName = this.hiddenClassName + ' shown';
+            var element = document.createElement('div');
+            element.className = this.hiddenClassName;
+            var button = this.button = document.createElement('button');
+            button.setAttribute('title', options.tipLabel);
+            element.appendChild(button);
+            this.panel = document.createElement('div');
+            this.panel.className = 'panel';
+            element.appendChild(this.panel);
+            this.unwatch = [];
+            this.element = element;
+            this.setTarget(options.target);
+            if (options.openOnMouseOver) {
+                element.addEventListener("mouseover", function () { return _this.showPanel(); });
+            }
+            if (options.closeOnMouseOut) {
+                element.addEventListener("mouseout", function () { return _this.hidePanel(); });
+            }
+            if (options.openOnClick || options.closeOnClick) {
+                button.addEventListener('click', function (e) {
+                    _this.isVisible() ? options.closeOnClick && _this.hidePanel() : options.openOnClick && _this.showPanel();
+                    e.preventDefault();
+                });
+            }
+        };
+        LayerSwitcher.prototype.dispatch = function (name, args) {
+            var event = new Event(name);
+            args && Object.keys(args).forEach(function (k) { return event[k] = args[k]; });
+            this["dispatchEvent"](event);
+        };
+        LayerSwitcher.prototype.isVisible = function () {
+            return this.element.className != this.hiddenClassName;
+        };
+        LayerSwitcher.prototype.showPanel = function () {
+            if (this.element.className != this.shownClassName) {
+                this.element.className = this.shownClassName;
+                this.renderPanel();
+            }
+        };
+        LayerSwitcher.prototype.hidePanel = function () {
+            this.element.className = this.hiddenClassName;
+            this.unwatch.forEach(function (f) { return f(); });
+        };
+        LayerSwitcher.prototype.renderPanel = function () {
+            var _this = this;
+            this.ensureTopVisibleBaseLayerShown();
+            while (this.panel.firstChild) {
+                this.panel.removeChild(this.panel.firstChild);
+            }
+            var ul = document.createElement('ul');
+            this.panel.appendChild(ul);
+            this.state = [];
+            var map = this.getMap();
+            var view = map.getView();
+            this.renderLayers(map, ul);
+            {
+                var doit = function () {
+                    var res = view.getResolution();
+                    _this.state.filter(function (s) { return !!s.input; }).forEach(function (s) {
+                        var min = s.layer.getMinResolution();
+                        var max = s.layer.getMaxResolution();
+                        console.log(res, min, max, s.layer.get("title"));
+                        s.input.disabled = !(min <= res && (max === 0 || res < max));
+                    });
+                };
+                var h_1 = view.on("change:resolution", doit);
+                doit();
+                this.unwatch.push(function () { return view.unByKey(h_1); });
+            }
+        };
+        ;
+        LayerSwitcher.prototype.ensureTopVisibleBaseLayerShown = function () {
+            var visibleBaseLyrs = allLayers(this.getMap()).filter(function (l) { return l.get('type') === 'base' && l.getVisible(); });
+            if (visibleBaseLyrs.length)
+                this.setVisible(visibleBaseLyrs.shift(), true);
+        };
+        ;
+        LayerSwitcher.prototype.setVisible = function (lyr, visible) {
+            var _this = this;
+            if (lyr.getVisible() !== visible) {
+                if (visible && lyr.get('type') === 'base') {
+                    allLayers(this.getMap()).filter(function (l) { return l !== lyr && l.get('type') === 'base' && l.getVisible(); }).forEach(function (l) { return _this.setVisible(l, false); });
+                }
+                lyr.setVisible(visible);
+                this.dispatch(visible ? "show-layer" : "hide-layer", { layer: lyr });
+            }
+        };
+        ;
+        LayerSwitcher.prototype.renderLayer = function (lyr, container) {
+            var _this = this;
+            var result;
+            var li = document.createElement('li');
+            container.appendChild(li);
+            var lyrTitle = lyr.get('title');
+            var label = document.createElement('label');
+            label.htmlFor = uuid();
+            lyr.on('load:start', function () { return li.classList.add("loading"); });
+            lyr.on('load:end', function () { return li.classList.remove("loading"); });
+            li.classList.toggle("loading", true === lyr.get("loading"));
+            if ('getLayers' in lyr && !lyr.get('combine')) {
+                if (!lyr.get('label-only')) {
+                    var input_1 = result = document.createElement('input');
+                    input_1.id = label.htmlFor;
+                    input_1.type = 'checkbox';
+                    input_1.checked = lyr.getVisible();
+                    input_1.addEventListener('change', function () {
+                        ul_1.classList.toggle('hide-layer-group', !input_1.checked);
+                        _this.setVisible(lyr, input_1.checked);
+                        var childLayers = lyr.getLayers();
+                        _this.state.filter(function (s) { return s.container === ul_1 && s.input && s.input.checked; }).forEach(function (state) {
+                            _this.setVisible(state.layer, input_1.checked);
+                        });
+                    });
+                    li.appendChild(input_1);
+                }
+                li.classList.add('group');
+                label.innerHTML = lyrTitle;
+                li.appendChild(label);
+                var ul_1 = document.createElement('ul');
+                result && ul_1.classList.toggle('hide-layer-group', !result.checked);
+                li.appendChild(ul_1);
+                this.renderLayers(lyr, ul_1);
+            }
+            else {
+                li.classList.add('layer');
+                var input_2 = result = document.createElement('input');
+                input_2.id = label.htmlFor;
+                if (lyr.get('type') === 'base') {
+                    input_2.classList.add('basemap');
+                    input_2.type = 'radio';
+                    input_2.addEventListener("change", function () {
+                        if (input_2.checked) {
+                            asArray(_this.panel.getElementsByClassName("basemap")).filter(function (i) { return i.tagName === "INPUT"; }).forEach(function (i) {
+                                if (i.checked && i !== input_2)
+                                    i.checked = false;
+                            });
+                        }
+                        _this.setVisible(lyr, input_2.checked);
+                    });
+                }
+                else {
+                    input_2.type = 'checkbox';
+                    input_2.addEventListener("change", function () {
+                        _this.setVisible(lyr, input_2.checked);
+                    });
+                }
+                input_2.checked = lyr.get('visible');
+                li.appendChild(input_2);
+                label.innerHTML = lyrTitle;
+                li.appendChild(label);
+            }
+            this.state.push({
+                container: container,
+                input: result,
+                layer: lyr
+            });
+        };
+        LayerSwitcher.prototype.renderLayers = function (map, elm) {
+            var _this = this;
+            var lyrs = map.getLayers().getArray().slice().reverse();
+            return lyrs.filter(function (l) { return !!l.get('title'); }).forEach(function (l) { return _this.renderLayer(l, elm); });
+        };
+        return LayerSwitcher;
+    }(ol.control.Control));
+    exports.LayerSwitcher = LayerSwitcher;
+});
+define("bower_components/ol3-popup/src/paging/paging", ["require", "exports", "openlayers"], function (require, exports, ol) {
+    "use strict";
+    function getInteriorPoint(geom) {
+        if (geom["getInteriorPoint"])
+            return geom["getInteriorPoint"]().getCoordinates();
+        return ol.extent.getCenter(geom.getExtent());
+    }
+    var Paging = (function () {
+        function Paging(options) {
+            this.options = options;
+            this._pages = [];
+            this.domNode = document.createElement("div");
+            this.domNode.classList.add("pages");
+            options.popup.domNode.appendChild(this.domNode);
+        }
+        Object.defineProperty(Paging.prototype, "activeIndex", {
+            get: function () {
+                return this._activeIndex;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(Paging.prototype, "count", {
+            get: function () {
+                return this._pages.length;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Paging.prototype.dispatch = function (name) {
+            this.domNode.dispatchEvent(new Event(name));
+        };
+        Paging.prototype.on = function (name, listener) {
+            this.domNode.addEventListener(name, listener);
+        };
+        Paging.prototype.add = function (source, geom) {
+            if (false) {
+            }
+            else if (typeof source === "string") {
+                var page = document.createElement("div");
+                page.innerHTML = source;
+                this._pages.push({
+                    element: page,
+                    location: geom && getInteriorPoint(geom)
+                });
+            }
+            else if (source["appendChild"]) {
+                var page = source;
+                page.classList.add("page");
+                this._pages.push({
+                    element: page,
+                    location: geom && getInteriorPoint(geom)
+                });
+            }
+            else if (source["then"]) {
+                var d = source;
+                var page_1 = document.createElement("div");
+                page_1.classList.add("page");
+                this._pages.push({
+                    element: page_1,
+                    location: geom && getInteriorPoint(geom)
+                });
+                $.when(d).then(function (v) {
+                    if (typeof v === "string") {
+                        page_1.innerHTML = v;
+                    }
+                    else {
+                        page_1.appendChild(v);
+                    }
+                });
+            }
+            else if (typeof source === "function") {
+                var page = document.createElement("div");
+                page.classList.add("page");
+                this._pages.push({
+                    callback: source,
+                    element: page,
+                    location: geom && getInteriorPoint(geom)
+                });
+            }
+            else {
+                throw "invalid source value: " + source;
+            }
+            this.dispatch("add");
+        };
+        Paging.prototype.clear = function () {
+            var activeChild = this._activeIndex >= 0 && this._pages[this._activeIndex];
+            this._activeIndex = -1;
+            this._pages = [];
+            if (activeChild) {
+                this.domNode.removeChild(activeChild.element);
+                this.dispatch("clear");
+            }
+        };
+        Paging.prototype.goto = function (index) {
+            var _this = this;
+            var page = this._pages[index];
+            if (!page)
+                return;
+            var activeChild = this._activeIndex >= 0 && this._pages[this._activeIndex];
+            var d = $.Deferred();
+            if (page.callback) {
+                var refreshedContent = page.callback();
+                $.when(refreshedContent).then(function (v) {
+                    if (false) {
+                    }
+                    else if (typeof v === "string") {
+                        page.element.innerHTML = v;
+                    }
+                    else if (typeof v["innerHTML"] !== "undefined") {
+                        page.element.innerHTML = "";
+                        page.element.appendChild(v);
+                    }
+                    else {
+                        throw "invalid callback result: " + v;
+                    }
+                    d.resolve();
+                });
+            }
+            else {
+                d.resolve();
+            }
+            d.then(function () {
+                activeChild && activeChild.element.remove();
+                _this._activeIndex = index;
+                _this.domNode.appendChild(page.element);
+                if (page.location) {
+                    _this.options.popup.setPosition(page.location);
+                }
+                _this.dispatch("goto");
+            });
+        };
+        Paging.prototype.next = function () {
+            (0 <= this.activeIndex) && (this.activeIndex < this.count) && this.goto(this.activeIndex + 1);
+        };
+        Paging.prototype.prev = function () {
+            (0 < this.activeIndex) && this.goto(this.activeIndex - 1);
+        };
+        return Paging;
+    }());
+    exports.Paging = Paging;
+});
+define("bower_components/ol3-popup/src/paging/page-navigator", ["require", "exports"], function (require, exports) {
+    "use strict";
+    var classNames = {
+        prev: 'btn-prev',
+        next: 'btn-next',
+        hidden: 'hidden',
+        active: 'active',
+        inactive: 'inactive',
+        pagenum: "page-num"
+    };
+    var eventNames = {
+        show: "show",
+        hide: "hide",
+        prev: "prev",
+        next: "next"
+    };
+    var PageNavigator = (function () {
+        function PageNavigator(options) {
+            var _this = this;
+            this.options = options;
+            var pages = options.pages;
+            this.domNode = document.createElement("div");
+            this.domNode.classList.add("pagination");
+            this.domNode.innerHTML = this.template();
+            this.prevButton = this.domNode.getElementsByClassName(classNames.prev)[0];
+            this.nextButton = this.domNode.getElementsByClassName(classNames.next)[0];
+            this.pageInfo = this.domNode.getElementsByClassName(classNames.pagenum)[0];
+            pages.options.popup.domNode.appendChild(this.domNode);
+            this.prevButton.addEventListener('click', function () { return _this.dispatch(eventNames.prev); });
+            this.nextButton.addEventListener('click', function () { return _this.dispatch(eventNames.next); });
+            pages.on("goto", function () { return pages.count > 1 ? _this.show() : _this.hide(); });
+            pages.on("clear", function () { return _this.hide(); });
+            pages.on("goto", function () {
+                var index = pages.activeIndex;
+                var count = pages.count;
+                var canPrev = 0 < index;
+                var canNext = count - 1 > index;
+                _this.prevButton.classList.toggle(classNames.inactive, !canPrev);
+                _this.prevButton.classList.toggle(classNames.active, canPrev);
+                _this.nextButton.classList.toggle(classNames.inactive, !canNext);
+                _this.nextButton.classList.toggle(classNames.active, canNext);
+                _this.prevButton.disabled = !canPrev;
+                _this.nextButton.disabled = !canNext;
+                _this.pageInfo.innerHTML = (1 + index) + " of " + count;
+            });
+        }
+        PageNavigator.prototype.dispatch = function (name) {
+            this.domNode.dispatchEvent(new Event(name));
+        };
+        PageNavigator.prototype.on = function (name, listener) {
+            this.domNode.addEventListener(name, listener);
+        };
+        PageNavigator.prototype.template = function () {
+            return "<button class=\"arrow btn-prev\"></button><span class=\"page-num\">m of n</span><button class=\"arrow btn-next\"></button>";
+        };
+        PageNavigator.prototype.hide = function () {
+            this.domNode.classList.add(classNames.hidden);
+            this.dispatch(eventNames.hide);
+        };
+        PageNavigator.prototype.show = function () {
+            this.domNode.classList.remove(classNames.hidden);
+            this.dispatch(eventNames.show);
+        };
+        return PageNavigator;
+    }());
+    return PageNavigator;
+});
+define("bower_components/ol3-popup/src/ol3-popup", ["require", "exports", "jquery", "openlayers", "bower_components/ol3-popup/src/paging/paging", "bower_components/ol3-popup/src/paging/page-navigator"], function (require, exports, $, ol, paging_1, PageNavigator) {
+    "use strict";
+    var css = "\n.ol-popup {\n    position: absolute;\n    bottom: 12px;\n    left: -50px;\n}\n\n.ol-popup:after {\n    top: auto;\n    bottom: -20px;\n    left: 50px;\n    border: solid transparent;\n    border-top-color: inherit;\n    content: \" \";\n    height: 0;\n    width: 0;\n    position: absolute;\n    pointer-events: none;\n    border-width: 10px;\n    margin-left: -10px;\n}\n\n.ol-popup.docked {\n    position:absolute;\n    bottom:0;\n    top:0;\n    left:0;\n    right:0;\n    width:auto;\n    height:auto;\n    pointer-events: all;\n}\n\n.ol-popup.docked:after {\n    display:none;\n}\n\n.ol-popup.docked .pages {\n    max-height: inherit;\n    overflow: auto;\n    height: calc(100% - 60px);\n}\n\n.ol-popup.docked .pagination {\n    position: absolute;\n    bottom: 0;\n}\n\n.ol-popup .pagination .btn-prev::after {\n    content: \"\u21E6\"; \n}\n\n.ol-popup .pagination .btn-next::after {\n    content: \"\u21E8\"; \n}\n\n.ol-popup .pagination.hidden {\n    display: none;\n}\n\n.ol-popup .ol-popup-closer {\n    border: none;\n    background: transparent;\n    color: inherit;\n    position: absolute;\n    top: 0;\n    right: 0;\n    text-decoration: none;\n}\n    \n.ol-popup .ol-popup-closer:after {\n    content:'\u2716';\n}\n\n.ol-popup .ol-popup-docker {\n    border: none;\n    background: transparent;\n    color: inherit;\n    text-decoration: none;\n    position: absolute;\n    top: 0;\n    right: 20px;\n}\n\n.ol-popup .ol-popup-docker:after {\n    content:'\u25A1';\n}\n";
+    var classNames = {
+        olPopup: 'ol-popup',
+        olPopupDocker: 'ol-popup-docker',
+        olPopupCloser: 'ol-popup-closer',
+        olPopupContent: 'ol-popup-content',
+        hidden: 'hidden',
+        docked: 'docked'
+    };
+    var eventNames = {
+        show: "show",
+        hide: "hide",
+        next: "next-page"
+    };
+    function defaults(a) {
+        var b = [];
+        for (var _i = 1; _i < arguments.length; _i++) {
+            b[_i - 1] = arguments[_i];
+        }
+        b.forEach(function (b) {
+            Object.keys(b).filter(function (k) { return a[k] === undefined; }).forEach(function (k) { return a[k] = b[k]; });
+        });
+        return a;
+    }
+    function debounce(func, wait, immediate) {
+        var _this = this;
+        if (wait === void 0) { wait = 20; }
+        if (immediate === void 0) { immediate = false; }
+        var timeout;
+        return (function () {
+            var args = [];
+            for (var _i = 0; _i < arguments.length; _i++) {
+                args[_i - 0] = arguments[_i];
+            }
+            var later = function () {
+                timeout = null;
+                if (!immediate)
+                    func.call(_this, args);
+            };
+            var callNow = immediate && !timeout;
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+            if (callNow)
+                func.call(_this, args);
+        });
+    }
+    var isTouchDevice = function () {
+        try {
+            document.createEvent("TouchEvent");
+            isTouchDevice = function () { return true; };
+        }
+        catch (e) {
+            isTouchDevice = function () { return false; };
+        }
+        return isTouchDevice();
+    };
+    function enableTouchScroll(elm) {
+        var scrollStartPos = 0;
+        elm.addEventListener("touchstart", function (event) {
+            scrollStartPos = this.scrollTop + event.touches[0].pageY;
+        }, false);
+        elm.addEventListener("touchmove", function (event) {
+            this.scrollTop = scrollStartPos - event.touches[0].pageY;
+        }, false);
+    }
+    ;
+    var DEFAULT_OPTIONS = {
+        insertFirst: true,
+        autoPan: true,
+        autoPanAnimation: {
+            source: null,
+            duration: 250
+        },
+        pointerPosition: 50,
+        xOffset: 0,
+        yOffset: 0,
+        positioning: "top-right",
+        stopEvent: true
+    };
+    var Popup = (function (_super) {
+        __extends(Popup, _super);
+        function Popup(options) {
+            if (options === void 0) { options = DEFAULT_OPTIONS; }
+            options = defaults({}, options, DEFAULT_OPTIONS);
+            _super.call(this, options);
+            this.options = options;
+            this.handlers = [];
+            this.postCreate();
+        }
+        Popup.prototype.postCreate = function () {
+            var _this = this;
+            this.injectCss(css);
+            var options = this.options;
+            options.css && this.injectCss(options.css);
+            var domNode = this.domNode = document.createElement('div');
+            domNode.className = classNames.olPopup;
+            this.setElement(domNode);
+            if (this.options.pointerPosition) {
+                this.setIndicatorPosition(this.options.pointerPosition);
+            }
+            if (this.options.dockContainer) {
+                var dockContainer = $(this.options.dockContainer)[0];
+                if (dockContainer) {
+                    var docker = this.docker = document.createElement('label');
+                    docker.className = classNames.olPopupDocker;
+                    domNode.appendChild(docker);
+                    docker.addEventListener('click', function (evt) {
+                        _this.isDocked() ? _this.undock() : _this.dock();
+                        evt.preventDefault();
+                    }, false);
+                }
+            }
+            {
+                var closer = this.closer = document.createElement('label');
+                closer.className = classNames.olPopupCloser;
+                domNode.appendChild(closer);
+                closer.addEventListener('click', function (evt) {
+                    _this.hide();
+                    evt.preventDefault();
+                }, false);
+            }
+            {
+                var content = this.content = document.createElement('div');
+                content.className = classNames.olPopupContent;
+                this.domNode.appendChild(content);
+                isTouchDevice() && enableTouchScroll(content);
+            }
+            {
+                var pages_1 = this.pages = new paging_1.Paging({ popup: this });
+                var pageNavigator = new PageNavigator({ pages: pages_1 });
+                pageNavigator.hide();
+                pageNavigator.on("prev", function () { return pages_1.prev(); });
+                pageNavigator.on("next", function () { return pages_1.next(); });
+                pages_1.on("goto", function () { return _this.panIntoView(); });
+            }
+            if (0) {
+                var callback_1 = this.setPosition;
+                this.setPosition = debounce(function (args) { return callback_1.apply(_this, args); }, 50);
+            }
+        };
+        Popup.prototype.injectCss = function (css) {
+            var style = $("<style type='text/css'>" + css + "</style>");
+            style.appendTo('head');
+            this.handlers.push(function () { return style.remove(); });
+        };
+        Popup.prototype.setIndicatorPosition = function (x) {
+            var css = "\n.ol-popup { position: absolute; bottom: " + (this.options.yOffset + 12) + "px; left: " + (this.options.xOffset - x) + "px; }\n.ol-popup:after { bottom: -20px; left: " + x + "px; }\n";
+            this.injectCss(css);
+        };
+        Popup.prototype.setPosition = function (position) {
+            this.options.position = position;
+            if (!this.isDocked()) {
+                _super.prototype.setPosition.call(this, position);
+            }
+            else {
+                var view = this.options.map.getView();
+                view.animate({
+                    center: position
+                });
+            }
+        };
+        Popup.prototype.panIntoView = function () {
+            if (!this.isOpened())
+                return;
+            if (this.isDocked())
+                return;
+            var p = this.getPosition();
+            p && this.setPosition(p.map(function (v) { return v; }));
+        };
+        Popup.prototype.destroy = function () {
+            this.handlers.forEach(function (h) { return h(); });
+            this.handlers = [];
+            this.getMap().removeOverlay(this);
+            this.dispose();
+            this.dispatch("dispose");
+        };
+        Popup.prototype.dispatch = function (name) {
+            this["dispatchEvent"](new Event(name));
+        };
+        Popup.prototype.show = function (coord, html) {
+            if (html instanceof HTMLElement) {
+                this.content.innerHTML = "";
+                this.content.appendChild(html);
+            }
+            else {
+                this.content.innerHTML = html;
+            }
+            this.domNode.classList.remove(classNames.hidden);
+            this.setPosition(coord);
+            this.dispatch(eventNames.show);
+            return this;
+        };
+        Popup.prototype.hide = function () {
+            this.isDocked() && this.undock();
+            this.setPosition(undefined);
+            this.pages.clear();
+            this.dispatch(eventNames.hide);
+            this.domNode.classList.add(classNames.hidden);
+            return this;
+        };
+        Popup.prototype.isOpened = function () {
+            return !this.domNode.classList.contains(classNames.hidden);
+        };
+        Popup.prototype.isDocked = function () {
+            return this.domNode.classList.contains(classNames.docked);
+        };
+        Popup.prototype.dock = function () {
+            var map = this.getMap();
+            this.options.map = map;
+            this.options.parentNode = this.domNode.parentElement;
+            map.removeOverlay(this);
+            this.domNode.classList.add(classNames.docked);
+            $(this.options.dockContainer).append(this.domNode);
+        };
+        Popup.prototype.undock = function () {
+            this.options.parentNode.appendChild(this.domNode);
+            this.domNode.classList.remove(classNames.docked);
+            this.options.map.addOverlay(this);
+            this.setPosition(this.options.position);
+        };
+        return Popup;
+    }(ol.Overlay));
+    exports.Popup = Popup;
+});
+define("labs/ags-viewer", ["require", "exports", "jquery", "openlayers", "labs/common/common", "alpha/format/ol3-symbolizer", "bower_components/ol3-layerswitcher/src/ol3-layerswitcher", "bower_components/ol3-popup/src/ol3-popup", "alpha/arcgis-source"], function (require, exports, $, ol, common_3, ol3_symbolizer_1, ol3_layerswitcher_1, ol3_popup_1, arcgis_source_1) {
+    "use strict";
+    var styler = new ol3_symbolizer_1.StyleConverter();
+    function parse(v, type) {
+        if (typeof type === "string")
+            return v;
+        if (typeof type === "number")
+            return parseFloat(v);
+        if (typeof type === "boolean")
+            return (v === "1" || v === "true");
+        if (Array.isArray(type)) {
+            return (v.split(",").map(function (v) { return parse(v, type[0]); }));
+        }
+        throw "unknown type: " + type;
+    }
+    var html = "\n<div class='popup'>\n    <div class='popup-container'>\n    </div>\n</div>\n";
+    var css = "\n<style name=\"popup\" type=\"text/css\">\n    html, body, .map {\n        width: 100%;\n        height: 100%;\n        padding: 0;\n        overflow: hidden;\n        margin: 0;    \n    }\n</style>\n";
+    var css_popup = "\n.popup-container {\n    position: absolute;\n    top: 1em;\n    right: 0.5em;\n    width: 10em;\n    bottom: 1em;\n    z-index: 1;\n    pointer-events: none;\n}\n\n.ol-popup {\n    color: white;\n    background-color: rgba(77,77,77,0.7);\n    min-width: 200px;\n}\n\n.ol-popup:after {\n    border-top-color: rgba(77,77,77,0.7);\n}\n\n";
+    var center = {
+        fire: [-117.754430386, 34.2606862490001],
+        wichita: [-97.4, 37.8],
+        vegas: [-115.235, 36.173]
+    };
+    function run() {
+        $(html).appendTo(".map");
+        $(css).appendTo("head");
+        var options = {
+            srs: 'EPSG:4326',
+            center: center.vegas,
+            zoom: 10,
+            services: "http://sampleserver3.arcgisonline.com/ArcGIS/rest/services",
+            serviceName: "SanFrancisco/311Incidents",
+            layers: [0]
+        };
+        {
+            var opts_1 = options;
+            Object.keys(opts_1).forEach(function (k) {
+                common_3.doif(common_3.getParameterByName(k), function (v) {
+                    var value = parse(v, opts_1[k]);
+                    if (value !== undefined)
+                        opts_1[k] = value;
+                });
+            });
+        }
+        var map = new ol.Map({
+            target: "map",
+            keyboardEventTarget: document,
+            loadTilesWhileAnimating: true,
+            loadTilesWhileInteracting: true,
+            controls: ol.control.defaults({ attribution: false }),
+            view: new ol.View({
+                projection: options.srs,
+                center: options.center,
+                zoom: options.zoom
+            }),
+            layers: [
+                new ol.layer.Tile({
+                    title: "OSM",
+                    type: 'base',
+                    opacity: 0.8,
+                    visible: true,
+                    source: new ol.source.OSM()
+                }),
+                new ol.layer.Tile({
+                    title: "Bing",
+                    type: 'base',
+                    opacity: 0.8,
+                    visible: false,
+                    source: new ol.source.BingMaps({
+                        key: 'AuPHWkNxvxVAL_8Z4G8Pcq_eOKGm5eITH_cJMNAyYoIC1S_29_HhE893YrUUbIGl',
+                        imagerySet: 'Aerial'
+                    })
+                })]
+        });
+        arcgis_source_1.ArcGisVectorSourceFactory.create({
+            tileSize: 256,
+            map: map,
+            services: options.services,
+            serviceName: options.serviceName,
+            layers: options.layers.reverse()
+        }).then(function (agsLayers) {
+            agsLayers.forEach(function (agsLayer) { return map.addLayer(agsLayer); });
+            var layerSwitcher = new ol3_layerswitcher_1.LayerSwitcher();
+            layerSwitcher.setMap(map);
+            var popup = new ol3_popup_1.Popup({
+                css: "\n            .ol-popup {\n                background-color: white;\n            }\n            .ol-popup .page {\n                max-height: 200px;\n                overflow-y: auto;\n            }\n            "
+            });
+            map.addOverlay(popup);
+            map.on("click", function (event) {
+                console.log("click");
+                var coord = event.coordinate;
+                popup.hide();
+                var pageNum = 0;
+                map.forEachFeatureAtPixel(event.pixel, function (feature, layer) {
+                    var page = document.createElement('p');
+                    var keys = Object.keys(feature.getProperties()).filter(function (key) {
+                        var v = feature.get(key);
+                        if (typeof v === "string")
+                            return true;
+                        if (typeof v === "number")
+                            return true;
+                        return false;
+                    });
+                    page.title = "" + ++pageNum;
+                    page.innerHTML = "<table>" + keys.map(function (k) { return ("<tr><td>" + k + "</td><td>" + feature.get(k) + "</td></tr>"); }).join("") + "</table>";
+                    popup.pages.add(page, feature.getGeometry());
+                });
+                popup.show(coord, "<label>" + pageNum + " Features Found</label>");
+                popup.pages.goto(0);
+            });
+        });
+        return map;
+    }
+    exports.run = run;
+});
 define("labs/common/myjson", ["require", "exports", "jquery"], function (require, exports, $) {
     "use strict";
     var MyJson = (function () {
@@ -1755,9 +2558,9 @@ define("ux/styles/fill/gradient", ["require", "exports"], function (require, exp
         }
     ];
 });
-define("labs/common/style-generator", ["require", "exports", "openlayers", "ux/styles/basic", "alpha/format/ol3-symbolizer"], function (require, exports, ol, basic_styles, ol3_symbolizer_1) {
+define("labs/common/style-generator", ["require", "exports", "openlayers", "ux/styles/basic", "alpha/format/ol3-symbolizer"], function (require, exports, ol, basic_styles, ol3_symbolizer_2) {
     "use strict";
-    var converter = new ol3_symbolizer_1.StyleConverter();
+    var converter = new ol3_symbolizer_2.StyleConverter();
     var orientations = "forward,backward,diagonal,horizontal,vertical,cross".split(",");
     function mixin(a, b) {
         Object.keys(b).forEach(function (k) { return a[k] = b[k]; });
@@ -2305,9 +3108,9 @@ define("ux/styles/text/text", ["require", "exports"], function (require, exports
         }
     ];
 });
-define("labs/mapmaker", ["require", "exports", "jquery", "openlayers", "labs/common/common", "labs/common/ol3-polyline", "alpha/format/ol3-symbolizer", "ux/styles/stroke/dashdotdot", "ux/styles/stroke/solid", "ux/styles/text/text", "labs/common/myjson"], function (require, exports, $, ol, common_3, reduce, ol3_symbolizer_2, dashdotdot, strokeStyle, textStyle, myjson_1) {
+define("labs/mapmaker", ["require", "exports", "jquery", "openlayers", "labs/common/common", "labs/common/ol3-polyline", "alpha/format/ol3-symbolizer", "ux/styles/stroke/dashdotdot", "ux/styles/stroke/solid", "ux/styles/text/text", "labs/common/myjson"], function (require, exports, $, ol, common_4, reduce, ol3_symbolizer_3, dashdotdot, strokeStyle, textStyle, myjson_1) {
     "use strict";
-    var styler = new ol3_symbolizer_2.StyleConverter();
+    var styler = new ol3_symbolizer_3.StyleConverter();
     function parse(v, type) {
         if (typeof type === "string")
             return v;
@@ -2337,12 +3140,12 @@ define("labs/mapmaker", ["require", "exports", "jquery", "openlayers", "labs/com
             basemap: "bing"
         };
         {
-            var opts_1 = options;
-            Object.keys(opts_1).forEach(function (k) {
-                common_3.doif(common_3.getParameterByName(k), function (v) {
-                    var value = parse(v, opts_1[k]);
+            var opts_2 = options;
+            Object.keys(opts_2).forEach(function (k) {
+                common_4.doif(common_4.getParameterByName(k), function (v) {
+                    var value = parse(v, opts_2[k]);
                     if (value !== undefined)
-                        opts_1[k] = value;
+                        opts_2[k] = value;
                 });
             });
         }
@@ -2399,7 +3202,7 @@ define("labs/mapmaker", ["require", "exports", "jquery", "openlayers", "labs/com
                     feature.setStyle(style);
                     features.push(feature);
                 });
-                if (!common_3.getParameterByName("center")) {
+                if (!common_4.getParameterByName("center")) {
                     map.getView().fit(layer.getSource().getExtent(), map.getSize());
                 }
             }
@@ -2452,15 +3255,15 @@ define("labs/mapmaker", ["require", "exports", "jquery", "openlayers", "labs/com
                         }
                     }
                     else {
-                        var opts_2 = options;
-                        var querystring = Object.keys(options).map(function (k) { return (k + "=" + opts_2[k]); }).join("&");
+                        var opts_3 = options;
+                        var querystring = Object.keys(options).map(function (k) { return (k + "=" + opts_3[k]); }).join("&");
                         var url = encodeURI(href + "?run=labs/mapmaker&" + querystring);
                         window.open(url, "_blank");
                     }
                 }
                 else {
-                    var opts_3 = options;
-                    var querystring = Object.keys(options).map(function (k) { return (k + "=" + opts_3[k]); }).join("&");
+                    var opts_4 = options;
+                    var querystring = Object.keys(options).map(function (k) { return (k + "=" + opts_4[k]); }).join("&");
                     var url = encodeURI(href + "?run=labs/mapmaker&" + querystring);
                     window.open(url, "_blank");
                 }
@@ -2470,7 +3273,7 @@ define("labs/mapmaker", ["require", "exports", "jquery", "openlayers", "labs/com
     }
     exports.run = run;
 });
-define("ux/controls/input", ["require", "exports", "openlayers", "labs/common/common"], function (require, exports, ol, common_4) {
+define("ux/controls/input", ["require", "exports", "openlayers", "labs/common/common"], function (require, exports, ol, common_5) {
     "use strict";
     var css = "\n    .ol-input {\n        position:absolute;\n    }\n    .ol-input.top {\n        top: 0.5em;\n    }\n    .ol-input.left {\n        left: 0.5em;\n    }\n    .ol-input.bottom {\n        bottom: 0.5em;\n    }\n    .ol-input.right {\n        right: 0.5em;\n    }\n    .ol-input.top.left {\n        top: 4.5em;\n    }\n    .ol-input button {\n        min-height: 1.375em;\n        min-width: 1.375em;\n        width: auto;\n        display: inline;\n    }\n    .ol-input.left button {\n        float:right;\n    }\n    .ol-input.right button {\n        float:left;\n    }\n    .ol-input input {\n        height: 24px;\n        min-width: 240px;\n        border: none;\n        padding: 0;\n        margin: 0;\n        margin-left: 2px;\n        margin-top: 1px;\n        vertical-align: top;\n    }\n    .ol-input input.hidden {\n        display: none;\n    }\n";
     var olcss = {
@@ -2528,15 +3331,15 @@ define("ux/controls/input", ["require", "exports", "openlayers", "labs/common/co
             options.expanded ? this.expand(options) : this.collapse(options);
         }
         Geocoder.create = function (options) {
-            common_4.cssin('ol-input', css);
-            options = common_4.mixin({
+            common_5.cssin('ol-input', css);
+            options = common_5.mixin({
                 openedText: options.className && -1 < options.className.indexOf("left") ? expando.left : expando.right,
                 closedText: options.className && -1 < options.className.indexOf("left") ? expando.right : expando.left
             }, options || {});
-            options = common_4.mixin(common_4.mixin({}, defaults), options);
+            options = common_5.mixin(common_5.mixin({}, defaults), options);
             var element = document.createElement('div');
             element.className = options.className + " " + olcss.CLASS_UNSELECTABLE + " " + olcss.CLASS_CONTROL;
-            var geocoderOptions = common_4.mixin({
+            var geocoderOptions = common_5.mixin({
                 element: element,
                 target: options.target,
                 expanded: false
@@ -2614,7 +3417,7 @@ define("labs/providers/osm", ["require", "exports"], function (require, exports)
     }());
     exports.OpenStreet = OpenStreet;
 });
-define("labs/geocoder", ["require", "exports", "labs/mapmaker", "ux/controls/input", "labs/providers/osm"], function (require, exports, MapMaker, input_1, osm_1) {
+define("labs/geocoder", ["require", "exports", "labs/mapmaker", "ux/controls/input", "labs/providers/osm"], function (require, exports, MapMaker, input_3, osm_1) {
     "use strict";
     function run() {
         MapMaker.run().then(function (map) {
@@ -2651,26 +3454,26 @@ define("labs/geocoder", ["require", "exports", "labs/mapmaker", "ux/controls/inp
                     console.error("geocoder failed");
                 });
             };
-            var geocoder = input_1.Geocoder.create({
+            var geocoder = input_3.Geocoder.create({
                 closedText: "+",
                 openedText: "−",
                 placeholderText: "Bottom Left Search",
                 onChange: changeHandler
             });
             map.addControl(geocoder);
-            map.addControl(input_1.Geocoder.create({
+            map.addControl(input_3.Geocoder.create({
                 className: 'ol-input bottom right',
                 expanded: true,
                 placeholderText: "Bottom Right Search",
                 onChange: changeHandler
             }));
-            map.addControl(input_1.Geocoder.create({
+            map.addControl(input_3.Geocoder.create({
                 className: 'ol-input top right',
                 expanded: false,
                 placeholderText: "Top Right",
                 onChange: changeHandler
             }));
-            map.addControl(input_1.Geocoder.create({
+            map.addControl(input_3.Geocoder.create({
                 className: 'ol-input top left',
                 expanded: false,
                 placeholderText: "Top Left Search",
@@ -2816,7 +3619,7 @@ define("labs/index", ["require", "exports"], function (require, exports) {
     function run() {
         var l = window.location;
         var path = "" + l.origin + l.pathname + "?run=labs/";
-        var labs = "\n    ../ux/ags-symbols\n    popup\n    layerswitcher\n    \n    style-lab\n\n    style-viewer\n    style-viewer&geom=point&style=icon/png\n    style-viewer&geom=point&style=icon/png,text/text\n    style-viewer&geom=point&style=%5B%7B\"image\":%7B\"imgSize\":%5B45,45%5D,\"rotation\":0,\"stroke\":%7B\"color\":\"rgba(255,25,0,0.8)\",\"width\":3%7D,\"path\":\"M23%202%20L23%2023%20L43%2016.5%20L23%2023%20L35%2040%20L23%2023%20L11%2040%20L23%2023%20L3%2017%20L23%2023%20L23%202%20Z\"%7D%7D%5D\n\n    style-viewer&geom=point&style=%5B%7B\"circle\":%7B\"fill\":%7B\"gradient\":%7B\"type\":\"linear(32,32,96,96)\",\"stops\":\"rgba(0,255,0,0.1)%200%25;rgba(0,255,0,0.8)%20100%25\"%7D%7D,\"opacity\":1,\"stroke\":%7B\"color\":\"rgba(0,255,0,1)\",\"width\":1%7D,\"radius\":64%7D%7D,%7B\"image\":%7B\"anchor\":%5B16,48%5D,\"size\":%5B32,48%5D,\"anchorXUnits\":\"pixels\",\"anchorYUnits\":\"pixels\",\"src\":\"http://openlayers.org/en/v3.20.1/examples/data/icon.png\"%7D%7D,%7B\"text\":%7B\"fill\":%7B\"color\":\"rgba(75,92,85,0.85)\"%7D,\"stroke\":%7B\"color\":\"rgba(255,255,255,1)\",\"width\":5%7D,\"offset-x\":0,\"offset-y\":16,\"text\":\"fantasy%20light\",\"font\":\"18px%20serif\"%7D%7D%5D    \n\n    style-viewer&geom=point&style=%5B%7B\"image\":%7B\"imgSize\":%5B13,21%5D,\"fill\":%7B\"color\":\"rgba(0,0,0,0.5)\"%7D,\"path\":\"M6.3,0C6.3,0,0,0.1,0,7.5c0,3.8,6.3,12.6,6.3,12.6s6.3-8.8,6.3-12.7C12.6,0.1,6.3,0,6.3,0z%20M6.3,8.8%20c-1.4,0-2.5-1.1-2.5-2.5c0-1.4,1.1-2.5,2.5-2.5c1.4,0,2.5,1.1,2.5,2.5C8.8,7.7,7.7,8.8,6.3,8.8z\"%7D%7D%5D\n\n    style-viewer&geom=point&style=%5B%7B\"image\":%7B\"imgSize\":%5B15,15%5D,\"anchor\":%5B0,0.5%5D,\"fill\":%7B\"color\":\"rgba(255,0,0,0.1)\"%7D,\"stroke\":%7B\"color\":\"rgba(255,0,0,1)\",\"width\":0.1%7D,\"scale\":8,\"rotation\":0.7,\"img\":\"lock\"%7D%7D,%7B\"image\":%7B\"imgSize\":%5B15,15%5D,\"anchor\":%5B100,0.5%5D,\"anchorXUnits\":\"pixels\",\"fill\":%7B\"color\":\"rgba(0,255,0,0.4)\"%7D,\"stroke\":%7B\"color\":\"rgba(255,0,0,1)\",\"width\":0.1%7D,\"scale\":1.5,\"rotation\":0.7,\"img\":\"lock\"%7D%7D,%7B\"image\":%7B\"imgSize\":%5B15,15%5D,\"anchor\":%5B-10,0%5D,\"anchorXUnits\":\"pixels\",\"anchorOrigin\":\"top-right\",\"fill\":%7B\"color\":\"rgba(230,230,80,1)\"%7D,\"stroke\":%7B\"color\":\"rgba(0,0,0,1)\",\"width\":0.5%7D,\"scale\":2,\"rotation\":0.8,\"img\":\"lock\"%7D%7D%5D\n\n\n    style-viewer&geom=multipoint&style=icon/png\n\n    style-viewer&geom=polyline&style=stroke/dot\n\n    style-viewer&geom=polygon&style=fill/diagonal\n    style-viewer&geom=polygon&style=fill/horizontal,fill/vertical,stroke/dashdotdot\n    style-viewer&geom=polygon&style=stroke/solid,text/text\n    style-viewer&geom=polygon-with-holes&style=fill/cross,stroke/solid\n\n    style-viewer&geom=multipolygon&style=stroke/solid,fill/horizontal,text/text\n\n    style-to-canvas\n    polyline-encoder\n    image-data-viewer\n\n    mapmaker\n    mapmaker&background=light\n    mapmaker&geom=t`syzE}gm_dAm_@A?r@p@Bp@Hp@Ph@Td@Z`@`@Vb@Nd@xUABmF\n    mapmaker&geom=t`syzE}gm_dAm_@A?r@p@Bp@Hp@Ph@Td@Z`@`@Vb@Nd@xUABmF&color=yellow&background=dark&modify=1\n    \n    geocoder&modify=1\n\n    facebook\n    google-identity\n    index\n    ";
+        var labs = "\n    ../ux/ags-symbols\n\n    ags-viewer&services=http://sampleserver3.arcgisonline.com/ArcGIS/rest/services&serviceName=SanFrancisco/311Incidents&layers=0&debug=1&center=-122.49,37.738\n    popup\n    layerswitcher\n    \n    style-lab\n\n    style-viewer\n    style-viewer&geom=point&style=icon/png\n    style-viewer&geom=point&style=icon/png,text/text\n    style-viewer&geom=point&style=%5B%7B\"image\":%7B\"imgSize\":%5B45,45%5D,\"rotation\":0,\"stroke\":%7B\"color\":\"rgba(255,25,0,0.8)\",\"width\":3%7D,\"path\":\"M23%202%20L23%2023%20L43%2016.5%20L23%2023%20L35%2040%20L23%2023%20L11%2040%20L23%2023%20L3%2017%20L23%2023%20L23%202%20Z\"%7D%7D%5D\n\n    style-viewer&geom=point&style=%5B%7B\"circle\":%7B\"fill\":%7B\"gradient\":%7B\"type\":\"linear(32,32,96,96)\",\"stops\":\"rgba(0,255,0,0.1)%200%25;rgba(0,255,0,0.8)%20100%25\"%7D%7D,\"opacity\":1,\"stroke\":%7B\"color\":\"rgba(0,255,0,1)\",\"width\":1%7D,\"radius\":64%7D%7D,%7B\"image\":%7B\"anchor\":%5B16,48%5D,\"size\":%5B32,48%5D,\"anchorXUnits\":\"pixels\",\"anchorYUnits\":\"pixels\",\"src\":\"http://openlayers.org/en/v3.20.1/examples/data/icon.png\"%7D%7D,%7B\"text\":%7B\"fill\":%7B\"color\":\"rgba(75,92,85,0.85)\"%7D,\"stroke\":%7B\"color\":\"rgba(255,255,255,1)\",\"width\":5%7D,\"offset-x\":0,\"offset-y\":16,\"text\":\"fantasy%20light\",\"font\":\"18px%20serif\"%7D%7D%5D    \n\n    style-viewer&geom=point&style=%5B%7B\"image\":%7B\"imgSize\":%5B13,21%5D,\"fill\":%7B\"color\":\"rgba(0,0,0,0.5)\"%7D,\"path\":\"M6.3,0C6.3,0,0,0.1,0,7.5c0,3.8,6.3,12.6,6.3,12.6s6.3-8.8,6.3-12.7C12.6,0.1,6.3,0,6.3,0z%20M6.3,8.8%20c-1.4,0-2.5-1.1-2.5-2.5c0-1.4,1.1-2.5,2.5-2.5c1.4,0,2.5,1.1,2.5,2.5C8.8,7.7,7.7,8.8,6.3,8.8z\"%7D%7D%5D\n\n    style-viewer&geom=point&style=%5B%7B\"image\":%7B\"imgSize\":%5B15,15%5D,\"anchor\":%5B0,0.5%5D,\"fill\":%7B\"color\":\"rgba(255,0,0,0.1)\"%7D,\"stroke\":%7B\"color\":\"rgba(255,0,0,1)\",\"width\":0.1%7D,\"scale\":8,\"rotation\":0.7,\"img\":\"lock\"%7D%7D,%7B\"image\":%7B\"imgSize\":%5B15,15%5D,\"anchor\":%5B100,0.5%5D,\"anchorXUnits\":\"pixels\",\"fill\":%7B\"color\":\"rgba(0,255,0,0.4)\"%7D,\"stroke\":%7B\"color\":\"rgba(255,0,0,1)\",\"width\":0.1%7D,\"scale\":1.5,\"rotation\":0.7,\"img\":\"lock\"%7D%7D,%7B\"image\":%7B\"imgSize\":%5B15,15%5D,\"anchor\":%5B-10,0%5D,\"anchorXUnits\":\"pixels\",\"anchorOrigin\":\"top-right\",\"fill\":%7B\"color\":\"rgba(230,230,80,1)\"%7D,\"stroke\":%7B\"color\":\"rgba(0,0,0,1)\",\"width\":0.5%7D,\"scale\":2,\"rotation\":0.8,\"img\":\"lock\"%7D%7D%5D\n\n\n    style-viewer&geom=multipoint&style=icon/png\n\n    style-viewer&geom=polyline&style=stroke/dot\n\n    style-viewer&geom=polygon&style=fill/diagonal\n    style-viewer&geom=polygon&style=fill/horizontal,fill/vertical,stroke/dashdotdot\n    style-viewer&geom=polygon&style=stroke/solid,text/text\n    style-viewer&geom=polygon-with-holes&style=fill/cross,stroke/solid\n\n    style-viewer&geom=multipolygon&style=stroke/solid,fill/horizontal,text/text\n\n    style-to-canvas\n    polyline-encoder\n    image-data-viewer\n\n    mapmaker\n    mapmaker&background=light\n    mapmaker&geom=t`syzE}gm_dAm_@A?r@p@Bp@Hp@Ph@Td@Z`@`@Vb@Nd@xUABmF\n    mapmaker&geom=t`syzE}gm_dAm_@A?r@p@Bp@Hp@Ph@Td@Z`@`@Vb@Nd@xUABmF&color=yellow&background=dark&modify=1\n    \n    geocoder&modify=1\n\n    facebook\n    google-identity\n    index\n    ";
         var styles = document.createElement("style");
         document.head.appendChild(styles);
         styles.innerText += "\n    #map {\n        display: none;\n    }\n    .test {\n        margin: 20px;\n    }\n    ";
@@ -2835,697 +3638,9 @@ define("labs/index", ["require", "exports"], function (require, exports) {
     exports.run = run;
     ;
 });
-define("ux/styles/star/flower", ["require", "exports"], function (require, exports) {
+define("labs/layerswitcher", ["require", "exports", "jquery", "openlayers", "labs/common/common", "alpha/format/ol3-symbolizer", "bower_components/ol3-layerswitcher/src/ol3-layerswitcher", "bower_components/ol3-popup/src/ol3-popup", "alpha/arcgis-source"], function (require, exports, $, ol, common_6, ol3_symbolizer_4, ol3_layerswitcher_2, ol3_popup_2, arcgis_source_2) {
     "use strict";
-    return [
-        {
-            "star": {
-                "fill": {
-                    "color": "rgba(106,9,251,0.7)"
-                },
-                "opacity": 1,
-                "stroke": {
-                    "color": "rgba(42,128,244,0.8)",
-                    "width": 8
-                },
-                "radius": 14,
-                "radius2": 9,
-                "points": 10
-            },
-            "text": {
-                "fill": {
-                    "color": "rgba(255,255,255,1)"
-                },
-                "stroke": {
-                    "color": "rgba(0,0,0,1)",
-                    "width": 2
-                },
-                "text": "Test",
-                "offset-x": 0,
-                "offset-y": 20,
-                "font": "18px fantasy"
-            }
-        }
-    ];
-});
-define("bower_components/ol3-layerswitcher/src/ol3-layerswitcher", ["require", "exports", "openlayers"], function (require, exports, ol) {
-    "use strict";
-    function defaults(a) {
-        var b = [];
-        for (var _i = 1; _i < arguments.length; _i++) {
-            b[_i - 1] = arguments[_i];
-        }
-        b.forEach(function (b) {
-            Object.keys(b).filter(function (k) { return a[k] === undefined; }).forEach(function (k) { return a[k] = b[k]; });
-        });
-        return a;
-    }
-    function asArray(list) {
-        var result = new Array(list.length);
-        for (var i = 0; i < list.length; i++) {
-            result.push(list[i]);
-        }
-        return result;
-    }
-    function allLayers(lyr) {
-        var result = [];
-        lyr.getLayers().forEach(function (lyr, idx, a) {
-            result.push(lyr);
-            if ("getLayers" in lyr) {
-                result = result.concat(allLayers(lyr));
-            }
-        });
-        return result;
-    }
-    function uuid() {
-        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
-            var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
-            return v.toString(16);
-        });
-    }
-    var DEFAULT_OPTIONS = {
-        tipLabel: 'Layers',
-        openOnMouseOver: false,
-        closeOnMouseOut: false,
-        openOnClick: true,
-        closeOnClick: true,
-        className: 'layer-switcher',
-        target: null
-    };
-    var LayerSwitcher = (function (_super) {
-        __extends(LayerSwitcher, _super);
-        function LayerSwitcher(options) {
-            options = defaults(options || {}, DEFAULT_OPTIONS);
-            _super.call(this, options);
-            this.afterCreate(options);
-        }
-        LayerSwitcher.prototype.afterCreate = function (options) {
-            var _this = this;
-            this.hiddenClassName = "ol-unselectable ol-control " + options.className;
-            this.shownClassName = this.hiddenClassName + ' shown';
-            var element = document.createElement('div');
-            element.className = this.hiddenClassName;
-            var button = this.button = document.createElement('button');
-            button.setAttribute('title', options.tipLabel);
-            element.appendChild(button);
-            this.panel = document.createElement('div');
-            this.panel.className = 'panel';
-            element.appendChild(this.panel);
-            this.unwatch = [];
-            this.element = element;
-            this.setTarget(options.target);
-            if (options.openOnMouseOver) {
-                element.addEventListener("mouseover", function () { return _this.showPanel(); });
-            }
-            if (options.closeOnMouseOut) {
-                element.addEventListener("mouseout", function () { return _this.hidePanel(); });
-            }
-            if (options.openOnClick || options.closeOnClick) {
-                button.addEventListener('click', function (e) {
-                    _this.isVisible() ? options.closeOnClick && _this.hidePanel() : options.openOnClick && _this.showPanel();
-                    e.preventDefault();
-                });
-            }
-        };
-        LayerSwitcher.prototype.dispatch = function (name, args) {
-            var event = new Event(name);
-            args && Object.keys(args).forEach(function (k) { return event[k] = args[k]; });
-            this["dispatchEvent"](event);
-        };
-        LayerSwitcher.prototype.isVisible = function () {
-            return this.element.className != this.hiddenClassName;
-        };
-        LayerSwitcher.prototype.showPanel = function () {
-            if (this.element.className != this.shownClassName) {
-                this.element.className = this.shownClassName;
-                this.renderPanel();
-            }
-        };
-        LayerSwitcher.prototype.hidePanel = function () {
-            this.element.className = this.hiddenClassName;
-            this.unwatch.forEach(function (f) { return f(); });
-        };
-        LayerSwitcher.prototype.renderPanel = function () {
-            var _this = this;
-            this.ensureTopVisibleBaseLayerShown();
-            while (this.panel.firstChild) {
-                this.panel.removeChild(this.panel.firstChild);
-            }
-            var ul = document.createElement('ul');
-            this.panel.appendChild(ul);
-            this.state = [];
-            var map = this.getMap();
-            var view = map.getView();
-            this.renderLayers(map, ul);
-            {
-                var doit = function () {
-                    var res = view.getResolution();
-                    _this.state.filter(function (s) { return !!s.input; }).forEach(function (s) {
-                        var min = s.layer.getMinResolution();
-                        var max = s.layer.getMaxResolution();
-                        console.log(res, min, max, s.layer.get("title"));
-                        s.input.disabled = !(min <= res && (max === 0 || res < max));
-                    });
-                };
-                var h_1 = view.on("change:resolution", doit);
-                doit();
-                this.unwatch.push(function () { return view.unByKey(h_1); });
-            }
-        };
-        ;
-        LayerSwitcher.prototype.ensureTopVisibleBaseLayerShown = function () {
-            var visibleBaseLyrs = allLayers(this.getMap()).filter(function (l) { return l.get('type') === 'base' && l.getVisible(); });
-            if (visibleBaseLyrs.length)
-                this.setVisible(visibleBaseLyrs.shift(), true);
-        };
-        ;
-        LayerSwitcher.prototype.setVisible = function (lyr, visible) {
-            var _this = this;
-            if (lyr.getVisible() !== visible) {
-                if (visible && lyr.get('type') === 'base') {
-                    allLayers(this.getMap()).filter(function (l) { return l !== lyr && l.get('type') === 'base' && l.getVisible(); }).forEach(function (l) { return _this.setVisible(l, false); });
-                }
-                lyr.setVisible(visible);
-                this.dispatch(visible ? "show-layer" : "hide-layer", { layer: lyr });
-            }
-        };
-        ;
-        LayerSwitcher.prototype.renderLayer = function (lyr, container) {
-            var _this = this;
-            var result;
-            var li = document.createElement('li');
-            container.appendChild(li);
-            var lyrTitle = lyr.get('title');
-            var label = document.createElement('label');
-            label.htmlFor = uuid();
-            lyr.on('load:start', function () { return li.classList.add("loading"); });
-            lyr.on('load:end', function () { return li.classList.remove("loading"); });
-            li.classList.toggle("loading", true === lyr.get("loading"));
-            if ('getLayers' in lyr && !lyr.get('combine')) {
-                if (!lyr.get('label-only')) {
-                    var input_2 = result = document.createElement('input');
-                    input_2.id = label.htmlFor;
-                    input_2.type = 'checkbox';
-                    input_2.checked = lyr.getVisible();
-                    input_2.addEventListener('change', function () {
-                        ul_1.classList.toggle('hide-layer-group', !input_2.checked);
-                        _this.setVisible(lyr, input_2.checked);
-                        var childLayers = lyr.getLayers();
-                        _this.state.filter(function (s) { return s.container === ul_1 && s.input && s.input.checked; }).forEach(function (state) {
-                            _this.setVisible(state.layer, input_2.checked);
-                        });
-                    });
-                    li.appendChild(input_2);
-                }
-                li.classList.add('group');
-                label.innerHTML = lyrTitle;
-                li.appendChild(label);
-                var ul_1 = document.createElement('ul');
-                result && ul_1.classList.toggle('hide-layer-group', !result.checked);
-                li.appendChild(ul_1);
-                this.renderLayers(lyr, ul_1);
-            }
-            else {
-                li.classList.add('layer');
-                var input_3 = result = document.createElement('input');
-                input_3.id = label.htmlFor;
-                if (lyr.get('type') === 'base') {
-                    input_3.classList.add('basemap');
-                    input_3.type = 'radio';
-                    input_3.addEventListener("change", function () {
-                        if (input_3.checked) {
-                            asArray(_this.panel.getElementsByClassName("basemap")).filter(function (i) { return i.tagName === "INPUT"; }).forEach(function (i) {
-                                if (i.checked && i !== input_3)
-                                    i.checked = false;
-                            });
-                        }
-                        _this.setVisible(lyr, input_3.checked);
-                    });
-                }
-                else {
-                    input_3.type = 'checkbox';
-                    input_3.addEventListener("change", function () {
-                        _this.setVisible(lyr, input_3.checked);
-                    });
-                }
-                input_3.checked = lyr.get('visible');
-                li.appendChild(input_3);
-                label.innerHTML = lyrTitle;
-                li.appendChild(label);
-            }
-            this.state.push({
-                container: container,
-                input: result,
-                layer: lyr
-            });
-        };
-        LayerSwitcher.prototype.renderLayers = function (map, elm) {
-            var _this = this;
-            var lyrs = map.getLayers().getArray().slice().reverse();
-            return lyrs.filter(function (l) { return !!l.get('title'); }).forEach(function (l) { return _this.renderLayer(l, elm); });
-        };
-        return LayerSwitcher;
-    }(ol.control.Control));
-    exports.LayerSwitcher = LayerSwitcher;
-});
-define("bower_components/ol3-popup/src/paging/paging", ["require", "exports", "openlayers"], function (require, exports, ol) {
-    "use strict";
-    function getInteriorPoint(geom) {
-        if (geom["getInteriorPoint"])
-            return geom["getInteriorPoint"]().getCoordinates();
-        return ol.extent.getCenter(geom.getExtent());
-    }
-    var Paging = (function () {
-        function Paging(options) {
-            this.options = options;
-            this._pages = [];
-            this.domNode = document.createElement("div");
-            this.domNode.classList.add("pages");
-            options.popup.domNode.appendChild(this.domNode);
-        }
-        Object.defineProperty(Paging.prototype, "activeIndex", {
-            get: function () {
-                return this._activeIndex;
-            },
-            enumerable: true,
-            configurable: true
-        });
-        Object.defineProperty(Paging.prototype, "count", {
-            get: function () {
-                return this._pages.length;
-            },
-            enumerable: true,
-            configurable: true
-        });
-        Paging.prototype.dispatch = function (name) {
-            this.domNode.dispatchEvent(new Event(name));
-        };
-        Paging.prototype.on = function (name, listener) {
-            this.domNode.addEventListener(name, listener);
-        };
-        Paging.prototype.add = function (source, geom) {
-            if (false) {
-            }
-            else if (typeof source === "string") {
-                var page = document.createElement("div");
-                page.innerHTML = source;
-                this._pages.push({
-                    element: page,
-                    location: geom && getInteriorPoint(geom)
-                });
-            }
-            else if (source["appendChild"]) {
-                var page = source;
-                page.classList.add("page");
-                this._pages.push({
-                    element: page,
-                    location: geom && getInteriorPoint(geom)
-                });
-            }
-            else if (source["then"]) {
-                var d = source;
-                var page_1 = document.createElement("div");
-                page_1.classList.add("page");
-                this._pages.push({
-                    element: page_1,
-                    location: geom && getInteriorPoint(geom)
-                });
-                $.when(d).then(function (v) {
-                    if (typeof v === "string") {
-                        page_1.innerHTML = v;
-                    }
-                    else {
-                        page_1.appendChild(v);
-                    }
-                });
-            }
-            else if (typeof source === "function") {
-                var page = document.createElement("div");
-                page.classList.add("page");
-                this._pages.push({
-                    callback: source,
-                    element: page,
-                    location: geom && getInteriorPoint(geom)
-                });
-            }
-            else {
-                throw "invalid source value: " + source;
-            }
-            this.dispatch("add");
-        };
-        Paging.prototype.clear = function () {
-            var activeChild = this._activeIndex >= 0 && this._pages[this._activeIndex];
-            this._activeIndex = -1;
-            this._pages = [];
-            if (activeChild) {
-                this.domNode.removeChild(activeChild.element);
-                this.dispatch("clear");
-            }
-        };
-        Paging.prototype.goto = function (index) {
-            var _this = this;
-            var page = this._pages[index];
-            if (!page)
-                return;
-            var activeChild = this._activeIndex >= 0 && this._pages[this._activeIndex];
-            var d = $.Deferred();
-            if (page.callback) {
-                var refreshedContent = page.callback();
-                $.when(refreshedContent).then(function (v) {
-                    if (false) {
-                    }
-                    else if (typeof v === "string") {
-                        page.element.innerHTML = v;
-                    }
-                    else if (typeof v["innerHTML"] !== "undefined") {
-                        page.element.innerHTML = "";
-                        page.element.appendChild(v);
-                    }
-                    else {
-                        throw "invalid callback result: " + v;
-                    }
-                    d.resolve();
-                });
-            }
-            else {
-                d.resolve();
-            }
-            d.then(function () {
-                activeChild && activeChild.element.remove();
-                _this._activeIndex = index;
-                _this.domNode.appendChild(page.element);
-                if (page.location) {
-                    _this.options.popup.setPosition(page.location);
-                }
-                _this.dispatch("goto");
-            });
-        };
-        Paging.prototype.next = function () {
-            (0 <= this.activeIndex) && (this.activeIndex < this.count) && this.goto(this.activeIndex + 1);
-        };
-        Paging.prototype.prev = function () {
-            (0 < this.activeIndex) && this.goto(this.activeIndex - 1);
-        };
-        return Paging;
-    }());
-    exports.Paging = Paging;
-});
-define("bower_components/ol3-popup/src/paging/page-navigator", ["require", "exports"], function (require, exports) {
-    "use strict";
-    var classNames = {
-        prev: 'btn-prev',
-        next: 'btn-next',
-        hidden: 'hidden',
-        active: 'active',
-        inactive: 'inactive',
-        pagenum: "page-num"
-    };
-    var eventNames = {
-        show: "show",
-        hide: "hide",
-        prev: "prev",
-        next: "next"
-    };
-    var PageNavigator = (function () {
-        function PageNavigator(options) {
-            var _this = this;
-            this.options = options;
-            var pages = options.pages;
-            this.domNode = document.createElement("div");
-            this.domNode.classList.add("pagination");
-            this.domNode.innerHTML = this.template();
-            this.prevButton = this.domNode.getElementsByClassName(classNames.prev)[0];
-            this.nextButton = this.domNode.getElementsByClassName(classNames.next)[0];
-            this.pageInfo = this.domNode.getElementsByClassName(classNames.pagenum)[0];
-            pages.options.popup.domNode.appendChild(this.domNode);
-            this.prevButton.addEventListener('click', function () { return _this.dispatch(eventNames.prev); });
-            this.nextButton.addEventListener('click', function () { return _this.dispatch(eventNames.next); });
-            pages.on("goto", function () { return pages.count > 1 ? _this.show() : _this.hide(); });
-            pages.on("clear", function () { return _this.hide(); });
-            pages.on("goto", function () {
-                var index = pages.activeIndex;
-                var count = pages.count;
-                var canPrev = 0 < index;
-                var canNext = count - 1 > index;
-                _this.prevButton.classList.toggle(classNames.inactive, !canPrev);
-                _this.prevButton.classList.toggle(classNames.active, canPrev);
-                _this.nextButton.classList.toggle(classNames.inactive, !canNext);
-                _this.nextButton.classList.toggle(classNames.active, canNext);
-                _this.prevButton.disabled = !canPrev;
-                _this.nextButton.disabled = !canNext;
-                _this.pageInfo.innerHTML = (1 + index) + " of " + count;
-            });
-        }
-        PageNavigator.prototype.dispatch = function (name) {
-            this.domNode.dispatchEvent(new Event(name));
-        };
-        PageNavigator.prototype.on = function (name, listener) {
-            this.domNode.addEventListener(name, listener);
-        };
-        PageNavigator.prototype.template = function () {
-            return "<button class=\"arrow btn-prev\"></button><span class=\"page-num\">m of n</span><button class=\"arrow btn-next\"></button>";
-        };
-        PageNavigator.prototype.hide = function () {
-            this.domNode.classList.add(classNames.hidden);
-            this.dispatch(eventNames.hide);
-        };
-        PageNavigator.prototype.show = function () {
-            this.domNode.classList.remove(classNames.hidden);
-            this.dispatch(eventNames.show);
-        };
-        return PageNavigator;
-    }());
-    return PageNavigator;
-});
-define("bower_components/ol3-popup/src/ol3-popup", ["require", "exports", "jquery", "openlayers", "bower_components/ol3-popup/src/paging/paging", "bower_components/ol3-popup/src/paging/page-navigator"], function (require, exports, $, ol, paging_1, PageNavigator) {
-    "use strict";
-    var css = "\n.ol-popup {\n    position: absolute;\n    bottom: 12px;\n    left: -50px;\n}\n\n.ol-popup:after {\n    top: auto;\n    bottom: -20px;\n    left: 50px;\n    border: solid transparent;\n    border-top-color: inherit;\n    content: \" \";\n    height: 0;\n    width: 0;\n    position: absolute;\n    pointer-events: none;\n    border-width: 10px;\n    margin-left: -10px;\n}\n\n.ol-popup.docked {\n    position:absolute;\n    bottom:0;\n    top:0;\n    left:0;\n    right:0;\n    width:auto;\n    height:auto;\n    pointer-events: all;\n}\n\n.ol-popup.docked:after {\n    display:none;\n}\n\n.ol-popup.docked .pages {\n    max-height: inherit;\n    overflow: auto;\n    height: calc(100% - 60px);\n}\n\n.ol-popup.docked .pagination {\n    position: absolute;\n    bottom: 0;\n}\n\n.ol-popup .pagination .btn-prev::after {\n    content: \"\u21E6\"; \n}\n\n.ol-popup .pagination .btn-next::after {\n    content: \"\u21E8\"; \n}\n\n.ol-popup .pagination.hidden {\n    display: none;\n}\n\n.ol-popup .ol-popup-closer {\n    border: none;\n    background: transparent;\n    color: inherit;\n    position: absolute;\n    top: 0;\n    right: 0;\n    text-decoration: none;\n}\n    \n.ol-popup .ol-popup-closer:after {\n    content:'\u2716';\n}\n\n.ol-popup .ol-popup-docker {\n    border: none;\n    background: transparent;\n    color: inherit;\n    text-decoration: none;\n    position: absolute;\n    top: 0;\n    right: 20px;\n}\n\n.ol-popup .ol-popup-docker:after {\n    content:'\u25A1';\n}\n";
-    var classNames = {
-        olPopup: 'ol-popup',
-        olPopupDocker: 'ol-popup-docker',
-        olPopupCloser: 'ol-popup-closer',
-        olPopupContent: 'ol-popup-content',
-        hidden: 'hidden',
-        docked: 'docked'
-    };
-    var eventNames = {
-        show: "show",
-        hide: "hide",
-        next: "next-page"
-    };
-    function defaults(a) {
-        var b = [];
-        for (var _i = 1; _i < arguments.length; _i++) {
-            b[_i - 1] = arguments[_i];
-        }
-        b.forEach(function (b) {
-            Object.keys(b).filter(function (k) { return a[k] === undefined; }).forEach(function (k) { return a[k] = b[k]; });
-        });
-        return a;
-    }
-    function debounce(func, wait, immediate) {
-        var _this = this;
-        if (wait === void 0) { wait = 20; }
-        if (immediate === void 0) { immediate = false; }
-        var timeout;
-        return (function () {
-            var args = [];
-            for (var _i = 0; _i < arguments.length; _i++) {
-                args[_i - 0] = arguments[_i];
-            }
-            var later = function () {
-                timeout = null;
-                if (!immediate)
-                    func.call(_this, args);
-            };
-            var callNow = immediate && !timeout;
-            clearTimeout(timeout);
-            timeout = setTimeout(later, wait);
-            if (callNow)
-                func.call(_this, args);
-        });
-    }
-    var isTouchDevice = function () {
-        try {
-            document.createEvent("TouchEvent");
-            isTouchDevice = function () { return true; };
-        }
-        catch (e) {
-            isTouchDevice = function () { return false; };
-        }
-        return isTouchDevice();
-    };
-    function enableTouchScroll(elm) {
-        var scrollStartPos = 0;
-        elm.addEventListener("touchstart", function (event) {
-            scrollStartPos = this.scrollTop + event.touches[0].pageY;
-        }, false);
-        elm.addEventListener("touchmove", function (event) {
-            this.scrollTop = scrollStartPos - event.touches[0].pageY;
-        }, false);
-    }
-    ;
-    var DEFAULT_OPTIONS = {
-        insertFirst: true,
-        autoPan: true,
-        autoPanAnimation: {
-            source: null,
-            duration: 250
-        },
-        pointerPosition: 50,
-        xOffset: 0,
-        yOffset: 0,
-        positioning: "top-right",
-        stopEvent: true
-    };
-    var Popup = (function (_super) {
-        __extends(Popup, _super);
-        function Popup(options) {
-            if (options === void 0) { options = DEFAULT_OPTIONS; }
-            options = defaults({}, options, DEFAULT_OPTIONS);
-            _super.call(this, options);
-            this.options = options;
-            this.handlers = [];
-            this.postCreate();
-        }
-        Popup.prototype.postCreate = function () {
-            var _this = this;
-            this.injectCss(css);
-            var options = this.options;
-            options.css && this.injectCss(options.css);
-            var domNode = this.domNode = document.createElement('div');
-            domNode.className = classNames.olPopup;
-            this.setElement(domNode);
-            if (this.options.pointerPosition) {
-                this.setIndicatorPosition(this.options.pointerPosition);
-            }
-            if (this.options.dockContainer) {
-                var dockContainer = $(this.options.dockContainer)[0];
-                if (dockContainer) {
-                    var docker = this.docker = document.createElement('label');
-                    docker.className = classNames.olPopupDocker;
-                    domNode.appendChild(docker);
-                    docker.addEventListener('click', function (evt) {
-                        _this.isDocked() ? _this.undock() : _this.dock();
-                        evt.preventDefault();
-                    }, false);
-                }
-            }
-            {
-                var closer = this.closer = document.createElement('label');
-                closer.className = classNames.olPopupCloser;
-                domNode.appendChild(closer);
-                closer.addEventListener('click', function (evt) {
-                    _this.hide();
-                    evt.preventDefault();
-                }, false);
-            }
-            {
-                var content = this.content = document.createElement('div');
-                content.className = classNames.olPopupContent;
-                this.domNode.appendChild(content);
-                isTouchDevice() && enableTouchScroll(content);
-            }
-            {
-                var pages_1 = this.pages = new paging_1.Paging({ popup: this });
-                var pageNavigator = new PageNavigator({ pages: pages_1 });
-                pageNavigator.hide();
-                pageNavigator.on("prev", function () { return pages_1.prev(); });
-                pageNavigator.on("next", function () { return pages_1.next(); });
-                pages_1.on("goto", function () { return _this.panIntoView(); });
-            }
-            if (0) {
-                var callback_1 = this.setPosition;
-                this.setPosition = debounce(function (args) { return callback_1.apply(_this, args); }, 50);
-            }
-        };
-        Popup.prototype.injectCss = function (css) {
-            var style = $("<style type='text/css'>" + css + "</style>");
-            style.appendTo('head');
-            this.handlers.push(function () { return style.remove(); });
-        };
-        Popup.prototype.setIndicatorPosition = function (x) {
-            var css = "\n.ol-popup { position: absolute; bottom: " + (this.options.yOffset + 12) + "px; left: " + (this.options.xOffset - x) + "px; }\n.ol-popup:after { bottom: -20px; left: " + x + "px; }\n";
-            this.injectCss(css);
-        };
-        Popup.prototype.setPosition = function (position) {
-            this.options.position = position;
-            if (!this.isDocked()) {
-                _super.prototype.setPosition.call(this, position);
-            }
-            else {
-                var view = this.options.map.getView();
-                view.animate({
-                    center: position
-                });
-            }
-        };
-        Popup.prototype.panIntoView = function () {
-            if (!this.isOpened())
-                return;
-            if (this.isDocked())
-                return;
-            var p = this.getPosition();
-            p && this.setPosition(p.map(function (v) { return v; }));
-        };
-        Popup.prototype.destroy = function () {
-            this.handlers.forEach(function (h) { return h(); });
-            this.handlers = [];
-            this.getMap().removeOverlay(this);
-            this.dispose();
-            this.dispatch("dispose");
-        };
-        Popup.prototype.dispatch = function (name) {
-            this["dispatchEvent"](new Event(name));
-        };
-        Popup.prototype.show = function (coord, html) {
-            if (html instanceof HTMLElement) {
-                this.content.innerHTML = "";
-                this.content.appendChild(html);
-            }
-            else {
-                this.content.innerHTML = html;
-            }
-            this.domNode.classList.remove(classNames.hidden);
-            this.setPosition(coord);
-            this.dispatch(eventNames.show);
-            return this;
-        };
-        Popup.prototype.hide = function () {
-            this.isDocked() && this.undock();
-            this.setPosition(undefined);
-            this.pages.clear();
-            this.dispatch(eventNames.hide);
-            this.domNode.classList.add(classNames.hidden);
-            return this;
-        };
-        Popup.prototype.isOpened = function () {
-            return !this.domNode.classList.contains(classNames.hidden);
-        };
-        Popup.prototype.isDocked = function () {
-            return this.domNode.classList.contains(classNames.docked);
-        };
-        Popup.prototype.dock = function () {
-            var map = this.getMap();
-            this.options.map = map;
-            this.options.parentNode = this.domNode.parentElement;
-            map.removeOverlay(this);
-            this.domNode.classList.add(classNames.docked);
-            $(this.options.dockContainer).append(this.domNode);
-        };
-        Popup.prototype.undock = function () {
-            this.options.parentNode.appendChild(this.domNode);
-            this.domNode.classList.remove(classNames.docked);
-            this.options.map.addOverlay(this);
-            this.setPosition(this.options.position);
-        };
-        return Popup;
-    }(ol.Overlay));
-    exports.Popup = Popup;
-});
-define("labs/layerswitcher", ["require", "exports", "jquery", "openlayers", "labs/common/common", "alpha/format/ol3-symbolizer", "bower_components/ol3-layerswitcher/src/ol3-layerswitcher", "bower_components/ol3-popup/src/ol3-popup", "alpha/arcgis-source"], function (require, exports, $, ol, common_5, ol3_symbolizer_3, ol3_layerswitcher_1, ol3_popup_1, arcgis_source_1) {
-    "use strict";
-    var styler = new ol3_symbolizer_3.StyleConverter();
+    var styler = new ol3_symbolizer_4.StyleConverter();
     function parse(v, type) {
         if (typeof type === "string")
             return v;
@@ -3555,12 +3670,12 @@ define("labs/layerswitcher", ["require", "exports", "jquery", "openlayers", "lab
             zoom: 10
         };
         {
-            var opts_4 = options;
-            Object.keys(opts_4).forEach(function (k) {
-                common_5.doif(common_5.getParameterByName(k), function (v) {
-                    var value = parse(v, opts_4[k]);
+            var opts_5 = options;
+            Object.keys(opts_5).forEach(function (k) {
+                common_6.doif(common_6.getParameterByName(k), function (v) {
+                    var value = parse(v, opts_5[k]);
                     if (value !== undefined)
-                        opts_4[k] = value;
+                        opts_5[k] = value;
                 });
             });
         }
@@ -3594,7 +3709,7 @@ define("labs/layerswitcher", ["require", "exports", "jquery", "openlayers", "lab
                     })
                 })]
         });
-        arcgis_source_1.ArcGisVectorSourceFactory.create({
+        arcgis_source_2.ArcGisVectorSourceFactory.create({
             tileSize: 256,
             map: map,
             services: "https://services7.arcgis.com/k0UprFPHKieFB9UY/arcgis/rest/services",
@@ -3602,9 +3717,9 @@ define("labs/layerswitcher", ["require", "exports", "jquery", "openlayers", "lab
             layers: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20].reverse()
         }).then(function (agsLayers) {
             agsLayers.forEach(function (agsLayer) { return map.addLayer(agsLayer); });
-            var layerSwitcher = new ol3_layerswitcher_1.LayerSwitcher();
+            var layerSwitcher = new ol3_layerswitcher_2.LayerSwitcher();
             layerSwitcher.setMap(map);
-            var popup = new ol3_popup_1.Popup({
+            var popup = new ol3_popup_2.Popup({
                 css: "\n            .ol-popup {\n                background-color: white;\n            }\n            .ol-popup .page {\n                max-height: 200px;\n                overflow-y: auto;\n            }\n            "
             });
             map.addOverlay(popup);
@@ -3722,9 +3837,9 @@ define("labs/polyline-encoder", ["require", "exports", "jquery", "openlayers", "
     }
     exports.run = run;
 });
-define("labs/popup", ["require", "exports", "jquery", "openlayers", "labs/common/common", "alpha/format/ol3-symbolizer", "ux/styles/star/flower", "bower_components/ol3-popup/src/ol3-popup"], function (require, exports, $, ol, common_6, ol3_symbolizer_4, pointStyle, ol3_popup_2) {
+define("labs/popup", ["require", "exports", "jquery", "openlayers", "labs/common/common", "alpha/format/ol3-symbolizer", "ux/styles/star/flower", "bower_components/ol3-popup/src/ol3-popup"], function (require, exports, $, ol, common_7, ol3_symbolizer_5, pointStyle, ol3_popup_3) {
     "use strict";
-    var styler = new ol3_symbolizer_4.StyleConverter();
+    var styler = new ol3_symbolizer_5.StyleConverter();
     function parse(v, type) {
         if (typeof type === "string")
             return v;
@@ -3750,12 +3865,12 @@ define("labs/popup", ["require", "exports", "jquery", "openlayers", "labs/common
             basemap: "bing"
         };
         {
-            var opts_5 = options;
-            Object.keys(opts_5).forEach(function (k) {
-                common_6.doif(common_6.getParameterByName(k), function (v) {
-                    var value = parse(v, opts_5[k]);
+            var opts_6 = options;
+            Object.keys(opts_6).forEach(function (k) {
+                common_7.doif(common_7.getParameterByName(k), function (v) {
+                    var value = parse(v, opts_6[k]);
                     if (value !== undefined)
-                        opts_5[k] = value;
+                        opts_6[k] = value;
                 });
             });
         }
@@ -3794,7 +3909,7 @@ define("labs/popup", ["require", "exports", "jquery", "openlayers", "labs/common
             }
         });
         map.addLayer(layer);
-        var popup = new ol3_popup_2.Popup({
+        var popup = new ol3_popup_3.Popup({
             dockContainer: '.popup-container',
             pointerPosition: 100,
             css: css_popup
@@ -3812,10 +3927,10 @@ define("labs/popup", ["require", "exports", "jquery", "openlayers", "labs/common
     }
     exports.run = run;
 });
-define("labs/route-editor", ["require", "exports", "openlayers", "alpha/format/ol3-symbolizer", "labs/common/common"], function (require, exports, ol, ol3_symbolizer_5, common_7) {
+define("labs/route-editor", ["require", "exports", "openlayers", "alpha/format/ol3-symbolizer", "labs/common/common"], function (require, exports, ol, ol3_symbolizer_6, common_8) {
     "use strict";
     var delta = 16;
-    var formatter = new ol3_symbolizer_5.StyleConverter();
+    var formatter = new ol3_symbolizer_6.StyleConverter();
     function fromJson(styles) {
         return styles.map(function (style) { return formatter.fromJson(style); });
     }
@@ -3836,7 +3951,7 @@ define("labs/route-editor", ["require", "exports", "openlayers", "alpha/format/o
         }]; };
     var Route = (function () {
         function Route(options) {
-            this.options = common_7.defaults(options, {
+            this.options = common_8.defaults(options, {
                 color: "black",
                 delta: delta,
                 stops: [],
@@ -4159,10 +4274,10 @@ define("ux/serializers/ags-simplemarkersymbol", ["require", "exports", "alpha/fo
     }());
     exports.SimpleMarkerConverter = SimpleMarkerConverter;
 });
-define("labs/style-lab", ["require", "exports", "openlayers", "jquery", "alpha/format/ol3-symbolizer", "labs/common/style-generator"], function (require, exports, ol, $, ol3_symbolizer_6, StyleGenerator) {
+define("labs/style-lab", ["require", "exports", "openlayers", "jquery", "alpha/format/ol3-symbolizer", "labs/common/style-generator"], function (require, exports, ol, $, ol3_symbolizer_7, StyleGenerator) {
     "use strict";
     var center = [-82.4, 34.85];
-    var formatter = new ol3_symbolizer_6.StyleConverter();
+    var formatter = new ol3_symbolizer_7.StyleConverter();
     var generator = new StyleGenerator({
         center: center,
         fromJson: function (json) { return formatter.fromJson(json); }
@@ -4172,7 +4287,7 @@ define("labs/style-lab", ["require", "exports", "openlayers", "jquery", "alpha/f
     function run() {
         $(ux).appendTo(".map");
         $(css).appendTo("head");
-        var formatter = new ol3_symbolizer_6.StyleConverter();
+        var formatter = new ol3_symbolizer_7.StyleConverter();
         var map = new ol.Map({
             target: "map",
             view: new ol.View({
@@ -4325,7 +4440,7 @@ define("ux/styles/icon/png", ["require", "exports"], function (require, exports)
         }
     ];
 });
-define("labs/style-viewer", ["require", "exports", "openlayers", "jquery", "labs/common/snapshot", "labs/common/common", "alpha/format/ol3-symbolizer", "ux/styles/icon/png"], function (require, exports, ol, $, Snapshot, common_8, ol3_symbolizer_7, pointStyle) {
+define("labs/style-viewer", ["require", "exports", "openlayers", "jquery", "labs/common/snapshot", "labs/common/common", "alpha/format/ol3-symbolizer", "ux/styles/icon/png"], function (require, exports, ol, $, Snapshot, common_9, ol3_symbolizer_8, pointStyle) {
     "use strict";
     var html = "\n<div class='style-to-canvas'>\n    <h3>Renders a feature on a canvas</h3>\n    <div class=\"area\">\n        <label>256 x 256 Canvas</label>\n        <div id='canvas-collection'></div>\n    </div>\n    <div class=\"area\">\n        <label>Style</label>\n        <textarea class='style'></textarea>\n        <button class=\"save\">Save</button>\n    </div>\n    <div class=\"area\">\n        <label>Potential control for setting linear gradient start/stop locations</label>\n        <div class=\"colorramp\">\n            <input class=\"top\" type=\"range\" min=\"0\" max=\"100\" value=\"20\"/>\n            <input class=\"bottom\" type=\"range\" min=\"0\" max=\"100\" value=\"80\"/>\n        </div>\n    </div>\n</div>\n";
     var css = "\n<style>\n    #map {\n        display: none;\n    }\n\n    .style-to-canvas {\n    }\n\n    .style-to-canvas .area label {\n        display: block;\n        vertical-align: top;\n    }\n\n    .style-to-canvas .area {\n        border: 1px solid black;\n        padding: 20px;\n        margin: 20px;\n    }\n\n    .style-to-canvas .area .style {\n        width: 100%;\n        height: 400px;\n    }\n\n    .style-to-canvas #canvas-collection canvas {\n        font-family: sans serif;\n        font-size: 20px;\n        border: 1px solid black;\n        padding: 20px;\n        margin: 20px;\n    }\n\n    div.colorramp {\n        display: inline-block;\n        background: linear-gradient(to right, rgba(250,0,0,0), rgba(250,0,0,1) 60%, rgba(250,100,0,1) 85%, rgb(250,250,0) 95%);\n        width:100%;\n    }\n\n    div.colorramp > input[type=range] {\n        -webkit-appearance: slider-horizontal;\n        display:block;\n        width:100%;\n        background-color:transparent;\n    }\n\n    div.colorramp > label {\n        display: inline-block;\n    }\n\n    div.colorramp > input[type='range'] {\n        box-shadow: 0 0 0 white;\n    }\n\n    div.colorramp > input[type=range]::-webkit-slider-runnable-track {\n        height: 0px;     \n    }\n\n    div.colorramp > input[type='range'].top::-webkit-slider-thumb {\n        margin-top: -10px;\n    }\n\n    div.colorramp > input[type='range'].bottom::-webkit-slider-thumb {\n        margin-top: -12px;\n    }\n    \n</style>\n";
@@ -4364,7 +4479,7 @@ define("labs/style-viewer", ["require", "exports", "openlayers", "jquery", "labs
     var styles = {
         point: pointStyle
     };
-    var serializer = new ol3_symbolizer_7.StyleConverter();
+    var serializer = new ol3_symbolizer_8.StyleConverter();
     var Renderer = (function () {
         function Renderer(geom) {
             this.feature = new ol.Feature(geom);
@@ -4390,8 +4505,8 @@ define("labs/style-viewer", ["require", "exports", "openlayers", "jquery", "labs
         $(html).appendTo("body");
         $(svg).appendTo("body");
         $(css).appendTo("head");
-        var geom = common_8.getParameterByName("geom") || "polygon-with-holes";
-        var style = common_8.getParameterByName("style") || "fill/gradient";
+        var geom = common_9.getParameterByName("geom") || "polygon-with-holes";
+        var style = common_9.getParameterByName("style") || "fill/gradient";
         $(".save").click(function () {
             var style = JSON.stringify(JSON.parse($(".style").val()));
             var loc = window.location;
