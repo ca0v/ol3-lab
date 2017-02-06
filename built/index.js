@@ -136,91 +136,19 @@ define("bower_components/ol3-layerswitcher/src/extras/ags-catalog", ["require", 
     }());
     exports.Catalog = Catalog;
 });
-define("labs/common/common", ["require", "exports"], function (require, exports) {
+define("bower_components/ol3-symbolizer/format/base", ["require", "exports"], function (require, exports) {
     "use strict";
-    function getParameterByName(name, url) {
-        if (url === void 0) { url = window.location.href; }
-        name = name.replace(/[\[\]]/g, "\\$&");
-        var regex = new RegExp("[?&]" + name + "(=([^&#]*)|&|#|$)"), results = regex.exec(url);
-        if (!results)
-            return null;
-        if (!results[2])
-            return '';
-        return decodeURIComponent(results[2].replace(/\+/g, " "));
-    }
-    exports.getParameterByName = getParameterByName;
+});
+define("bower_components/ol3-symbolizer/format/ol3-symbolizer", ["require", "exports"], function (require, exports) {
+    "use strict";
     function doif(v, cb) {
         if (v !== undefined && v !== null)
             cb(v);
     }
-    exports.doif = doif;
     function mixin(a, b) {
         Object.keys(b).forEach(function (k) { return a[k] = b[k]; });
         return a;
     }
-    exports.mixin = mixin;
-    function defaults(a, b) {
-        Object.keys(b).filter(function (k) { return a[k] == undefined; }).forEach(function (k) { return a[k] = b[k]; });
-        return a;
-    }
-    exports.defaults = defaults;
-    function cssin(name, css) {
-        var id = "style-" + name;
-        var styleTag = document.getElementById(id);
-        if (!styleTag) {
-            styleTag = document.createElement("style");
-            styleTag.id = id;
-            styleTag.innerText = css;
-            document.head.appendChild(styleTag);
-        }
-        var dataset = styleTag.dataset;
-        dataset["count"] = parseInt(dataset["count"] || "0") + 1 + "";
-        return function () {
-            dataset["count"] = parseInt(dataset["count"] || "0") - 1 + "";
-            if (dataset["count"] === "0") {
-                styleTag.remove();
-            }
-        };
-    }
-    exports.cssin = cssin;
-});
-define("labs/common/ol3-patch", ["require", "exports", "openlayers", "labs/common/common"], function (require, exports, ol3, common_1) {
-    "use strict";
-    if (!ol3.geom.SimpleGeometry.prototype.scale) {
-        var scale_1 = function (flatCoordinates, offset, end, stride, deltaX, deltaY, opt_dest) {
-            var dest = opt_dest ? opt_dest : [];
-            var i = 0;
-            var j, k;
-            for (j = offset; j < end; j += stride) {
-                dest[i++] = flatCoordinates[j] * deltaX;
-                dest[i++] = flatCoordinates[j + 1] * deltaY;
-                for (k = j + 2; k < j + stride; ++k) {
-                    dest[i++] = flatCoordinates[k];
-                }
-            }
-            if (opt_dest && dest.length != i) {
-                dest.length = i;
-            }
-            return dest;
-        };
-        common_1.mixin(ol3.geom.SimpleGeometry.prototype, {
-            scale: function (deltaX, deltaY) {
-                var it = this;
-                it.applyTransform(function (flatCoordinates, output, stride) {
-                    scale_1(flatCoordinates, 0, flatCoordinates.length, stride, deltaX, deltaY, flatCoordinates);
-                    return flatCoordinates;
-                });
-                it.changed();
-            }
-        });
-    }
-    return ol3;
-});
-define("alpha/format/base", ["require", "exports"], function (require, exports) {
-    "use strict";
-});
-define("alpha/format/ol3-symbolizer", ["require", "exports", "labs/common/ol3-patch", "labs/common/common"], function (require, exports, ol, common_2) {
-    "use strict";
     var StyleConverter = (function () {
         function StyleConverter() {
         }
@@ -259,7 +187,7 @@ define("alpha/format/ol3-symbolizer", ["require", "exports", "labs/common/ol3-pa
             if (typeof style === "number")
                 return style;
             if (style.getColor)
-                common_2.mixin(s, this.serializeColor(style.getColor()));
+                mixin(s, this.serializeColor(style.getColor()));
             if (style.getImage)
                 this.assign(s, "image", this.serializeStyle(style.getImage()));
             if (style.getFill)
@@ -425,8 +353,8 @@ define("alpha/format/ol3-symbolizer", ["require", "exports", "labs/common/ol3-pa
                 fill: json.fill && this.deserializeFill(json.fill),
                 stroke: json.stroke && this.deserializeStroke(json.stroke)
             });
-            common_2.doif(json.rotation, function (v) { return image.setRotation(v); });
-            common_2.doif(json.opacity, function (v) { return image.setOpacity(v); });
+            doif(json.rotation, function (v) { return image.setRotation(v); });
+            doif(json.opacity, function (v) { return image.setOpacity(v); });
             return image;
         };
         StyleConverter.prototype.deserializeIcon = function (json) {
@@ -516,7 +444,7 @@ define("alpha/format/ol3-symbolizer", ["require", "exports", "labs/common/ol3-pa
                 size: [canvas.width, canvas.height],
                 src: undefined
             });
-            return common_2.mixin(icon, {
+            return mixin(icon, {
                 path: json.path,
                 stroke: json.stroke,
                 fill: json.fill,
@@ -533,12 +461,12 @@ define("alpha/format/ol3-symbolizer", ["require", "exports", "labs/common/ol3-pa
         };
         StyleConverter.prototype.deserializeStroke = function (json) {
             var stroke = new ol.style.Stroke();
-            common_2.doif(json.color, function (v) { return stroke.setColor(v); });
-            common_2.doif(json.lineCap, function (v) { return stroke.setLineCap(v); });
-            common_2.doif(json.lineDash, function (v) { return stroke.setLineDash(v); });
-            common_2.doif(json.lineJoin, function (v) { return stroke.setLineJoin(v); });
-            common_2.doif(json.miterLimit, function (v) { return stroke.setMiterLimit(v); });
-            common_2.doif(json.width, function (v) { return stroke.setWidth(v); });
+            doif(json.color, function (v) { return stroke.setColor(v); });
+            doif(json.lineCap, function (v) { return stroke.setLineCap(v); });
+            doif(json.lineDash, function (v) { return stroke.setLineDash(v); });
+            doif(json.lineJoin, function (v) { return stroke.setLineJoin(v); });
+            doif(json.miterLimit, function (v) { return stroke.setMiterLimit(v); });
+            doif(json.width, function (v) { return stroke.setWidth(v); });
             return stroke;
         };
         StyleConverter.prototype.deserializeColor = function (fill) {
@@ -555,7 +483,7 @@ define("alpha/format/ol3-symbolizer", ["require", "exports", "labs/common/ol3-pa
                     gradient_1 = this.deserializeRadialGradient(fill.gradient);
                 }
                 if (fill.gradient.stops) {
-                    common_2.mixin(gradient_1, {
+                    mixin(gradient_1, {
                         stops: fill.gradient.stops
                     });
                     var stops = fill.gradient.stops.split(";");
@@ -608,7 +536,7 @@ define("alpha/format/ol3-symbolizer", ["require", "exports", "labs/common/ol3-pa
                         }
                         break;
                 }
-                return common_2.mixin(context.createPattern(canvas, repitition), fill.pattern);
+                return mixin(context.createPattern(canvas, repitition), fill.pattern);
             }
             throw "invalid color configuration";
         };
@@ -620,7 +548,7 @@ define("alpha/format/ol3-symbolizer", ["require", "exports", "labs/common/ol3-pa
             canvas.height = Math.max(y0, y1);
             var context = canvas.getContext('2d');
             var gradient = context.createLinearGradient(x0, y0, x1, y1);
-            common_2.mixin(gradient, {
+            mixin(gradient, {
                 type: "linear(" + [x0, y0, x1, y1].join(",") + ")"
             });
             return gradient;
@@ -633,7 +561,7 @@ define("alpha/format/ol3-symbolizer", ["require", "exports", "labs/common/ol3-pa
             canvas.height = 2 * Math.max(y0, y1);
             var context = canvas.getContext('2d');
             var gradient = context.createRadialGradient(x0, y0, r0, x1, y1, r1);
-            common_2.mixin(gradient, {
+            mixin(gradient, {
                 type: "radial(" + [x0, y0, r0, x1, y1, r1].join(",") + ")"
             });
             return gradient;
@@ -642,7 +570,7 @@ define("alpha/format/ol3-symbolizer", ["require", "exports", "labs/common/ol3-pa
     }());
     exports.StyleConverter = StyleConverter;
 });
-define("alpha/format/ags-symbolizer", ["require", "exports", "jquery", "alpha/format/ol3-symbolizer"], function (require, exports, $, Symbolizer) {
+define("bower_components/ol3-symbolizer/format/ags-symbolizer", ["require", "exports", "jquery", "bower_components/ol3-symbolizer/format/ol3-symbolizer"], function (require, exports, $, Symbolizer) {
     "use strict";
     var symbolizer = new Symbolizer.StyleConverter();
     var styleMap = {
@@ -699,9 +627,11 @@ define("alpha/format/ags-symbolizer", ["require", "exports", "jquery", "alpha/fo
                 case "esriSFSSolid":
                     this.fromSFSSolid(symbol, style);
                     break;
-                default:
-                    debugger;
+                case "esriSFSForwardDiagonal":
+                    this.fromSFSSolid(symbol, style);
                     break;
+                default:
+                    throw "invalid-style: " + symbol.style;
             }
         };
         StyleConverter.prototype.fromSMSCircle = function (symbol, style) {
@@ -814,8 +744,22 @@ define("alpha/format/ags-symbolizer", ["require", "exports", "jquery", "alpha/fo
                 case "esriSLSSolid":
                     this.fromSLSSolid(symbol, style);
                     break;
+                case "esriSLSDot":
+                    this.fromSLSSolid(symbol, style);
+                    break;
+                case "esriSLSDash":
+                    this.fromSLSSolid(symbol, style);
+                    break;
+                case "esriSLSDashDot":
+                    this.fromSLSSolid(symbol, style);
+                    break;
+                case "esriSLSDashDotDot":
+                    this.fromSLSSolid(symbol, style);
+                    break;
                 default:
-                    throw "invalid-style: " + symbol.style;
+                    this.fromSLSSolid(symbol, style);
+                    console.warn("invalid-style: " + symbol.style);
+                    break;
             }
         };
         StyleConverter.prototype.fromPFS = function (symbol, style) {
@@ -920,6 +864,11 @@ define("alpha/format/ags-symbolizer", ["require", "exports", "jquery", "alpha/fo
         return StyleConverter;
     }());
     exports.StyleConverter = StyleConverter;
+});
+define("alpha/format/ags-symbolizer", ["require", "exports", "bower_components/ol3-symbolizer/format/ags-symbolizer"], function (require, exports, Symbolizer) {
+    "use strict";
+    var Foo = { StyleConverter: Symbolizer.StyleConverter };
+    return Foo;
 });
 define("alpha/arcgis-source", ["require", "exports", "jquery", "openlayers", "bower_components/ol3-layerswitcher/src/extras/ags-catalog", "alpha/format/ags-symbolizer"], function (require, exports, $, ol, AgsCatalog, Symbolizer) {
     "use strict";
@@ -1026,6 +975,16 @@ define("alpha/arcgis-source", ["require", "exports", "jquery", "openlayers", "bo
         return ArcGisVectorSourceFactory;
     }());
     exports.ArcGisVectorSourceFactory = ArcGisVectorSourceFactory;
+});
+define("alpha/format/base", ["require", "exports"], function (require, exports) {
+    "use strict";
+});
+define("alpha/format/ol3-symbolizer", ["require", "exports", "bower_components/ol3-symbolizer/format/ol3-symbolizer"], function (require, exports, Symbolizer) {
+    "use strict";
+    var Foo = {
+        StyleConverter: Symbolizer.StyleConverter
+    };
+    return Foo;
 });
 define("labs/common/ajax", ["require", "exports", "jquery"], function (require, exports, $) {
     "use strict";
@@ -1554,6 +1513,54 @@ define("app", ["require", "exports", "openlayers", "ux/mapquest-directions-proxy
         tests.resize(map);
     }
     return run;
+});
+define("labs/common/common", ["require", "exports"], function (require, exports) {
+    "use strict";
+    function getParameterByName(name, url) {
+        if (url === void 0) { url = window.location.href; }
+        name = name.replace(/[\[\]]/g, "\\$&");
+        var regex = new RegExp("[?&]" + name + "(=([^&#]*)|&|#|$)"), results = regex.exec(url);
+        if (!results)
+            return null;
+        if (!results[2])
+            return '';
+        return decodeURIComponent(results[2].replace(/\+/g, " "));
+    }
+    exports.getParameterByName = getParameterByName;
+    function doif(v, cb) {
+        if (v !== undefined && v !== null)
+            cb(v);
+    }
+    exports.doif = doif;
+    function mixin(a, b) {
+        Object.keys(b).forEach(function (k) { return a[k] = b[k]; });
+        return a;
+    }
+    exports.mixin = mixin;
+    function defaults(a, b) {
+        Object.keys(b).filter(function (k) { return a[k] == undefined; }).forEach(function (k) { return a[k] = b[k]; });
+        return a;
+    }
+    exports.defaults = defaults;
+    function cssin(name, css) {
+        var id = "style-" + name;
+        var styleTag = document.getElementById(id);
+        if (!styleTag) {
+            styleTag = document.createElement("style");
+            styleTag.id = id;
+            styleTag.innerText = css;
+            document.head.appendChild(styleTag);
+        }
+        var dataset = styleTag.dataset;
+        dataset["count"] = parseInt(dataset["count"] || "0") + 1 + "";
+        return function () {
+            dataset["count"] = parseInt(dataset["count"] || "0") - 1 + "";
+            if (dataset["count"] === "0") {
+                styleTag.remove();
+            }
+        };
+    }
+    exports.cssin = cssin;
 });
 define("ux/styles/star/flower", ["require", "exports"], function (require, exports) {
     "use strict";
@@ -2243,7 +2250,7 @@ define("bower_components/ol3-popup/src/ol3-popup", ["require", "exports", "jquer
     }(ol.Overlay));
     exports.Popup = Popup;
 });
-define("labs/ags-viewer", ["require", "exports", "jquery", "openlayers", "labs/common/common", "alpha/format/ol3-symbolizer", "bower_components/ol3-layerswitcher/src/ol3-layerswitcher", "bower_components/ol3-popup/src/ol3-popup", "alpha/arcgis-source"], function (require, exports, $, ol, common_3, ol3_symbolizer_1, ol3_layerswitcher_1, ol3_popup_1, arcgis_source_1) {
+define("labs/ags-viewer", ["require", "exports", "jquery", "openlayers", "labs/common/common", "alpha/format/ol3-symbolizer", "bower_components/ol3-layerswitcher/src/ol3-layerswitcher", "bower_components/ol3-popup/src/ol3-popup", "alpha/arcgis-source"], function (require, exports, $, ol, common_1, ol3_symbolizer_1, ol3_layerswitcher_1, ol3_popup_1, arcgis_source_1) {
     "use strict";
     var styler = new ol3_symbolizer_1.StyleConverter();
     function parse(v, type) {
@@ -2280,7 +2287,7 @@ define("labs/ags-viewer", ["require", "exports", "jquery", "openlayers", "labs/c
         {
             var opts_1 = options;
             Object.keys(opts_1).forEach(function (k) {
-                common_3.doif(common_3.getParameterByName(k), function (v) {
+                common_1.doif(common_1.getParameterByName(k), function (v) {
                     var value = parse(v, opts_1[k]);
                     if (value !== undefined)
                         opts_1[k] = value;
@@ -2401,6 +2408,38 @@ define("labs/common/myjson", ["require", "exports", "jquery"], function (require
         return MyJson;
     }());
     exports.MyJson = MyJson;
+});
+define("labs/common/ol3-patch", ["require", "exports", "openlayers", "labs/common/common"], function (require, exports, ol3, common_2) {
+    "use strict";
+    if (!ol3.geom.SimpleGeometry.prototype.scale) {
+        var scale_1 = function (flatCoordinates, offset, end, stride, deltaX, deltaY, opt_dest) {
+            var dest = opt_dest ? opt_dest : [];
+            var i = 0;
+            var j, k;
+            for (j = offset; j < end; j += stride) {
+                dest[i++] = flatCoordinates[j] * deltaX;
+                dest[i++] = flatCoordinates[j + 1] * deltaY;
+                for (k = j + 2; k < j + stride; ++k) {
+                    dest[i++] = flatCoordinates[k];
+                }
+            }
+            if (opt_dest && dest.length != i) {
+                dest.length = i;
+            }
+            return dest;
+        };
+        common_2.mixin(ol3.geom.SimpleGeometry.prototype, {
+            scale: function (deltaX, deltaY) {
+                var it = this;
+                it.applyTransform(function (flatCoordinates, output, stride) {
+                    scale_1(flatCoordinates, 0, flatCoordinates.length, stride, deltaX, deltaY, flatCoordinates);
+                    return flatCoordinates;
+                });
+                it.changed();
+            }
+        });
+    }
+    return ol3;
 });
 define("labs/common/ol3-polyline", ["require", "exports", "openlayers"], function (require, exports, ol) {
     "use strict";
@@ -3108,7 +3147,7 @@ define("ux/styles/text/text", ["require", "exports"], function (require, exports
         }
     ];
 });
-define("labs/mapmaker", ["require", "exports", "jquery", "openlayers", "labs/common/common", "labs/common/ol3-polyline", "alpha/format/ol3-symbolizer", "ux/styles/stroke/dashdotdot", "ux/styles/stroke/solid", "ux/styles/text/text", "labs/common/myjson"], function (require, exports, $, ol, common_4, reduce, ol3_symbolizer_3, dashdotdot, strokeStyle, textStyle, myjson_1) {
+define("labs/mapmaker", ["require", "exports", "jquery", "openlayers", "labs/common/common", "labs/common/ol3-polyline", "alpha/format/ol3-symbolizer", "ux/styles/stroke/dashdotdot", "ux/styles/stroke/solid", "ux/styles/text/text", "labs/common/myjson"], function (require, exports, $, ol, common_3, reduce, ol3_symbolizer_3, dashdotdot, strokeStyle, textStyle, myjson_1) {
     "use strict";
     var styler = new ol3_symbolizer_3.StyleConverter();
     function parse(v, type) {
@@ -3142,7 +3181,7 @@ define("labs/mapmaker", ["require", "exports", "jquery", "openlayers", "labs/com
         {
             var opts_2 = options;
             Object.keys(opts_2).forEach(function (k) {
-                common_4.doif(common_4.getParameterByName(k), function (v) {
+                common_3.doif(common_3.getParameterByName(k), function (v) {
                     var value = parse(v, opts_2[k]);
                     if (value !== undefined)
                         opts_2[k] = value;
@@ -3202,7 +3241,7 @@ define("labs/mapmaker", ["require", "exports", "jquery", "openlayers", "labs/com
                     feature.setStyle(style);
                     features.push(feature);
                 });
-                if (!common_4.getParameterByName("center")) {
+                if (!common_3.getParameterByName("center")) {
                     map.getView().fit(layer.getSource().getExtent(), map.getSize());
                 }
             }
@@ -3273,7 +3312,7 @@ define("labs/mapmaker", ["require", "exports", "jquery", "openlayers", "labs/com
     }
     exports.run = run;
 });
-define("ux/controls/input", ["require", "exports", "openlayers", "labs/common/common"], function (require, exports, ol, common_5) {
+define("ux/controls/input", ["require", "exports", "openlayers", "labs/common/common"], function (require, exports, ol, common_4) {
     "use strict";
     var css = "\n    .ol-input {\n        position:absolute;\n    }\n    .ol-input.top {\n        top: 0.5em;\n    }\n    .ol-input.left {\n        left: 0.5em;\n    }\n    .ol-input.bottom {\n        bottom: 0.5em;\n    }\n    .ol-input.right {\n        right: 0.5em;\n    }\n    .ol-input.top.left {\n        top: 4.5em;\n    }\n    .ol-input button {\n        min-height: 1.375em;\n        min-width: 1.375em;\n        width: auto;\n        display: inline;\n    }\n    .ol-input.left button {\n        float:right;\n    }\n    .ol-input.right button {\n        float:left;\n    }\n    .ol-input input {\n        height: 24px;\n        min-width: 240px;\n        border: none;\n        padding: 0;\n        margin: 0;\n        margin-left: 2px;\n        margin-top: 1px;\n        vertical-align: top;\n    }\n    .ol-input input.hidden {\n        display: none;\n    }\n";
     var olcss = {
@@ -3331,15 +3370,15 @@ define("ux/controls/input", ["require", "exports", "openlayers", "labs/common/co
             options.expanded ? this.expand(options) : this.collapse(options);
         }
         Geocoder.create = function (options) {
-            common_5.cssin('ol-input', css);
-            options = common_5.mixin({
+            common_4.cssin('ol-input', css);
+            options = common_4.mixin({
                 openedText: options.className && -1 < options.className.indexOf("left") ? expando.left : expando.right,
                 closedText: options.className && -1 < options.className.indexOf("left") ? expando.right : expando.left
             }, options || {});
-            options = common_5.mixin(common_5.mixin({}, defaults), options);
+            options = common_4.mixin(common_4.mixin({}, defaults), options);
             var element = document.createElement('div');
             element.className = options.className + " " + olcss.CLASS_UNSELECTABLE + " " + olcss.CLASS_CONTROL;
-            var geocoderOptions = common_5.mixin({
+            var geocoderOptions = common_4.mixin({
                 element: element,
                 target: options.target,
                 expanded: false
@@ -3638,7 +3677,7 @@ define("labs/index", ["require", "exports"], function (require, exports) {
     exports.run = run;
     ;
 });
-define("labs/layerswitcher", ["require", "exports", "jquery", "openlayers", "labs/common/common", "alpha/format/ol3-symbolizer", "bower_components/ol3-layerswitcher/src/ol3-layerswitcher", "bower_components/ol3-popup/src/ol3-popup", "alpha/arcgis-source"], function (require, exports, $, ol, common_6, ol3_symbolizer_4, ol3_layerswitcher_2, ol3_popup_2, arcgis_source_2) {
+define("labs/layerswitcher", ["require", "exports", "jquery", "openlayers", "labs/common/common", "alpha/format/ol3-symbolizer", "bower_components/ol3-layerswitcher/src/ol3-layerswitcher", "bower_components/ol3-popup/src/ol3-popup", "alpha/arcgis-source"], function (require, exports, $, ol, common_5, ol3_symbolizer_4, ol3_layerswitcher_2, ol3_popup_2, arcgis_source_2) {
     "use strict";
     var styler = new ol3_symbolizer_4.StyleConverter();
     function parse(v, type) {
@@ -3672,7 +3711,7 @@ define("labs/layerswitcher", ["require", "exports", "jquery", "openlayers", "lab
         {
             var opts_5 = options;
             Object.keys(opts_5).forEach(function (k) {
-                common_6.doif(common_6.getParameterByName(k), function (v) {
+                common_5.doif(common_5.getParameterByName(k), function (v) {
                     var value = parse(v, opts_5[k]);
                     if (value !== undefined)
                         opts_5[k] = value;
@@ -3837,7 +3876,7 @@ define("labs/polyline-encoder", ["require", "exports", "jquery", "openlayers", "
     }
     exports.run = run;
 });
-define("labs/popup", ["require", "exports", "jquery", "openlayers", "labs/common/common", "alpha/format/ol3-symbolizer", "ux/styles/star/flower", "bower_components/ol3-popup/src/ol3-popup"], function (require, exports, $, ol, common_7, ol3_symbolizer_5, pointStyle, ol3_popup_3) {
+define("labs/popup", ["require", "exports", "jquery", "openlayers", "labs/common/common", "alpha/format/ol3-symbolizer", "ux/styles/star/flower", "bower_components/ol3-popup/src/ol3-popup"], function (require, exports, $, ol, common_6, ol3_symbolizer_5, pointStyle, ol3_popup_3) {
     "use strict";
     var styler = new ol3_symbolizer_5.StyleConverter();
     function parse(v, type) {
@@ -3867,7 +3906,7 @@ define("labs/popup", ["require", "exports", "jquery", "openlayers", "labs/common
         {
             var opts_6 = options;
             Object.keys(opts_6).forEach(function (k) {
-                common_7.doif(common_7.getParameterByName(k), function (v) {
+                common_6.doif(common_6.getParameterByName(k), function (v) {
                     var value = parse(v, opts_6[k]);
                     if (value !== undefined)
                         opts_6[k] = value;
@@ -3927,7 +3966,7 @@ define("labs/popup", ["require", "exports", "jquery", "openlayers", "labs/common
     }
     exports.run = run;
 });
-define("labs/route-editor", ["require", "exports", "openlayers", "alpha/format/ol3-symbolizer", "labs/common/common"], function (require, exports, ol, ol3_symbolizer_6, common_8) {
+define("labs/route-editor", ["require", "exports", "openlayers", "alpha/format/ol3-symbolizer", "labs/common/common"], function (require, exports, ol, ol3_symbolizer_6, common_7) {
     "use strict";
     var delta = 16;
     var formatter = new ol3_symbolizer_6.StyleConverter();
@@ -3951,7 +3990,7 @@ define("labs/route-editor", ["require", "exports", "openlayers", "alpha/format/o
         }]; };
     var Route = (function () {
         function Route(options) {
-            this.options = common_8.defaults(options, {
+            this.options = common_7.defaults(options, {
                 color: "black",
                 delta: delta,
                 stops: [],
@@ -4440,7 +4479,7 @@ define("ux/styles/icon/png", ["require", "exports"], function (require, exports)
         }
     ];
 });
-define("labs/style-viewer", ["require", "exports", "openlayers", "jquery", "labs/common/snapshot", "labs/common/common", "alpha/format/ol3-symbolizer", "ux/styles/icon/png"], function (require, exports, ol, $, Snapshot, common_9, ol3_symbolizer_8, pointStyle) {
+define("labs/style-viewer", ["require", "exports", "openlayers", "jquery", "labs/common/snapshot", "labs/common/common", "alpha/format/ol3-symbolizer", "ux/styles/icon/png"], function (require, exports, ol, $, Snapshot, common_8, ol3_symbolizer_8, pointStyle) {
     "use strict";
     var html = "\n<div class='style-to-canvas'>\n    <h3>Renders a feature on a canvas</h3>\n    <div class=\"area\">\n        <label>256 x 256 Canvas</label>\n        <div id='canvas-collection'></div>\n    </div>\n    <div class=\"area\">\n        <label>Style</label>\n        <textarea class='style'></textarea>\n        <button class=\"save\">Save</button>\n    </div>\n    <div class=\"area\">\n        <label>Potential control for setting linear gradient start/stop locations</label>\n        <div class=\"colorramp\">\n            <input class=\"top\" type=\"range\" min=\"0\" max=\"100\" value=\"20\"/>\n            <input class=\"bottom\" type=\"range\" min=\"0\" max=\"100\" value=\"80\"/>\n        </div>\n    </div>\n</div>\n";
     var css = "\n<style>\n    #map {\n        display: none;\n    }\n\n    .style-to-canvas {\n    }\n\n    .style-to-canvas .area label {\n        display: block;\n        vertical-align: top;\n    }\n\n    .style-to-canvas .area {\n        border: 1px solid black;\n        padding: 20px;\n        margin: 20px;\n    }\n\n    .style-to-canvas .area .style {\n        width: 100%;\n        height: 400px;\n    }\n\n    .style-to-canvas #canvas-collection canvas {\n        font-family: sans serif;\n        font-size: 20px;\n        border: 1px solid black;\n        padding: 20px;\n        margin: 20px;\n    }\n\n    div.colorramp {\n        display: inline-block;\n        background: linear-gradient(to right, rgba(250,0,0,0), rgba(250,0,0,1) 60%, rgba(250,100,0,1) 85%, rgb(250,250,0) 95%);\n        width:100%;\n    }\n\n    div.colorramp > input[type=range] {\n        -webkit-appearance: slider-horizontal;\n        display:block;\n        width:100%;\n        background-color:transparent;\n    }\n\n    div.colorramp > label {\n        display: inline-block;\n    }\n\n    div.colorramp > input[type='range'] {\n        box-shadow: 0 0 0 white;\n    }\n\n    div.colorramp > input[type=range]::-webkit-slider-runnable-track {\n        height: 0px;     \n    }\n\n    div.colorramp > input[type='range'].top::-webkit-slider-thumb {\n        margin-top: -10px;\n    }\n\n    div.colorramp > input[type='range'].bottom::-webkit-slider-thumb {\n        margin-top: -12px;\n    }\n    \n</style>\n";
@@ -4505,8 +4544,8 @@ define("labs/style-viewer", ["require", "exports", "openlayers", "jquery", "labs
         $(html).appendTo("body");
         $(svg).appendTo("body");
         $(css).appendTo("head");
-        var geom = common_9.getParameterByName("geom") || "polygon-with-holes";
-        var style = common_9.getParameterByName("style") || "fill/gradient";
+        var geom = common_8.getParameterByName("geom") || "polygon-with-holes";
+        var style = common_8.getParameterByName("style") || "fill/gradient";
         $(".save").click(function () {
             var style = JSON.stringify(JSON.parse($(".style").val()));
             var loc = window.location;
