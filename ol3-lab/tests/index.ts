@@ -1,7 +1,6 @@
-/// <reference path="../typings/index.d.ts" />
 export function run() {
     let l = window.location;
-    let path = `${l.origin}${l.pathname}?run=tests/`;
+    let path = `${l.origin}${l.pathname}?run=ol3-lab/tests/`;
     let labs = `
     ags-format
     google-polyline

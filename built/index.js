@@ -4040,7 +4040,7 @@ define("ol3-lab/tests/index", ["require", "exports"], function (require, exports
     "use strict";
     function run() {
         var l = window.location;
-        var path = "" + l.origin + l.pathname + "?run=tests/";
+        var path = "" + l.origin + l.pathname + "?run=ol3-lab/tests/";
         var labs = "\n    ags-format\n    google-polyline\n    webmap\n    map-resize-defect\n    drop-vertex-on-marker-detection\n    index\n    ";
         document.writeln("\n    <p>\n    Watch the console output for failed assertions (blank is good).\n    </p>\n    ");
         document.writeln(labs
