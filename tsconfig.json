@@ -1,7 +1,7 @@
 {
     "compilerOptions": {
         "removeComments": true,
-        "declaration": true,
+        "declaration": false,
         "module": "amd",
         "target": "es3",
         "noImplicitAny": true,
@@ -12,7 +12,7 @@
     "exclude": [
         "bower_components",
         "built",
-        "tests/data/routes",
-        "tests/routing.ts"
+        "ol3-lab/tests/data/routes",
+        "ol3-lab/tests/routing.ts"
     ]
 }
