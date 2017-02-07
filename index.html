@@ -38,7 +38,12 @@
                 "openlayers": debug ? "bower_components/openlayers/ol-debug" : "bower_components/openlayers/ol",
                 "jquery": debug ? "bower_components/jquery/dist/jquery.min" : "bower_components/jquery/dist/jquery.min"
             },
-            deps: ["built/index"],
+            deps: [
+                "bower_components/ol3-symbolizer/built/index.js",
+                "bower_components/ol3-layerswitcher/built/index.js",
+                "bower_components/ol3-popup/built/index.js",
+                "built/index"
+                ],
             callback: () => {
                 require([run], test => {
                     setTimeout(() => test.run ? test.run() : test(), 0);

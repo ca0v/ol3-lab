@@ -1,7 +1,7 @@
-import Symbolizer = require("../../bower_components/ol3-symbolizer/format/ol3-symbolizer");
+import Symbolizer = require("format/ol3-symbolizer");
 
-const Foo = {
+const Ol3Symbolizer = {
     StyleConverter: Symbolizer.StyleConverter
 };
 
-export = Foo;
+export = Ol3Symbolizer;
