@@ -16,7 +16,8 @@
  */
 import $ = require("jquery");
 import ol = require("openlayers");
-import AgsCatalog = require("../bower_components/ol3-layerswitcher/src/extras/ags-catalog");
+
+import AgsCatalog = require("extras/ags-catalog");
 import Symbolizer = require("./format/ags-symbolizer");
 
 const esrijsonFormat = new ol.format.EsriJSON();

@@ -3,925 +3,14 @@ var __extends = (this && this.__extends) || function (d, b) {
     function __() { this.constructor = d; }
     d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
-define("bower_components/ol3-layerswitcher/src/extras/ajax", ["require", "exports", "jquery"], function (require, exports, $) {
+define("alpha/format/ags-symbolizer", ["require", "exports", "format/ags-symbolizer"], function (require, exports, Symbolizer) {
     "use strict";
-    var Ajax = (function () {
-        function Ajax(url) {
-            this.url = url;
-            this.options = {
-                use_json: true,
-                use_cors: true
-            };
-        }
-        Ajax.prototype.jsonp = function (args, url) {
-            if (url === void 0) { url = this.url; }
-            var d = $.Deferred();
-            args["callback"] = "define";
-            var uri = url + "?" + Object.keys(args).map(function (k) { return (k + "=" + args[k]); }).join('&');
-            require([uri], function (data) { return d.resolve(data); });
-            return d;
-        };
-        Ajax.prototype.ajax = function (method, args, url) {
-            if (url === void 0) { url = this.url; }
-            var isData = method === "POST" || method === "PUT";
-            var isJson = this.options.use_json;
-            var isCors = this.options.use_cors;
-            var d = $.Deferred();
-            var client = new XMLHttpRequest();
-            if (isCors)
-                client.withCredentials = true;
-            var uri = url;
-            var data = null;
-            if (args) {
-                if (isData) {
-                    data = JSON.stringify(args);
-                }
-                else {
-                    uri += '?';
-                    var argcount = 0;
-                    for (var key in args) {
-                        if (args.hasOwnProperty(key)) {
-                            if (argcount++) {
-                                uri += '&';
-                            }
-                            uri += encodeURIComponent(key) + '=' + encodeURIComponent(args[key]);
-                        }
-                    }
-                }
-            }
-            client.open(method, uri, true);
-            if (isData && isJson)
-                client.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
-            client.send(data);
-            client.onload = function () {
-                console.log("content-type", client.getResponseHeader("Content-Type"));
-                if (client.status >= 200 && client.status < 300) {
-                    isJson = isJson || 0 === client.getResponseHeader("Content-Type").indexOf("application/json");
-                    d.resolve(isJson ? JSON.parse(client.response) : client.response);
-                }
-                else {
-                    d.reject(client.statusText);
-                }
-            };
-            client.onerror = function () { return d.reject(client.statusText); };
-            return d;
-        };
-        Ajax.prototype.get = function (args) {
-            return this.ajax('GET', args);
-        };
-        Ajax.prototype.post = function (args) {
-            return this.ajax('POST', args);
-        };
-        Ajax.prototype.put = function (args) {
-            return this.ajax('PUT', args);
-        };
-        Ajax.prototype.delete = function (args) {
-            return this.ajax('DELETE', args);
-        };
-        return Ajax;
-    }());
-    return Ajax;
-});
-define("bower_components/ol3-layerswitcher/src/extras/ags-catalog", ["require", "exports", "bower_components/ol3-layerswitcher/src/extras/ajax"], function (require, exports, Ajax) {
-    "use strict";
-    function defaults(a) {
-        var b = [];
-        for (var _i = 1; _i < arguments.length; _i++) {
-            b[_i - 1] = arguments[_i];
-        }
-        b.filter(function (b) { return !!b; }).forEach(function (b) {
-            Object.keys(b).filter(function (k) { return a[k] === undefined; }).forEach(function (k) { return a[k] = b[k]; });
-        });
-        return a;
-    }
-    var Catalog = (function () {
-        function Catalog(url) {
-            this.ajax = new Ajax(url);
-        }
-        Catalog.prototype.about = function (data) {
-            var req = defaults({
-                f: "pjson"
-            }, data);
-            return this.ajax.jsonp(req);
-        };
-        Catalog.prototype.aboutFolder = function (folder) {
-            var ajax = new Ajax(this.ajax.url + "/" + folder);
-            var req = {
-                f: "pjson"
-            };
-            return ajax.jsonp(req);
-        };
-        Catalog.prototype.aboutFeatureServer = function (name) {
-            var ajax = new Ajax(this.ajax.url + "/" + name + "/FeatureServer");
-            var req = {
-                f: "pjson"
-            };
-            return defaults(ajax.jsonp(req), { url: ajax.url });
-        };
-        Catalog.prototype.aboutMapServer = function (name) {
-            var ajax = new Ajax(this.ajax.url + "/" + name + "/MapServer");
-            var req = {
-                f: "pjson"
-            };
-            return defaults(ajax.jsonp(req), { url: ajax.url });
-        };
-        Catalog.prototype.aboutLayer = function (layer) {
-            var ajax = new Ajax(this.ajax.url + "/" + layer);
-            var req = {
-                f: "pjson"
-            };
-            return ajax.jsonp(req);
-        };
-        return Catalog;
-    }());
-    exports.Catalog = Catalog;
-});
-define("labs/common/common", ["require", "exports"], function (require, exports) {
-    "use strict";
-    function getParameterByName(name, url) {
-        if (url === void 0) { url = window.location.href; }
-        name = name.replace(/[\[\]]/g, "\\$&");
-        var regex = new RegExp("[?&]" + name + "(=([^&#]*)|&|#|$)"), results = regex.exec(url);
-        if (!results)
-            return null;
-        if (!results[2])
-            return '';
-        return decodeURIComponent(results[2].replace(/\+/g, " "));
-    }
-    exports.getParameterByName = getParameterByName;
-    function doif(v, cb) {
-        if (v !== undefined && v !== null)
-            cb(v);
-    }
-    exports.doif = doif;
-    function mixin(a, b) {
-        Object.keys(b).forEach(function (k) { return a[k] = b[k]; });
-        return a;
-    }
-    exports.mixin = mixin;
-    function defaults(a, b) {
-        Object.keys(b).filter(function (k) { return a[k] == undefined; }).forEach(function (k) { return a[k] = b[k]; });
-        return a;
-    }
-    exports.defaults = defaults;
-    function cssin(name, css) {
-        var id = "style-" + name;
-        var styleTag = document.getElementById(id);
-        if (!styleTag) {
-            styleTag = document.createElement("style");
-            styleTag.id = id;
-            styleTag.innerText = css;
-            document.head.appendChild(styleTag);
-        }
-        var dataset = styleTag.dataset;
-        dataset["count"] = parseInt(dataset["count"] || "0") + 1 + "";
-        return function () {
-            dataset["count"] = parseInt(dataset["count"] || "0") - 1 + "";
-            if (dataset["count"] === "0") {
-                styleTag.remove();
-            }
-        };
-    }
-    exports.cssin = cssin;
-});
-define("labs/common/ol3-patch", ["require", "exports", "openlayers", "labs/common/common"], function (require, exports, ol3, common_1) {
-    "use strict";
-    if (!ol3.geom.SimpleGeometry.prototype.scale) {
-        var scale_1 = function (flatCoordinates, offset, end, stride, deltaX, deltaY, opt_dest) {
-            var dest = opt_dest ? opt_dest : [];
-            var i = 0;
-            var j, k;
-            for (j = offset; j < end; j += stride) {
-                dest[i++] = flatCoordinates[j] * deltaX;
-                dest[i++] = flatCoordinates[j + 1] * deltaY;
-                for (k = j + 2; k < j + stride; ++k) {
-                    dest[i++] = flatCoordinates[k];
-                }
-            }
-            if (opt_dest && dest.length != i) {
-                dest.length = i;
-            }
-            return dest;
-        };
-        common_1.mixin(ol3.geom.SimpleGeometry.prototype, {
-            scale: function (deltaX, deltaY) {
-                var it = this;
-                it.applyTransform(function (flatCoordinates, output, stride) {
-                    scale_1(flatCoordinates, 0, flatCoordinates.length, stride, deltaX, deltaY, flatCoordinates);
-                    return flatCoordinates;
-                });
-                it.changed();
-            }
-        });
-    }
-    return ol3;
-});
-define("alpha/format/base", ["require", "exports"], function (require, exports) {
-    "use strict";
-});
-define("alpha/format/ol3-symbolizer", ["require", "exports", "labs/common/ol3-patch", "labs/common/common"], function (require, exports, ol, common_2) {
-    "use strict";
-    var StyleConverter = (function () {
-        function StyleConverter() {
-        }
-        StyleConverter.prototype.fromJson = function (json) {
-            return this.deserializeStyle(json);
-        };
-        StyleConverter.prototype.toJson = function (style) {
-            return this.serializeStyle(style);
-        };
-        StyleConverter.prototype.assign = function (obj, prop, value) {
-            if (value === null)
-                return;
-            if (value === undefined)
-                return;
-            if (typeof value === "object") {
-                if (Object.keys(value).length === 0)
-                    return;
-            }
-            if (prop === "image") {
-                if (value.hasOwnProperty("radius")) {
-                    prop = "circle";
-                }
-                if (value.hasOwnProperty("points")) {
-                    prop = "star";
-                }
-            }
-            obj[prop] = value;
-        };
-        StyleConverter.prototype.serializeStyle = function (style) {
-            var _this = this;
-            var s = {};
-            if (!style)
-                return null;
-            if (typeof style === "string")
-                return style;
-            if (typeof style === "number")
-                return style;
-            if (style.getColor)
-                common_2.mixin(s, this.serializeColor(style.getColor()));
-            if (style.getImage)
-                this.assign(s, "image", this.serializeStyle(style.getImage()));
-            if (style.getFill)
-                this.assign(s, "fill", this.serializeFill(style.getFill()));
-            if (style.getOpacity)
-                this.assign(s, "opacity", style.getOpacity());
-            if (style.getStroke)
-                this.assign(s, "stroke", this.serializeStyle(style.getStroke()));
-            if (style.getText)
-                this.assign(s, "text", this.serializeStyle(style.getText()));
-            if (style.getWidth)
-                this.assign(s, "width", style.getWidth());
-            if (style.getOffsetX)
-                this.assign(s, "offset-x", style.getOffsetX());
-            if (style.getOffsetY)
-                this.assign(s, "offset-y", style.getOffsetY());
-            if (style.getWidth)
-                this.assign(s, "width", style.getWidth());
-            if (style.getFont)
-                this.assign(s, "font", style.getFont());
-            if (style.getRadius)
-                this.assign(s, "radius", style.getRadius());
-            if (style.getRadius2)
-                this.assign(s, "radius2", style.getRadius2());
-            if (style.getPoints)
-                this.assign(s, "points", style.getPoints());
-            if (style.getAngle)
-                this.assign(s, "angle", style.getAngle());
-            if (style.getRotation)
-                this.assign(s, "rotation", style.getRotation());
-            if (style.getOrigin)
-                this.assign(s, "origin", style.getOrigin());
-            if (style.getScale)
-                this.assign(s, "scale", style.getScale());
-            if (style.getSize)
-                this.assign(s, "size", style.getSize());
-            if (style.getAnchor) {
-                this.assign(s, "anchor", style.getAnchor());
-                "anchorXUnits,anchorYUnits,anchorOrigin".split(",").forEach(function (k) {
-                    _this.assign(s, k, style[(k + "_")]);
-                });
-            }
-            if (style.path) {
-                if (style.path)
-                    this.assign(s, "path", style.path);
-                if (style.getImageSize)
-                    this.assign(s, "imgSize", style.getImageSize());
-                if (style.stroke)
-                    this.assign(s, "stroke", style.stroke);
-                if (style.fill)
-                    this.assign(s, "fill", style.fill);
-                if (style.scale)
-                    this.assign(s, "scale", style.scale);
-                if (style.imgSize)
-                    this.assign(s, "imgSize", style.imgSize);
-            }
-            if (style.getSrc)
-                this.assign(s, "src", style.getSrc());
-            if (s.points && s.radius !== s.radius2)
-                s.points /= 2;
-            return s;
-        };
-        StyleConverter.prototype.serializeColor = function (color) {
-            if (color instanceof Array) {
-                return {
-                    color: ol.color.asString(color)
-                };
-            }
-            else if (color instanceof CanvasGradient) {
-                return {
-                    gradient: color
-                };
-            }
-            else if (color instanceof CanvasPattern) {
-                return {
-                    pattern: color
-                };
-            }
-            else if (typeof color === "string") {
-                return {
-                    color: color
-                };
-            }
-            throw "unknown color type";
-        };
-        StyleConverter.prototype.serializeFill = function (fill) {
-            return this.serializeStyle(fill);
-        };
-        StyleConverter.prototype.deserializeStyle = function (json) {
-            var image;
-            var text;
-            var fill;
-            var stroke;
-            if (json.circle)
-                image = this.deserializeCircle(json.circle);
-            else if (json.star)
-                image = this.deserializeStar(json.star);
-            else if (json.icon)
-                image = this.deserializeIcon(json.icon);
-            else if (json.svg)
-                image = this.deserializeSvg(json.svg);
-            else if (json.image && (json.image.img || json.image.path))
-                image = this.deserializeSvg(json.image);
-            else if (json.image && json.image.src)
-                image = this.deserializeIcon(json.image);
-            else if (json.image)
-                throw "unknown image type";
-            if (json.text)
-                text = this.deserializeText(json.text);
-            if (json.fill)
-                fill = this.deserializeFill(json.fill);
-            if (json.stroke)
-                stroke = this.deserializeStroke(json.stroke);
-            var s = new ol.style.Style({
-                image: image,
-                text: text,
-                fill: fill,
-                stroke: stroke
-            });
-            image && s.setGeometry(function (feature) {
-                var geom = feature.getGeometry();
-                if (geom instanceof ol.geom.Polygon) {
-                    var pt = geom.getInteriorPoint();
-                    return pt;
-                }
-                return geom;
-            });
-            return s;
-        };
-        StyleConverter.prototype.deserializeText = function (json) {
-            json.rotation = json.rotation || 0;
-            json.scale = json.scale || 1;
-            var _a = [json["offset-x"] || 0, json["offset-y"] || 0], x = _a[0], y = _a[1];
-            {
-                ol.coordinate.rotate([x, y].map(function (v) { return v * json.scale; }), json.rotation);
-            }
-            return new ol.style.Text({
-                fill: json.fill && this.deserializeFill(json.fill),
-                stroke: json.stroke && this.deserializeStroke(json.stroke),
-                text: json.text,
-                font: json.font,
-                offsetX: x,
-                offsetY: y,
-                rotation: json.rotation,
-                scale: json.scale
-            });
-        };
-        StyleConverter.prototype.deserializeCircle = function (json) {
-            var image = new ol.style.Circle({
-                radius: json.radius,
-                fill: json.fill && this.deserializeFill(json.fill),
-                stroke: json.stroke && this.deserializeStroke(json.stroke)
-            });
-            image.setOpacity(json.opacity);
-            return image;
-        };
-        StyleConverter.prototype.deserializeStar = function (json) {
-            var image = new ol.style.RegularShape({
-                radius: json.radius,
-                radius2: json.radius2,
-                points: json.points,
-                angle: json.angle,
-                fill: json.fill && this.deserializeFill(json.fill),
-                stroke: json.stroke && this.deserializeStroke(json.stroke)
-            });
-            common_2.doif(json.rotation, function (v) { return image.setRotation(v); });
-            common_2.doif(json.opacity, function (v) { return image.setOpacity(v); });
-            return image;
-        };
-        StyleConverter.prototype.deserializeIcon = function (json) {
-            if (!json.anchor) {
-                json.anchor = [json["anchor-x"] || 0.5, json["anchor-y"] || 0.5];
-            }
-            var image = new ol.style.Icon({
-                anchor: json.anchor || [0.5, 0.5],
-                anchorOrigin: json.anchorOrigin || "top-left",
-                anchorXUnits: json.anchorXUnits || "fraction",
-                anchorYUnits: json.anchorYUnits || "fraction",
-                img: undefined,
-                imgSize: undefined,
-                offset: json.offset,
-                offsetOrigin: json.offsetOrigin,
-                opacity: json.opacity,
-                scale: json.scale,
-                snapToPixel: json.snapToPixel,
-                rotateWithView: json.rotateWithView,
-                rotation: json.rotation,
-                size: json.size,
-                src: json.src,
-                color: json.color
-            });
-            image.load();
-            return image;
-        };
-        StyleConverter.prototype.deserializeSvg = function (json) {
-            json.rotation = json.rotation || 0;
-            json.scale = json.scale || 1;
-            if (json.img) {
-                var symbol = document.getElementById(json.img);
-                if (!symbol) {
-                    throw "unable to find svg element: " + json.img;
-                }
-                if (symbol) {
-                    var path = (symbol.getElementsByTagName("path")[0]);
-                    if (path) {
-                        if (symbol.viewBox) {
-                            if (!json.imgSize) {
-                                json.imgSize = [symbol.viewBox.baseVal.width, symbol.viewBox.baseVal.height];
-                            }
-                        }
-                        json.path = (json.path || "") + path.getAttribute('d');
-                    }
-                }
-            }
-            var canvas = document.createElement("canvas");
-            if (json.path) {
-                {
-                    _a = json.imgSize.map(function (v) { return v * json.scale; }), canvas.width = _a[0], canvas.height = _a[1];
-                    if (json.stroke && json.stroke.width) {
-                        var dx = 2 * json.stroke.width * json.scale;
-                        canvas.width += dx;
-                        canvas.height += dx;
-                    }
-                }
-                var ctx = canvas.getContext('2d');
-                var path2d = new Path2D(json.path);
-                ctx.translate(canvas.width / 2, canvas.height / 2);
-                ctx.scale(json.scale, json.scale);
-                ctx.translate(-json.imgSize[0] / 2, -json.imgSize[1] / 2);
-                if (json.fill) {
-                    ctx.fillStyle = json.fill.color;
-                    ctx.fill(path2d);
-                }
-                if (json.stroke) {
-                    ctx.strokeStyle = json.stroke.color;
-                    ctx.lineWidth = json.stroke.width;
-                    ctx.stroke(path2d);
-                }
-            }
-            var icon = new ol.style.Icon({
-                img: canvas,
-                imgSize: [canvas.width, canvas.height],
-                rotation: json.rotation,
-                scale: 1,
-                anchor: json.anchor || [canvas.width / 2, canvas.height],
-                anchorOrigin: json.anchorOrigin,
-                anchorXUnits: json.anchorXUnits || "pixels",
-                anchorYUnits: json.anchorYUnits || "pixels",
-                offset: json.offset,
-                offsetOrigin: json.offsetOrigin,
-                opacity: json.opacity,
-                snapToPixel: json.snapToPixel,
-                rotateWithView: json.rotateWithView,
-                size: [canvas.width, canvas.height],
-                src: undefined
-            });
-            return common_2.mixin(icon, {
-                path: json.path,
-                stroke: json.stroke,
-                fill: json.fill,
-                scale: json.scale,
-                imgSize: json.imgSize
-            });
-            var _a;
-        };
-        StyleConverter.prototype.deserializeFill = function (json) {
-            var fill = new ol.style.Fill({
-                color: json && this.deserializeColor(json)
-            });
-            return fill;
-        };
-        StyleConverter.prototype.deserializeStroke = function (json) {
-            var stroke = new ol.style.Stroke();
-            common_2.doif(json.color, function (v) { return stroke.setColor(v); });
-            common_2.doif(json.lineCap, function (v) { return stroke.setLineCap(v); });
-            common_2.doif(json.lineDash, function (v) { return stroke.setLineDash(v); });
-            common_2.doif(json.lineJoin, function (v) { return stroke.setLineJoin(v); });
-            common_2.doif(json.miterLimit, function (v) { return stroke.setMiterLimit(v); });
-            common_2.doif(json.width, function (v) { return stroke.setWidth(v); });
-            return stroke;
-        };
-        StyleConverter.prototype.deserializeColor = function (fill) {
-            if (fill.color) {
-                return fill.color;
-            }
-            if (fill.gradient) {
-                var type = fill.gradient.type;
-                var gradient_1;
-                if (0 === type.indexOf("linear(")) {
-                    gradient_1 = this.deserializeLinearGradient(fill.gradient);
-                }
-                else if (0 === type.indexOf("radial(")) {
-                    gradient_1 = this.deserializeRadialGradient(fill.gradient);
-                }
-                if (fill.gradient.stops) {
-                    common_2.mixin(gradient_1, {
-                        stops: fill.gradient.stops
-                    });
-                    var stops = fill.gradient.stops.split(";");
-                    stops = stops.map(function (v) { return v.trim(); });
-                    stops.forEach(function (colorstop) {
-                        var stop = colorstop.match(/ \d+%/m)[0];
-                        var color = colorstop.substr(0, colorstop.length - stop.length);
-                        gradient_1.addColorStop(parseInt(stop) / 100, color);
-                    });
-                }
-                return gradient_1;
-            }
-            if (fill.pattern) {
-                var repitition = fill.pattern.repitition;
-                var canvas = document.createElement('canvas');
-                var spacing = canvas.width = canvas.height = fill.pattern.spacing | 6;
-                var context = canvas.getContext('2d');
-                context.fillStyle = fill.pattern.color;
-                switch (fill.pattern.orientation) {
-                    case "horizontal":
-                        for (var i = 0; i < spacing; i++) {
-                            context.fillRect(i, 0, 1, 1);
-                        }
-                        break;
-                    case "vertical":
-                        for (var i = 0; i < spacing; i++) {
-                            context.fillRect(0, i, 1, 1);
-                        }
-                        break;
-                    case "cross":
-                        for (var i = 0; i < spacing; i++) {
-                            context.fillRect(i, 0, 1, 1);
-                            context.fillRect(0, i, 1, 1);
-                        }
-                        break;
-                    case "forward":
-                        for (var i = 0; i < spacing; i++) {
-                            context.fillRect(i, i, 1, 1);
-                        }
-                        break;
-                    case "backward":
-                        for (var i = 0; i < spacing; i++) {
-                            context.fillRect(spacing - 1 - i, i, 1, 1);
-                        }
-                        break;
-                    case "diagonal":
-                        for (var i = 0; i < spacing; i++) {
-                            context.fillRect(i, i, 1, 1);
-                            context.fillRect(spacing - 1 - i, i, 1, 1);
-                        }
-                        break;
-                }
-                return common_2.mixin(context.createPattern(canvas, repitition), fill.pattern);
-            }
-            throw "invalid color configuration";
-        };
-        StyleConverter.prototype.deserializeLinearGradient = function (json) {
-            var rx = /\w+\((.*)\)/m;
-            var _a = JSON.parse(json.type.replace(rx, "[$1]")), x0 = _a[0], y0 = _a[1], x1 = _a[2], y1 = _a[3];
-            var canvas = document.createElement('canvas');
-            canvas.width = Math.max(x0, x1);
-            canvas.height = Math.max(y0, y1);
-            var context = canvas.getContext('2d');
-            var gradient = context.createLinearGradient(x0, y0, x1, y1);
-            common_2.mixin(gradient, {
-                type: "linear(" + [x0, y0, x1, y1].join(",") + ")"
-            });
-            return gradient;
-        };
-        StyleConverter.prototype.deserializeRadialGradient = function (json) {
-            var rx = /radial\((.*)\)/m;
-            var _a = JSON.parse(json.type.replace(rx, "[$1]")), x0 = _a[0], y0 = _a[1], r0 = _a[2], x1 = _a[3], y1 = _a[4], r1 = _a[5];
-            var canvas = document.createElement('canvas');
-            canvas.width = 2 * Math.max(x0, x1);
-            canvas.height = 2 * Math.max(y0, y1);
-            var context = canvas.getContext('2d');
-            var gradient = context.createRadialGradient(x0, y0, r0, x1, y1, r1);
-            common_2.mixin(gradient, {
-                type: "radial(" + [x0, y0, r0, x1, y1, r1].join(",") + ")"
-            });
-            return gradient;
-        };
-        return StyleConverter;
-    }());
-    exports.StyleConverter = StyleConverter;
-});
-define("alpha/format/ags-symbolizer", ["require", "exports", "jquery", "alpha/format/ol3-symbolizer"], function (require, exports, $, Symbolizer) {
-    "use strict";
-    var symbolizer = new Symbolizer.StyleConverter();
-    var styleMap = {
-        "esriSMSCircle": "circle",
-        "esriSMSDiamond": "diamond",
-        "esriSMSX": "x",
-        "esriSMSCross": "cross",
-        "esriSLSSolid": "solid",
-        "esriSFSSolid": "solid",
-        "esriSLSDot": "dot",
-        "esriSLSDash": "dash",
-        "esriSLSDashDot": "dashdot",
-        "esriSLSDashDotDot": "dashdotdot",
-        "esriSFSForwardDiagonal": "forward-diagonal"
+    var AgsSymbolizer = {
+        StyleConverter: Symbolizer.StyleConverter
     };
-    var typeMap = {
-        "esriSMS": "sms",
-        "esriSLS": "sls",
-        "esriSFS": "sfs",
-        "esriPMS": "pms",
-        "esriPFS": "pfs",
-        "esriTS": "txt"
-    };
-    function range(a, b) {
-        var result = new Array(b - a + 1);
-        while (a <= b)
-            result.push(a++);
-        return result;
-    }
-    function clone(o) {
-        return JSON.parse(JSON.stringify(o));
-    }
-    var StyleConverter = (function () {
-        function StyleConverter() {
-        }
-        StyleConverter.prototype.asWidth = function (v) {
-            return v * 4 / 3;
-        };
-        StyleConverter.prototype.asColor = function (color) {
-            if (color.length === 4)
-                return "rgba(" + color[0] + "," + color[1] + "," + color[2] + "," + color[3] / 255 + ")";
-            if (color.length === 3)
-                return "rgb(" + color[0] + "," + color[1] + "," + color[2] + "})";
-            return "#" + color.map(function (v) { return ("0" + v.toString(16)).substr(0, 2); }).join("");
-        };
-        StyleConverter.prototype.fromSFSSolid = function (symbol, style) {
-            style.fill = {
-                color: this.asColor(symbol.color)
-            };
-            this.fromSLS(symbol.outline, style);
-        };
-        StyleConverter.prototype.fromSFS = function (symbol, style) {
-            switch (symbol.style) {
-                case "esriSFSSolid":
-                    this.fromSFSSolid(symbol, style);
-                    break;
-                default:
-                    debugger;
-                    break;
-            }
-        };
-        StyleConverter.prototype.fromSMSCircle = function (symbol, style) {
-            style.circle = {
-                opacity: 1,
-                radius: this.asWidth(symbol.size / 2),
-                stroke: {
-                    color: this.asColor(symbol.outline.color)
-                },
-                snapToPixel: true
-            };
-            this.fromSFSSolid(symbol, style.circle);
-            this.fromSLS(symbol.outline, style.circle);
-        };
-        StyleConverter.prototype.fromSMSCross = function (symbol, style) {
-            style.star = {
-                points: 4,
-                angle: 0,
-                radius: this.asWidth(symbol.size / Math.sqrt(2)),
-                radius2: 0
-            };
-            this.fromSFSSolid(symbol, style.star);
-            this.fromSLS(symbol.outline, style.star);
-        };
-        StyleConverter.prototype.fromSMSDiamond = function (symbol, style) {
-            style.star = {
-                points: 4,
-                angle: 0,
-                radius: this.asWidth(symbol.size / Math.sqrt(2)),
-                radius2: this.asWidth(symbol.size / Math.sqrt(2))
-            };
-            this.fromSFSSolid(symbol, style.star);
-            this.fromSLS(symbol.outline, style.star);
-        };
-        StyleConverter.prototype.fromSMSPath = function (symbol, style) {
-            var size = 2 * this.asWidth(symbol.size);
-            style.svg = {
-                imgSize: [size, size],
-                path: symbol.path,
-                rotation: symbol.angle
-            };
-            this.fromSLSSolid(symbol, style.svg);
-            this.fromSLS(symbol.outline, style.svg);
-        };
-        StyleConverter.prototype.fromSMSSquare = function (symbol, style) {
-            style.star = {
-                points: 4,
-                angle: Math.PI / 4,
-                radius: this.asWidth(symbol.size / Math.sqrt(2)),
-                radius2: this.asWidth(symbol.size / Math.sqrt(2))
-            };
-            this.fromSFSSolid(symbol, style.star);
-            this.fromSLS(symbol.outline, style.star);
-        };
-        StyleConverter.prototype.fromSMSX = function (symbol, style) {
-            style.star = {
-                points: 4,
-                angle: Math.PI / 4,
-                radius: this.asWidth(symbol.size / Math.sqrt(2)),
-                radius2: 0
-            };
-            this.fromSFSSolid(symbol, style.star);
-            this.fromSLS(symbol.outline, style.star);
-        };
-        StyleConverter.prototype.fromSMS = function (symbol, style) {
-            switch (symbol.style) {
-                case "esriSMSCircle":
-                    this.fromSMSCircle(symbol, style);
-                    break;
-                case "esriSMSCross":
-                    this.fromSMSCross(symbol, style);
-                    break;
-                case "esriSMSDiamond":
-                    this.fromSMSDiamond(symbol, style);
-                    break;
-                case "esriSMSPath":
-                    this.fromSMSPath(symbol, style);
-                    break;
-                case "esriSMSSquare":
-                    this.fromSMSSquare(symbol, style);
-                    break;
-                case "esriSMSX":
-                    this.fromSMSX(symbol, style);
-                    break;
-                default:
-                    throw "invalid-style: " + symbol.style;
-            }
-        };
-        StyleConverter.prototype.fromPMS = function (symbol, style) {
-            style.image = {};
-            style.image.src = symbol.url;
-            if (symbol.imageData) {
-                style.image.src = "data:image/png;base64," + symbol.imageData;
-            }
-            style.image["anchor-x"] = this.asWidth(symbol.xoffset);
-            style.image["anchor-y"] = this.asWidth(symbol.yoffset);
-            style.image.imgSize = [this.asWidth(symbol.width), this.asWidth(symbol.height)];
-        };
-        StyleConverter.prototype.fromSLSSolid = function (symbol, style) {
-            style.stroke = {
-                color: this.asColor(symbol.color),
-                width: this.asWidth(symbol.width),
-                lineDash: [],
-                lineJoin: "",
-                miterLimit: 4
-            };
-        };
-        StyleConverter.prototype.fromSLS = function (symbol, style) {
-            switch (symbol.style) {
-                case "esriSLSSolid":
-                    this.fromSLSSolid(symbol, style);
-                    break;
-                default:
-                    throw "invalid-style: " + symbol.style;
-            }
-        };
-        StyleConverter.prototype.fromPFS = function (symbol, style) {
-            throw "not-implemented";
-        };
-        StyleConverter.prototype.fromTS = function (symbol, style) {
-            throw "not-implemented";
-        };
-        StyleConverter.prototype.fromJson = function (symbol) {
-            var style = {};
-            this.fromSymbol(symbol, style);
-            return symbolizer.fromJson(style);
-        };
-        StyleConverter.prototype.fromSymbol = function (symbol, style) {
-            switch (symbol.type) {
-                case "esriSFS":
-                    this.fromSFS(symbol, style);
-                    break;
-                case "esriSLS":
-                    this.fromSLS(symbol, style);
-                    break;
-                case "esriPMS":
-                    this.fromPMS(symbol, style);
-                    break;
-                case "esriPFS":
-                    this.fromPFS(symbol, style);
-                    break;
-                case "esriSMS":
-                    this.fromSMS(symbol, style);
-                    break;
-                case "esriTS":
-                    this.fromTS(symbol, style);
-                    break;
-                default:
-                    throw "invalid-symbol-type: " + symbol.type;
-            }
-        };
-        StyleConverter.prototype.fromRenderer = function (renderer, args) {
-            var _this = this;
-            switch (renderer.type) {
-                case "simple":
-                    {
-                        return this.fromJson(renderer.symbol);
-                    }
-                case "uniqueValue":
-                    {
-                        var styles_1 = {};
-                        var defaultStyle_1 = (renderer.defaultSymbol) && this.fromJson(renderer.defaultSymbol);
-                        if (renderer.uniqueValueInfos) {
-                            renderer.uniqueValueInfos.forEach(function (info) {
-                                styles_1[info.value] = _this.fromJson(info.symbol);
-                            });
-                        }
-                        return function (feature) { return styles_1[feature.get(renderer.field1)] || defaultStyle_1; };
-                    }
-                case "classBreaks": {
-                    var styles_2 = {};
-                    var classBreakRenderer_1 = renderer;
-                    if (classBreakRenderer_1.classBreakInfos) {
-                        console.log("processing classBreakInfos");
-                        if (classBreakRenderer_1.visualVariables) {
-                            classBreakRenderer_1.visualVariables.forEach(function (vars) {
-                                switch (vars.type) {
-                                    case "sizeInfo": {
-                                        var steps_1 = range(classBreakRenderer_1.authoringInfo.visualVariables[0].minSliderValue, classBreakRenderer_1.authoringInfo.visualVariables[0].maxSliderValue);
-                                        var dx_1 = (vars.maxSize - vars.minSize) / steps_1.length;
-                                        var dataValue_1 = (vars.maxDataValue - vars.minDataValue) / steps_1.length;
-                                        classBreakRenderer_1.classBreakInfos.forEach(function (classBreakInfo) {
-                                            var icons = steps_1.map(function (step) {
-                                                var json = $.extend({}, classBreakInfo.symbol);
-                                                json.size = vars.minSize + dx_1 * (dataValue_1 - vars.minDataValue);
-                                                var style = _this.fromJson(json);
-                                                styles_2[dataValue_1] = style;
-                                            });
-                                        });
-                                        debugger;
-                                        break;
-                                    }
-                                    default:
-                                        debugger;
-                                        break;
-                                }
-                            });
-                        }
-                    }
-                    return function (feature) {
-                        debugger;
-                        var value = feature.get(renderer.field1);
-                        for (var key in styles_2) {
-                            return styles_2[key];
-                        }
-                    };
-                }
-                default:
-                    {
-                        debugger;
-                        console.error("unsupported renderer type: ", renderer.type);
-                        break;
-                    }
-            }
-        };
-        return StyleConverter;
-    }());
-    exports.StyleConverter = StyleConverter;
+    return AgsSymbolizer;
 });
-define("alpha/arcgis-source", ["require", "exports", "jquery", "openlayers", "bower_components/ol3-layerswitcher/src/extras/ags-catalog", "alpha/format/ags-symbolizer"], function (require, exports, $, ol, AgsCatalog, Symbolizer) {
+define("alpha/arcgis-source", ["require", "exports", "jquery", "openlayers", "extras/ags-catalog", "alpha/format/ags-symbolizer"], function (require, exports, $, ol, AgsCatalog, Symbolizer) {
     "use strict";
     var esrijsonFormat = new ol.format.EsriJSON();
     function asParam(options) {
@@ -1026,6 +115,16 @@ define("alpha/arcgis-source", ["require", "exports", "jquery", "openlayers", "bo
         return ArcGisVectorSourceFactory;
     }());
     exports.ArcGisVectorSourceFactory = ArcGisVectorSourceFactory;
+});
+define("alpha/format/base", ["require", "exports"], function (require, exports) {
+    "use strict";
+});
+define("alpha/format/ol3-symbolizer", ["require", "exports", "format/ol3-symbolizer"], function (require, exports, Symbolizer) {
+    "use strict";
+    var Ol3Symbolizer = {
+        StyleConverter: Symbolizer.StyleConverter
+    };
+    return Ol3Symbolizer;
 });
 define("labs/common/ajax", ["require", "exports", "jquery"], function (require, exports, $) {
     "use strict";
@@ -1555,6 +654,54 @@ define("app", ["require", "exports", "openlayers", "ux/mapquest-directions-proxy
     }
     return run;
 });
+define("labs/common/common", ["require", "exports"], function (require, exports) {
+    "use strict";
+    function getParameterByName(name, url) {
+        if (url === void 0) { url = window.location.href; }
+        name = name.replace(/[\[\]]/g, "\\$&");
+        var regex = new RegExp("[?&]" + name + "(=([^&#]*)|&|#|$)"), results = regex.exec(url);
+        if (!results)
+            return null;
+        if (!results[2])
+            return '';
+        return decodeURIComponent(results[2].replace(/\+/g, " "));
+    }
+    exports.getParameterByName = getParameterByName;
+    function doif(v, cb) {
+        if (v !== undefined && v !== null)
+            cb(v);
+    }
+    exports.doif = doif;
+    function mixin(a, b) {
+        Object.keys(b).forEach(function (k) { return a[k] = b[k]; });
+        return a;
+    }
+    exports.mixin = mixin;
+    function defaults(a, b) {
+        Object.keys(b).filter(function (k) { return a[k] == undefined; }).forEach(function (k) { return a[k] = b[k]; });
+        return a;
+    }
+    exports.defaults = defaults;
+    function cssin(name, css) {
+        var id = "style-" + name;
+        var styleTag = document.getElementById(id);
+        if (!styleTag) {
+            styleTag = document.createElement("style");
+            styleTag.id = id;
+            styleTag.innerText = css;
+            document.head.appendChild(styleTag);
+        }
+        var dataset = styleTag.dataset;
+        dataset["count"] = parseInt(dataset["count"] || "0") + 1 + "";
+        return function () {
+            dataset["count"] = parseInt(dataset["count"] || "0") - 1 + "";
+            if (dataset["count"] === "0") {
+                styleTag.remove();
+            }
+        };
+    }
+    exports.cssin = cssin;
+});
 define("ux/styles/star/flower", ["require", "exports"], function (require, exports) {
     "use strict";
     return [
@@ -1588,662 +735,7 @@ define("ux/styles/star/flower", ["require", "exports"], function (require, expor
         }
     ];
 });
-define("bower_components/ol3-layerswitcher/src/ol3-layerswitcher", ["require", "exports", "openlayers"], function (require, exports, ol) {
-    "use strict";
-    function defaults(a) {
-        var b = [];
-        for (var _i = 1; _i < arguments.length; _i++) {
-            b[_i - 1] = arguments[_i];
-        }
-        b.forEach(function (b) {
-            Object.keys(b).filter(function (k) { return a[k] === undefined; }).forEach(function (k) { return a[k] = b[k]; });
-        });
-        return a;
-    }
-    function asArray(list) {
-        var result = new Array(list.length);
-        for (var i = 0; i < list.length; i++) {
-            result.push(list[i]);
-        }
-        return result;
-    }
-    function allLayers(lyr) {
-        var result = [];
-        lyr.getLayers().forEach(function (lyr, idx, a) {
-            result.push(lyr);
-            if ("getLayers" in lyr) {
-                result = result.concat(allLayers(lyr));
-            }
-        });
-        return result;
-    }
-    function uuid() {
-        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
-            var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
-            return v.toString(16);
-        });
-    }
-    var DEFAULT_OPTIONS = {
-        tipLabel: 'Layers',
-        openOnMouseOver: false,
-        closeOnMouseOut: false,
-        openOnClick: true,
-        closeOnClick: true,
-        className: 'layer-switcher',
-        target: null
-    };
-    var LayerSwitcher = (function (_super) {
-        __extends(LayerSwitcher, _super);
-        function LayerSwitcher(options) {
-            options = defaults(options || {}, DEFAULT_OPTIONS);
-            _super.call(this, options);
-            this.afterCreate(options);
-        }
-        LayerSwitcher.prototype.afterCreate = function (options) {
-            var _this = this;
-            this.hiddenClassName = "ol-unselectable ol-control " + options.className;
-            this.shownClassName = this.hiddenClassName + ' shown';
-            var element = document.createElement('div');
-            element.className = this.hiddenClassName;
-            var button = this.button = document.createElement('button');
-            button.setAttribute('title', options.tipLabel);
-            element.appendChild(button);
-            this.panel = document.createElement('div');
-            this.panel.className = 'panel';
-            element.appendChild(this.panel);
-            this.unwatch = [];
-            this.element = element;
-            this.setTarget(options.target);
-            if (options.openOnMouseOver) {
-                element.addEventListener("mouseover", function () { return _this.showPanel(); });
-            }
-            if (options.closeOnMouseOut) {
-                element.addEventListener("mouseout", function () { return _this.hidePanel(); });
-            }
-            if (options.openOnClick || options.closeOnClick) {
-                button.addEventListener('click', function (e) {
-                    _this.isVisible() ? options.closeOnClick && _this.hidePanel() : options.openOnClick && _this.showPanel();
-                    e.preventDefault();
-                });
-            }
-        };
-        LayerSwitcher.prototype.dispatch = function (name, args) {
-            var event = new Event(name);
-            args && Object.keys(args).forEach(function (k) { return event[k] = args[k]; });
-            this["dispatchEvent"](event);
-        };
-        LayerSwitcher.prototype.isVisible = function () {
-            return this.element.className != this.hiddenClassName;
-        };
-        LayerSwitcher.prototype.showPanel = function () {
-            if (this.element.className != this.shownClassName) {
-                this.element.className = this.shownClassName;
-                this.renderPanel();
-            }
-        };
-        LayerSwitcher.prototype.hidePanel = function () {
-            this.element.className = this.hiddenClassName;
-            this.unwatch.forEach(function (f) { return f(); });
-        };
-        LayerSwitcher.prototype.renderPanel = function () {
-            var _this = this;
-            this.ensureTopVisibleBaseLayerShown();
-            while (this.panel.firstChild) {
-                this.panel.removeChild(this.panel.firstChild);
-            }
-            var ul = document.createElement('ul');
-            this.panel.appendChild(ul);
-            this.state = [];
-            var map = this.getMap();
-            var view = map.getView();
-            this.renderLayers(map, ul);
-            {
-                var doit = function () {
-                    var res = view.getResolution();
-                    _this.state.filter(function (s) { return !!s.input; }).forEach(function (s) {
-                        var min = s.layer.getMinResolution();
-                        var max = s.layer.getMaxResolution();
-                        console.log(res, min, max, s.layer.get("title"));
-                        s.input.disabled = !(min <= res && (max === 0 || res < max));
-                    });
-                };
-                var h_1 = view.on("change:resolution", doit);
-                doit();
-                this.unwatch.push(function () { return view.unByKey(h_1); });
-            }
-        };
-        ;
-        LayerSwitcher.prototype.ensureTopVisibleBaseLayerShown = function () {
-            var visibleBaseLyrs = allLayers(this.getMap()).filter(function (l) { return l.get('type') === 'base' && l.getVisible(); });
-            if (visibleBaseLyrs.length)
-                this.setVisible(visibleBaseLyrs.shift(), true);
-        };
-        ;
-        LayerSwitcher.prototype.setVisible = function (lyr, visible) {
-            var _this = this;
-            if (lyr.getVisible() !== visible) {
-                if (visible && lyr.get('type') === 'base') {
-                    allLayers(this.getMap()).filter(function (l) { return l !== lyr && l.get('type') === 'base' && l.getVisible(); }).forEach(function (l) { return _this.setVisible(l, false); });
-                }
-                lyr.setVisible(visible);
-                this.dispatch(visible ? "show-layer" : "hide-layer", { layer: lyr });
-            }
-        };
-        ;
-        LayerSwitcher.prototype.renderLayer = function (lyr, container) {
-            var _this = this;
-            var result;
-            var li = document.createElement('li');
-            container.appendChild(li);
-            var lyrTitle = lyr.get('title');
-            var label = document.createElement('label');
-            label.htmlFor = uuid();
-            lyr.on('load:start', function () { return li.classList.add("loading"); });
-            lyr.on('load:end', function () { return li.classList.remove("loading"); });
-            li.classList.toggle("loading", true === lyr.get("loading"));
-            if ('getLayers' in lyr && !lyr.get('combine')) {
-                if (!lyr.get('label-only')) {
-                    var input_1 = result = document.createElement('input');
-                    input_1.id = label.htmlFor;
-                    input_1.type = 'checkbox';
-                    input_1.checked = lyr.getVisible();
-                    input_1.addEventListener('change', function () {
-                        ul_1.classList.toggle('hide-layer-group', !input_1.checked);
-                        _this.setVisible(lyr, input_1.checked);
-                        var childLayers = lyr.getLayers();
-                        _this.state.filter(function (s) { return s.container === ul_1 && s.input && s.input.checked; }).forEach(function (state) {
-                            _this.setVisible(state.layer, input_1.checked);
-                        });
-                    });
-                    li.appendChild(input_1);
-                }
-                li.classList.add('group');
-                label.innerHTML = lyrTitle;
-                li.appendChild(label);
-                var ul_1 = document.createElement('ul');
-                result && ul_1.classList.toggle('hide-layer-group', !result.checked);
-                li.appendChild(ul_1);
-                this.renderLayers(lyr, ul_1);
-            }
-            else {
-                li.classList.add('layer');
-                var input_2 = result = document.createElement('input');
-                input_2.id = label.htmlFor;
-                if (lyr.get('type') === 'base') {
-                    input_2.classList.add('basemap');
-                    input_2.type = 'radio';
-                    input_2.addEventListener("change", function () {
-                        if (input_2.checked) {
-                            asArray(_this.panel.getElementsByClassName("basemap")).filter(function (i) { return i.tagName === "INPUT"; }).forEach(function (i) {
-                                if (i.checked && i !== input_2)
-                                    i.checked = false;
-                            });
-                        }
-                        _this.setVisible(lyr, input_2.checked);
-                    });
-                }
-                else {
-                    input_2.type = 'checkbox';
-                    input_2.addEventListener("change", function () {
-                        _this.setVisible(lyr, input_2.checked);
-                    });
-                }
-                input_2.checked = lyr.get('visible');
-                li.appendChild(input_2);
-                label.innerHTML = lyrTitle;
-                li.appendChild(label);
-            }
-            this.state.push({
-                container: container,
-                input: result,
-                layer: lyr
-            });
-        };
-        LayerSwitcher.prototype.renderLayers = function (map, elm) {
-            var _this = this;
-            var lyrs = map.getLayers().getArray().slice().reverse();
-            return lyrs.filter(function (l) { return !!l.get('title'); }).forEach(function (l) { return _this.renderLayer(l, elm); });
-        };
-        return LayerSwitcher;
-    }(ol.control.Control));
-    exports.LayerSwitcher = LayerSwitcher;
-});
-define("bower_components/ol3-popup/src/paging/paging", ["require", "exports", "openlayers"], function (require, exports, ol) {
-    "use strict";
-    function getInteriorPoint(geom) {
-        if (geom["getInteriorPoint"])
-            return geom["getInteriorPoint"]().getCoordinates();
-        return ol.extent.getCenter(geom.getExtent());
-    }
-    var Paging = (function () {
-        function Paging(options) {
-            this.options = options;
-            this._pages = [];
-            this.domNode = document.createElement("div");
-            this.domNode.classList.add("pages");
-            options.popup.domNode.appendChild(this.domNode);
-        }
-        Object.defineProperty(Paging.prototype, "activeIndex", {
-            get: function () {
-                return this._activeIndex;
-            },
-            enumerable: true,
-            configurable: true
-        });
-        Object.defineProperty(Paging.prototype, "count", {
-            get: function () {
-                return this._pages.length;
-            },
-            enumerable: true,
-            configurable: true
-        });
-        Paging.prototype.dispatch = function (name) {
-            this.domNode.dispatchEvent(new Event(name));
-        };
-        Paging.prototype.on = function (name, listener) {
-            this.domNode.addEventListener(name, listener);
-        };
-        Paging.prototype.add = function (source, geom) {
-            if (false) {
-            }
-            else if (typeof source === "string") {
-                var page = document.createElement("div");
-                page.innerHTML = source;
-                this._pages.push({
-                    element: page,
-                    location: geom && getInteriorPoint(geom)
-                });
-            }
-            else if (source["appendChild"]) {
-                var page = source;
-                page.classList.add("page");
-                this._pages.push({
-                    element: page,
-                    location: geom && getInteriorPoint(geom)
-                });
-            }
-            else if (source["then"]) {
-                var d = source;
-                var page_1 = document.createElement("div");
-                page_1.classList.add("page");
-                this._pages.push({
-                    element: page_1,
-                    location: geom && getInteriorPoint(geom)
-                });
-                $.when(d).then(function (v) {
-                    if (typeof v === "string") {
-                        page_1.innerHTML = v;
-                    }
-                    else {
-                        page_1.appendChild(v);
-                    }
-                });
-            }
-            else if (typeof source === "function") {
-                var page = document.createElement("div");
-                page.classList.add("page");
-                this._pages.push({
-                    callback: source,
-                    element: page,
-                    location: geom && getInteriorPoint(geom)
-                });
-            }
-            else {
-                throw "invalid source value: " + source;
-            }
-            this.dispatch("add");
-        };
-        Paging.prototype.clear = function () {
-            var activeChild = this._activeIndex >= 0 && this._pages[this._activeIndex];
-            this._activeIndex = -1;
-            this._pages = [];
-            if (activeChild) {
-                this.domNode.removeChild(activeChild.element);
-                this.dispatch("clear");
-            }
-        };
-        Paging.prototype.goto = function (index) {
-            var _this = this;
-            var page = this._pages[index];
-            if (!page)
-                return;
-            var activeChild = this._activeIndex >= 0 && this._pages[this._activeIndex];
-            var d = $.Deferred();
-            if (page.callback) {
-                var refreshedContent = page.callback();
-                $.when(refreshedContent).then(function (v) {
-                    if (false) {
-                    }
-                    else if (typeof v === "string") {
-                        page.element.innerHTML = v;
-                    }
-                    else if (typeof v["innerHTML"] !== "undefined") {
-                        page.element.innerHTML = "";
-                        page.element.appendChild(v);
-                    }
-                    else {
-                        throw "invalid callback result: " + v;
-                    }
-                    d.resolve();
-                });
-            }
-            else {
-                d.resolve();
-            }
-            d.then(function () {
-                activeChild && activeChild.element.remove();
-                _this._activeIndex = index;
-                _this.domNode.appendChild(page.element);
-                if (page.location) {
-                    _this.options.popup.setPosition(page.location);
-                }
-                _this.dispatch("goto");
-            });
-        };
-        Paging.prototype.next = function () {
-            (0 <= this.activeIndex) && (this.activeIndex < this.count) && this.goto(this.activeIndex + 1);
-        };
-        Paging.prototype.prev = function () {
-            (0 < this.activeIndex) && this.goto(this.activeIndex - 1);
-        };
-        return Paging;
-    }());
-    exports.Paging = Paging;
-});
-define("bower_components/ol3-popup/src/paging/page-navigator", ["require", "exports"], function (require, exports) {
-    "use strict";
-    var classNames = {
-        prev: 'btn-prev',
-        next: 'btn-next',
-        hidden: 'hidden',
-        active: 'active',
-        inactive: 'inactive',
-        pagenum: "page-num"
-    };
-    var eventNames = {
-        show: "show",
-        hide: "hide",
-        prev: "prev",
-        next: "next"
-    };
-    var PageNavigator = (function () {
-        function PageNavigator(options) {
-            var _this = this;
-            this.options = options;
-            var pages = options.pages;
-            this.domNode = document.createElement("div");
-            this.domNode.classList.add("pagination");
-            this.domNode.innerHTML = this.template();
-            this.prevButton = this.domNode.getElementsByClassName(classNames.prev)[0];
-            this.nextButton = this.domNode.getElementsByClassName(classNames.next)[0];
-            this.pageInfo = this.domNode.getElementsByClassName(classNames.pagenum)[0];
-            pages.options.popup.domNode.appendChild(this.domNode);
-            this.prevButton.addEventListener('click', function () { return _this.dispatch(eventNames.prev); });
-            this.nextButton.addEventListener('click', function () { return _this.dispatch(eventNames.next); });
-            pages.on("goto", function () { return pages.count > 1 ? _this.show() : _this.hide(); });
-            pages.on("clear", function () { return _this.hide(); });
-            pages.on("goto", function () {
-                var index = pages.activeIndex;
-                var count = pages.count;
-                var canPrev = 0 < index;
-                var canNext = count - 1 > index;
-                _this.prevButton.classList.toggle(classNames.inactive, !canPrev);
-                _this.prevButton.classList.toggle(classNames.active, canPrev);
-                _this.nextButton.classList.toggle(classNames.inactive, !canNext);
-                _this.nextButton.classList.toggle(classNames.active, canNext);
-                _this.prevButton.disabled = !canPrev;
-                _this.nextButton.disabled = !canNext;
-                _this.pageInfo.innerHTML = (1 + index) + " of " + count;
-            });
-        }
-        PageNavigator.prototype.dispatch = function (name) {
-            this.domNode.dispatchEvent(new Event(name));
-        };
-        PageNavigator.prototype.on = function (name, listener) {
-            this.domNode.addEventListener(name, listener);
-        };
-        PageNavigator.prototype.template = function () {
-            return "<button class=\"arrow btn-prev\"></button><span class=\"page-num\">m of n</span><button class=\"arrow btn-next\"></button>";
-        };
-        PageNavigator.prototype.hide = function () {
-            this.domNode.classList.add(classNames.hidden);
-            this.dispatch(eventNames.hide);
-        };
-        PageNavigator.prototype.show = function () {
-            this.domNode.classList.remove(classNames.hidden);
-            this.dispatch(eventNames.show);
-        };
-        return PageNavigator;
-    }());
-    return PageNavigator;
-});
-define("bower_components/ol3-popup/src/ol3-popup", ["require", "exports", "jquery", "openlayers", "bower_components/ol3-popup/src/paging/paging", "bower_components/ol3-popup/src/paging/page-navigator"], function (require, exports, $, ol, paging_1, PageNavigator) {
-    "use strict";
-    var css = "\n.ol-popup {\n    position: absolute;\n    bottom: 12px;\n    left: -50px;\n}\n\n.ol-popup:after {\n    top: auto;\n    bottom: -20px;\n    left: 50px;\n    border: solid transparent;\n    border-top-color: inherit;\n    content: \" \";\n    height: 0;\n    width: 0;\n    position: absolute;\n    pointer-events: none;\n    border-width: 10px;\n    margin-left: -10px;\n}\n\n.ol-popup.docked {\n    position:absolute;\n    bottom:0;\n    top:0;\n    left:0;\n    right:0;\n    width:auto;\n    height:auto;\n    pointer-events: all;\n}\n\n.ol-popup.docked:after {\n    display:none;\n}\n\n.ol-popup.docked .pages {\n    max-height: inherit;\n    overflow: auto;\n    height: calc(100% - 60px);\n}\n\n.ol-popup.docked .pagination {\n    position: absolute;\n    bottom: 0;\n}\n\n.ol-popup .pagination .btn-prev::after {\n    content: \"\u21E6\"; \n}\n\n.ol-popup .pagination .btn-next::after {\n    content: \"\u21E8\"; \n}\n\n.ol-popup .pagination.hidden {\n    display: none;\n}\n\n.ol-popup .ol-popup-closer {\n    border: none;\n    background: transparent;\n    color: inherit;\n    position: absolute;\n    top: 0;\n    right: 0;\n    text-decoration: none;\n}\n    \n.ol-popup .ol-popup-closer:after {\n    content:'\u2716';\n}\n\n.ol-popup .ol-popup-docker {\n    border: none;\n    background: transparent;\n    color: inherit;\n    text-decoration: none;\n    position: absolute;\n    top: 0;\n    right: 20px;\n}\n\n.ol-popup .ol-popup-docker:after {\n    content:'\u25A1';\n}\n";
-    var classNames = {
-        olPopup: 'ol-popup',
-        olPopupDocker: 'ol-popup-docker',
-        olPopupCloser: 'ol-popup-closer',
-        olPopupContent: 'ol-popup-content',
-        hidden: 'hidden',
-        docked: 'docked'
-    };
-    var eventNames = {
-        show: "show",
-        hide: "hide",
-        next: "next-page"
-    };
-    function defaults(a) {
-        var b = [];
-        for (var _i = 1; _i < arguments.length; _i++) {
-            b[_i - 1] = arguments[_i];
-        }
-        b.forEach(function (b) {
-            Object.keys(b).filter(function (k) { return a[k] === undefined; }).forEach(function (k) { return a[k] = b[k]; });
-        });
-        return a;
-    }
-    function debounce(func, wait, immediate) {
-        var _this = this;
-        if (wait === void 0) { wait = 20; }
-        if (immediate === void 0) { immediate = false; }
-        var timeout;
-        return (function () {
-            var args = [];
-            for (var _i = 0; _i < arguments.length; _i++) {
-                args[_i - 0] = arguments[_i];
-            }
-            var later = function () {
-                timeout = null;
-                if (!immediate)
-                    func.call(_this, args);
-            };
-            var callNow = immediate && !timeout;
-            clearTimeout(timeout);
-            timeout = setTimeout(later, wait);
-            if (callNow)
-                func.call(_this, args);
-        });
-    }
-    var isTouchDevice = function () {
-        try {
-            document.createEvent("TouchEvent");
-            isTouchDevice = function () { return true; };
-        }
-        catch (e) {
-            isTouchDevice = function () { return false; };
-        }
-        return isTouchDevice();
-    };
-    function enableTouchScroll(elm) {
-        var scrollStartPos = 0;
-        elm.addEventListener("touchstart", function (event) {
-            scrollStartPos = this.scrollTop + event.touches[0].pageY;
-        }, false);
-        elm.addEventListener("touchmove", function (event) {
-            this.scrollTop = scrollStartPos - event.touches[0].pageY;
-        }, false);
-    }
-    ;
-    var DEFAULT_OPTIONS = {
-        insertFirst: true,
-        autoPan: true,
-        autoPanAnimation: {
-            source: null,
-            duration: 250
-        },
-        pointerPosition: 50,
-        xOffset: 0,
-        yOffset: 0,
-        positioning: "top-right",
-        stopEvent: true
-    };
-    var Popup = (function (_super) {
-        __extends(Popup, _super);
-        function Popup(options) {
-            if (options === void 0) { options = DEFAULT_OPTIONS; }
-            options = defaults({}, options, DEFAULT_OPTIONS);
-            _super.call(this, options);
-            this.options = options;
-            this.handlers = [];
-            this.postCreate();
-        }
-        Popup.prototype.postCreate = function () {
-            var _this = this;
-            this.injectCss(css);
-            var options = this.options;
-            options.css && this.injectCss(options.css);
-            var domNode = this.domNode = document.createElement('div');
-            domNode.className = classNames.olPopup;
-            this.setElement(domNode);
-            if (this.options.pointerPosition) {
-                this.setIndicatorPosition(this.options.pointerPosition);
-            }
-            if (this.options.dockContainer) {
-                var dockContainer = $(this.options.dockContainer)[0];
-                if (dockContainer) {
-                    var docker = this.docker = document.createElement('label');
-                    docker.className = classNames.olPopupDocker;
-                    domNode.appendChild(docker);
-                    docker.addEventListener('click', function (evt) {
-                        _this.isDocked() ? _this.undock() : _this.dock();
-                        evt.preventDefault();
-                    }, false);
-                }
-            }
-            {
-                var closer = this.closer = document.createElement('label');
-                closer.className = classNames.olPopupCloser;
-                domNode.appendChild(closer);
-                closer.addEventListener('click', function (evt) {
-                    _this.hide();
-                    evt.preventDefault();
-                }, false);
-            }
-            {
-                var content = this.content = document.createElement('div');
-                content.className = classNames.olPopupContent;
-                this.domNode.appendChild(content);
-                isTouchDevice() && enableTouchScroll(content);
-            }
-            {
-                var pages_1 = this.pages = new paging_1.Paging({ popup: this });
-                var pageNavigator = new PageNavigator({ pages: pages_1 });
-                pageNavigator.hide();
-                pageNavigator.on("prev", function () { return pages_1.prev(); });
-                pageNavigator.on("next", function () { return pages_1.next(); });
-                pages_1.on("goto", function () { return _this.panIntoView(); });
-            }
-            if (0) {
-                var callback_1 = this.setPosition;
-                this.setPosition = debounce(function (args) { return callback_1.apply(_this, args); }, 50);
-            }
-        };
-        Popup.prototype.injectCss = function (css) {
-            var style = $("<style type='text/css'>" + css + "</style>");
-            style.appendTo('head');
-            this.handlers.push(function () { return style.remove(); });
-        };
-        Popup.prototype.setIndicatorPosition = function (x) {
-            var css = "\n.ol-popup { position: absolute; bottom: " + (this.options.yOffset + 12) + "px; left: " + (this.options.xOffset - x) + "px; }\n.ol-popup:after { bottom: -20px; left: " + x + "px; }\n";
-            this.injectCss(css);
-        };
-        Popup.prototype.setPosition = function (position) {
-            this.options.position = position;
-            if (!this.isDocked()) {
-                _super.prototype.setPosition.call(this, position);
-            }
-            else {
-                var view = this.options.map.getView();
-                view.animate({
-                    center: position
-                });
-            }
-        };
-        Popup.prototype.panIntoView = function () {
-            if (!this.isOpened())
-                return;
-            if (this.isDocked())
-                return;
-            var p = this.getPosition();
-            p && this.setPosition(p.map(function (v) { return v; }));
-        };
-        Popup.prototype.destroy = function () {
-            this.handlers.forEach(function (h) { return h(); });
-            this.handlers = [];
-            this.getMap().removeOverlay(this);
-            this.dispose();
-            this.dispatch("dispose");
-        };
-        Popup.prototype.dispatch = function (name) {
-            this["dispatchEvent"](new Event(name));
-        };
-        Popup.prototype.show = function (coord, html) {
-            if (html instanceof HTMLElement) {
-                this.content.innerHTML = "";
-                this.content.appendChild(html);
-            }
-            else {
-                this.content.innerHTML = html;
-            }
-            this.domNode.classList.remove(classNames.hidden);
-            this.setPosition(coord);
-            this.dispatch(eventNames.show);
-            return this;
-        };
-        Popup.prototype.hide = function () {
-            this.isDocked() && this.undock();
-            this.setPosition(undefined);
-            this.pages.clear();
-            this.dispatch(eventNames.hide);
-            this.domNode.classList.add(classNames.hidden);
-            return this;
-        };
-        Popup.prototype.isOpened = function () {
-            return !this.domNode.classList.contains(classNames.hidden);
-        };
-        Popup.prototype.isDocked = function () {
-            return this.domNode.classList.contains(classNames.docked);
-        };
-        Popup.prototype.dock = function () {
-            var map = this.getMap();
-            this.options.map = map;
-            this.options.parentNode = this.domNode.parentElement;
-            map.removeOverlay(this);
-            this.domNode.classList.add(classNames.docked);
-            $(this.options.dockContainer).append(this.domNode);
-        };
-        Popup.prototype.undock = function () {
-            this.options.parentNode.appendChild(this.domNode);
-            this.domNode.classList.remove(classNames.docked);
-            this.options.map.addOverlay(this);
-            this.setPosition(this.options.position);
-        };
-        return Popup;
-    }(ol.Overlay));
-    exports.Popup = Popup;
-});
-define("labs/ags-viewer", ["require", "exports", "jquery", "openlayers", "labs/common/common", "alpha/format/ol3-symbolizer", "bower_components/ol3-layerswitcher/src/ol3-layerswitcher", "bower_components/ol3-popup/src/ol3-popup", "alpha/arcgis-source"], function (require, exports, $, ol, common_3, ol3_symbolizer_1, ol3_layerswitcher_1, ol3_popup_1, arcgis_source_1) {
+define("labs/ags-viewer", ["require", "exports", "jquery", "openlayers", "labs/common/common", "alpha/format/ol3-symbolizer", "ol3-layerswitcher", "ol3-popup", "alpha/arcgis-source"], function (require, exports, $, ol, common_1, ol3_symbolizer_1, ol3_layerswitcher_1, ol3_popup_1, arcgis_source_1) {
     "use strict";
     var styler = new ol3_symbolizer_1.StyleConverter();
     function parse(v, type) {
@@ -2280,7 +772,7 @@ define("labs/ags-viewer", ["require", "exports", "jquery", "openlayers", "labs/c
         {
             var opts_1 = options;
             Object.keys(opts_1).forEach(function (k) {
-                common_3.doif(common_3.getParameterByName(k), function (v) {
+                common_1.doif(common_1.getParameterByName(k), function (v) {
                     var value = parse(v, opts_1[k]);
                     if (value !== undefined)
                         opts_1[k] = value;
@@ -2401,6 +893,38 @@ define("labs/common/myjson", ["require", "exports", "jquery"], function (require
         return MyJson;
     }());
     exports.MyJson = MyJson;
+});
+define("labs/common/ol3-patch", ["require", "exports", "openlayers", "labs/common/common"], function (require, exports, ol3, common_2) {
+    "use strict";
+    if (!ol3.geom.SimpleGeometry.prototype.scale) {
+        var scale_1 = function (flatCoordinates, offset, end, stride, deltaX, deltaY, opt_dest) {
+            var dest = opt_dest ? opt_dest : [];
+            var i = 0;
+            var j, k;
+            for (j = offset; j < end; j += stride) {
+                dest[i++] = flatCoordinates[j] * deltaX;
+                dest[i++] = flatCoordinates[j + 1] * deltaY;
+                for (k = j + 2; k < j + stride; ++k) {
+                    dest[i++] = flatCoordinates[k];
+                }
+            }
+            if (opt_dest && dest.length != i) {
+                dest.length = i;
+            }
+            return dest;
+        };
+        common_2.mixin(ol3.geom.SimpleGeometry.prototype, {
+            scale: function (deltaX, deltaY) {
+                var it = this;
+                it.applyTransform(function (flatCoordinates, output, stride) {
+                    scale_1(flatCoordinates, 0, flatCoordinates.length, stride, deltaX, deltaY, flatCoordinates);
+                    return flatCoordinates;
+                });
+                it.changed();
+            }
+        });
+    }
+    return ol3;
 });
 define("labs/common/ol3-polyline", ["require", "exports", "openlayers"], function (require, exports, ol) {
     "use strict";
@@ -3108,7 +1632,7 @@ define("ux/styles/text/text", ["require", "exports"], function (require, exports
         }
     ];
 });
-define("labs/mapmaker", ["require", "exports", "jquery", "openlayers", "labs/common/common", "labs/common/ol3-polyline", "alpha/format/ol3-symbolizer", "ux/styles/stroke/dashdotdot", "ux/styles/stroke/solid", "ux/styles/text/text", "labs/common/myjson"], function (require, exports, $, ol, common_4, reduce, ol3_symbolizer_3, dashdotdot, strokeStyle, textStyle, myjson_1) {
+define("labs/mapmaker", ["require", "exports", "jquery", "openlayers", "labs/common/common", "labs/common/ol3-polyline", "alpha/format/ol3-symbolizer", "ux/styles/stroke/dashdotdot", "ux/styles/stroke/solid", "ux/styles/text/text", "labs/common/myjson"], function (require, exports, $, ol, common_3, reduce, ol3_symbolizer_3, dashdotdot, strokeStyle, textStyle, myjson_1) {
     "use strict";
     var styler = new ol3_symbolizer_3.StyleConverter();
     function parse(v, type) {
@@ -3142,7 +1666,7 @@ define("labs/mapmaker", ["require", "exports", "jquery", "openlayers", "labs/com
         {
             var opts_2 = options;
             Object.keys(opts_2).forEach(function (k) {
-                common_4.doif(common_4.getParameterByName(k), function (v) {
+                common_3.doif(common_3.getParameterByName(k), function (v) {
                     var value = parse(v, opts_2[k]);
                     if (value !== undefined)
                         opts_2[k] = value;
@@ -3202,7 +1726,7 @@ define("labs/mapmaker", ["require", "exports", "jquery", "openlayers", "labs/com
                     feature.setStyle(style);
                     features.push(feature);
                 });
-                if (!common_4.getParameterByName("center")) {
+                if (!common_3.getParameterByName("center")) {
                     map.getView().fit(layer.getSource().getExtent(), map.getSize());
                 }
             }
@@ -3273,7 +1797,7 @@ define("labs/mapmaker", ["require", "exports", "jquery", "openlayers", "labs/com
     }
     exports.run = run;
 });
-define("ux/controls/input", ["require", "exports", "openlayers", "labs/common/common"], function (require, exports, ol, common_5) {
+define("ux/controls/input", ["require", "exports", "openlayers", "labs/common/common"], function (require, exports, ol, common_4) {
     "use strict";
     var css = "\n    .ol-input {\n        position:absolute;\n    }\n    .ol-input.top {\n        top: 0.5em;\n    }\n    .ol-input.left {\n        left: 0.5em;\n    }\n    .ol-input.bottom {\n        bottom: 0.5em;\n    }\n    .ol-input.right {\n        right: 0.5em;\n    }\n    .ol-input.top.left {\n        top: 4.5em;\n    }\n    .ol-input button {\n        min-height: 1.375em;\n        min-width: 1.375em;\n        width: auto;\n        display: inline;\n    }\n    .ol-input.left button {\n        float:right;\n    }\n    .ol-input.right button {\n        float:left;\n    }\n    .ol-input input {\n        height: 24px;\n        min-width: 240px;\n        border: none;\n        padding: 0;\n        margin: 0;\n        margin-left: 2px;\n        margin-top: 1px;\n        vertical-align: top;\n    }\n    .ol-input input.hidden {\n        display: none;\n    }\n";
     var olcss = {
@@ -3331,15 +1855,15 @@ define("ux/controls/input", ["require", "exports", "openlayers", "labs/common/co
             options.expanded ? this.expand(options) : this.collapse(options);
         }
         Geocoder.create = function (options) {
-            common_5.cssin('ol-input', css);
-            options = common_5.mixin({
+            common_4.cssin('ol-input', css);
+            options = common_4.mixin({
                 openedText: options.className && -1 < options.className.indexOf("left") ? expando.left : expando.right,
                 closedText: options.className && -1 < options.className.indexOf("left") ? expando.right : expando.left
             }, options || {});
-            options = common_5.mixin(common_5.mixin({}, defaults), options);
+            options = common_4.mixin(common_4.mixin({}, defaults), options);
             var element = document.createElement('div');
             element.className = options.className + " " + olcss.CLASS_UNSELECTABLE + " " + olcss.CLASS_CONTROL;
-            var geocoderOptions = common_5.mixin({
+            var geocoderOptions = common_4.mixin({
                 element: element,
                 target: options.target,
                 expanded: false
@@ -3417,7 +1941,7 @@ define("labs/providers/osm", ["require", "exports"], function (require, exports)
     }());
     exports.OpenStreet = OpenStreet;
 });
-define("labs/geocoder", ["require", "exports", "labs/mapmaker", "ux/controls/input", "labs/providers/osm"], function (require, exports, MapMaker, input_3, osm_1) {
+define("labs/geocoder", ["require", "exports", "labs/mapmaker", "ux/controls/input", "labs/providers/osm"], function (require, exports, MapMaker, input_1, osm_1) {
     "use strict";
     function run() {
         MapMaker.run().then(function (map) {
@@ -3454,26 +1978,26 @@ define("labs/geocoder", ["require", "exports", "labs/mapmaker", "ux/controls/inp
                     console.error("geocoder failed");
                 });
             };
-            var geocoder = input_3.Geocoder.create({
+            var geocoder = input_1.Geocoder.create({
                 closedText: "+",
                 openedText: "−",
                 placeholderText: "Bottom Left Search",
                 onChange: changeHandler
             });
             map.addControl(geocoder);
-            map.addControl(input_3.Geocoder.create({
+            map.addControl(input_1.Geocoder.create({
                 className: 'ol-input bottom right',
                 expanded: true,
                 placeholderText: "Bottom Right Search",
                 onChange: changeHandler
             }));
-            map.addControl(input_3.Geocoder.create({
+            map.addControl(input_1.Geocoder.create({
                 className: 'ol-input top right',
                 expanded: false,
                 placeholderText: "Top Right",
                 onChange: changeHandler
             }));
-            map.addControl(input_3.Geocoder.create({
+            map.addControl(input_1.Geocoder.create({
                 className: 'ol-input top left',
                 expanded: false,
                 placeholderText: "Top Left Search",
@@ -3638,7 +2162,7 @@ define("labs/index", ["require", "exports"], function (require, exports) {
     exports.run = run;
     ;
 });
-define("labs/layerswitcher", ["require", "exports", "jquery", "openlayers", "labs/common/common", "alpha/format/ol3-symbolizer", "bower_components/ol3-layerswitcher/src/ol3-layerswitcher", "bower_components/ol3-popup/src/ol3-popup", "alpha/arcgis-source"], function (require, exports, $, ol, common_6, ol3_symbolizer_4, ol3_layerswitcher_2, ol3_popup_2, arcgis_source_2) {
+define("labs/layerswitcher", ["require", "exports", "jquery", "openlayers", "labs/common/common", "alpha/format/ol3-symbolizer", "ol3-layerswitcher", "ol3-popup", "alpha/arcgis-source"], function (require, exports, $, ol, common_5, ol3_symbolizer_4, ol3_layerswitcher_2, ol3_popup_2, arcgis_source_2) {
     "use strict";
     var styler = new ol3_symbolizer_4.StyleConverter();
     function parse(v, type) {
@@ -3672,7 +2196,7 @@ define("labs/layerswitcher", ["require", "exports", "jquery", "openlayers", "lab
         {
             var opts_5 = options;
             Object.keys(opts_5).forEach(function (k) {
-                common_6.doif(common_6.getParameterByName(k), function (v) {
+                common_5.doif(common_5.getParameterByName(k), function (v) {
                     var value = parse(v, opts_5[k]);
                     if (value !== undefined)
                         opts_5[k] = value;
@@ -3837,7 +2361,7 @@ define("labs/polyline-encoder", ["require", "exports", "jquery", "openlayers", "
     }
     exports.run = run;
 });
-define("labs/popup", ["require", "exports", "jquery", "openlayers", "labs/common/common", "alpha/format/ol3-symbolizer", "ux/styles/star/flower", "bower_components/ol3-popup/src/ol3-popup"], function (require, exports, $, ol, common_7, ol3_symbolizer_5, pointStyle, ol3_popup_3) {
+define("labs/popup", ["require", "exports", "jquery", "openlayers", "labs/common/common", "alpha/format/ol3-symbolizer", "ux/styles/star/flower", "ol3-popup"], function (require, exports, $, ol, common_6, ol3_symbolizer_5, pointStyle, ol3_popup_3) {
     "use strict";
     var styler = new ol3_symbolizer_5.StyleConverter();
     function parse(v, type) {
@@ -3867,7 +2391,7 @@ define("labs/popup", ["require", "exports", "jquery", "openlayers", "labs/common
         {
             var opts_6 = options;
             Object.keys(opts_6).forEach(function (k) {
-                common_7.doif(common_7.getParameterByName(k), function (v) {
+                common_6.doif(common_6.getParameterByName(k), function (v) {
                     var value = parse(v, opts_6[k]);
                     if (value !== undefined)
                         opts_6[k] = value;
@@ -3927,7 +2451,7 @@ define("labs/popup", ["require", "exports", "jquery", "openlayers", "labs/common
     }
     exports.run = run;
 });
-define("labs/route-editor", ["require", "exports", "openlayers", "alpha/format/ol3-symbolizer", "labs/common/common"], function (require, exports, ol, ol3_symbolizer_6, common_8) {
+define("labs/route-editor", ["require", "exports", "openlayers", "alpha/format/ol3-symbolizer", "labs/common/common"], function (require, exports, ol, ol3_symbolizer_6, common_7) {
     "use strict";
     var delta = 16;
     var formatter = new ol3_symbolizer_6.StyleConverter();
@@ -3951,7 +2475,7 @@ define("labs/route-editor", ["require", "exports", "openlayers", "alpha/format/o
         }]; };
     var Route = (function () {
         function Route(options) {
-            this.options = common_8.defaults(options, {
+            this.options = common_7.defaults(options, {
                 color: "black",
                 delta: delta,
                 stops: [],
@@ -4440,7 +2964,7 @@ define("ux/styles/icon/png", ["require", "exports"], function (require, exports)
         }
     ];
 });
-define("labs/style-viewer", ["require", "exports", "openlayers", "jquery", "labs/common/snapshot", "labs/common/common", "alpha/format/ol3-symbolizer", "ux/styles/icon/png"], function (require, exports, ol, $, Snapshot, common_9, ol3_symbolizer_8, pointStyle) {
+define("labs/style-viewer", ["require", "exports", "openlayers", "jquery", "labs/common/snapshot", "labs/common/common", "alpha/format/ol3-symbolizer", "ux/styles/icon/png"], function (require, exports, ol, $, Snapshot, common_8, ol3_symbolizer_8, pointStyle) {
     "use strict";
     var html = "\n<div class='style-to-canvas'>\n    <h3>Renders a feature on a canvas</h3>\n    <div class=\"area\">\n        <label>256 x 256 Canvas</label>\n        <div id='canvas-collection'></div>\n    </div>\n    <div class=\"area\">\n        <label>Style</label>\n        <textarea class='style'></textarea>\n        <button class=\"save\">Save</button>\n    </div>\n    <div class=\"area\">\n        <label>Potential control for setting linear gradient start/stop locations</label>\n        <div class=\"colorramp\">\n            <input class=\"top\" type=\"range\" min=\"0\" max=\"100\" value=\"20\"/>\n            <input class=\"bottom\" type=\"range\" min=\"0\" max=\"100\" value=\"80\"/>\n        </div>\n    </div>\n</div>\n";
     var css = "\n<style>\n    #map {\n        display: none;\n    }\n\n    .style-to-canvas {\n    }\n\n    .style-to-canvas .area label {\n        display: block;\n        vertical-align: top;\n    }\n\n    .style-to-canvas .area {\n        border: 1px solid black;\n        padding: 20px;\n        margin: 20px;\n    }\n\n    .style-to-canvas .area .style {\n        width: 100%;\n        height: 400px;\n    }\n\n    .style-to-canvas #canvas-collection canvas {\n        font-family: sans serif;\n        font-size: 20px;\n        border: 1px solid black;\n        padding: 20px;\n        margin: 20px;\n    }\n\n    div.colorramp {\n        display: inline-block;\n        background: linear-gradient(to right, rgba(250,0,0,0), rgba(250,0,0,1) 60%, rgba(250,100,0,1) 85%, rgb(250,250,0) 95%);\n        width:100%;\n    }\n\n    div.colorramp > input[type=range] {\n        -webkit-appearance: slider-horizontal;\n        display:block;\n        width:100%;\n        background-color:transparent;\n    }\n\n    div.colorramp > label {\n        display: inline-block;\n    }\n\n    div.colorramp > input[type='range'] {\n        box-shadow: 0 0 0 white;\n    }\n\n    div.colorramp > input[type=range]::-webkit-slider-runnable-track {\n        height: 0px;     \n    }\n\n    div.colorramp > input[type='range'].top::-webkit-slider-thumb {\n        margin-top: -10px;\n    }\n\n    div.colorramp > input[type='range'].bottom::-webkit-slider-thumb {\n        margin-top: -12px;\n    }\n    \n</style>\n";
@@ -4505,8 +3029,8 @@ define("labs/style-viewer", ["require", "exports", "openlayers", "jquery", "labs
         $(html).appendTo("body");
         $(svg).appendTo("body");
         $(css).appendTo("head");
-        var geom = common_9.getParameterByName("geom") || "polygon-with-holes";
-        var style = common_9.getParameterByName("style") || "fill/gradient";
+        var geom = common_8.getParameterByName("geom") || "polygon-with-holes";
+        var style = common_8.getParameterByName("style") || "fill/gradient";
         $(".save").click(function () {
             var style = JSON.stringify(JSON.parse($(".style").val()));
             var loc = window.location;
