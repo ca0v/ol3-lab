@@ -1,4 +1,4 @@
-import Symbolizer = require("format/ol3-symbolizer");
+import Symbolizer = require("ol3-symbolizer");
 
 const Ol3Symbolizer = {
     StyleConverter: Symbolizer.StyleConverter

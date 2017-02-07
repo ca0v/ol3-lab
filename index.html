@@ -6,7 +6,7 @@
     <style>
         @import url('./bower_components/openlayers/ol.css');
         @import url('./bower_components/ol3-layerswitcher/built/css/ol3-layerswitcher.css');
-        @import url('./app.css');
+        @import url('./ol3-lab/app.css');
     </style>
 <script src="bower_components/requirejs/require.js"></script>
 
@@ -22,7 +22,7 @@
             return decodeURIComponent(results[2].replace(/\+/g, " "));
         }
 
-        let run = getParameterByName("run") || "labs/index";
+        let run = getParameterByName("run") || "ol3-lab/labs/index";
         let debug = getParameterByName("debug") === "1";
 
         requirejs.config({

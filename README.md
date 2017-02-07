@@ -3,10 +3,10 @@
 This is Proof of Concept code for learning
 aspects of OpenLayers and related spatial libraries
 
-![alt text](./ux/docs/style-lab.png "ux/style-lab")
+![alt text](./ol3-lab/ux/docs/style-lab.png "ux/style-lab")
 
 ## Style Lab
-![5star](./ux/docs/5star.png)
+![5star](./ol3-lab/ux/docs/5star.png)
 ```
 [{
     "star": {
@@ -32,7 +32,7 @@ aspects of OpenLayers and related spatial libraries
 }]
 ```
 
-![starlight](./ux/docs/starlight.png)
+![starlight](./ol3-lab/ux/docs/starlight.png)
 
 ```
 [{
@@ -54,7 +54,7 @@ aspects of OpenLayers and related spatial libraries
 }]
 ```
 
-![redheat](./ux/docs/redheat.png)
+![redheat](./ol3-lab/ux/docs/redheat.png)
 
 
 ```
@@ -79,16 +79,16 @@ aspects of OpenLayers and related spatial libraries
 
 ## Polyline Encoder
 
-![before](./ux/docs/not-simplify.png) 
-![after](./ux/docs/simplify.png)
+![before](./ol3-lab/ux/docs/not-simplify.png) 
+![after](./ol3-lab/ux/docs/simplify.png)
 ```
 t`syzE}gm_dAm_@A?r@p@Bp@Hp@Ph@Td@Z`@`@Vb@Nd@xUABmF
 ```
 
 ## All Examples
 
-* [index (3.20.1)](https://rawgit.com/ca0v/ol3-lab/v3.20.1/rawgit.html?run=labs/index)
-* [index (master)](https://rawgit.com/ca0v/ol3-lab/master/rawgit.html?run=labs/index)
+* [index (3.20.1)](https://rawgit.com/ca0v/ol3-lab/v3.20.1/rawgit.html?run=ol3-lab/labs/index)
+* [index (master)](https://rawgit.com/ca0v/ol3-lab/master/rawgit.html?run=ol3-lab/labs/index)
 
 ## Build using tsd, bower, tsc:
 
