@@ -20,15 +20,9 @@
     "openlayers": "https://github.com/openlayers/ol3/releases/download/v3.20.1/v3.20.1-dist.zip",
     "requirejs": "^2.3.2",
     "jquery": "^3.1.1",
-    "ol3-popup": "git://github.com/ca0v/ol3-popup.git#2.0.7",
+    "ol3-popup": "git://github.com/ca0v/ol3-popup.git#v3.20.1",
     "ResizeSensor": "https://raw.githubusercontent.com/marcj/css-element-queries/master/src/ResizeSensor.js",
-    "ol3-layerswitcher": "ol3-nested-layerswitcher#v2.0.5",
+    "ol3-layerswitcher": "ol3-nested-layerswitcher#v3.20.1",
     "ol3-symbolizer": "git://github.com/ca0v/ol3-symbolizer.git#v3.20.1"
-  },
-  "devDependencies": {
-    "ol3-popup": "git://github.com/ca0v/ol3-popup.git#v2.0.7"
-  },
-  "resolutions": {
-    "ol3-popup": "v2.0.7"
   }
 }
