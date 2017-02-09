@@ -3,8 +3,8 @@ import ol = require("openlayers");
 import { doif, getParameterByName } from "./common/common";
 import { StyleConverter } from "../alpha/format/ol3-symbolizer";
 import pointStyle = require("../ux/styles/star/flower");
-import { LayerSwitcher } from "ol3-layerswitcher";
-import { Popup } from "ol3-popup";
+import { LayerSwitcher } from "ol3-layerswitcher/ol3-layerswitcher";
+import { Popup } from "ol3-popup/ol3-popup";
 import { ArcGisVectorSourceFactory } from "../alpha/arcgis-source";
 
 let styler = new StyleConverter();
@@ -131,7 +131,7 @@ export function run() {
 
         let layerSwitcher = new LayerSwitcher();
         layerSwitcher.setMap(map);
-
+layerSwitcher.isVisible
         let popup = new Popup({
             css: `
             .ol-popup {
