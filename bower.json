@@ -22,7 +22,7 @@
     "jquery": "^3.1.1",
     "ol3-popup": "git://github.com/ca0v/ol3-popup.git#v3.20.1",
     "ResizeSensor": "https://raw.githubusercontent.com/marcj/css-element-queries/master/src/ResizeSensor.js",
-    "ol3-layerswitcher": "ol3-nested-layerswitcher#v3.20.1",
+    "ol3-layerswitcher": "git://github.com/ca0v/ol3-layerswitcher#v3.20.1",
     "ol3-symbolizer": "git://github.com/ca0v/ol3-symbolizer.git#v3.20.1"
   }
 }
