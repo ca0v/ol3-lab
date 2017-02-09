@@ -7,7 +7,19 @@
         "noImplicitAny": true,
         "sourceMap": true,
         "outFile": "./built/index.js",
-        "moduleResolution": "node"
+        "moduleResolution": "node",
+        "baseUrl": "./",
+        "paths": {
+            "ol3-layerswitcher/*": [
+                "./bower_components/ol3-layerswitcher/ol3-layerswitcher/*"
+            ],
+            "ol3-symbolizer/*": [
+                "./bower_components/ol3-symbolizer/ol3-symbolizer/*"
+            ],
+            "ol3-popup/*": [
+                "./bower_components/ol3-popup/ol3-popup/*"
+            ]
+        }
     },
     "exclude": [
         "bower_components",
