@@ -1,7 +1,7 @@
 import MapMaker = require("../labs/mapmaker");
 
-import {Geocoder} from "../ux/controls/input";
-import {OpenStreet} from "../labs/providers/osm";
+import {Input as Geocoder} from "ol3-input";
+import {OpenStreet} from "ol3-input/ol3-input/providers/osm";
 
 export function run() {
 

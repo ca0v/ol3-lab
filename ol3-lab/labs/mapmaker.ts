@@ -3,9 +3,9 @@ import ol = require("openlayers");
 import {doif, getParameterByName, mixin} from "./common/common";
 import reduce = require("./common/ol3-polyline");
 import {StyleConverter} from "ol3-symbolizer/ol3-symbolizer";
-import dashdotdot = require("../ux/styles/stroke/dashdotdot");
-import strokeStyle = require("../ux/styles/stroke/solid");
-import textStyle = require("../ux/styles/text/text");
+import dashdotdot = require("ol3-symbolizer/ol3-symbolizer/styles/stroke/dashdotdot");
+import strokeStyle = require("ol3-symbolizer/ol3-symbolizer/styles/stroke/solid");
+import textStyle = require("ol3-symbolizer/ol3-symbolizer/styles/text/text");
 import {MyJson} from "./common/myjson";
 
 let styler = new StyleConverter();

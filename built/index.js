@@ -1024,7 +1024,7 @@ define("bower_components/ol3-symbolizer/ol3-symbolizer", ["require", "exports", 
     "use strict";
     return Symbolizer;
 });
-define("ol3-lab/ux/styles/star/flower", ["require", "exports"], function (require, exports) {
+define("bower_components/ol3-symbolizer/ol3-symbolizer/styles/star/flower", ["require", "exports"], function (require, exports) {
     "use strict";
     return [
         {
@@ -2627,7 +2627,7 @@ define("ol3-lab/labs/common/snapshot", ["require", "exports", "ol3-lab/labs/comm
     }());
     return Snapshot;
 });
-define("ol3-lab/ux/styles/basic", ["require", "exports"], function (require, exports) {
+define("bower_components/ol3-symbolizer/ol3-symbolizer/styles/basic", ["require", "exports"], function (require, exports) {
     "use strict";
     var stroke = {
         color: 'black',
@@ -2693,7 +2693,7 @@ define("ol3-lab/ux/styles/basic", ["require", "exports"], function (require, exp
         x: [{ star: x }]
     };
 });
-define("ol3-lab/ux/styles/fill/gradient", ["require", "exports"], function (require, exports) {
+define("bower_components/ol3-symbolizer/ol3-symbolizer/styles/fill/gradient", ["require", "exports"], function (require, exports) {
     "use strict";
     return [
         {
@@ -2714,7 +2714,7 @@ define("ol3-lab/ux/styles/fill/gradient", ["require", "exports"], function (requ
         }
     ];
 });
-define("ol3-lab/labs/common/style-generator", ["require", "exports", "openlayers", "ol3-lab/ux/styles/basic", "bower_components/ol3-symbolizer/ol3-symbolizer"], function (require, exports, ol, basic_styles, ol3_symbolizer_2) {
+define("ol3-lab/labs/common/style-generator", ["require", "exports", "openlayers", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/basic", "bower_components/ol3-symbolizer/ol3-symbolizer"], function (require, exports, ol, basic_styles, ol3_symbolizer_2) {
     "use strict";
     var converter = new ol3_symbolizer_2.StyleConverter();
     var orientations = "forward,backward,diagonal,horizontal,vertical,cross".split(",");
@@ -3204,7 +3204,7 @@ define("ol3-lab/labs/facebook", ["require", "exports", "openlayers", "jquery"], 
     }
     exports.run = run;
 });
-define("ol3-lab/ux/styles/stroke/linedash", ["require", "exports"], function (require, exports) {
+define("bower_components/ol3-symbolizer/ol3-symbolizer/styles/stroke/linedash", ["require", "exports"], function (require, exports) {
     "use strict";
     var dasharray = {
         solid: "none",
@@ -3221,7 +3221,7 @@ define("ol3-lab/ux/styles/stroke/linedash", ["require", "exports"], function (re
     };
     return dasharray;
 });
-define("ol3-lab/ux/styles/stroke/dashdotdot", ["require", "exports", "ol3-lab/ux/styles/stroke/linedash"], function (require, exports, Dashes) {
+define("bower_components/ol3-symbolizer/ol3-symbolizer/styles/stroke/dashdotdot", ["require", "exports", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/stroke/linedash"], function (require, exports, Dashes) {
     "use strict";
     return [
         {
@@ -3233,7 +3233,7 @@ define("ol3-lab/ux/styles/stroke/dashdotdot", ["require", "exports", "ol3-lab/ux
         }
     ];
 });
-define("ol3-lab/ux/styles/stroke/solid", ["require", "exports"], function (require, exports) {
+define("bower_components/ol3-symbolizer/ol3-symbolizer/styles/stroke/solid", ["require", "exports"], function (require, exports) {
     "use strict";
     return [
         {
@@ -3244,7 +3244,7 @@ define("ol3-lab/ux/styles/stroke/solid", ["require", "exports"], function (requi
         }
     ];
 });
-define("ol3-lab/ux/styles/text/text", ["require", "exports"], function (require, exports) {
+define("bower_components/ol3-symbolizer/ol3-symbolizer/styles/text/text", ["require", "exports"], function (require, exports) {
     "use strict";
     return [
         {
@@ -3264,7 +3264,7 @@ define("ol3-lab/ux/styles/text/text", ["require", "exports"], function (require,
         }
     ];
 });
-define("ol3-lab/labs/mapmaker", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/common/common", "ol3-lab/labs/common/ol3-polyline", "bower_components/ol3-symbolizer/ol3-symbolizer", "ol3-lab/ux/styles/stroke/dashdotdot", "ol3-lab/ux/styles/stroke/solid", "ol3-lab/ux/styles/text/text", "ol3-lab/labs/common/myjson"], function (require, exports, $, ol, common_4, reduce, ol3_symbolizer_3, dashdotdot, strokeStyle, textStyle, myjson_1) {
+define("ol3-lab/labs/mapmaker", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/common/common", "ol3-lab/labs/common/ol3-polyline", "bower_components/ol3-symbolizer/ol3-symbolizer", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/stroke/dashdotdot", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/stroke/solid", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/text/text", "ol3-lab/labs/common/myjson"], function (require, exports, $, ol, common_4, reduce, ol3_symbolizer_3, dashdotdot, strokeStyle, textStyle, myjson_1) {
     "use strict";
     var styler = new ol3_symbolizer_3.StyleConverter();
     function parse(v, type) {
@@ -3430,8 +3430,32 @@ define("ol3-lab/labs/mapmaker", ["require", "exports", "jquery", "openlayers", "
     }
     exports.run = run;
 });
-define("ol3-lab/ux/controls/input", ["require", "exports", "openlayers", "ol3-lab/labs/common/common"], function (require, exports, ol, common_5) {
+define("bower_components/ol3-input/ol3-input/ol3-input", ["require", "exports", "openlayers"], function (require, exports, ol) {
     "use strict";
+    function cssin(name, css) {
+        var id = "style-" + name;
+        var styleTag = document.getElementById(id);
+        if (!styleTag) {
+            styleTag = document.createElement("style");
+            styleTag.id = id;
+            styleTag.innerText = css;
+            document.head.appendChild(styleTag);
+        }
+        var dataset = styleTag.dataset;
+        dataset["count"] = parseInt(dataset["count"] || "0") + 1 + "";
+        return function () {
+            dataset["count"] = parseInt(dataset["count"] || "0") - 1 + "";
+            if (dataset["count"] === "0") {
+                styleTag.remove();
+            }
+        };
+    }
+    exports.cssin = cssin;
+    function mixin(a, b) {
+        Object.keys(b).forEach(function (k) { return a[k] = b[k]; });
+        return a;
+    }
+    exports.mixin = mixin;
     var css = "\n    .ol-input {\n        position:absolute;\n    }\n    .ol-input.top {\n        top: 0.5em;\n    }\n    .ol-input.left {\n        left: 0.5em;\n    }\n    .ol-input.bottom {\n        bottom: 0.5em;\n    }\n    .ol-input.right {\n        right: 0.5em;\n    }\n    .ol-input.top.left {\n        top: 4.5em;\n    }\n    .ol-input button {\n        min-height: 1.375em;\n        min-width: 1.375em;\n        width: auto;\n        display: inline;\n    }\n    .ol-input.left button {\n        float:right;\n    }\n    .ol-input.right button {\n        float:left;\n    }\n    .ol-input input {\n        height: 24px;\n        min-width: 240px;\n        border: none;\n        padding: 0;\n        margin: 0;\n        margin-left: 2px;\n        margin-top: 1px;\n        vertical-align: top;\n    }\n    .ol-input input.hidden {\n        display: none;\n    }\n";
     var olcss = {
         CLASS_CONTROL: 'ol-control',
@@ -3450,9 +3474,9 @@ define("ol3-lab/ux/controls/input", ["require", "exports", "openlayers", "ol3-la
         openedText: expando.left,
         placeholderText: 'Search'
     };
-    var Geocoder = (function (_super) {
-        __extends(Geocoder, _super);
-        function Geocoder(options) {
+    var Input = (function (_super) {
+        __extends(Input, _super);
+        function Input(options) {
             var _this = _super.call(this, {
                 element: options.element,
                 target: options.target
@@ -3487,32 +3511,32 @@ define("ol3-lab/ux/controls/input", ["require", "exports", "openlayers", "ol3-la
             options.expanded ? _this.expand(options) : _this.collapse(options);
             return _this;
         }
-        Geocoder.create = function (options) {
-            common_5.cssin('ol-input', css);
-            options = common_5.mixin({
+        Input.create = function (options) {
+            cssin('ol-input', css);
+            options = mixin({
                 openedText: options.className && -1 < options.className.indexOf("left") ? expando.left : expando.right,
                 closedText: options.className && -1 < options.className.indexOf("left") ? expando.right : expando.left
             }, options || {});
-            options = common_5.mixin(common_5.mixin({}, defaults), options);
+            options = mixin(mixin({}, defaults), options);
             var element = document.createElement('div');
             element.className = options.className + " " + olcss.CLASS_UNSELECTABLE + " " + olcss.CLASS_CONTROL;
-            var geocoderOptions = common_5.mixin({
+            var geocoderOptions = mixin({
                 element: element,
                 target: options.target,
                 expanded: false
             }, options);
-            return new Geocoder(geocoderOptions);
+            return new Input(geocoderOptions);
         };
-        Geocoder.prototype.dispose = function () {
+        Input.prototype.dispose = function () {
             debugger;
         };
-        Geocoder.prototype.collapse = function (options) {
+        Input.prototype.collapse = function (options) {
             options.expanded = false;
             this.input.classList.toggle("hidden", true);
             this.button.classList.toggle("hidden", false);
             this.button.innerHTML = options.closedText;
         };
-        Geocoder.prototype.expand = function (options) {
+        Input.prototype.expand = function (options) {
             options.expanded = true;
             this.input.classList.toggle("hidden", false);
             this.button.classList.toggle("hidden", true);
@@ -3520,11 +3544,15 @@ define("ol3-lab/ux/controls/input", ["require", "exports", "openlayers", "ol3-la
             this.input.focus();
             this.input.select();
         };
-        return Geocoder;
+        return Input;
     }(ol.control.Control));
-    exports.Geocoder = Geocoder;
+    exports.Input = Input;
 });
-define("ol3-lab/labs/providers/osm", ["require", "exports"], function (require, exports) {
+define("bower_components/ol3-input/index", ["require", "exports", "bower_components/ol3-input/ol3-input/ol3-input"], function (require, exports, Input) {
+    "use strict";
+    return Input;
+});
+define("bower_components/ol3-input/ol3-input/providers/osm", ["require", "exports"], function (require, exports) {
     "use strict";
     var OpenStreet = (function () {
         function OpenStreet() {
@@ -3574,7 +3602,7 @@ define("ol3-lab/labs/providers/osm", ["require", "exports"], function (require, 
     }());
     exports.OpenStreet = OpenStreet;
 });
-define("ol3-lab/labs/geocoder", ["require", "exports", "ol3-lab/labs/mapmaker", "ol3-lab/ux/controls/input", "ol3-lab/labs/providers/osm"], function (require, exports, MapMaker, input_3, osm_1) {
+define("ol3-lab/labs/geocoder", ["require", "exports", "ol3-lab/labs/mapmaker", "bower_components/ol3-input/index", "bower_components/ol3-input/ol3-input/providers/osm"], function (require, exports, MapMaker, ol3_input_1, osm_1) {
     "use strict";
     function run() {
         MapMaker.run().then(function (map) {
@@ -3611,26 +3639,26 @@ define("ol3-lab/labs/geocoder", ["require", "exports", "ol3-lab/labs/mapmaker", 
                     console.error("geocoder failed");
                 });
             };
-            var geocoder = input_3.Geocoder.create({
+            var geocoder = ol3_input_1.Input.create({
                 closedText: "+",
                 openedText: "−",
                 placeholderText: "Bottom Left Search",
                 onChange: changeHandler
             });
             map.addControl(geocoder);
-            map.addControl(input_3.Geocoder.create({
+            map.addControl(ol3_input_1.Input.create({
                 className: 'ol-input bottom right',
                 expanded: true,
                 placeholderText: "Bottom Right Search",
                 onChange: changeHandler
             }));
-            map.addControl(input_3.Geocoder.create({
+            map.addControl(ol3_input_1.Input.create({
                 className: 'ol-input top right',
                 expanded: false,
                 placeholderText: "Top Right",
                 onChange: changeHandler
             }));
-            map.addControl(input_3.Geocoder.create({
+            map.addControl(ol3_input_1.Input.create({
                 className: 'ol-input top left',
                 expanded: false,
                 placeholderText: "Top Left Search",
@@ -4105,7 +4133,7 @@ define("bower_components/ol3-panzoom/index", ["require", "exports", "bower_compo
     "use strict";
     return Panzoom;
 });
-define("ol3-lab/labs/layerswitcher", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/common/common", "bower_components/ol3-symbolizer/ol3-symbolizer", "bower_components/ol3-layerswitcher/ol3-layerswitcher", "bower_components/ol3-popup/ol3-popup", "bower_components/ol3-panzoom/index", "bower_components/ol3-symbolizer/ol3-symbolizer/ags/ags-source"], function (require, exports, $, ol, common_6, ol3_symbolizer_4, ol3_layerswitcher_2, ol3_popup_2, index_1, ags_source_2) {
+define("ol3-lab/labs/layerswitcher", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/common/common", "bower_components/ol3-symbolizer/ol3-symbolizer", "bower_components/ol3-layerswitcher/ol3-layerswitcher", "bower_components/ol3-popup/ol3-popup", "bower_components/ol3-panzoom/index", "bower_components/ol3-symbolizer/ol3-symbolizer/ags/ags-source"], function (require, exports, $, ol, common_5, ol3_symbolizer_4, ol3_layerswitcher_2, ol3_popup_2, index_1, ags_source_2) {
     "use strict";
     var styler = new ol3_symbolizer_4.StyleConverter();
     function parse(v, type) {
@@ -4139,7 +4167,7 @@ define("ol3-lab/labs/layerswitcher", ["require", "exports", "jquery", "openlayer
         {
             var opts_5 = options;
             Object.keys(opts_5).forEach(function (k) {
-                common_6.doif(common_6.getParameterByName(k), function (v) {
+                common_5.doif(common_5.getParameterByName(k), function (v) {
                     var value = parse(v, opts_5[k]);
                     if (value !== undefined)
                         opts_5[k] = value;
@@ -4315,40 +4343,7 @@ define("ol3-lab/labs/polyline-encoder", ["require", "exports", "jquery", "openla
     }
     exports.run = run;
 });
-define("bower_components/ol3-symbolizer/ol3-symbolizer/styles/star/flower", ["require", "exports"], function (require, exports) {
-    "use strict";
-    return [
-        {
-            "star": {
-                "fill": {
-                    "color": "rgba(106,9,251,0.7)"
-                },
-                "opacity": 1,
-                "stroke": {
-                    "color": "rgba(42,128,244,0.8)",
-                    "width": 8
-                },
-                "radius": 14,
-                "radius2": 9,
-                "points": 10
-            },
-            "text": {
-                "fill": {
-                    "color": "rgba(255,255,255,1)"
-                },
-                "stroke": {
-                    "color": "rgba(0,0,0,1)",
-                    "width": 2
-                },
-                "text": "Test",
-                "offset-x": 0,
-                "offset-y": 20,
-                "font": "18px fantasy"
-            }
-        }
-    ];
-});
-define("ol3-lab/labs/popup", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/common/common", "bower_components/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/star/flower", "bower_components/ol3-popup/ol3-popup"], function (require, exports, $, ol, common_7, ol3_symbolizer_5, pointStyle, ol3_popup_3) {
+define("ol3-lab/labs/popup", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/common/common", "bower_components/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/star/flower", "bower_components/ol3-popup/ol3-popup"], function (require, exports, $, ol, common_6, ol3_symbolizer_5, pointStyle, ol3_popup_3) {
     "use strict";
     var styler = new ol3_symbolizer_5.StyleConverter();
     function parse(v, type) {
@@ -4378,7 +4373,7 @@ define("ol3-lab/labs/popup", ["require", "exports", "jquery", "openlayers", "ol3
         {
             var opts_6 = options;
             Object.keys(opts_6).forEach(function (k) {
-                common_7.doif(common_7.getParameterByName(k), function (v) {
+                common_6.doif(common_6.getParameterByName(k), function (v) {
                     var value = parse(v, opts_6[k]);
                     if (value !== undefined)
                         opts_6[k] = value;
@@ -4442,7 +4437,7 @@ define("ol3-lab/labs/popup", ["require", "exports", "jquery", "openlayers", "ol3
     }
     exports.run = run;
 });
-define("ol3-lab/labs/route-editor", ["require", "exports", "openlayers", "bower_components/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", "ol3-lab/labs/common/common"], function (require, exports, ol, ol3_symbolizer_6, common_8) {
+define("ol3-lab/labs/route-editor", ["require", "exports", "openlayers", "bower_components/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", "ol3-lab/labs/common/common"], function (require, exports, ol, ol3_symbolizer_6, common_7) {
     "use strict";
     var delta = 16;
     var formatter = new ol3_symbolizer_6.StyleConverter();
@@ -4467,7 +4462,7 @@ define("ol3-lab/labs/route-editor", ["require", "exports", "openlayers", "bower_
     ]; };
     var Route = (function () {
         function Route(options) {
-            this.options = common_8.defaults(options, {
+            this.options = common_7.defaults(options, {
                 color: "black",
                 delta: delta,
                 stops: [],
@@ -4926,7 +4921,7 @@ define("ol3-lab/labs/style-to-canvas", ["require", "exports", "openlayers", "jqu
     }
     exports.run = run;
 });
-define("ol3-lab/ux/styles/icon/png", ["require", "exports"], function (require, exports) {
+define("bower_components/ol3-symbolizer/ol3-symbolizer/styles/icon/png", ["require", "exports"], function (require, exports) {
     "use strict";
     return [
         {
@@ -4956,7 +4951,7 @@ define("ol3-lab/ux/styles/icon/png", ["require", "exports"], function (require, 
         }
     ];
 });
-define("ol3-lab/labs/style-viewer", ["require", "exports", "openlayers", "jquery", "ol3-lab/labs/common/snapshot", "ol3-lab/labs/common/common", "bower_components/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", "ol3-lab/ux/styles/icon/png"], function (require, exports, ol, $, Snapshot, common_9, ol3_symbolizer_8, pointStyle) {
+define("ol3-lab/labs/style-viewer", ["require", "exports", "openlayers", "jquery", "ol3-lab/labs/common/snapshot", "ol3-lab/labs/common/common", "bower_components/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/icon/png"], function (require, exports, ol, $, Snapshot, common_8, ol3_symbolizer_8, pointStyle) {
     "use strict";
     var html = "\n<div class='style-to-canvas'>\n    <h3>Renders a feature on a canvas</h3>\n    <div class=\"area\">\n        <label>256 x 256 Canvas</label>\n        <div id='canvas-collection'></div>\n    </div>\n    <div class=\"area\">\n        <label>Style</label>\n        <textarea class='style'></textarea>\n        <button class=\"save\">Save</button>\n    </div>\n    <div class=\"area\">\n        <label>Potential control for setting linear gradient start/stop locations</label>\n        <div class=\"colorramp\">\n            <input class=\"top\" type=\"range\" min=\"0\" max=\"100\" value=\"20\"/>\n            <input class=\"bottom\" type=\"range\" min=\"0\" max=\"100\" value=\"80\"/>\n        </div>\n    </div>\n</div>\n";
     var css = "\n<style>\n    #map {\n        display: none;\n    }\n\n    .style-to-canvas {\n    }\n\n    .style-to-canvas .area label {\n        display: block;\n        vertical-align: top;\n    }\n\n    .style-to-canvas .area {\n        border: 1px solid black;\n        padding: 20px;\n        margin: 20px;\n    }\n\n    .style-to-canvas .area .style {\n        width: 100%;\n        height: 400px;\n    }\n\n    .style-to-canvas #canvas-collection canvas {\n        font-family: sans serif;\n        font-size: 20px;\n        border: 1px solid black;\n        padding: 20px;\n        margin: 20px;\n    }\n\n    div.colorramp {\n        display: inline-block;\n        background: linear-gradient(to right, rgba(250,0,0,0), rgba(250,0,0,1) 60%, rgba(250,100,0,1) 85%, rgb(250,250,0) 95%);\n        width:100%;\n    }\n\n    div.colorramp > input[type=range] {\n        -webkit-appearance: slider-horizontal;\n        display:block;\n        width:100%;\n        background-color:transparent;\n    }\n\n    div.colorramp > label {\n        display: inline-block;\n    }\n\n    div.colorramp > input[type='range'] {\n        box-shadow: 0 0 0 white;\n    }\n\n    div.colorramp > input[type=range]::-webkit-slider-runnable-track {\n        height: 0px;     \n    }\n\n    div.colorramp > input[type='range'].top::-webkit-slider-thumb {\n        margin-top: -10px;\n    }\n\n    div.colorramp > input[type='range'].bottom::-webkit-slider-thumb {\n        margin-top: -12px;\n    }\n    \n</style>\n";
@@ -4967,7 +4962,7 @@ define("ol3-lab/labs/style-viewer", ["require", "exports", "openlayers", "jquery
             d.resolve(JSON.parse(name));
         }
         else {
-            var mids = name.split(",").map(function (name) { return "../ux/styles/" + name; });
+            var mids = name.split(",").map(function (name) { return "bower_components/ol3-symbolizer/ol3-symbolizer/styles/" + name; });
             require(mids, function () {
                 var styles = [];
                 for (var _i = 0; _i < arguments.length; _i++) {
@@ -5021,8 +5016,8 @@ define("ol3-lab/labs/style-viewer", ["require", "exports", "openlayers", "jquery
         $(html).appendTo("body");
         $(svg).appendTo("body");
         $(css).appendTo("head");
-        var geom = common_9.getParameterByName("geom") || "polygon-with-holes";
-        var style = common_9.getParameterByName("style") || "fill/gradient";
+        var geom = common_8.getParameterByName("geom") || "polygon-with-holes";
+        var style = common_8.getParameterByName("style") || "fill/gradient";
         $(".save").click(function () {
             var style = JSON.stringify(JSON.parse($(".style").val()));
             var loc = window.location;
@@ -6112,7 +6107,7 @@ define("ol3-lab/tests/webmap", ["require", "exports", "jquery"], function (requi
     }
     exports.run = run;
 });
-define("ol3-lab/ux/styles/ags/simplemarkersymbol-circle", ["require", "exports"], function (require, exports) {
+define("bower_components/ol3-symbolizer/ol3-symbolizer/styles/ags/simplemarkersymbol-circle", ["require", "exports"], function (require, exports) {
     "use strict";
     var styles = [{
             "color": [
@@ -6141,7 +6136,7 @@ define("ol3-lab/ux/styles/ags/simplemarkersymbol-circle", ["require", "exports"]
         }];
     return styles;
 });
-define("ol3-lab/ux/styles/ags/simplemarkersymbol-cross", ["require", "exports"], function (require, exports) {
+define("bower_components/ol3-symbolizer/ol3-symbolizer/styles/ags/simplemarkersymbol-cross", ["require", "exports"], function (require, exports) {
     "use strict";
     return [
         {
@@ -6171,7 +6166,7 @@ define("ol3-lab/ux/styles/ags/simplemarkersymbol-cross", ["require", "exports"],
         }
     ];
 });
-define("ol3-lab/ux/styles/ags/simplemarkersymbol-square", ["require", "exports"], function (require, exports) {
+define("bower_components/ol3-symbolizer/ol3-symbolizer/styles/ags/simplemarkersymbol-square", ["require", "exports"], function (require, exports) {
     "use strict";
     return [
         {
@@ -6201,7 +6196,7 @@ define("ol3-lab/ux/styles/ags/simplemarkersymbol-square", ["require", "exports"]
         }
     ];
 });
-define("ol3-lab/ux/styles/ags/simplemarkersymbol-diamond", ["require", "exports"], function (require, exports) {
+define("bower_components/ol3-symbolizer/ol3-symbolizer/styles/ags/simplemarkersymbol-diamond", ["require", "exports"], function (require, exports) {
     "use strict";
     return [
         {
@@ -6231,7 +6226,7 @@ define("ol3-lab/ux/styles/ags/simplemarkersymbol-diamond", ["require", "exports"
         }
     ];
 });
-define("ol3-lab/ux/styles/ags/simplemarkersymbol-path", ["require", "exports"], function (require, exports) {
+define("bower_components/ol3-symbolizer/ol3-symbolizer/styles/ags/simplemarkersymbol-path", ["require", "exports"], function (require, exports) {
     "use strict";
     return [
         {
@@ -6262,10 +6257,9 @@ define("ol3-lab/ux/styles/ags/simplemarkersymbol-path", ["require", "exports"], 
         }
     ];
 });
-define("ol3-lab/ux/styles/ags/simplemarkersymbol-x", ["require", "exports"], function (require, exports) {
+define("bower_components/ol3-symbolizer/ol3-symbolizer/styles/ags/simplemarkersymbol-x", ["require", "exports"], function (require, exports) {
     "use strict";
-    return [
-        {
+    return [{
             "color": [
                 255,
                 255,
@@ -6289,10 +6283,9 @@ define("ol3-lab/ux/styles/ags/simplemarkersymbol-x", ["require", "exports"], fun
                 "type": "esriSLS",
                 "style": "esriSLSSolid"
             }
-        }
-    ];
+        }];
 });
-define("ol3-lab/ux/styles/ags/picturemarkersymbol", ["require", "exports"], function (require, exports) {
+define("bower_components/ol3-symbolizer/ol3-symbolizer/styles/ags/picturemarkersymbol", ["require", "exports"], function (require, exports) {
     "use strict";
     return [
         {
@@ -6306,7 +6299,7 @@ define("ol3-lab/ux/styles/ags/picturemarkersymbol", ["require", "exports"], func
         }
     ];
 });
-define("ol3-lab/ux/styles/ags/picturemarkersymbol-imagedata", ["require", "exports"], function (require, exports) {
+define("bower_components/ol3-symbolizer/ol3-symbolizer/styles/ags/picturemarkersymbol-imagedata", ["require", "exports"], function (require, exports) {
     "use strict";
     var style = [{
             "type": "esriPMS",
@@ -6322,7 +6315,7 @@ define("ol3-lab/ux/styles/ags/picturemarkersymbol-imagedata", ["require", "expor
         }];
     return style;
 });
-define("ol3-lab/ux/ags-symbols", ["require", "exports", "openlayers", "ol3-lab/labs/common/style-generator", "ol3-lab/ux/styles/ags/simplemarkersymbol-circle", "ol3-lab/ux/styles/ags/simplemarkersymbol-cross", "ol3-lab/ux/styles/ags/simplemarkersymbol-square", "ol3-lab/ux/styles/ags/simplemarkersymbol-diamond", "ol3-lab/ux/styles/ags/simplemarkersymbol-path", "ol3-lab/ux/styles/ags/simplemarkersymbol-x", "ol3-lab/ux/styles/ags/picturemarkersymbol", "ol3-lab/ux/styles/ags/picturemarkersymbol-imagedata", "bower_components/ol3-symbolizer/ol3-symbolizer/format/ags-symbolizer"], function (require, exports, ol, StyleGenerator, circleSymbol, crossSymbol, squareSymbol, diamondSymbol, pathSymbol, xSymbol, iconurl, iconimagedata, ags_symbolizer_2) {
+define("ol3-lab/ux/ags-symbols", ["require", "exports", "openlayers", "ol3-lab/labs/common/style-generator", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/ags/simplemarkersymbol-circle", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/ags/simplemarkersymbol-cross", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/ags/simplemarkersymbol-square", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/ags/simplemarkersymbol-diamond", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/ags/simplemarkersymbol-path", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/ags/simplemarkersymbol-x", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/ags/picturemarkersymbol", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/ags/picturemarkersymbol-imagedata", "bower_components/ol3-symbolizer/ol3-symbolizer/format/ags-symbolizer"], function (require, exports, ol, StyleGenerator, circleSymbol, crossSymbol, squareSymbol, diamondSymbol, pathSymbol, xSymbol, iconurl, iconimagedata, ags_symbolizer_2) {
     "use strict";
     var center = [-82.4, 34.85];
     function run() {
@@ -6440,349 +6433,5 @@ define("ol3-lab/ux/serializers/ags-simplefillsymbol", ["require", "exports"], fu
         return SimpleFillConverter;
     }());
     exports.SimpleFillConverter = SimpleFillConverter;
-});
-define("ol3-lab/ux/styles/ags/cartographiclinesymbol", ["require", "exports"], function (require, exports) {
-    "use strict";
-    var symbol = function () { return ({
-        "type": "esriSLS",
-        "style": "esriSLSLongDashDot",
-        "color": [
-            152,
-            230,
-            0,
-            255
-        ],
-        "width": 1,
-        "cap": "esriLCSButt",
-        "join": "esriLJSBevel",
-        "miterLimit": 9.75
-    }); };
-    var styles = "Dash,DashDot,DashDotDot,Dot,LongDash,LongDashDot,ShortDash,ShortDashDot,ShortDashDotDot,ShortDot,Solid".split(",");
-    var caps = "Butt,Round,Square".split(",");
-    var joins = "Bevel,Miter,Round".split(",");
-    var symbols = styles.map(function (style, i) {
-        var result = symbol();
-        result.style = "esriSLS" + style;
-        result.cap = "esriLCS" + caps[i % caps.length];
-        result.join = "esriLJS" + joins[i % joins.length];
-        return result;
-    });
-    return symbols;
-});
-define("ol3-lab/ux/styles/ags/picturefillsymbol", ["require", "exports"], function (require, exports) {
-    "use strict";
-    return [{
-            "color": [
-                0,
-                0,
-                0,
-                255
-            ],
-            "type": "esriPFS",
-            "url": "http://www.free.designquery.com/01/bg0245.jpg",
-            "width": 112.5,
-            "height": 112.5,
-            "xoffset": 0,
-            "yoffset": 0,
-            "xscale": 1,
-            "yscale": 1
-        }];
-});
-define("ol3-lab/ux/styles/ags/simplefillsymbol", ["require", "exports"], function (require, exports) {
-    "use strict";
-    var symbol = function () { return ({
-        "color": [
-            0,
-            0,
-            0,
-            64
-        ],
-        "outline": {
-            "color": [
-                0,
-                0,
-                0,
-                255
-            ],
-            "width": 1.5,
-            "type": "esriSLS",
-            "style": "esriSLSDashDotDot"
-        },
-        "type": "esriSFS",
-        "style": "esriSFSBackwardDiagonal"
-    }); };
-    var styles = "BackwardDiagonal,Cross,DiagonalCross,ForwardDiagonal,Horizontal,Solid,Vertical".split(",");
-    var symbols = styles.map(function (style) {
-        var result = symbol();
-        result.style = "esriSFS" + style;
-        return result;
-    });
-    return symbols;
-});
-define("ol3-lab/ux/styles/ags/textsymbol", ["require", "exports"], function (require, exports) {
-    "use strict";
-    return [
-        {
-            "color": [
-                0,
-                0,
-                0,
-                255
-            ],
-            "type": "esriTS",
-            "horizontalAlignment": "center",
-            "angle": 0,
-            "xoffset": 0,
-            "yoffset": 0,
-            "text": "Sample Text",
-            "rotated": false,
-            "kerning": true,
-            "font": {
-                "size": 10,
-                "style": "normal",
-                "variant": "normal",
-                "weight": "normal",
-                "family": "serif"
-            }
-        }
-    ];
-});
-define("ol3-lab/ux/styles/circle/alert", ["require", "exports"], function (require, exports) {
-    "use strict";
-    return [
-        {
-            "circle": {
-                "fill": {
-                    "color": "rgba(197,37,84,0.90)"
-                },
-                "opacity": 1,
-                "stroke": {
-                    "color": "rgba(227,83,105,1)",
-                    "width": 4.4
-                },
-                "radius": 7.3
-            },
-            "text": {
-                "fill": {
-                    "color": "rgba(205,86,109,0.9)"
-                },
-                "stroke": {
-                    "color": "rgba(252,175,131,0.5)",
-                    "width": 2
-                },
-                "text": "Test",
-                "offset-x": 0,
-                "offset-y": 20,
-                "font": "18px fantasy"
-            }
-        }
-    ];
-});
-define("ol3-lab/ux/styles/circle/gradient", ["require", "exports"], function (require, exports) {
-    "use strict";
-    return [
-        {
-            "circle": {
-                "fill": {
-                    "color": "rgba(197,37,84,0.2)",
-                    "gradient": ["rgba(197,37,84,0.2)", "rgba(197,37,84,0.8)"]
-                },
-                "opacity": 1,
-                "stroke": {
-                    "color": "rgba(227,83,105,0.5)",
-                    "width": 4
-                },
-                "radius": 7
-            }
-        }
-    ];
-});
-define("ol3-lab/ux/styles/fill/cross", ["require", "exports"], function (require, exports) {
-    "use strict";
-    return [{
-            "fill": {
-                "pattern": {
-                    "orientation": "cross",
-                    "color": "rgba(12,236,43,1)",
-                    "spacing": 7,
-                    "repitition": "repeat"
-                }
-            }
-        }];
-});
-define("ol3-lab/ux/styles/fill/diagonal", ["require", "exports"], function (require, exports) {
-    "use strict";
-    return [
-        {
-            "fill": {
-                "pattern": {
-                    "orientation": "diagonal",
-                    "color": "rgba(230,113,26,1)",
-                    "spacing": 3,
-                    "repitition": "repeat"
-                }
-            }
-        }
-    ];
-});
-define("ol3-lab/ux/styles/fill/horizontal", ["require", "exports"], function (require, exports) {
-    "use strict";
-    return [{
-            "fill": {
-                "pattern": {
-                    "orientation": "horizontal",
-                    "color": "rgba(115,38,12,1)",
-                    "spacing": 6,
-                    "repitition": "repeat"
-                }
-            }
-        }];
-});
-define("ol3-lab/ux/styles/fill/vertical", ["require", "exports"], function (require, exports) {
-    "use strict";
-    return [{
-            "fill": {
-                "pattern": {
-                    "orientation": "vertical",
-                    "color": "rgba(12,236,43,1)",
-                    "spacing": 7,
-                    "repitition": "repeat"
-                }
-            }
-        }];
-});
-define("ol3-lab/ux/styles/icon/svg", ["require", "exports"], function (require, exports) {
-    "use strict";
-    return [
-        {
-            "image": {
-                "imgSize": [
-                    48,
-                    48
-                ],
-                "stroke": {
-                    "color": "rgba(255,25,0,0.8)",
-                    "width": 10
-                },
-                "path": "M23 2 L23 23 L43 16.5 L23 23 L35 40 L23 23 L11 40 L23 23 L3 17 L23 23 L23 2 Z"
-            }
-        }
-    ];
-});
-define("ol3-lab/ux/styles/peace", ["require", "exports"], function (require, exports) {
-    "use strict";
-    return [
-        {
-            "star": {
-                "fill": {
-                    "color": "rgba(182,74,9,0.2635968300410687)"
-                },
-                "opacity": 1,
-                "stroke": {
-                    "color": "rgba(49,14,23,0.6699808995760113)",
-                    "width": 3.4639032010315107
-                },
-                "radius": 6.63376222856383,
-                "radius2": 0,
-                "points": 3
-            },
-            "text": {
-                "fill": {
-                    "color": "rgba(207,45,78,0.44950090791791375)"
-                },
-                "stroke": {
-                    "color": "rgba(233,121,254,0.3105821877136521)",
-                    "width": 4.019676388210171
-                },
-                "text": "Test",
-                "offset-x": 0,
-                "offset-y": 14.239434215855646,
-                "font": "18px fantasy"
-            }
-        }
-    ];
-});
-define("ol3-lab/ux/styles/star/4star", ["require", "exports"], function (require, exports) {
-    "use strict";
-    return [
-        {
-            "star": {
-                "fill": {
-                    "color": "rgba(238,162,144,0.4)"
-                },
-                "opacity": 1,
-                "stroke": {
-                    "color": "rgba(169,141,168,0.8)",
-                    "width": 5
-                },
-                "radius": 13,
-                "radius2": 7,
-                "points": 4
-            }
-        }
-    ];
-});
-define("ol3-lab/ux/styles/star/6star", ["require", "exports"], function (require, exports) {
-    "use strict";
-    return [
-        {
-            "star": {
-                "fill": {
-                    "color": "rgba(54,47,234,1)"
-                },
-                "stroke": {
-                    "color": "rgba(75,92,105,0.85)",
-                    "width": 4
-                },
-                "radius": 9,
-                "radius2": 0,
-                "points": 6
-            }
-        }
-    ];
-});
-define("ol3-lab/ux/styles/star/cold", ["require", "exports"], function (require, exports) {
-    "use strict";
-    return [
-        {
-            "star": {
-                "fill": {
-                    "color": "rgb(127,220,241)"
-                },
-                "opacity": 0.5,
-                "stroke": {
-                    "color": "rgb(160,164,166)",
-                    "width": 3
-                },
-                "radius": 11,
-                "radius2": 5,
-                "points": 12
-            }
-        }
-    ];
-});
-define("ol3-lab/ux/styles/stroke/dash", ["require", "exports", "ol3-lab/ux/styles/stroke/linedash"], function (require, exports, Dashes) {
-    "use strict";
-    return [
-        {
-            "stroke": {
-                "color": "red",
-                "width": 2,
-                "lineDash": Dashes.dash
-            }
-        }
-    ];
-});
-define("ol3-lab/ux/styles/stroke/dot", ["require", "exports", "ol3-lab/ux/styles/stroke/linedash"], function (require, exports, Dashes) {
-    "use strict";
-    return [
-        {
-            "stroke": {
-                "color": "yellow",
-                "width": 2,
-                "lineDash": Dashes.dot
-            }
-        }
-    ];
 });
 //# sourceMappingURL=index.js.map

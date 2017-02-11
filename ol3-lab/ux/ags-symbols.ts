@@ -4,14 +4,14 @@
 import ol = require("openlayers");
 import StyleGenerator = require("../labs/common/style-generator");
 
-import circleSymbol = require("./styles/ags/simplemarkersymbol-circle");
-import crossSymbol = require("./styles/ags/simplemarkersymbol-cross");
-import squareSymbol = require("./styles/ags/simplemarkersymbol-square");
-import diamondSymbol = require("./styles/ags/simplemarkersymbol-diamond");
-import pathSymbol = require("./styles/ags/simplemarkersymbol-path");
-import xSymbol = require("./styles/ags/simplemarkersymbol-x");
-import iconurl = require("./styles/ags/picturemarkersymbol");
-import iconimagedata = require("./styles/ags/picturemarkersymbol-imagedata");
+import circleSymbol = require("ol3-symbolizer/ol3-symbolizer/styles/ags/simplemarkersymbol-circle");
+import crossSymbol = require("ol3-symbolizer/ol3-symbolizer/styles/ags/simplemarkersymbol-cross");
+import squareSymbol = require("ol3-symbolizer/ol3-symbolizer/styles/ags/simplemarkersymbol-square");
+import diamondSymbol = require("ol3-symbolizer/ol3-symbolizer/styles/ags/simplemarkersymbol-diamond");
+import pathSymbol = require("ol3-symbolizer/ol3-symbolizer/styles/ags/simplemarkersymbol-path");
+import xSymbol = require("ol3-symbolizer/ol3-symbolizer/styles/ags/simplemarkersymbol-x");
+import iconurl = require("ol3-symbolizer/ol3-symbolizer/styles/ags/picturemarkersymbol");
+import iconimagedata = require("ol3-symbolizer/ol3-symbolizer/styles/ags/picturemarkersymbol-imagedata");
 
 
 import { StyleConverter } from "ol3-symbolizer/ol3-symbolizer/format/ags-symbolizer";
