@@ -1,5 +1,5 @@
 import ol = require("openlayers");
-import {Format, StyleConverter} from "../alpha/format/ol3-symbolizer";
+import {Format, StyleConverter} from "ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer";
 import {defaults} from "./common/common";
 
 const delta = 16;

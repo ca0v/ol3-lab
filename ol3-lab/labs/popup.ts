@@ -1,8 +1,8 @@
 import $ = require("jquery");
 import ol = require("openlayers");
 import { doif, getParameterByName } from "./common/common";
-import { StyleConverter } from "ol3-symbolizer/format/ol3-symbolizer";
-import pointStyle = require("ol3-symbolizer/styles/star/flower");
+import { StyleConverter } from "ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer";
+import pointStyle = require("ol3-symbolizer/ol3-symbolizer/styles/star/flower");
 import { Popup } from "ol3-popup/ol3-popup";
 
 let styler = new StyleConverter();

@@ -1,4 +1,4 @@
-import Symbolizer = require("ol3-symbolizer/format/ags-symbolizer");
+import Symbolizer = require("ol3-symbolizer/ol3-symbolizer/format/ags-symbolizer");
 
 const AgsSymbolizer = {
     StyleConverter: Symbolizer.StyleConverter

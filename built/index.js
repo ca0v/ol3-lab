@@ -1826,6 +1826,10 @@ define("bower_components/ol3-layerswitcher/ol3-layerswitcher/ol3-layerswitcher",
     }(ol.control.Control));
     exports.LayerSwitcher = LayerSwitcher;
 });
+define("bower_components/ol3-layerswitcher/ol3-layerswitcher", ["require", "exports", "bower_components/ol3-layerswitcher/ol3-layerswitcher/ol3-layerswitcher"], function (require, exports, LayerSwitcher) {
+    "use strict";
+    return LayerSwitcher;
+});
 define("bower_components/ol3-popup/ol3-popup/paging/paging", ["require", "exports", "openlayers"], function (require, exports, ol) {
     "use strict";
     function getInteriorPoint(geom) {
@@ -2321,7 +2325,11 @@ define("bower_components/ol3-popup/ol3-popup/ol3-popup", ["require", "exports", 
     }(ol.Overlay));
     exports.Popup = Popup;
 });
-define("ol3-lab/labs/ags-viewer", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/common/common", "ol3-lab/alpha/format/ol3-symbolizer", "bower_components/ol3-layerswitcher/ol3-layerswitcher/ol3-layerswitcher", "bower_components/ol3-popup/ol3-popup/ol3-popup", "ol3-lab/alpha/arcgis-source"], function (require, exports, $, ol, common_1, ol3_symbolizer_2, ol3_layerswitcher_1, ol3_popup_1, arcgis_source_1) {
+define("bower_components/ol3-popup/ol3-popup", ["require", "exports", "bower_components/ol3-popup/ol3-popup/ol3-popup"], function (require, exports, Popup) {
+    "use strict";
+    return Popup;
+});
+define("ol3-lab/labs/ags-viewer", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/common/common", "ol3-lab/alpha/format/ol3-symbolizer", "bower_components/ol3-layerswitcher/ol3-layerswitcher", "bower_components/ol3-popup/ol3-popup", "ol3-lab/alpha/arcgis-source"], function (require, exports, $, ol, common_1, ol3_symbolizer_2, ol3_layerswitcher_1, ol3_popup_1, arcgis_source_1) {
     "use strict";
     var styler = new ol3_symbolizer_2.StyleConverter();
     function parse(v, type) {
@@ -3355,13 +3363,13 @@ define("ol3-lab/labs/mapmaker", ["require", "exports", "jquery", "openlayers", "
                         if (options.myjson) {
                             myjson_3.id = options.myjson;
                             myjson_3.put().then(function () {
-                                var url = encodeURI(href + "?run=labs/mapmaker&myjson=" + myjson_3.id);
+                                var url = encodeURI(href + "?run=ol3-lab/labs/mapmaker&myjson=" + myjson_3.id);
                                 window.open(url, "_blank");
                             });
                         }
                         else {
                             myjson_3.post().then(function () {
-                                var url = encodeURI(href + "?run=labs/mapmaker&myjson=" + myjson_3.id);
+                                var url = encodeURI(href + "?run=ol3-lab/labs/mapmaker&myjson=" + myjson_3.id);
                                 window.open(url, "_blank");
                             });
                         }
@@ -3369,14 +3377,14 @@ define("ol3-lab/labs/mapmaker", ["require", "exports", "jquery", "openlayers", "
                     else {
                         var opts_3 = options;
                         var querystring = Object.keys(options).map(function (k) { return k + "=" + opts_3[k]; }).join("&");
-                        var url = encodeURI(href + "?run=labs/mapmaker&" + querystring);
+                        var url = encodeURI(href + "?run=ol3-lab/labs/mapmaker&" + querystring);
                         window.open(url, "_blank");
                     }
                 }
                 else {
                     var opts_4 = options;
                     var querystring = Object.keys(options).map(function (k) { return k + "=" + opts_4[k]; }).join("&");
-                    var url = encodeURI(href + "?run=labs/mapmaker&" + querystring);
+                    var url = encodeURI(href + "?run=ol3-lab/labs/mapmaker&" + querystring);
                     window.open(url, "_blank");
                 }
             });
@@ -3745,12 +3753,322 @@ define("ol3-lab/labs/index", ["require", "exports"], function (require, exports)
             .join("\n");
         var testDiv = document.createElement("div");
         document.body.appendChild(testDiv);
-        testDiv.innerHTML = "<a href='" + l.origin + l.pathname + "?run=tests/index'>tests</a>";
+        testDiv.innerHTML = "<a href='" + l.origin + l.pathname + "?run=ol3-lab/tests/index'>tests</a>";
     }
     exports.run = run;
     ;
 });
-define("ol3-lab/labs/layerswitcher", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/common/common", "ol3-lab/alpha/format/ol3-symbolizer", "bower_components/ol3-layerswitcher/ol3-layerswitcher/ol3-layerswitcher", "bower_components/ol3-popup/ol3-popup/ol3-popup", "ol3-lab/alpha/arcgis-source"], function (require, exports, $, ol, common_5, ol3_symbolizer_5, ol3_layerswitcher_2, ol3_popup_2, arcgis_source_2) {
+define("bower_components/ol3-panzoom/ol3-panzoom/zoomslidercontrol", ["require", "exports", "openlayers"], function (require, exports, ol) {
+    "use strict";
+    var ZoomSlider = (function (_super) {
+        __extends(ZoomSlider, _super);
+        function ZoomSlider(opt_options) {
+            return _super.call(this, opt_options) || this;
+        }
+        ZoomSlider.prototype.getElement = function () {
+            return this.element;
+        };
+        return ZoomSlider;
+    }(ol.control.ZoomSlider));
+    return ZoomSlider;
+});
+define("bower_components/ol3-panzoom/ol3-panzoom/ol3-panzoom", ["require", "exports", "openlayers", "bower_components/ol3-panzoom/ol3-panzoom/zoomslidercontrol"], function (require, exports, ol, ZoomSlider) {
+    "use strict";
+    function defaults(a) {
+        var b = [];
+        for (var _i = 1; _i < arguments.length; _i++) {
+            b[_i - 1] = arguments[_i];
+        }
+        b.forEach(function (b) {
+            Object.keys(b).filter(function (k) { return a[k] === undefined; }).forEach(function (k) { return a[k] = b[k]; });
+        });
+        return a;
+    }
+    function on(element, event, listener) {
+        element.addEventListener(event, listener);
+        return function () { return element.removeEventListener(event, listener); };
+    }
+    var DEFAULT_OPTIONS = {};
+    var PanZoom = (function (_super) {
+        __extends(PanZoom, _super);
+        function PanZoom(options) {
+            if (options === void 0) { options = DEFAULT_OPTIONS; }
+            var _this = this;
+            options = defaults({}, options, DEFAULT_OPTIONS);
+            _this = _super.call(this, options) || this;
+            _this.className_ = options.className ? options.className : 'ol-panzoom';
+            _this.imgPath_ = options.imgPath || './ol3-panzoom/resources/ol2img';
+            var element = _this.element = _this.element_ = _this.createEl_();
+            _this.setTarget(options.target);
+            _this.listenerKeys_ = [];
+            _this.duration_ = options.duration !== undefined ? options.duration : 100;
+            _this.maxExtent_ = options.maxExtent ? options.maxExtent : null;
+            _this.maxZoom_ = options.maxZoom ? options.maxZoom : 19;
+            _this.minZoom_ = options.minZoom ? options.minZoom : 0;
+            _this.pixelDelta_ = options.pixelDelta !== undefined ? options.pixelDelta : 128;
+            _this.slider_ = options.slider !== undefined ? options.slider : false;
+            _this.zoomDelta_ = options.zoomDelta !== undefined ? options.zoomDelta : 1;
+            _this.panEastEl_ = _this.createButtonEl_('pan-east');
+            _this.panNorthEl_ = _this.createButtonEl_('pan-north');
+            _this.panSouthEl_ = _this.createButtonEl_('pan-south');
+            _this.panWestEl_ = _this.createButtonEl_('pan-west');
+            _this.zoomInEl_ = _this.createButtonEl_('zoom-in');
+            _this.zoomOutEl_ = _this.createButtonEl_('zoom-out');
+            _this.zoomMaxEl_ = (!_this.slider_ && _this.maxExtent_) ? _this.createButtonEl_('zoom-max') : null;
+            _this.zoomSliderCtrl_ = (_this.slider_) ? new ZoomSlider() : null;
+            element.appendChild(_this.panNorthEl_);
+            element.appendChild(_this.panWestEl_);
+            element.appendChild(_this.panEastEl_);
+            element.appendChild(_this.panSouthEl_);
+            element.appendChild(_this.zoomInEl_);
+            element.appendChild(_this.zoomOutEl_);
+            if (_this.zoomMaxEl_) {
+                element.appendChild(_this.zoomMaxEl_);
+            }
+            return _this;
+        }
+        PanZoom.prototype.setMap = function (map) {
+            var _this = this;
+            var keys = this.listenerKeys_;
+            var zoomSlider = this.zoomSliderCtrl_;
+            var currentMap = this.getMap();
+            if (currentMap && currentMap instanceof ol.Map) {
+                keys.forEach(function (k) { return k(); });
+                keys.length = 0;
+                if (this.zoomSliderCtrl_) {
+                    this.zoomSliderCtrl_.setTarget(null);
+                    window.setTimeout(function () {
+                        currentMap.removeControl(zoomSlider);
+                    }, 0);
+                }
+            }
+            _super.prototype.setMap.call(this, map);
+            if (map) {
+                keys.push(on(this.panEastEl_, "click", function (evt) { return _this.pan_('east', evt); }));
+                keys.push(on(this.panNorthEl_, "click", function (evt) { return _this.pan_('north', evt); }));
+                keys.push(on(this.panSouthEl_, "click", function (evt) { return _this.pan_('south', evt); }));
+                keys.push(on(this.panWestEl_, "click", function (evt) { return _this.pan_('west', evt); }));
+                keys.push(on(this.zoomInEl_, "click", function (evt) { return _this.zoom_('in', evt); }));
+                keys.push(on(this.zoomOutEl_, "click", function (evt) { return _this.zoom_('out', evt); }));
+                if (this.maxExtent_ && !this.slider_) {
+                    keys.push(on(this.zoomMaxEl_, "click", function (evt) { return _this.zoom_('max', evt); }));
+                }
+                if (this.slider_) {
+                    zoomSlider.setTarget(this.element_);
+                    window.setTimeout(function () {
+                        map.addControl(zoomSlider);
+                    }, 0);
+                    this.adjustZoomSlider_();
+                }
+            }
+        };
+        PanZoom.prototype.createEl_ = function () {
+            var path = this.imgPath_;
+            var className = this.className_;
+            var cssClasses = [
+                className,
+                'ol-unselectable'
+            ];
+            if (!path) {
+                cssClasses.push('ol-control');
+            }
+            var element = document.createElement('div');
+            element.className = cssClasses.join(' ');
+            if (path) {
+                element.style.left = '4px';
+                element.style.position = 'absolute';
+                element.style.top = '4px';
+            }
+            return element;
+        };
+        PanZoom.prototype.createButtonEl_ = function (action) {
+            var divEl = document.createElement('div');
+            var path = this.imgPath_;
+            var maxExtent = this.maxExtent_;
+            var slider = this.slider_;
+            if (path) {
+                divEl.style.width = '18px';
+                divEl.style.height = '18px';
+                divEl.style.position = 'absolute';
+                divEl.style.cursor = 'pointer';
+                var imgEl = document.createElement('img');
+                imgEl.style.width = '18px';
+                imgEl.style.height = '18px';
+                imgEl.style['vertical-align'] = 'top';
+                switch (action) {
+                    case 'pan-east':
+                        imgEl.id = 'OpenLayers_Control_PanZoom_panright_innerImage';
+                        imgEl.src = [path, 'east-mini.png'].join('/');
+                        divEl.id = 'OpenLayers_Control_PanZoom_panright';
+                        divEl.style.top = '22px';
+                        divEl.style.left = '22px';
+                        break;
+                    case 'pan-north':
+                        imgEl.id = 'OpenLayers_Control_PanZoom_panup_innerImage';
+                        imgEl.src = [path, 'north-mini.png'].join('/');
+                        divEl.id = 'OpenLayers_Control_PanZoom_panup';
+                        divEl.style.top = '4px';
+                        divEl.style.left = '13px';
+                        break;
+                    case 'pan-south':
+                        imgEl.id = 'OpenLayers_Control_PanZoom_pandown_innerImage';
+                        imgEl.src = [path, 'south-mini.png'].join('/');
+                        divEl.id = 'OpenLayers_Control_PanZoom_pandown';
+                        divEl.style.top = '40px';
+                        divEl.style.left = '13px';
+                        break;
+                    case 'pan-west':
+                        imgEl.id = 'OpenLayers_Control_PanZoom_panleft_innerImage';
+                        imgEl.src = [path, 'west-mini.png'].join('/');
+                        divEl.id = 'OpenLayers_Control_PanZoom_panleft';
+                        divEl.style.top = '22px';
+                        divEl.style.left = '4px';
+                        break;
+                    case 'zoom-in':
+                        imgEl.id = 'OpenLayers_Control_PanZoom_zoomin_innerImage';
+                        imgEl.src = [path, 'zoom-plus-mini.png'].join('/');
+                        divEl.id = 'OpenLayers_Control_PanZoom_zoomin';
+                        divEl.style.top = '63px';
+                        divEl.style.left = '13px';
+                        break;
+                    case 'zoom-out':
+                        imgEl.id = 'OpenLayers_Control_PanZoom_zoomout_innerImage';
+                        imgEl.src = [path, 'zoom-minus-mini.png'].join('/');
+                        divEl.id = 'OpenLayers_Control_PanZoom_zoomout';
+                        if (slider) {
+                            divEl.style.top = [this.getSliderSize_() + 81, 'px'].join('');
+                        }
+                        else if (maxExtent) {
+                            divEl.style.top = '99px';
+                        }
+                        else {
+                            divEl.style.top = '81px';
+                        }
+                        divEl.style.left = '13px';
+                        break;
+                    case 'zoom-max':
+                        imgEl.id = 'OpenLayers_Control_PanZoom_zoomworld_innerImage';
+                        imgEl.src = [path, 'zoom-world-mini.png'].join('/');
+                        divEl.id = 'OpenLayers_Control_PanZoom_zoomworld';
+                        divEl.style.top = '81px';
+                        divEl.style.left = '13px';
+                        break;
+                }
+                divEl.appendChild(imgEl);
+            }
+            return divEl;
+        };
+        PanZoom.prototype.pan_ = function (direction, evt) {
+            var stopEvent = false;
+            var map = this.getMap();
+            console.assert(!!map, 'map must be set');
+            var view = map.getView();
+            console.assert(!!view, 'map must have view');
+            var mapUnitsDelta = view.getResolution() * this.pixelDelta_;
+            var deltaX = 0, deltaY = 0;
+            if (direction == 'south') {
+                deltaY = -mapUnitsDelta;
+            }
+            else if (direction == 'west') {
+                deltaX = -mapUnitsDelta;
+            }
+            else if (direction == 'east') {
+                deltaX = mapUnitsDelta;
+            }
+            else {
+                deltaY = mapUnitsDelta;
+            }
+            var delta = [deltaX, deltaY];
+            ol.coordinate.rotate(delta, view.getRotation());
+            var currentCenter = view.getCenter();
+            if (currentCenter) {
+                if (this.duration_ && this.duration_ > 0) {
+                    map.beforeRender(ol.animation.pan({
+                        source: currentCenter,
+                        duration: this.duration_,
+                        easing: ol.easing.linear
+                    }));
+                }
+                var center = view.constrainCenter([currentCenter[0] + delta[0], currentCenter[1] + delta[1]]);
+                view.setCenter(center);
+            }
+            evt.preventDefault();
+            stopEvent = true;
+            return !stopEvent;
+        };
+        PanZoom.prototype.zoom_ = function (direction, evt) {
+            if (direction === 'in') {
+                this.zoomByDelta_(this.zoomDelta_);
+            }
+            else if (direction === 'out') {
+                this.zoomByDelta_(-this.zoomDelta_);
+            }
+            else if (direction === 'max') {
+                var map = this.getMap();
+                var view = map.getView();
+                var extent = !this.maxExtent_ ?
+                    view.getProjection().getExtent() : this.maxExtent_;
+                var size = map.getSize();
+                console.assert(!!size, 'size should be defined');
+                view.fit(extent, size);
+            }
+        };
+        PanZoom.prototype.zoomByDelta_ = function (delta) {
+            var map = this.getMap();
+            var view = map.getView();
+            if (!view) {
+                return;
+            }
+            var currentResolution = view.getResolution();
+            if (currentResolution) {
+                if (this.duration_ > 0) {
+                    map.beforeRender(ol.animation.zoom({
+                        resolution: currentResolution,
+                        duration: this.duration_,
+                        easing: ol.easing.easeOut
+                    }));
+                }
+                var newResolution = view.constrainResolution(currentResolution, delta);
+                view.setResolution(newResolution);
+            }
+        };
+        PanZoom.prototype.adjustZoomSlider_ = function () {
+            var zoomSlider = this.zoomSliderCtrl_;
+            var path = this.imgPath_;
+            if (!zoomSlider || !path) {
+                return;
+            }
+            var height = [this.getSliderSize_(), 'px'].join('');
+            var zoomSliderEl = zoomSlider.getElement();
+            zoomSliderEl.style.background =
+                ['url(', path, '/', 'zoombar.png', ')'].join('');
+            zoomSliderEl.style.border = '0';
+            zoomSliderEl.style['border-radius'] = '0';
+            zoomSliderEl.style.height = height;
+            zoomSliderEl.style.left = '13px';
+            zoomSliderEl.style.padding = '0';
+            zoomSliderEl.style.top = '81px';
+            zoomSliderEl.style.width = '18px';
+            var sliderEl = zoomSliderEl.children[0];
+            console.assert(sliderEl instanceof Element);
+            sliderEl.style.background = ['url(', path, '/', 'slider.png', ')'].join('');
+            sliderEl.style.border = "none";
+            sliderEl.style.height = '9px';
+            sliderEl.style.margin = '0 -1px';
+            sliderEl.style.width = '20px';
+        };
+        PanZoom.prototype.getSliderSize_ = function () {
+            return (this.maxZoom_ - this.minZoom_ + 1) * 11;
+        };
+        return PanZoom;
+    }(ol.control.Control));
+    exports.PanZoom = PanZoom;
+});
+define("bower_components/ol3-panzoom/index", ["require", "exports", "bower_components/ol3-panzoom/ol3-panzoom/ol3-panzoom"], function (require, exports, Panzoom) {
+    "use strict";
+    return Panzoom;
+});
+define("ol3-lab/labs/layerswitcher", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/common/common", "ol3-lab/alpha/format/ol3-symbolizer", "bower_components/ol3-layerswitcher/ol3-layerswitcher", "bower_components/ol3-popup/ol3-popup", "bower_components/ol3-panzoom/index", "ol3-lab/alpha/arcgis-source"], function (require, exports, $, ol, common_5, ol3_symbolizer_5, ol3_layerswitcher_2, ol3_popup_2, index_1, arcgis_source_2) {
     "use strict";
     var styler = new ol3_symbolizer_5.StyleConverter();
     function parse(v, type) {
@@ -3796,10 +4114,20 @@ define("ol3-lab/labs/layerswitcher", ["require", "exports", "jquery", "openlayer
             keyboardEventTarget: document,
             loadTilesWhileAnimating: true,
             loadTilesWhileInteracting: true,
-            controls: ol.control.defaults({ attribution: false }),
+            controls: ol.control.defaults({
+                attribution: false,
+                zoom: false
+            }).extend([new index_1.PanZoom({
+                    minZoom: 5,
+                    maxZoom: 21,
+                    imgPath: "https://raw.githubusercontent.com/ca0v/ol3-panzoom/master/ol3-panzoom/resources/zoombar_black",
+                    slider: true
+                })]),
             view: new ol.View({
                 projection: options.srs,
                 center: options.center,
+                minZoom: 5,
+                maxZoom: 21,
                 zoom: options.zoom
             }),
             layers: [
@@ -3832,7 +4160,6 @@ define("ol3-lab/labs/layerswitcher", ["require", "exports", "jquery", "openlayer
             agsLayers.forEach(function (agsLayer) { return map.addLayer(agsLayer); });
             var layerSwitcher = new ol3_layerswitcher_2.LayerSwitcher();
             layerSwitcher.setMap(map);
-            layerSwitcher.isVisible;
             var popup = new ol3_popup_2.Popup({
                 css: "\n            .ol-popup {\n                background-color: white;\n            }\n            .ol-popup .page {\n                max-height: 200px;\n                overflow-y: auto;\n            }\n            "
             });
@@ -3984,7 +4311,7 @@ define("bower_components/ol3-symbolizer/ol3-symbolizer/styles/star/flower", ["re
         }
     ];
 });
-define("ol3-lab/labs/popup", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/common/common", "bower_components/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/star/flower", "bower_components/ol3-popup/ol3-popup/ol3-popup"], function (require, exports, $, ol, common_6, ol3_symbolizer_6, pointStyle, ol3_popup_3) {
+define("ol3-lab/labs/popup", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/common/common", "bower_components/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/star/flower", "bower_components/ol3-popup/ol3-popup"], function (require, exports, $, ol, common_6, ol3_symbolizer_6, pointStyle, ol3_popup_3) {
     "use strict";
     var styler = new ol3_symbolizer_6.StyleConverter();
     function parse(v, type) {
@@ -4078,7 +4405,7 @@ define("ol3-lab/labs/popup", ["require", "exports", "jquery", "openlayers", "ol3
     }
     exports.run = run;
 });
-define("ol3-lab/labs/route-editor", ["require", "exports", "openlayers", "ol3-lab/alpha/format/ol3-symbolizer", "ol3-lab/labs/common/common"], function (require, exports, ol, ol3_symbolizer_7, common_7) {
+define("ol3-lab/labs/route-editor", ["require", "exports", "openlayers", "bower_components/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", "ol3-lab/labs/common/common"], function (require, exports, ol, ol3_symbolizer_7, common_7) {
     "use strict";
     var delta = 16;
     var formatter = new ol3_symbolizer_7.StyleConverter();
@@ -4426,7 +4753,7 @@ define("ol3-lab/ux/serializers/ags-simplemarkersymbol", ["require", "exports", "
     }());
     exports.SimpleMarkerConverter = SimpleMarkerConverter;
 });
-define("ol3-lab/labs/style-lab", ["require", "exports", "openlayers", "jquery", "ol3-lab/alpha/format/ol3-symbolizer", "ol3-lab/labs/common/style-generator"], function (require, exports, ol, $, ol3_symbolizer_8, StyleGenerator) {
+define("ol3-lab/labs/style-lab", ["require", "exports", "openlayers", "jquery", "bower_components/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", "ol3-lab/labs/common/style-generator"], function (require, exports, ol, $, ol3_symbolizer_8, StyleGenerator) {
     "use strict";
     var center = [-82.4, 34.85];
     var formatter = new ol3_symbolizer_8.StyleConverter();
@@ -4592,7 +4919,7 @@ define("ol3-lab/ux/styles/icon/png", ["require", "exports"], function (require, 
         }
     ];
 });
-define("ol3-lab/labs/style-viewer", ["require", "exports", "openlayers", "jquery", "ol3-lab/labs/common/snapshot", "ol3-lab/labs/common/common", "ol3-lab/alpha/format/ol3-symbolizer", "ol3-lab/ux/styles/icon/png"], function (require, exports, ol, $, Snapshot, common_8, ol3_symbolizer_9, pointStyle) {
+define("ol3-lab/labs/style-viewer", ["require", "exports", "openlayers", "jquery", "ol3-lab/labs/common/snapshot", "ol3-lab/labs/common/common", "bower_components/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", "ol3-lab/ux/styles/icon/png"], function (require, exports, ol, $, Snapshot, common_8, ol3_symbolizer_9, pointStyle) {
     "use strict";
     var html = "\n<div class='style-to-canvas'>\n    <h3>Renders a feature on a canvas</h3>\n    <div class=\"area\">\n        <label>256 x 256 Canvas</label>\n        <div id='canvas-collection'></div>\n    </div>\n    <div class=\"area\">\n        <label>Style</label>\n        <textarea class='style'></textarea>\n        <button class=\"save\">Save</button>\n    </div>\n    <div class=\"area\">\n        <label>Potential control for setting linear gradient start/stop locations</label>\n        <div class=\"colorramp\">\n            <input class=\"top\" type=\"range\" min=\"0\" max=\"100\" value=\"20\"/>\n            <input class=\"bottom\" type=\"range\" min=\"0\" max=\"100\" value=\"80\"/>\n        </div>\n    </div>\n</div>\n";
     var css = "\n<style>\n    #map {\n        display: none;\n    }\n\n    .style-to-canvas {\n    }\n\n    .style-to-canvas .area label {\n        display: block;\n        vertical-align: top;\n    }\n\n    .style-to-canvas .area {\n        border: 1px solid black;\n        padding: 20px;\n        margin: 20px;\n    }\n\n    .style-to-canvas .area .style {\n        width: 100%;\n        height: 400px;\n    }\n\n    .style-to-canvas #canvas-collection canvas {\n        font-family: sans serif;\n        font-size: 20px;\n        border: 1px solid black;\n        padding: 20px;\n        margin: 20px;\n    }\n\n    div.colorramp {\n        display: inline-block;\n        background: linear-gradient(to right, rgba(250,0,0,0), rgba(250,0,0,1) 60%, rgba(250,100,0,1) 85%, rgb(250,250,0) 95%);\n        width:100%;\n    }\n\n    div.colorramp > input[type=range] {\n        -webkit-appearance: slider-horizontal;\n        display:block;\n        width:100%;\n        background-color:transparent;\n    }\n\n    div.colorramp > label {\n        display: inline-block;\n    }\n\n    div.colorramp > input[type='range'] {\n        box-shadow: 0 0 0 white;\n    }\n\n    div.colorramp > input[type=range]::-webkit-slider-runnable-track {\n        height: 0px;     \n    }\n\n    div.colorramp > input[type='range'].top::-webkit-slider-thumb {\n        margin-top: -10px;\n    }\n\n    div.colorramp > input[type='range'].bottom::-webkit-slider-thumb {\n        margin-top: -12px;\n    }\n    \n</style>\n";

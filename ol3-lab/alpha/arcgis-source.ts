@@ -17,7 +17,7 @@
 import $ = require("jquery");
 import ol = require("openlayers");
 
-import AgsCatalog = require("ol3-symbolizer/ags/ags-catalog");
+import AgsCatalog = require("ol3-symbolizer/ol3-symbolizer/ags/ags-catalog");
 import Symbolizer = require("./format/ags-symbolizer");
 
 const esrijsonFormat = new ol.format.EsriJSON();

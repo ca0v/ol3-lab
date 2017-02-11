@@ -5,6 +5,8 @@ import { StyleConverter } from "../alpha/format/ol3-symbolizer";
 import pointStyle = require("../ux/styles/star/flower");
 import { LayerSwitcher } from "ol3-layerswitcher/ol3-layerswitcher";
 import { Popup } from "ol3-popup/ol3-popup";
+import { PanZoom } from "ol3-panzoom/index";
+
 import { ArcGisVectorSourceFactory } from "../alpha/arcgis-source";
 
 let styler = new StyleConverter();
@@ -93,10 +95,20 @@ export function run() {
         keyboardEventTarget: document,
         loadTilesWhileAnimating: true,
         loadTilesWhileInteracting: true,
-        controls: ol.control.defaults({ attribution: false }),
+        controls: ol.control.defaults({
+            attribution: false,
+            zoom: false
+        }).extend([new PanZoom({
+            minZoom: 5,
+            maxZoom: 21,
+            imgPath: "https://raw.githubusercontent.com/ca0v/ol3-panzoom/master/ol3-panzoom/resources/zoombar_black",
+            slider: true
+        })]),
         view: new ol.View({
             projection: options.srs,
             center: options.center,
+            minZoom: 5,
+            maxZoom: 21,
             zoom: options.zoom
         }),
         layers: [
@@ -131,7 +143,7 @@ export function run() {
 
         let layerSwitcher = new LayerSwitcher();
         layerSwitcher.setMap(map);
-layerSwitcher.isVisible
+
         let popup = new Popup({
             css: `
             .ol-popup {

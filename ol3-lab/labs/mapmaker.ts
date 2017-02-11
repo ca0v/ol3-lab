@@ -221,12 +221,12 @@ export function run() {
                     if (options.myjson) {
                         myjson.id = options.myjson;
                         myjson.put().then(() => {
-                            let url = encodeURI(`${href}?run=labs/mapmaker&myjson=${myjson.id}`);
+                            let url = encodeURI(`${href}?run=ol3-lab/labs/mapmaker&myjson=${myjson.id}`);
                             window.open(url, "_blank");
                         });
                     } else {
                         myjson.post().then(() => {
-                            let url = encodeURI(`${href}?run=labs/mapmaker&myjson=${myjson.id}`);
+                            let url = encodeURI(`${href}?run=ol3-lab/labs/mapmaker&myjson=${myjson.id}`);
                             window.open(url, "_blank");
                         });
                     }
@@ -234,14 +234,14 @@ export function run() {
                     let opts = <any>options;
                     let querystring = Object.keys(options).map(k => `${k}=${opts[k]}`).join("&");
 
-                    let url = encodeURI(`${href}?run=labs/mapmaker&${querystring}`);
+                    let url = encodeURI(`${href}?run=ol3-lab/labs/mapmaker&${querystring}`);
                     window.open(url, "_blank");
                 }
             } else {
                 let opts = <any>options;
                 let querystring = Object.keys(options).map(k => `${k}=${opts[k]}`).join("&");
 
-                let url = encodeURI(`${href}?run=labs/mapmaker&${querystring}`);
+                let url = encodeURI(`${href}?run=ol3-lab/labs/mapmaker&${querystring}`);
                 window.open(url, "_blank");
             }
         });
