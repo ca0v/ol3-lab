@@ -14,7 +14,7 @@ import iconurl = require("./styles/ags/picturemarkersymbol");
 import iconimagedata = require("./styles/ags/picturemarkersymbol-imagedata");
 
 
-import { StyleConverter } from "../alpha/format/ags-symbolizer";
+import { StyleConverter } from "ol3-symbolizer/ol3-symbolizer/format/ags-symbolizer";
 
 const center = <[number, number]>[-82.4, 34.85];
 

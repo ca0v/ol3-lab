@@ -1,13 +1,13 @@
 import $ = require("jquery");
 import ol = require("openlayers");
 import { doif, getParameterByName } from "./common/common";
-import { StyleConverter } from "../alpha/format/ol3-symbolizer";
+import { StyleConverter } from "ol3-symbolizer/ol3-symbolizer";
 import pointStyle = require("../ux/styles/star/flower");
 import { LayerSwitcher } from "ol3-layerswitcher/ol3-layerswitcher";
 import { Popup } from "ol3-popup/ol3-popup";
 import { PanZoom } from "ol3-panzoom/index";
 
-import { ArcGisVectorSourceFactory } from "../alpha/arcgis-source";
+import { ArcGisVectorSourceFactory } from "ol3-symbolizer/ol3-symbolizer/ags/ags-source";
 
 let styler = new StyleConverter();
 

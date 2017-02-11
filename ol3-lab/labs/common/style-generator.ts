@@ -1,6 +1,6 @@
 import ol = require("openlayers");
 import basic_styles = require("../../ux/styles/basic");
-import {StyleConverter} from "../../alpha/format/ol3-symbolizer";
+import {StyleConverter} from "ol3-symbolizer/ol3-symbolizer";
 import gradient_style = require("../../ux/styles/fill/gradient");
 
 let converter = new StyleConverter();
