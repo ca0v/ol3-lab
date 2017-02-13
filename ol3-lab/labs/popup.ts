@@ -4,6 +4,7 @@ import { doif, getParameterByName } from "./common/common";
 import { StyleConverter } from "ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer";
 import pointStyle = require("ol3-symbolizer/ol3-symbolizer/styles/star/flower");
 import { Popup } from "ol3-popup/ol3-popup";
+import { Grid } from "../ux/ol3-grid";
 
 let styler = new StyleConverter();
 
@@ -104,6 +105,16 @@ export function run() {
                 })
             })]
     });
+
+    map.addControl(Grid.create({
+        hideButton: false,
+        closedText: "+",
+        openedText: "-",
+        autoClear: false,
+        autoCollapse: false,
+        autoSelect: false,
+        canCollapse: true,    
+    }));
 
     let features = new ol.Collection<ol.Feature>();
 
