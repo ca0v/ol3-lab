@@ -4343,7 +4343,180 @@ define("ol3-lab/labs/polyline-encoder", ["require", "exports", "jquery", "openla
     }
     exports.run = run;
 });
-define("ol3-lab/labs/popup", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/common/common", "bower_components/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/star/flower", "bower_components/ol3-popup/ol3-popup"], function (require, exports, $, ol, common_6, ol3_symbolizer_5, pointStyle, ol3_popup_3) {
+define("ol3-lab/ux/ol3-grid", ["require", "exports", "jquery", "openlayers"], function (require, exports, $, ol) {
+    "use strict";
+    function cssin(name, css) {
+        var id = "style-" + name;
+        var styleTag = document.getElementById(id);
+        if (!styleTag) {
+            styleTag = document.createElement("style");
+            styleTag.id = id;
+            styleTag.innerText = css;
+            document.head.appendChild(styleTag);
+        }
+        var dataset = styleTag.dataset;
+        dataset["count"] = parseInt(dataset["count"] || "0") + 1 + "";
+        return function () {
+            dataset["count"] = parseInt(dataset["count"] || "0") - 1 + "";
+            if (dataset["count"] === "0") {
+                styleTag.remove();
+            }
+        };
+    }
+    exports.cssin = cssin;
+    function mixin(a, b) {
+        Object.keys(b).forEach(function (k) { return a[k] = b[k]; });
+        return a;
+    }
+    exports.mixin = mixin;
+    var css = "\n    .ol-grid {\n        position:absolute;\n        max-height: 16em;\n    }\n    .ol-grid.top {\n        top: 0.5em;\n    }\n    .ol-grid.top-1 {\n        top: 1.5em;\n    }\n    .ol-grid.top-2 {\n        top: 2.5em;\n    }\n    .ol-grid.top-3 {\n        top: 3.5em;\n    }\n    .ol-grid.top-4 {\n        top: 4.5em;\n    }\n    .ol-grid.left {\n        left: 0.5em;\n    }\n    .ol-grid.left-1 {\n        left: 1.5em;\n    }\n    .ol-grid.left-2 {\n        left: 2.5em;\n    }\n    .ol-grid.left-3 {\n        left: 3.5em;\n    }\n    .ol-grid.left-4 {\n        left: 4.5em;\n    }\n    .ol-grid.bottom {\n        bottom: 0.5em;\n    }\n    .ol-grid.bottom-1 {\n        bottom: 1.5em;\n    }\n    .ol-grid.bottom-2 {\n        bottom: 2.5em;\n    }\n    .ol-grid.bottom-3 {\n        bottom: 3.5em;\n    }\n    .ol-grid.bottom-4 {\n        bottom: 4.5em;\n    }\n    .ol-grid.right {\n        right: 0.5em;\n    }\n    .ol-grid.right-1 {\n        right: 1.5em;\n    }\n    .ol-grid.right-2 {\n        right: 2.5em;\n    }\n    .ol-grid.right-3 {\n        right: 3.5em;\n    }\n    .ol-grid.right-4 {\n        right: 4.5em;\n    }\n    .ol-grid .ol-grid-table {\n        min-width: 8em;\n    }\n    .ol-grid .ol-grid-table.ol-hidden {\n        display: none;\n    }\n    .ol-grid .feature-row {\n        cursor: pointer;\n        border: 1px transparent;\n    }\n    .ol-grid .feature-row:hover {\n        background: black;\n        color: white;\n        border: 1px solid white;\n    }\n";
+    var grid_html = "\n<table class='ol-grid-table'>\n<thead><tr><td><label class='title'></label></td></tr></thead>\n<tbody><tr><td>none</td></tr></tbody>\n</table>\n";
+    var olcss = {
+        CLASS_CONTROL: 'ol-control',
+        CLASS_UNSELECTABLE: 'ol-unselectable',
+        CLASS_UNSUPPORTED: 'ol-unsupported',
+        CLASS_HIDDEN: 'ol-hidden'
+    };
+    var expando = {
+        right: '»',
+        left: '«'
+    };
+    var defaults = {
+        className: 'ol-grid top right',
+        expanded: false,
+        autoClear: false,
+        autoCollapse: true,
+        autoSelect: true,
+        canCollapse: true,
+        currentExtent: true,
+        hideButton: false,
+        closedText: expando.right,
+        openedText: expando.left,
+        placeholderText: 'Search'
+    };
+    var Grid = (function (_super) {
+        __extends(Grid, _super);
+        function Grid(options) {
+            var _this = this;
+            if (options.hideButton) {
+                options.canCollapse = false;
+                options.autoCollapse = false;
+                options.expanded = true;
+            }
+            _this = _super.call(this, {
+                element: options.element,
+                target: options.target
+            }) || this;
+            var button = _this.button = document.createElement('button');
+            button.setAttribute('type', 'button');
+            button.title = options.placeholderText;
+            options.element.appendChild(button);
+            if (options.hideButton) {
+                button.style.display = "none";
+            }
+            var grid = _this.grid = $(grid_html.trim())[0];
+            var label = grid.getElementsByClassName("title")[0];
+            label.innerHTML = options.placeholderText;
+            options.element.appendChild(grid);
+            button.addEventListener("click", function () {
+                options.expanded ? _this.collapse(options) : _this.expand(options);
+            });
+            options.expanded ? _this.expand(options) : _this.collapse(options);
+            grid.addEventListener("click", function (args) {
+                _this.dispatchEvent({
+                    type: "grid-click",
+                    args: args
+                });
+            });
+            _this.options = options;
+            return _this;
+        }
+        Grid.create = function (options) {
+            if (options === void 0) { options = {}; }
+            cssin('ol-grid', css);
+            options = mixin({
+                openedText: options.className && -1 < options.className.indexOf("left") ? expando.left : expando.right,
+                closedText: options.className && -1 < options.className.indexOf("left") ? expando.right : expando.left
+            }, options || {});
+            options = mixin(mixin({}, defaults), options);
+            var element = document.createElement('div');
+            element.className = options.className + " " + olcss.CLASS_UNSELECTABLE + " " + olcss.CLASS_CONTROL;
+            var geocoderOptions = mixin({
+                element: element,
+                target: options.target,
+                expanded: false
+            }, options);
+            return new Grid(geocoderOptions);
+        };
+        Grid.prototype.add = function (feature, message) {
+            var _this = this;
+            var tbody = this.grid.tBodies[0];
+            var data = $("<tr class=\"feature-row\"><td>" + message + "</td></tr>");
+            data.on("click", function () {
+                _this.dispatchEvent({
+                    type: "feature-click",
+                    feature: feature,
+                    row: data[0]
+                });
+            });
+            data.appendTo(tbody);
+        };
+        Grid.prototype.clear = function () {
+            var tbody = this.grid.tBodies[0];
+            tbody.innerHTML = "";
+        };
+        Grid.prototype.setMap = function (map) {
+            var _this = this;
+            _super.prototype.setMap.call(this, map);
+            var vectorLayers = map.getLayers()
+                .getArray()
+                .filter(function (l) { return l instanceof ol.layer.Vector; })
+                .map(function (l) { return l; });
+            var redraw = function () {
+                _this.clear();
+                var extent = map.getView().calculateExtent(map.getSize());
+                vectorLayers
+                    .map(function (l) { return l.getSource(); })
+                    .forEach(function (source) {
+                    if (_this.options.currentExtent) {
+                        source.forEachFeatureInExtent(extent, function (feature) {
+                            _this.add(feature, feature.get("text"));
+                        });
+                    }
+                    else {
+                        source.getFeatures().forEach(function (feature) { return _this.add(feature, feature.get("text")); });
+                    }
+                });
+            };
+            map.getView().on(["change:center", "change:resolution"], function () {
+                redraw();
+            });
+            vectorLayers.forEach(function (l) { return l.getSource().on("addfeature", function () {
+                redraw();
+            }); });
+        };
+        Grid.prototype.collapse = function (options) {
+            if (!options.canCollapse)
+                return;
+            options.expanded = false;
+            this.grid.classList.toggle(olcss.CLASS_HIDDEN, true);
+            this.button.classList.toggle(olcss.CLASS_HIDDEN, false);
+            this.button.innerHTML = options.closedText;
+        };
+        Grid.prototype.expand = function (options) {
+            options.expanded = true;
+            this.grid.classList.toggle(olcss.CLASS_HIDDEN, false);
+            this.button.classList.toggle(olcss.CLASS_HIDDEN, true);
+            this.button.innerHTML = options.openedText;
+        };
+        Grid.prototype.on = function (type, cb) {
+            return _super.prototype.on.call(this, type, cb);
+        };
+        return Grid;
+    }(ol.control.Control));
+    exports.Grid = Grid;
+});
+define("ol3-lab/labs/popup", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/common/common", "bower_components/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/star/flower", "bower_components/ol3-popup/ol3-popup", "ol3-lab/ux/ol3-grid"], function (require, exports, $, ol, common_6, ol3_symbolizer_5, pointStyle, ol3_popup_3, ol3_grid_1) {
     "use strict";
     var styler = new ol3_symbolizer_5.StyleConverter();
     function parse(v, type) {
@@ -4357,6 +4530,13 @@ define("ol3-lab/labs/popup", ["require", "exports", "jquery", "openlayers", "ol3
             return (v.split(",").map(function (v) { return parse(v, type[0]); }));
         }
         throw "unknown type: " + type;
+    }
+    function randomName() {
+        var nouns = "cat,dog,bird,horse,pig,elephant,giraffe,tiger,bear".split(",");
+        var adverbs = "running,walking,turning,jumping,landing,floating,sinking".split(",");
+        var noun = nouns[(Math.random() * nouns.length) | 0];
+        var adverb = adverbs[(Math.random() * adverbs.length) | 0];
+        return (adverb + " " + noun).toLocaleUpperCase();
     }
     var html = "\n<div class='popup'>\n    <div class='popup-container'>\n    </div>\n</div>\n";
     var css = "\n<style name=\"popup\" type=\"text/css\">\n    html, body, .map {\n        width: 100%;\n        height: 100%;\n        padding: 0;\n        overflow: hidden;\n        margin: 0;    \n    }\n    .popup-container {\n        position: absolute;\n        top: 1em;\n        right: 0.5em;\n        width: 10em;\n        bottom: 1em;\n        z-index: 1;\n        pointer-events: none;\n    }\n    .popup-container .ol-popup.docked {\n        min-width: auto;\n    }\n</style>\n";
@@ -4411,7 +4591,7 @@ define("ol3-lab/labs/popup", ["require", "exports", "jquery", "openlayers", "ol3
                 var style = pointStyle.filter(function (p) { return p.text; })[0];
                 if (style) {
                     style.text["offset-y"] = -24;
-                    style.text.text = feature.getGeometry().get("location") || "unknown location";
+                    style.text.text = feature.get("text");
                 }
                 return pointStyle.map(function (s) { return styler.fromJson(s); });
             }
@@ -4430,8 +4610,26 @@ define("ol3-lab/labs/popup", ["require", "exports", "jquery", "openlayers", "ol3
             var point = new ol.geom.Point(event.coordinate);
             point.set("location", location);
             var feature = new ol.Feature(point);
+            feature.set("text", randomName());
             source.addFeature(feature);
             setTimeout(function () { return popup.show(event.coordinate, "<div>You clicked on " + location + "</div>"); }, 50);
+        });
+        var grid = ol3_grid_1.Grid.create({
+            currentExtent: false,
+            hideButton: false,
+            closedText: "+",
+            openedText: "-",
+            autoClear: false,
+            autoCollapse: true,
+            autoSelect: false,
+            canCollapse: true
+        });
+        map.addControl(grid);
+        grid.on("feature-click", function (args) {
+            var center = args.feature.getGeometry().getClosestPoint(map.getView().getCenter());
+            map.getView().animate({
+                center: center
+            });
         });
         return map;
     }

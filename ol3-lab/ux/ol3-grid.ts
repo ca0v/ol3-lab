@@ -32,6 +32,7 @@ export function mixin<A extends any, B extends any>(a: A, b: B) {
 const css = `
     .ol-grid {
         position:absolute;
+        max-height: 16em;
     }
     .ol-grid.top {
         top: 0.5em;
@@ -93,15 +94,27 @@ const css = `
     .ol-grid.right-4 {
         right: 4.5em;
     }
+    .ol-grid .ol-grid-table {
+        min-width: 8em;
+    }
     .ol-grid .ol-grid-table.ol-hidden {
         display: none;
+    }
+    .ol-grid .feature-row {
+        cursor: pointer;
+        border: 1px transparent;
+    }
+    .ol-grid .feature-row:hover {
+        background: black;
+        color: white;
+        border: 1px solid white;
     }
 `;
 
 const grid_html = `
 <table class='ol-grid-table'>
-<thead><tr><td>C1</td></tr></thead>
-<tbody><tr><td>C1</td></tr></tbody>
+<thead><tr><td><label class='title'></label></td></tr></thead>
+<tbody><tr><td>none</td></tr></tbody>
 </table>
 `;
 
@@ -121,6 +134,7 @@ export interface IOptions {
     autoCollapse?: boolean;
     autoSelect?: boolean;
     canCollapse?: boolean;
+    currentExtent?: boolean;
     closedText?: string;
     openedText?: string;
     source?: HTMLElement;
@@ -142,6 +156,7 @@ const defaults: IOptions = {
     autoCollapse: true,
     autoSelect: true,
     canCollapse: true,
+    currentExtent: true,
     hideButton: false,
     closedText: expando.right,
     openedText: expando.left,
@@ -178,6 +193,11 @@ export class Grid extends ol.control.Control {
     private button: HTMLButtonElement;
     private grid: HTMLTableElement;
 
+    private options: IOptions & {
+        element: HTMLElement;
+        target: HTMLElement;
+    };
+
     constructor(options: IOptions & {
         element: HTMLElement;
         target: HTMLElement;
@@ -204,7 +224,7 @@ export class Grid extends ol.control.Control {
 
         let grid = this.grid = <HTMLTableElement>$(grid_html.trim())[0];
 
-        let label = document.createElement("label");
+        let label = grid.getElementsByClassName("title")[0];
         label.innerHTML = options.placeholderText;
 
         options.element.appendChild(grid);
@@ -214,17 +234,67 @@ export class Grid extends ol.control.Control {
         });
 
         options.expanded ? this.expand(options) : this.collapse(options);
+
+        grid.addEventListener("click", args => {
+            this.dispatchEvent({
+                type: "grid-click",
+                args: args
+            });
+        });
+
+        this.options = options;
     }
 
-    add(message: string) {
+    add(feature: ol.Feature, message: string) {
         let tbody = this.grid.tBodies[0];
-        let data = `<tr><td>${message}</td></tr>`;
-        $(data).appendTo(tbody);
+        let data = $(`<tr class="feature-row"><td>${message}</td></tr>`);
+        data.on("click", () => {
+            this.dispatchEvent({
+                type: "feature-click",
+                feature: feature,
+                row: data[0]
+            });
+        });
+        data.appendTo(tbody);
+    }
+
+    clear() {
+        let tbody = this.grid.tBodies[0];
+        tbody.innerHTML = "";
     }
 
     setMap(map: ol.Map) {
         super.setMap(map);
-        this.add("Map Set");
+
+        let vectorLayers = map.getLayers()
+            .getArray()
+            .filter(l => l instanceof ol.layer.Vector)
+            .map(l => <ol.layer.Vector>l);
+
+        let redraw = () => {
+            this.clear();
+            let extent = map.getView().calculateExtent(map.getSize());
+            vectorLayers
+                .map(l => l.getSource())
+                .forEach(source => {
+                    if (this.options.currentExtent) {
+                        source.forEachFeatureInExtent(extent, feature => {
+                            this.add(feature, feature.get("text"));
+                        });
+                    } else {
+                        // not clever, watch for addfeature, removefeature instead
+                        source.getFeatures().forEach(feature => this.add(feature, feature.get("text")));
+                    }
+                })
+        };
+
+        map.getView().on(["change:center", "change:resolution"], () => {
+            redraw();
+        });
+
+        vectorLayers.forEach(l => l.getSource().on("addfeature", () => {
+            redraw();
+        }));
     }
 
     collapse(options: IOptions) {

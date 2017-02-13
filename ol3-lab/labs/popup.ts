@@ -18,6 +18,14 @@ function parse<T>(v: string, type: T): T {
     throw `unknown type: ${type}`;
 }
 
+function randomName() {
+    const nouns = "cat,dog,bird,horse,pig,elephant,giraffe,tiger,bear".split(",");
+    const adverbs = "running,walking,turning,jumping,landing,floating,sinking".split(",");
+    let noun = nouns[(Math.random() * nouns.length) | 0];
+    let adverb = adverbs[(Math.random() * adverbs.length) | 0];
+    return `${adverb} ${noun}`.toLocaleUpperCase();
+}
+
 const html = `
 <div class='popup'>
     <div class='popup-container'>
@@ -106,16 +114,6 @@ export function run() {
             })]
     });
 
-    map.addControl(Grid.create({
-        hideButton: false,
-        closedText: "+",
-        openedText: "-",
-        autoClear: false,
-        autoCollapse: false,
-        autoSelect: false,
-        canCollapse: true,    
-    }));
-
     let features = new ol.Collection<ol.Feature>();
 
     let source = new ol.source.Vector({
@@ -129,7 +127,7 @@ export function run() {
             let style = pointStyle.filter(p => p.text)[0];
             if (style) {
                 style.text["offset-y"] = -24;
-                style.text.text = feature.getGeometry().get("location") || "unknown location";
+                style.text.text = feature.get("text");
             }
             return pointStyle.map(s => styler.fromJson(s));
         }
@@ -151,12 +149,33 @@ export function run() {
     }) => {
         let location = event.coordinate.map(v => v.toFixed(5)).join(", ");
         let point = new ol.geom.Point(event.coordinate);
-        point.set("location", location);
+        point.set("location", location);        
         let feature = new ol.Feature(point);
+        feature.set("text", randomName());
         source.addFeature(feature);
 
         setTimeout(() => popup.show(event.coordinate, `<div>You clicked on ${location}</div>`), 50);
 
+    });
+
+    let grid = Grid.create({
+        currentExtent: false,
+        hideButton: false,
+        closedText: "+",
+        openedText: "-",
+        autoClear: false,
+        autoCollapse: true,
+        autoSelect: false,
+        canCollapse: true,
+    });
+
+    map.addControl(grid);
+
+    grid.on("feature-click", (args: { feature: ol.Feature }) => {
+        let center = args.feature.getGeometry().getClosestPoint(map.getView().getCenter());
+        map.getView().animate({
+            center: center
+        });
     });
 
     return map;
