@@ -162,25 +162,55 @@ export function run() {
     });
 
     let grid = Grid.create({
-        currentExtent: false,
-        hideButton: false,
-        closedText: "+",
-        openedText: "-",
-        autoClear: false,
-        autoCollapse: true,
-        autoSelect: false,
-        canCollapse: true,
+        expanded: true,
+        labelAttributeName: "text"
     });
 
     map.addControl(grid);
 
-    grid.on("feature-click", (args: { feature: ol.Feature }) => {
-        let center = args.feature.getGeometry().getClosestPoint(map.getView().getCenter());
-        map.getView().animate({
-            center: center
-        });
-        popup.show(center, args.feature.get("text"));
-    });
+    map.addControl(Grid.create({
+        className: "ol-grid top left-2",
+        currentExtent: true,
+        hideButton: false,
+        closedText: "+",
+        openedText: "-",
+        autoCollapse: false,
+        autoSelect: false,
+        canCollapse: true,
+        showIcon: true,
+        labelAttributeName: ""
+    }));
+
+    map.addControl(Grid.create({
+        className: "ol-grid bottom left",
+        currentExtent: true,
+        hideButton: false,
+        closedText: "+",
+        openedText: "-",
+        autoCollapse: true,
+        autoSelect: false,
+        canCollapse: true,
+        showIcon: true,
+        labelAttributeName: ""
+    }));
+
+    map.addControl(Grid.create({
+        className: "ol-grid bottom right",
+        currentExtent: true,
+        hideButton: true,
+        showIcon: true,
+        labelAttributeName: "text"
+    }));
+
+    map.getControls().getArray()
+        .filter(c => c instanceof Grid)
+        .forEach(grid => grid.on("feature-click", (args: { feature: ol.Feature }) => {
+            let center = args.feature.getGeometry().getClosestPoint(map.getView().getCenter());
+            map.getView().animate({
+                center: center
+            });
+            popup.show(center, args.feature.get("text"));
+        }));
 
     return map;
 

@@ -3,6 +3,7 @@
 import $ = require("jquery");
 import ol = require("openlayers");
 import Snapshot = require("../labs/common/snapshot");
+import { debounce } from "../labs/common/common";
 
 export function cssin(name: string, css: string) {
     let id = `style-${name}`;
@@ -104,12 +105,14 @@ const css = `
     }
     .ol-grid .feature-row {
         cursor: pointer;
-        border: 1px transparent;
     }
     .ol-grid .feature-row:hover {
         background: black;
         color: white;
-        border: 1px solid white;
+    }
+    .ol-grid .feature-row:focus {
+        background: #ccc;
+        color: black;
     }
 `;
 
@@ -133,14 +136,15 @@ export interface IOptions {
     className?: string;
     expanded?: boolean;
     hideButton?: boolean;
-    autoClear?: boolean;
     autoCollapse?: boolean;
     autoSelect?: boolean;
     canCollapse?: boolean;
     currentExtent?: boolean;
+    showIcon?: boolean;
+    labelAttributeName?: string;
     closedText?: string;
     openedText?: string;
-    source?: HTMLElement;
+    element?: HTMLElement;
     target?: HTMLElement;
     // what to show on the tooltip
     placeholderText?: string;
@@ -155,12 +159,13 @@ const expando = {
 const defaults: IOptions = {
     className: 'ol-grid top right',
     expanded: false,
-    autoClear: false,
     autoCollapse: true,
     autoSelect: true,
     canCollapse: true,
     currentExtent: true,
     hideButton: false,
+    showIcon: false,
+    labelAttributeName: "",
     closedText: expando.right,
     openedText: expando.left,
     placeholderText: 'Search'
@@ -184,27 +189,22 @@ export class Grid extends ol.control.Control {
         let element = document.createElement('div');
         element.className = `${options.className} ${olcss.CLASS_UNSELECTABLE} ${olcss.CLASS_CONTROL}`;
 
-        let geocoderOptions = mixin({
+        let gridOptions = mixin({
             element: element,
-            target: options.target,
             expanded: false
         }, options);
 
-        return new Grid(geocoderOptions);
+        return new Grid(gridOptions);
     }
+
+    private features: ol.source.Vector;
 
     private button: HTMLButtonElement;
     private grid: HTMLTableElement;
 
-    private options: IOptions & {
-        element: HTMLElement;
-        target: HTMLElement;
-    };
+    private options: IOptions;
 
-    constructor(options: IOptions & {
-        element: HTMLElement;
-        target: HTMLElement;
-    }) {
+    constructor(options: IOptions) {
 
         if (options.hideButton) {
             options.canCollapse = false;
@@ -216,6 +216,9 @@ export class Grid extends ol.control.Control {
             element: options.element,
             target: options.target
         });
+
+        this.options = options;
+        this.features = new ol.source.Vector();
 
         let button = this.button = document.createElement('button');
         button.setAttribute('type', 'button');
@@ -230,32 +233,76 @@ export class Grid extends ol.control.Control {
 
         grid.appendTo(options.element);
 
+        if (this.options.autoCollapse) {
+            button.addEventListener("mouseover", () => {
+                !options.expanded && this.expand();
+            });
+            button.addEventListener("focus", () => {
+                !options.expanded && this.expand();
+            });
+            button.addEventListener("blur", () => {
+                options.expanded && this.collapse();
+            });
+        }
         button.addEventListener("click", () => {
-            options.expanded ? this.collapse(options) : this.expand(options);
+            options.expanded ? this.collapse() : this.expand();
         });
 
-        options.expanded ? this.expand(options) : this.collapse(options);
+        options.expanded ? this.expand() : this.collapse();
 
-        this.options = options;
+        // render
+        this.features.on(["addfeature", "addfeatures"], debounce(() => this.redraw()));
+    }
+
+    redraw() {
+        let map = this.getMap();
+        let extent = map.getView().calculateExtent(map.getSize());
+        let tbody = this.grid.tBodies[0];
+        tbody.innerHTML = "";
+
+        let features = <ol.Feature[]>[];
+        if (this.options.currentExtent) {
+            this.features.forEachFeatureInExtent(extent, f => void features.push(f));
+        } else {
+            this.features.forEachFeature(f => void features.push(f));
+        }
+
+        features.forEach(feature => {
+            let tr = $(`<tr tabindex="0" class="feature-row"></tr>`);
+
+            if (this.options.showIcon) {
+                let td = $(`<td><canvas class="icon"></canvas></td>`);
+                let canvas = <HTMLCanvasElement>$(".icon", td)[0];
+                canvas.width = 160;
+                canvas.height = 64;
+                td.appendTo(tr);
+                Snapshot.render(canvas, feature);
+            }
+
+            if (this.options.labelAttributeName) {
+                let td = $(`<td><label class="label">${feature.get(this.options.labelAttributeName)}</label></td>`);
+                td.appendTo(tr);
+            }
+
+            ["click", "keypress"].forEach(k =>
+                tr.on(k, () => {
+                    if (this.options.autoCollapse) {
+                        this.collapse();
+                    }
+                    this.dispatchEvent({
+                        type: "feature-click",
+                        feature: feature,
+                        row: tr[0]
+                    });
+                }));
+
+            tr.appendTo(tbody);
+
+        });
     }
 
     add(feature: ol.Feature) {
-        let tbody = this.grid.tBodies[0];
-        let data = $(`<tr class="feature-row"><td><a href="#"><canvas class="icon"></canvas></a></td></tr>`);
-
-        let canvas = <HTMLCanvasElement>$(".icon", data)[0];
-        canvas.width = 160;
-        canvas.height = 64;
-        Snapshot.render(canvas, feature);
-
-        data.on("click", () => {
-            this.dispatchEvent({
-                type: "feature-click",
-                feature: feature,
-                row: data[0]
-            });
-        });
-        data.appendTo(tbody);
+        this.features.addFeature(feature);
     }
 
     clear() {
@@ -272,38 +319,17 @@ export class Grid extends ol.control.Control {
             .map(l => <ol.layer.Vector>l);
 
         if (this.options.currentExtent) {
-            let redraw = () => {
-                this.clear();
-                let extent = map.getView().calculateExtent(map.getSize());
-                vectorLayers
-                    .map(l => l.getSource())
-                    .forEach(source => {
-                        source.forEachFeatureInExtent(extent, feature => {
-                            this.add(feature);
-                        });
-                    })
-            };
-
-            map.getView().on(["change:center", "change:resolution"], () => {
-                redraw();
-            });
-
-            vectorLayers.forEach(l => l.getSource().on("addfeature", () => {
-                redraw();
-            }));
-
-        }
-        else {
-            vectorLayers.forEach(l => l.getSource().on("addfeature", (args: { feature: ol.Feature }) => {
-                this.add(args.feature);
-            }));
-
+            map.getView().on(["change:center", "change:resolution"], debounce(() => this.redraw()));
         }
 
+        vectorLayers.forEach(l => l.getSource().on("addfeature", (args: { feature: ol.Feature }) => {
+            this.add(args.feature);
+        }));
 
     }
 
-    collapse(options: IOptions) {
+    collapse() {
+        let options = this.options;
         if (!options.canCollapse) return;
         options.expanded = false;
         this.grid.parentElement.classList.toggle(olcss.CLASS_HIDDEN, true);
@@ -311,7 +337,8 @@ export class Grid extends ol.control.Control {
         this.button.innerHTML = options.closedText;
     }
 
-    expand(options: IOptions) {
+    expand() {
+        let options = this.options;
         options.expanded = true;
         this.grid.parentElement.classList.toggle(olcss.CLASS_HIDDEN, false);
         this.button.classList.toggle(olcss.CLASS_HIDDEN, true);
