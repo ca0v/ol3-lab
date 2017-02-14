@@ -19,8 +19,8 @@ function parse<T>(v: string, type: T): T {
 }
 
 function randomName() {
-    const nouns = "cat,dog,bird,horse,pig,elephant,giraffe,tiger,bear".split(",");
-    const adverbs = "running,walking,turning,jumping,landing,floating,sinking".split(",");
+    const nouns = "cat,dog,bird,horse,pig,elephant,giraffe,tiger,bear,cow,chicken,moose".split(",");
+    const adverbs = "running,walking,turning,jumping,hiding,pouncing,stomping,rutting,landing,floating,sinking".split(",");
     let noun = nouns[(Math.random() * nouns.length) | 0];
     let adverb = adverbs[(Math.random() * adverbs.length) | 0];
     return `${adverb} ${noun}`.toLocaleUpperCase();
@@ -122,15 +122,7 @@ export function run() {
 
 
     let layer = new ol.layer.Vector({
-        source: source,
-        style: (feature: ol.render.Feature, resolution: number) => {
-            let style = pointStyle.filter(p => p.text)[0];
-            if (style) {
-                style.text["offset-y"] = -24;
-                style.text.text = feature.get("text");
-            }
-            return pointStyle.map(s => styler.fromJson(s));
-        }
+        source: source
     });
 
     map.addLayer(layer);
@@ -149,9 +141,20 @@ export function run() {
     }) => {
         let location = event.coordinate.map(v => v.toFixed(5)).join(", ");
         let point = new ol.geom.Point(event.coordinate);
-        point.set("location", location);        
+        point.set("location", location);
         let feature = new ol.Feature(point);
         feature.set("text", randomName());
+
+        let textStyle = pointStyle.filter(p => p.text)[0];;
+        if (textStyle && textStyle.text) {
+            textStyle.text["offset-y"] = -24;
+            textStyle.text.text = feature.get("text");
+        }
+        pointStyle[0].star.points = 3 + (Math.random() * 12) | 0;
+        pointStyle[0].star.stroke.width = 1 + Math.random() * 5;
+        let style = pointStyle.map(s => styler.fromJson(s));
+        feature.setStyle((resolution: number) => style);
+
         source.addFeature(feature);
 
         setTimeout(() => popup.show(event.coordinate, `<div>You clicked on ${location}</div>`), 50);
@@ -176,6 +179,7 @@ export function run() {
         map.getView().animate({
             center: center
         });
+        popup.show(center, args.feature.get("text"));
     });
 
     return map;

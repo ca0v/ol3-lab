@@ -2,6 +2,7 @@
 
 import $ = require("jquery");
 import ol = require("openlayers");
+import Snapshot = require("../labs/common/snapshot");
 
 export function cssin(name: string, css: string) {
     let id = `style-${name}`;
@@ -32,7 +33,6 @@ export function mixin<A extends any, B extends any>(a: A, b: B) {
 const css = `
     .ol-grid {
         position:absolute;
-        max-height: 16em;
     }
     .ol-grid.top {
         top: 0.5em;
@@ -94,10 +94,12 @@ const css = `
     .ol-grid.right-4 {
         right: 4.5em;
     }
-    .ol-grid .ol-grid-table {
+    .ol-grid .ol-grid-container {
         min-width: 8em;
+        max-height: 16em;
+        overflow-y: auto;
     }
-    .ol-grid .ol-grid-table.ol-hidden {
+    .ol-grid .ol-grid-container.ol-hidden {
         display: none;
     }
     .ol-grid .feature-row {
@@ -112,10 +114,11 @@ const css = `
 `;
 
 const grid_html = `
-<table class='ol-grid-table'>
-<thead><tr><td><label class='title'></label></td></tr></thead>
-<tbody><tr><td>none</td></tr></tbody>
-</table>
+<div class='ol-grid-container'>
+    <table class='ol-grid-table'>
+        <tbody></tbody>
+    </table>
+</div>
 `;
 
 let olcss = {
@@ -222,12 +225,10 @@ export class Grid extends ol.control.Control {
             button.style.display = "none";
         }
 
-        let grid = this.grid = <HTMLTableElement>$(grid_html.trim())[0];
+        let grid = $(grid_html.trim());
+        this.grid = <HTMLTableElement>$(".ol-grid-table", grid)[0];
 
-        let label = grid.getElementsByClassName("title")[0];
-        label.innerHTML = options.placeholderText;
-
-        options.element.appendChild(grid);
+        grid.appendTo(options.element);
 
         button.addEventListener("click", () => {
             options.expanded ? this.collapse(options) : this.expand(options);
@@ -235,19 +236,18 @@ export class Grid extends ol.control.Control {
 
         options.expanded ? this.expand(options) : this.collapse(options);
 
-        grid.addEventListener("click", args => {
-            this.dispatchEvent({
-                type: "grid-click",
-                args: args
-            });
-        });
-
         this.options = options;
     }
 
-    add(feature: ol.Feature, message: string) {
+    add(feature: ol.Feature) {
         let tbody = this.grid.tBodies[0];
-        let data = $(`<tr class="feature-row"><td>${message}</td></tr>`);
+        let data = $(`<tr class="feature-row"><td><a href="#"><canvas class="icon"></canvas></a></td></tr>`);
+
+        let canvas = <HTMLCanvasElement>$(".icon", data)[0];
+        canvas.width = 160;
+        canvas.height = 64;
+        Snapshot.render(canvas, feature);
+
         data.on("click", () => {
             this.dispatchEvent({
                 type: "feature-click",
@@ -271,43 +271,49 @@ export class Grid extends ol.control.Control {
             .filter(l => l instanceof ol.layer.Vector)
             .map(l => <ol.layer.Vector>l);
 
-        let redraw = () => {
-            this.clear();
-            let extent = map.getView().calculateExtent(map.getSize());
-            vectorLayers
-                .map(l => l.getSource())
-                .forEach(source => {
-                    if (this.options.currentExtent) {
+        if (this.options.currentExtent) {
+            let redraw = () => {
+                this.clear();
+                let extent = map.getView().calculateExtent(map.getSize());
+                vectorLayers
+                    .map(l => l.getSource())
+                    .forEach(source => {
                         source.forEachFeatureInExtent(extent, feature => {
-                            this.add(feature, feature.get("text"));
+                            this.add(feature);
                         });
-                    } else {
-                        // not clever, watch for addfeature, removefeature instead
-                        source.getFeatures().forEach(feature => this.add(feature, feature.get("text")));
-                    }
-                })
-        };
+                    })
+            };
 
-        map.getView().on(["change:center", "change:resolution"], () => {
-            redraw();
-        });
+            map.getView().on(["change:center", "change:resolution"], () => {
+                redraw();
+            });
 
-        vectorLayers.forEach(l => l.getSource().on("addfeature", () => {
-            redraw();
-        }));
+            vectorLayers.forEach(l => l.getSource().on("addfeature", () => {
+                redraw();
+            }));
+
+        }
+        else {
+            vectorLayers.forEach(l => l.getSource().on("addfeature", (args: { feature: ol.Feature }) => {
+                this.add(args.feature);
+            }));
+
+        }
+
+
     }
 
     collapse(options: IOptions) {
         if (!options.canCollapse) return;
         options.expanded = false;
-        this.grid.classList.toggle(olcss.CLASS_HIDDEN, true);
+        this.grid.parentElement.classList.toggle(olcss.CLASS_HIDDEN, true);
         this.button.classList.toggle(olcss.CLASS_HIDDEN, false);
         this.button.innerHTML = options.closedText;
     }
 
     expand(options: IOptions) {
         options.expanded = true;
-        this.grid.classList.toggle(olcss.CLASS_HIDDEN, false);
+        this.grid.parentElement.classList.toggle(olcss.CLASS_HIDDEN, false);
         this.button.classList.toggle(olcss.CLASS_HIDDEN, true);
         this.button.innerHTML = options.openedText;
     }

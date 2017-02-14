@@ -4343,7 +4343,7 @@ define("ol3-lab/labs/polyline-encoder", ["require", "exports", "jquery", "openla
     }
     exports.run = run;
 });
-define("ol3-lab/ux/ol3-grid", ["require", "exports", "jquery", "openlayers"], function (require, exports, $, ol) {
+define("ol3-lab/ux/ol3-grid", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/common/snapshot"], function (require, exports, $, ol, Snapshot) {
     "use strict";
     function cssin(name, css) {
         var id = "style-" + name;
@@ -4369,8 +4369,8 @@ define("ol3-lab/ux/ol3-grid", ["require", "exports", "jquery", "openlayers"], fu
         return a;
     }
     exports.mixin = mixin;
-    var css = "\n    .ol-grid {\n        position:absolute;\n        max-height: 16em;\n    }\n    .ol-grid.top {\n        top: 0.5em;\n    }\n    .ol-grid.top-1 {\n        top: 1.5em;\n    }\n    .ol-grid.top-2 {\n        top: 2.5em;\n    }\n    .ol-grid.top-3 {\n        top: 3.5em;\n    }\n    .ol-grid.top-4 {\n        top: 4.5em;\n    }\n    .ol-grid.left {\n        left: 0.5em;\n    }\n    .ol-grid.left-1 {\n        left: 1.5em;\n    }\n    .ol-grid.left-2 {\n        left: 2.5em;\n    }\n    .ol-grid.left-3 {\n        left: 3.5em;\n    }\n    .ol-grid.left-4 {\n        left: 4.5em;\n    }\n    .ol-grid.bottom {\n        bottom: 0.5em;\n    }\n    .ol-grid.bottom-1 {\n        bottom: 1.5em;\n    }\n    .ol-grid.bottom-2 {\n        bottom: 2.5em;\n    }\n    .ol-grid.bottom-3 {\n        bottom: 3.5em;\n    }\n    .ol-grid.bottom-4 {\n        bottom: 4.5em;\n    }\n    .ol-grid.right {\n        right: 0.5em;\n    }\n    .ol-grid.right-1 {\n        right: 1.5em;\n    }\n    .ol-grid.right-2 {\n        right: 2.5em;\n    }\n    .ol-grid.right-3 {\n        right: 3.5em;\n    }\n    .ol-grid.right-4 {\n        right: 4.5em;\n    }\n    .ol-grid .ol-grid-table {\n        min-width: 8em;\n    }\n    .ol-grid .ol-grid-table.ol-hidden {\n        display: none;\n    }\n    .ol-grid .feature-row {\n        cursor: pointer;\n        border: 1px transparent;\n    }\n    .ol-grid .feature-row:hover {\n        background: black;\n        color: white;\n        border: 1px solid white;\n    }\n";
-    var grid_html = "\n<table class='ol-grid-table'>\n<thead><tr><td><label class='title'></label></td></tr></thead>\n<tbody><tr><td>none</td></tr></tbody>\n</table>\n";
+    var css = "\n    .ol-grid {\n        position:absolute;\n    }\n    .ol-grid.top {\n        top: 0.5em;\n    }\n    .ol-grid.top-1 {\n        top: 1.5em;\n    }\n    .ol-grid.top-2 {\n        top: 2.5em;\n    }\n    .ol-grid.top-3 {\n        top: 3.5em;\n    }\n    .ol-grid.top-4 {\n        top: 4.5em;\n    }\n    .ol-grid.left {\n        left: 0.5em;\n    }\n    .ol-grid.left-1 {\n        left: 1.5em;\n    }\n    .ol-grid.left-2 {\n        left: 2.5em;\n    }\n    .ol-grid.left-3 {\n        left: 3.5em;\n    }\n    .ol-grid.left-4 {\n        left: 4.5em;\n    }\n    .ol-grid.bottom {\n        bottom: 0.5em;\n    }\n    .ol-grid.bottom-1 {\n        bottom: 1.5em;\n    }\n    .ol-grid.bottom-2 {\n        bottom: 2.5em;\n    }\n    .ol-grid.bottom-3 {\n        bottom: 3.5em;\n    }\n    .ol-grid.bottom-4 {\n        bottom: 4.5em;\n    }\n    .ol-grid.right {\n        right: 0.5em;\n    }\n    .ol-grid.right-1 {\n        right: 1.5em;\n    }\n    .ol-grid.right-2 {\n        right: 2.5em;\n    }\n    .ol-grid.right-3 {\n        right: 3.5em;\n    }\n    .ol-grid.right-4 {\n        right: 4.5em;\n    }\n    .ol-grid .ol-grid-container {\n        min-width: 8em;\n        max-height: 16em;\n        overflow-y: auto;\n    }\n    .ol-grid .ol-grid-container.ol-hidden {\n        display: none;\n    }\n    .ol-grid .feature-row {\n        cursor: pointer;\n        border: 1px transparent;\n    }\n    .ol-grid .feature-row:hover {\n        background: black;\n        color: white;\n        border: 1px solid white;\n    }\n";
+    var grid_html = "\n<div class='ol-grid-container'>\n    <table class='ol-grid-table'>\n        <tbody></tbody>\n    </table>\n</div>\n";
     var olcss = {
         CLASS_CONTROL: 'ol-control',
         CLASS_UNSELECTABLE: 'ol-unselectable',
@@ -4414,20 +4414,13 @@ define("ol3-lab/ux/ol3-grid", ["require", "exports", "jquery", "openlayers"], fu
             if (options.hideButton) {
                 button.style.display = "none";
             }
-            var grid = _this.grid = $(grid_html.trim())[0];
-            var label = grid.getElementsByClassName("title")[0];
-            label.innerHTML = options.placeholderText;
-            options.element.appendChild(grid);
+            var grid = $(grid_html.trim());
+            _this.grid = $(".ol-grid-table", grid)[0];
+            grid.appendTo(options.element);
             button.addEventListener("click", function () {
                 options.expanded ? _this.collapse(options) : _this.expand(options);
             });
             options.expanded ? _this.expand(options) : _this.collapse(options);
-            grid.addEventListener("click", function (args) {
-                _this.dispatchEvent({
-                    type: "grid-click",
-                    args: args
-                });
-            });
             _this.options = options;
             return _this;
         }
@@ -4448,10 +4441,14 @@ define("ol3-lab/ux/ol3-grid", ["require", "exports", "jquery", "openlayers"], fu
             }, options);
             return new Grid(geocoderOptions);
         };
-        Grid.prototype.add = function (feature, message) {
+        Grid.prototype.add = function (feature) {
             var _this = this;
             var tbody = this.grid.tBodies[0];
-            var data = $("<tr class=\"feature-row\"><td>" + message + "</td></tr>");
+            var data = $("<tr class=\"feature-row\"><td><a href=\"#\"><canvas class=\"icon\"></canvas></a></td></tr>");
+            var canvas = $(".icon", data)[0];
+            canvas.width = 160;
+            canvas.height = 64;
+            Snapshot.render(canvas, feature);
             data.on("click", function () {
                 _this.dispatchEvent({
                     type: "feature-click",
@@ -4472,40 +4469,42 @@ define("ol3-lab/ux/ol3-grid", ["require", "exports", "jquery", "openlayers"], fu
                 .getArray()
                 .filter(function (l) { return l instanceof ol.layer.Vector; })
                 .map(function (l) { return l; });
-            var redraw = function () {
-                _this.clear();
-                var extent = map.getView().calculateExtent(map.getSize());
-                vectorLayers
-                    .map(function (l) { return l.getSource(); })
-                    .forEach(function (source) {
-                    if (_this.options.currentExtent) {
+            if (this.options.currentExtent) {
+                var redraw_1 = function () {
+                    _this.clear();
+                    var extent = map.getView().calculateExtent(map.getSize());
+                    vectorLayers
+                        .map(function (l) { return l.getSource(); })
+                        .forEach(function (source) {
                         source.forEachFeatureInExtent(extent, function (feature) {
-                            _this.add(feature, feature.get("text"));
+                            _this.add(feature);
                         });
-                    }
-                    else {
-                        source.getFeatures().forEach(function (feature) { return _this.add(feature, feature.get("text")); });
-                    }
+                    });
+                };
+                map.getView().on(["change:center", "change:resolution"], function () {
+                    redraw_1();
                 });
-            };
-            map.getView().on(["change:center", "change:resolution"], function () {
-                redraw();
-            });
-            vectorLayers.forEach(function (l) { return l.getSource().on("addfeature", function () {
-                redraw();
-            }); });
+                vectorLayers.forEach(function (l) { return l.getSource().on("addfeature", function () {
+                    redraw_1();
+                }); });
+            }
+            else {
+                vectorLayers.forEach(function (l) { return l.getSource().on("addfeature", function (args) {
+                    _this.add(args.feature);
+                }); });
+            }
         };
         Grid.prototype.collapse = function (options) {
             if (!options.canCollapse)
                 return;
             options.expanded = false;
-            this.grid.classList.toggle(olcss.CLASS_HIDDEN, true);
+            this.grid.parentElement.classList.toggle(olcss.CLASS_HIDDEN, true);
             this.button.classList.toggle(olcss.CLASS_HIDDEN, false);
             this.button.innerHTML = options.closedText;
         };
         Grid.prototype.expand = function (options) {
             options.expanded = true;
-            this.grid.classList.toggle(olcss.CLASS_HIDDEN, false);
+            this.grid.parentElement.classList.toggle(olcss.CLASS_HIDDEN, false);
             this.button.classList.toggle(olcss.CLASS_HIDDEN, true);
             this.button.innerHTML = options.openedText;
         };
@@ -4532,8 +4531,8 @@ define("ol3-lab/labs/popup", ["require", "exports", "jquery", "openlayers", "ol3
         throw "unknown type: " + type;
     }
     function randomName() {
-        var nouns = "cat,dog,bird,horse,pig,elephant,giraffe,tiger,bear".split(",");
-        var adverbs = "running,walking,turning,jumping,landing,floating,sinking".split(",");
+        var nouns = "cat,dog,bird,horse,pig,elephant,giraffe,tiger,bear,cow,chicken,moose".split(",");
+        var adverbs = "running,walking,turning,jumping,hiding,pouncing,stomping,rutting,landing,floating,sinking".split(",");
         var noun = nouns[(Math.random() * nouns.length) | 0];
         var adverb = adverbs[(Math.random() * adverbs.length) | 0];
         return (adverb + " " + noun).toLocaleUpperCase();
@@ -4586,15 +4585,7 @@ define("ol3-lab/labs/popup", ["require", "exports", "jquery", "openlayers", "ol3
             features: features
         });
         var layer = new ol.layer.Vector({
-            source: source,
-            style: function (feature, resolution) {
-                var style = pointStyle.filter(function (p) { return p.text; })[0];
-                if (style) {
-                    style.text["offset-y"] = -24;
-                    style.text.text = feature.get("text");
-                }
-                return pointStyle.map(function (s) { return styler.fromJson(s); });
-            }
+            source: source
         });
         map.addLayer(layer);
         var popup = new ol3_popup_3.Popup({
@@ -4611,6 +4602,16 @@ define("ol3-lab/labs/popup", ["require", "exports", "jquery", "openlayers", "ol3
             point.set("location", location);
             var feature = new ol.Feature(point);
             feature.set("text", randomName());
+            var textStyle = pointStyle.filter(function (p) { return p.text; })[0];
+            ;
+            if (textStyle && textStyle.text) {
+                textStyle.text["offset-y"] = -24;
+                textStyle.text.text = feature.get("text");
+            }
+            pointStyle[0].star.points = 3 + (Math.random() * 12) | 0;
+            pointStyle[0].star.stroke.width = 1 + Math.random() * 5;
+            var style = pointStyle.map(function (s) { return styler.fromJson(s); });
+            feature.setStyle(function (resolution) { return style; });
             source.addFeature(feature);
             setTimeout(function () { return popup.show(event.coordinate, "<div>You clicked on " + location + "</div>"); }, 50);
         });
@@ -4630,6 +4631,7 @@ define("ol3-lab/labs/popup", ["require", "exports", "jquery", "openlayers", "ol3
             map.getView().animate({
                 center: center
             });
+            popup.show(center, args.feature.get("text"));
         });
         return map;
     }
