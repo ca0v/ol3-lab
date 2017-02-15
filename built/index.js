@@ -3439,7 +3439,179 @@ define("ol3-lab/labs/mapmaker", ["require", "exports", "jquery", "openlayers", "
     }
     exports.run = run;
 });
-define("ol3-lab/labs/geocoder", ["require", "exports", "ol3-lab/labs/mapmaker", "ol3-input", "ol3-input/ol3-input/providers/osm"], function (require, exports, MapMaker, ol3_input_1, osm_1) {
+define("bower_components/ol3-input/ol3-input/ol3-input", ["require", "exports", "openlayers"], function (require, exports, ol) {
+    "use strict";
+    function cssin(name, css) {
+        var id = "style-" + name;
+        var styleTag = document.getElementById(id);
+        if (!styleTag) {
+            styleTag = document.createElement("style");
+            styleTag.id = id;
+            styleTag.innerText = css;
+            document.head.appendChild(styleTag);
+        }
+        var dataset = styleTag.dataset;
+        dataset["count"] = parseInt(dataset["count"] || "0") + 1 + "";
+        return function () {
+            dataset["count"] = parseInt(dataset["count"] || "0") - 1 + "";
+            if (dataset["count"] === "0") {
+                styleTag.remove();
+            }
+        };
+    }
+    exports.cssin = cssin;
+    function mixin(a, b) {
+        Object.keys(b).forEach(function (k) { return a[k] = b[k]; });
+        return a;
+    }
+    exports.mixin = mixin;
+    var css = "\n    .ol-input {\n        position:absolute;\n    }\n    .ol-input.top {\n        top: 0.5em;\n    }\n    .ol-input.left {\n        left: 0.5em;\n    }\n    .ol-input.bottom {\n        bottom: 0.5em;\n    }\n    .ol-input.right {\n        right: 0.5em;\n    }\n    .ol-input.top.left {\n        top: 4.5em;\n    }\n    .ol-input button {\n        min-height: 1.375em;\n        min-width: 1.375em;\n        width: auto;\n        display: inline;\n    }\n    .ol-input.left button {\n        float:right;\n    }\n    .ol-input.right button {\n        float:left;\n    }\n    .ol-input input {\n        height: 24px;\n        min-width: 240px;\n        border: none;\n        padding: 0;\n        margin: 0;\n        margin-left: 2px;\n        margin-top: 1px;\n        vertical-align: top;\n    }\n    .ol-input input.hidden {\n        display: none;\n    }\n";
+    var olcss = {
+        CLASS_CONTROL: 'ol-control',
+        CLASS_UNSELECTABLE: 'ol-unselectable',
+        CLASS_UNSUPPORTED: 'ol-unsupported',
+        CLASS_HIDDEN: 'ol-hidden'
+    };
+    var expando = {
+        right: '»',
+        left: '«'
+    };
+    var defaults = {
+        className: 'ol-input bottom left',
+        expanded: false,
+        closedText: expando.right,
+        openedText: expando.left,
+        placeholderText: 'Search'
+    };
+    var Input = (function (_super) {
+        __extends(Input, _super);
+        function Input(options) {
+            var _this = _super.call(this, {
+                element: options.element,
+                target: options.target
+            }) || this;
+            var button = _this.button = document.createElement('button');
+            button.setAttribute('type', 'button');
+            button.title = options.placeholderText;
+            options.element.appendChild(button);
+            var input = _this.input = document.createElement('input');
+            input.placeholder = options.placeholderText;
+            options.element.appendChild(input);
+            button.addEventListener("click", function () {
+                options.expanded ? _this.collapse(options) : _this.expand(options);
+            });
+            input.addEventListener("keypress", function (args) {
+                if (args.key === "Enter") {
+                    button.focus();
+                    _this.collapse(options);
+                }
+            });
+            input.addEventListener("change", function () {
+                var args = {
+                    type: "change",
+                    value: input.value
+                };
+                _this.dispatchEvent(args);
+                if (options.onChange)
+                    options.onChange(args);
+            });
+            input.addEventListener("blur", function () {
+            });
+            options.expanded ? _this.expand(options) : _this.collapse(options);
+            return _this;
+        }
+        Input.create = function (options) {
+            cssin('ol-input', css);
+            options = mixin({
+                openedText: options.className && -1 < options.className.indexOf("left") ? expando.left : expando.right,
+                closedText: options.className && -1 < options.className.indexOf("left") ? expando.right : expando.left
+            }, options || {});
+            options = mixin(mixin({}, defaults), options);
+            var element = document.createElement('div');
+            element.className = options.className + " " + olcss.CLASS_UNSELECTABLE + " " + olcss.CLASS_CONTROL;
+            var geocoderOptions = mixin({
+                element: element,
+                target: options.target,
+                expanded: false
+            }, options);
+            return new Input(geocoderOptions);
+        };
+        Input.prototype.dispose = function () {
+            debugger;
+        };
+        Input.prototype.collapse = function (options) {
+            options.expanded = false;
+            this.input.classList.toggle("hidden", true);
+            this.button.classList.toggle("hidden", false);
+            this.button.innerHTML = options.closedText;
+        };
+        Input.prototype.expand = function (options) {
+            options.expanded = true;
+            this.input.classList.toggle("hidden", false);
+            this.button.classList.toggle("hidden", true);
+            this.button.innerHTML = options.openedText;
+            this.input.focus();
+            this.input.select();
+        };
+        return Input;
+    }(ol.control.Control));
+    exports.Input = Input;
+});
+define("bower_components/ol3-input/index", ["require", "exports", "bower_components/ol3-input/ol3-input/ol3-input"], function (require, exports, Input) {
+    "use strict";
+    return Input;
+});
+define("bower_components/ol3-input/ol3-input/providers/osm", ["require", "exports"], function (require, exports) {
+    "use strict";
+    var OpenStreet = (function () {
+        function OpenStreet() {
+            this.dataType = 'json';
+            this.method = 'GET';
+            this.settings = {
+                url: '//nominatim.openstreetmap.org/search/',
+                params: {
+                    q: '',
+                    format: 'json',
+                    addressdetails: 1,
+                    limit: 10,
+                    countrycodes: '',
+                    'accept-language': 'en-US'
+                }
+            };
+        }
+        OpenStreet.prototype.getParameters = function (options) {
+            return {
+                url: this.settings.url,
+                params: {
+                    q: options.query,
+                    format: 'json',
+                    addressdetails: 1,
+                    limit: options.limit || this.settings.params.limit,
+                    countrycodes: options.countrycodes || this.settings.params.countrycodes,
+                    'accept-language': options.lang || this.settings.params['accept-language']
+                }
+            };
+        };
+        OpenStreet.prototype.handleResponse = function (args) {
+            return args.sort(function (v) { return v.importance || 1; }).map(function (result) { return ({
+                original: result,
+                lon: parseFloat(result.lon),
+                lat: parseFloat(result.lat),
+                address: {
+                    name: result.address.neighbourhood || '',
+                    road: result.address.road || '',
+                    postcode: result.address.postcode,
+                    city: result.address.city || result.address.town,
+                    state: result.address.state,
+                    country: result.address.country
+                }
+            }); });
+        };
+        return OpenStreet;
+    }());
+    exports.OpenStreet = OpenStreet;
+});
+define("ol3-lab/labs/geocoder", ["require", "exports", "ol3-lab/labs/mapmaker", "bower_components/ol3-input/index", "bower_components/ol3-input/ol3-input/providers/osm"], function (require, exports, MapMaker, ol3_input_1, osm_1) {
     "use strict";
     function run() {
         MapMaker.run().then(function (map) {
@@ -3660,7 +3832,317 @@ define("ol3-lab/labs/index", ["require", "exports"], function (require, exports)
     exports.run = run;
     ;
 });
-define("ol3-lab/labs/layerswitcher", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/common/common", "bower_components/ol3-symbolizer/ol3-symbolizer", "bower_components/ol3-layerswitcher/ol3-layerswitcher", "bower_components/ol3-popup/ol3-popup", "ol3-panzoom/index", "bower_components/ol3-symbolizer/ol3-symbolizer/ags/ags-source"], function (require, exports, $, ol, common_5, ol3_symbolizer_4, ol3_layerswitcher_2, ol3_popup_2, index_1, ags_source_2) {
+define("bower_components/ol3-panzoom/ol3-panzoom/zoomslidercontrol", ["require", "exports", "openlayers"], function (require, exports, ol) {
+    "use strict";
+    var ZoomSlider = (function (_super) {
+        __extends(ZoomSlider, _super);
+        function ZoomSlider(opt_options) {
+            return _super.call(this, opt_options) || this;
+        }
+        ZoomSlider.prototype.getElement = function () {
+            return this.element;
+        };
+        return ZoomSlider;
+    }(ol.control.ZoomSlider));
+    return ZoomSlider;
+});
+define("bower_components/ol3-panzoom/ol3-panzoom/ol3-panzoom", ["require", "exports", "openlayers", "bower_components/ol3-panzoom/ol3-panzoom/zoomslidercontrol"], function (require, exports, ol, ZoomSlider) {
+    "use strict";
+    function defaults(a) {
+        var b = [];
+        for (var _i = 1; _i < arguments.length; _i++) {
+            b[_i - 1] = arguments[_i];
+        }
+        b.forEach(function (b) {
+            Object.keys(b).filter(function (k) { return a[k] === undefined; }).forEach(function (k) { return a[k] = b[k]; });
+        });
+        return a;
+    }
+    function on(element, event, listener) {
+        element.addEventListener(event, listener);
+        return function () { return element.removeEventListener(event, listener); };
+    }
+    var DEFAULT_OPTIONS = {};
+    var PanZoom = (function (_super) {
+        __extends(PanZoom, _super);
+        function PanZoom(options) {
+            if (options === void 0) { options = DEFAULT_OPTIONS; }
+            var _this = this;
+            options = defaults({}, options, DEFAULT_OPTIONS);
+            _this = _super.call(this, options) || this;
+            _this.className_ = options.className ? options.className : 'ol-panzoom';
+            _this.imgPath_ = options.imgPath || './ol3-panzoom/resources/ol2img';
+            var element = _this.element = _this.element_ = _this.createEl_();
+            _this.setTarget(options.target);
+            _this.listenerKeys_ = [];
+            _this.duration_ = options.duration !== undefined ? options.duration : 100;
+            _this.maxExtent_ = options.maxExtent ? options.maxExtent : null;
+            _this.maxZoom_ = options.maxZoom ? options.maxZoom : 19;
+            _this.minZoom_ = options.minZoom ? options.minZoom : 0;
+            _this.pixelDelta_ = options.pixelDelta !== undefined ? options.pixelDelta : 128;
+            _this.slider_ = options.slider !== undefined ? options.slider : false;
+            _this.zoomDelta_ = options.zoomDelta !== undefined ? options.zoomDelta : 1;
+            _this.panEastEl_ = _this.createButtonEl_('pan-east');
+            _this.panNorthEl_ = _this.createButtonEl_('pan-north');
+            _this.panSouthEl_ = _this.createButtonEl_('pan-south');
+            _this.panWestEl_ = _this.createButtonEl_('pan-west');
+            _this.zoomInEl_ = _this.createButtonEl_('zoom-in');
+            _this.zoomOutEl_ = _this.createButtonEl_('zoom-out');
+            _this.zoomMaxEl_ = (!_this.slider_ && _this.maxExtent_) ? _this.createButtonEl_('zoom-max') : null;
+            _this.zoomSliderCtrl_ = (_this.slider_) ? new ZoomSlider() : null;
+            element.appendChild(_this.panNorthEl_);
+            element.appendChild(_this.panWestEl_);
+            element.appendChild(_this.panEastEl_);
+            element.appendChild(_this.panSouthEl_);
+            element.appendChild(_this.zoomInEl_);
+            element.appendChild(_this.zoomOutEl_);
+            if (_this.zoomMaxEl_) {
+                element.appendChild(_this.zoomMaxEl_);
+            }
+            return _this;
+        }
+        PanZoom.prototype.setMap = function (map) {
+            var _this = this;
+            var keys = this.listenerKeys_;
+            var zoomSlider = this.zoomSliderCtrl_;
+            var currentMap = this.getMap();
+            if (currentMap && currentMap instanceof ol.Map) {
+                keys.forEach(function (k) { return k(); });
+                keys.length = 0;
+                if (this.zoomSliderCtrl_) {
+                    this.zoomSliderCtrl_.setTarget(null);
+                    window.setTimeout(function () {
+                        currentMap.removeControl(zoomSlider);
+                    }, 0);
+                }
+            }
+            _super.prototype.setMap.call(this, map);
+            if (map) {
+                keys.push(on(this.panEastEl_, "click", function (evt) { return _this.pan_('east', evt); }));
+                keys.push(on(this.panNorthEl_, "click", function (evt) { return _this.pan_('north', evt); }));
+                keys.push(on(this.panSouthEl_, "click", function (evt) { return _this.pan_('south', evt); }));
+                keys.push(on(this.panWestEl_, "click", function (evt) { return _this.pan_('west', evt); }));
+                keys.push(on(this.zoomInEl_, "click", function (evt) { return _this.zoom_('in', evt); }));
+                keys.push(on(this.zoomOutEl_, "click", function (evt) { return _this.zoom_('out', evt); }));
+                if (this.maxExtent_ && !this.slider_) {
+                    keys.push(on(this.zoomMaxEl_, "click", function (evt) { return _this.zoom_('max', evt); }));
+                }
+                if (this.slider_) {
+                    zoomSlider.setTarget(this.element_);
+                    window.setTimeout(function () {
+                        map.addControl(zoomSlider);
+                    }, 0);
+                    this.adjustZoomSlider_();
+                }
+            }
+        };
+        PanZoom.prototype.createEl_ = function () {
+            var path = this.imgPath_;
+            var className = this.className_;
+            var cssClasses = [
+                className,
+                'ol-unselectable'
+            ];
+            if (!path) {
+                cssClasses.push('ol-control');
+            }
+            var element = document.createElement('div');
+            element.className = cssClasses.join(' ');
+            if (path) {
+                element.style.left = '4px';
+                element.style.position = 'absolute';
+                element.style.top = '4px';
+            }
+            return element;
+        };
+        PanZoom.prototype.createButtonEl_ = function (action) {
+            var divEl = document.createElement('div');
+            var path = this.imgPath_;
+            var maxExtent = this.maxExtent_;
+            var slider = this.slider_;
+            if (path) {
+                divEl.style.width = '18px';
+                divEl.style.height = '18px';
+                divEl.style.position = 'absolute';
+                divEl.style.cursor = 'pointer';
+                var imgEl = document.createElement('img');
+                imgEl.style.width = '18px';
+                imgEl.style.height = '18px';
+                imgEl.style['vertical-align'] = 'top';
+                switch (action) {
+                    case 'pan-east':
+                        imgEl.id = 'OpenLayers_Control_PanZoom_panright_innerImage';
+                        imgEl.src = [path, 'east-mini.png'].join('/');
+                        divEl.id = 'OpenLayers_Control_PanZoom_panright';
+                        divEl.style.top = '22px';
+                        divEl.style.left = '22px';
+                        break;
+                    case 'pan-north':
+                        imgEl.id = 'OpenLayers_Control_PanZoom_panup_innerImage';
+                        imgEl.src = [path, 'north-mini.png'].join('/');
+                        divEl.id = 'OpenLayers_Control_PanZoom_panup';
+                        divEl.style.top = '4px';
+                        divEl.style.left = '13px';
+                        break;
+                    case 'pan-south':
+                        imgEl.id = 'OpenLayers_Control_PanZoom_pandown_innerImage';
+                        imgEl.src = [path, 'south-mini.png'].join('/');
+                        divEl.id = 'OpenLayers_Control_PanZoom_pandown';
+                        divEl.style.top = '40px';
+                        divEl.style.left = '13px';
+                        break;
+                    case 'pan-west':
+                        imgEl.id = 'OpenLayers_Control_PanZoom_panleft_innerImage';
+                        imgEl.src = [path, 'west-mini.png'].join('/');
+                        divEl.id = 'OpenLayers_Control_PanZoom_panleft';
+                        divEl.style.top = '22px';
+                        divEl.style.left = '4px';
+                        break;
+                    case 'zoom-in':
+                        imgEl.id = 'OpenLayers_Control_PanZoom_zoomin_innerImage';
+                        imgEl.src = [path, 'zoom-plus-mini.png'].join('/');
+                        divEl.id = 'OpenLayers_Control_PanZoom_zoomin';
+                        divEl.style.top = '63px';
+                        divEl.style.left = '13px';
+                        break;
+                    case 'zoom-out':
+                        imgEl.id = 'OpenLayers_Control_PanZoom_zoomout_innerImage';
+                        imgEl.src = [path, 'zoom-minus-mini.png'].join('/');
+                        divEl.id = 'OpenLayers_Control_PanZoom_zoomout';
+                        if (slider) {
+                            divEl.style.top = [this.getSliderSize_() + 81, 'px'].join('');
+                        }
+                        else if (maxExtent) {
+                            divEl.style.top = '99px';
+                        }
+                        else {
+                            divEl.style.top = '81px';
+                        }
+                        divEl.style.left = '13px';
+                        break;
+                    case 'zoom-max':
+                        imgEl.id = 'OpenLayers_Control_PanZoom_zoomworld_innerImage';
+                        imgEl.src = [path, 'zoom-world-mini.png'].join('/');
+                        divEl.id = 'OpenLayers_Control_PanZoom_zoomworld';
+                        divEl.style.top = '81px';
+                        divEl.style.left = '13px';
+                        break;
+                }
+                divEl.appendChild(imgEl);
+            }
+            return divEl;
+        };
+        PanZoom.prototype.pan_ = function (direction, evt) {
+            var stopEvent = false;
+            var map = this.getMap();
+            console.assert(!!map, 'map must be set');
+            var view = map.getView();
+            console.assert(!!view, 'map must have view');
+            var mapUnitsDelta = view.getResolution() * this.pixelDelta_;
+            var deltaX = 0, deltaY = 0;
+            if (direction == 'south') {
+                deltaY = -mapUnitsDelta;
+            }
+            else if (direction == 'west') {
+                deltaX = -mapUnitsDelta;
+            }
+            else if (direction == 'east') {
+                deltaX = mapUnitsDelta;
+            }
+            else {
+                deltaY = mapUnitsDelta;
+            }
+            var delta = [deltaX, deltaY];
+            ol.coordinate.rotate(delta, view.getRotation());
+            var currentCenter = view.getCenter();
+            if (currentCenter) {
+                if (this.duration_ && this.duration_ > 0) {
+                    map.beforeRender(ol.animation.pan({
+                        source: currentCenter,
+                        duration: this.duration_,
+                        easing: ol.easing.linear
+                    }));
+                }
+                var center = view.constrainCenter([currentCenter[0] + delta[0], currentCenter[1] + delta[1]]);
+                view.setCenter(center);
+            }
+            evt.preventDefault();
+            stopEvent = true;
+            return !stopEvent;
+        };
+        PanZoom.prototype.zoom_ = function (direction, evt) {
+            if (direction === 'in') {
+                this.zoomByDelta_(this.zoomDelta_);
+            }
+            else if (direction === 'out') {
+                this.zoomByDelta_(-this.zoomDelta_);
+            }
+            else if (direction === 'max') {
+                var map = this.getMap();
+                var view = map.getView();
+                var extent = !this.maxExtent_ ?
+                    view.getProjection().getExtent() : this.maxExtent_;
+                var size = map.getSize();
+                console.assert(!!size, 'size should be defined');
+                view.fit(extent, size);
+            }
+        };
+        PanZoom.prototype.zoomByDelta_ = function (delta) {
+            var map = this.getMap();
+            var view = map.getView();
+            if (!view) {
+                return;
+            }
+            var currentResolution = view.getResolution();
+            if (currentResolution) {
+                if (this.duration_ > 0) {
+                    map.beforeRender(ol.animation.zoom({
+                        resolution: currentResolution,
+                        duration: this.duration_,
+                        easing: ol.easing.easeOut
+                    }));
+                }
+                var newResolution = view.constrainResolution(currentResolution, delta);
+                view.setResolution(newResolution);
+            }
+        };
+        PanZoom.prototype.adjustZoomSlider_ = function () {
+            var zoomSlider = this.zoomSliderCtrl_;
+            var path = this.imgPath_;
+            if (!zoomSlider || !path) {
+                return;
+            }
+            var height = [this.getSliderSize_(), 'px'].join('');
+            var zoomSliderEl = zoomSlider.getElement();
+            zoomSliderEl.style.background =
+                ['url(', path, '/', 'zoombar.png', ')'].join('');
+            zoomSliderEl.style.border = '0';
+            zoomSliderEl.style['border-radius'] = '0';
+            zoomSliderEl.style.height = height;
+            zoomSliderEl.style.left = '13px';
+            zoomSliderEl.style.padding = '0';
+            zoomSliderEl.style.top = '81px';
+            zoomSliderEl.style.width = '18px';
+            var sliderEl = zoomSliderEl.children[0];
+            console.assert(sliderEl instanceof Element);
+            sliderEl.style.background = ['url(', path, '/', 'slider.png', ')'].join('');
+            sliderEl.style.border = "none";
+            sliderEl.style.height = '9px';
+            sliderEl.style.margin = '0 -1px';
+            sliderEl.style.width = '20px';
+        };
+        PanZoom.prototype.getSliderSize_ = function () {
+            return (this.maxZoom_ - this.minZoom_ + 1) * 11;
+        };
+        return PanZoom;
+    }(ol.control.Control));
+    exports.PanZoom = PanZoom;
+});
+define("bower_components/ol3-panzoom/index", ["require", "exports", "bower_components/ol3-panzoom/ol3-panzoom/ol3-panzoom"], function (require, exports, Panzoom) {
+    "use strict";
+    return Panzoom;
+});
+define("ol3-lab/labs/layerswitcher", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/common/common", "bower_components/ol3-symbolizer/ol3-symbolizer", "bower_components/ol3-layerswitcher/ol3-layerswitcher", "bower_components/ol3-popup/ol3-popup", "bower_components/ol3-panzoom/index", "bower_components/ol3-symbolizer/ol3-symbolizer/ags/ags-source"], function (require, exports, $, ol, common_5, ol3_symbolizer_4, ol3_layerswitcher_2, ol3_popup_2, index_1, ags_source_2) {
     "use strict";
     var styler = new ol3_symbolizer_4.StyleConverter();
     function parse(v, type) {
@@ -3870,8 +4352,65 @@ define("ol3-lab/labs/polyline-encoder", ["require", "exports", "jquery", "openla
     }
     exports.run = run;
 });
-define("ol3-lab/ux/ol3-grid", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/common/snapshot", "ol3-lab/labs/common/common"], function (require, exports, $, ol, Snapshot, common_6) {
+define("bower_components/ol3-fun/ol3-fun/common", ["require", "exports"], function (require, exports) {
     "use strict";
+    function parse(v, type) {
+        if (typeof type === "string")
+            return v;
+        if (typeof type === "number")
+            return parseFloat(v);
+        if (typeof type === "boolean")
+            return (v === "1" || v === "true");
+        if (Array.isArray(type)) {
+            return (v.split(",").map(function (v) { return parse(v, type[0]); }));
+        }
+        throw "unknown type: " + type;
+    }
+    exports.parse = parse;
+    function getQueryParameters(options, url) {
+        if (url === void 0) { url = window.location.href; }
+        var opts = options;
+        Object.keys(opts).forEach(function (k) {
+            doif(getParameterByName(k, url), function (v) {
+                var value = parse(v, opts[k]);
+                if (value !== undefined)
+                    opts[k] = value;
+            });
+        });
+    }
+    exports.getQueryParameters = getQueryParameters;
+    function getParameterByName(name, url) {
+        if (url === void 0) { url = window.location.href; }
+        name = name.replace(/[\[\]]/g, "\\$&");
+        var regex = new RegExp("[?&]" + name + "(=([^&#]*)|&|#|$)"), results = regex.exec(url);
+        if (!results)
+            return null;
+        if (!results[2])
+            return '';
+        return decodeURIComponent(results[2].replace(/\+/g, " "));
+    }
+    exports.getParameterByName = getParameterByName;
+    function doif(v, cb) {
+        if (v !== undefined && v !== null)
+            cb(v);
+    }
+    exports.doif = doif;
+    function mixin(a, b) {
+        Object.keys(b).forEach(function (k) { return a[k] = b[k]; });
+        return a;
+    }
+    exports.mixin = mixin;
+    function defaults(a) {
+        var b = [];
+        for (var _i = 1; _i < arguments.length; _i++) {
+            b[_i - 1] = arguments[_i];
+        }
+        b.forEach(function (b) {
+            Object.keys(b).filter(function (k) { return a[k] === undefined; }).forEach(function (k) { return a[k] = b[k]; });
+        });
+        return a;
+    }
+    exports.defaults = defaults;
     function cssin(name, css) {
         var id = "style-" + name;
         var styleTag = document.getElementById(id);
@@ -3891,13 +4430,61 @@ define("ol3-lab/ux/ol3-grid", ["require", "exports", "jquery", "openlayers", "ol
         };
     }
     exports.cssin = cssin;
-    function mixin(a, b) {
-        Object.keys(b).forEach(function (k) { return a[k] = b[k]; });
-        return a;
+    function debounce(func, wait) {
+        if (wait === void 0) { wait = 50; }
+        var h;
+        return function () {
+            clearTimeout(h);
+            h = setTimeout(function () { return func(); }, wait);
+        };
     }
-    exports.mixin = mixin;
-    var css = "\n    .ol-grid {\n        position:absolute;\n    }\n    .ol-grid.top {\n        top: 0.5em;\n    }\n    .ol-grid.top-1 {\n        top: 1.5em;\n    }\n    .ol-grid.top-2 {\n        top: 2.5em;\n    }\n    .ol-grid.top-3 {\n        top: 3.5em;\n    }\n    .ol-grid.top-4 {\n        top: 4.5em;\n    }\n    .ol-grid.left {\n        left: 0.5em;\n    }\n    .ol-grid.left-1 {\n        left: 1.5em;\n    }\n    .ol-grid.left-2 {\n        left: 2.5em;\n    }\n    .ol-grid.left-3 {\n        left: 3.5em;\n    }\n    .ol-grid.left-4 {\n        left: 4.5em;\n    }\n    .ol-grid.bottom {\n        bottom: 0.5em;\n    }\n    .ol-grid.bottom-1 {\n        bottom: 1.5em;\n    }\n    .ol-grid.bottom-2 {\n        bottom: 2.5em;\n    }\n    .ol-grid.bottom-3 {\n        bottom: 3.5em;\n    }\n    .ol-grid.bottom-4 {\n        bottom: 4.5em;\n    }\n    .ol-grid.right {\n        right: 0.5em;\n    }\n    .ol-grid.right-1 {\n        right: 1.5em;\n    }\n    .ol-grid.right-2 {\n        right: 2.5em;\n    }\n    .ol-grid.right-3 {\n        right: 3.5em;\n    }\n    .ol-grid.right-4 {\n        right: 4.5em;\n    }\n    .ol-grid .ol-grid-container {\n        min-width: 8em;\n        max-height: 16em;\n        overflow-y: auto;\n    }\n    .ol-grid .ol-grid-container.ol-hidden {\n        display: none;\n    }\n    .ol-grid .feature-row {\n        cursor: pointer;\n    }\n    .ol-grid .feature-row:hover {\n        background: black;\n        color: white;\n    }\n    .ol-grid .feature-row:focus {\n        background: #ccc;\n        color: black;\n    }\n";
-    var grid_html = "\n<div class='ol-grid-container'>\n    <table class='ol-grid-table'>\n        <tbody></tbody>\n    </table>\n</div>\n";
+    exports.debounce = debounce;
+    function html(html) {
+        var d = document;
+        var a = d.createElement("div");
+        var b = d.createDocumentFragment();
+        a.innerHTML = html;
+        while (a.firstChild)
+            b.appendChild(a.firstChild);
+        return b.firstElementChild;
+    }
+    exports.html = html;
+});
+define("bower_components/ol3-fun/ol3-fun/snapshot", ["require", "exports", "openlayers"], function (require, exports, ol) {
+    "use strict";
+    var Snapshot = (function () {
+        function Snapshot() {
+        }
+        Snapshot.render = function (canvas, feature) {
+            feature = feature.clone();
+            var geom = feature.getGeometry();
+            var extent = geom.getExtent();
+            var isPoint = extent[0] === extent[2];
+            var _a = ol.extent.getCenter(extent), dx = _a[0], dy = _a[1];
+            var scale = isPoint ? 1 : Math.min(canvas.width / ol.extent.getWidth(extent), canvas.height / ol.extent.getHeight(extent));
+            geom.translate(-dx, -dy);
+            geom.scale(scale, -scale);
+            geom.translate(canvas.width / 2, canvas.height / 2);
+            var vtx = ol.render.toContext(canvas.getContext("2d"));
+            var styles = feature.getStyleFunction()(0);
+            if (!Array.isArray(styles))
+                styles = [styles];
+            styles.forEach(function (style) { return vtx.drawFeature(feature, style); });
+        };
+        Snapshot.snapshot = function (feature) {
+            var canvas = document.createElement("canvas");
+            var geom = feature.getGeometry();
+            this.render(canvas, feature);
+            return canvas.toDataURL();
+        };
+        return Snapshot;
+    }());
+    return Snapshot;
+});
+define("bower_components/ol3-grid/ol3-grid/ol3-grid", ["require", "exports", "openlayers", "bower_components/ol3-fun/ol3-fun/common", "bower_components/ol3-fun/ol3-fun/snapshot"], function (require, exports, ol, common_6, Snapshot) {
+    "use strict";
+    var css = "\n    .ol-grid {\n        position:absolute;\n    }\n    .ol-grid.top {\n        top: 0.5em;\n    }\n    .ol-grid.top-1 {\n        top: 1.5em;\n    }\n    .ol-grid.top-2 {\n        top: 2.5em;\n    }\n    .ol-grid.top-3 {\n        top: 3.5em;\n    }\n    .ol-grid.top-4 {\n        top: 4.5em;\n    }\n    .ol-grid.left {\n        left: 0.5em;\n    }\n    .ol-grid.left-1 {\n        left: 1.5em;\n    }\n    .ol-grid.left-2 {\n        left: 2.5em;\n    }\n    .ol-grid.left-3 {\n        left: 3.5em;\n    }\n    .ol-grid.left-4 {\n        left: 4.5em;\n    }\n    .ol-grid.bottom {\n        bottom: 0.5em;\n    }\n    .ol-grid.bottom-1 {\n        bottom: 1.5em;\n    }\n    .ol-grid.bottom-2 {\n        bottom: 2.5em;\n    }\n    .ol-grid.bottom-3 {\n        bottom: 3.5em;\n    }\n    .ol-grid.bottom-4 {\n        bottom: 4.5em;\n    }\n    .ol-grid.right {\n        right: 0.5em;\n    }\n    .ol-grid.right-1 {\n        right: 1.5em;\n    }\n    .ol-grid.right-2 {\n        right: 2.5em;\n    }\n    .ol-grid.right-3 {\n        right: 3.5em;\n    }\n    .ol-grid.right-4 {\n        right: 4.5em;\n    }\n    .ol-grid .ol-grid-container {\n        max-height: 16em;\n        overflow-y: auto;\n    }\n    .ol-grid .ol-grid-container.ol-hidden {\n        display: none;\n    }\n    .ol-grid .feature-row {\n        cursor: pointer;\n    }\n    .ol-grid .feature-row:hover {\n        background: black;\n        color: white;\n    }\n    .ol-grid .feature-row:focus {\n        background: #ccc;\n        color: black;\n    }\n";
+    var grid_html = "\n<div class='ol-grid-container'>\n    <table class='ol-grid-table'>\n        <tbody><tr><td/></tr></tbody>\n    </table>\n</div>\n";
     var olcss = {
         CLASS_CONTROL: 'ol-control',
         CLASS_UNSELECTABLE: 'ol-unselectable',
@@ -3944,9 +4531,9 @@ define("ol3-lab/ux/ol3-grid", ["require", "exports", "jquery", "openlayers", "ol
             if (options.hideButton) {
                 button.style.display = "none";
             }
-            var grid = $(grid_html.trim());
-            _this.grid = $(".ol-grid-table", grid)[0];
-            grid.appendTo(options.element);
+            var grid = common_6.html(grid_html.trim());
+            _this.grid = grid.getElementsByClassName("ol-grid-table")[0];
+            options.element.appendChild(grid);
             if (_this.options.autoCollapse) {
                 button.addEventListener("mouseover", function () {
                     !options.expanded && _this.expand();
@@ -3967,15 +4554,15 @@ define("ol3-lab/ux/ol3-grid", ["require", "exports", "jquery", "openlayers", "ol
         }
         Grid.create = function (options) {
             if (options === void 0) { options = {}; }
-            cssin('ol-grid', css);
-            options = mixin({
+            common_6.cssin('ol-grid', css);
+            options = common_6.mixin({
                 openedText: options.className && -1 < options.className.indexOf("left") ? expando.left : expando.right,
                 closedText: options.className && -1 < options.className.indexOf("left") ? expando.right : expando.left
             }, options || {});
-            options = mixin(mixin({}, defaults), options);
+            options = common_6.mixin(common_6.mixin({}, defaults), options);
             var element = document.createElement('div');
             element.className = options.className + " " + olcss.CLASS_UNSELECTABLE + " " + olcss.CLASS_CONTROL;
-            var gridOptions = mixin({
+            var gridOptions = common_6.mixin({
                 element: element,
                 expanded: false
             }, options);
@@ -3995,21 +4582,27 @@ define("ol3-lab/ux/ol3-grid", ["require", "exports", "jquery", "openlayers", "ol
                 this.features.forEachFeature(function (f) { return void features.push(f); });
             }
             features.forEach(function (feature) {
-                var tr = $("<tr tabindex=\"0\" class=\"feature-row\"></tr>");
+                var tr = document.createElement("tr");
+                tr.tabIndex = 0;
+                tr.className = "feature-row";
                 if (_this.options.showIcon) {
-                    var td = $("<td><canvas class=\"icon\"></canvas></td>");
-                    var canvas = $(".icon", td)[0];
+                    var td = document.createElement("td");
+                    var canvas = document.createElement("canvas");
+                    td.appendChild(canvas);
+                    canvas.className = "icon";
                     canvas.width = 160;
                     canvas.height = 64;
-                    td.appendTo(tr);
+                    tr.appendChild(td);
                     Snapshot.render(canvas, feature);
                 }
                 if (_this.options.labelAttributeName) {
-                    var td = $("<td><label class=\"label\">" + feature.get(_this.options.labelAttributeName) + "</label></td>");
-                    td.appendTo(tr);
+                    var td = document.createElement("td");
+                    var label = common_6.html("<label class=\"label\">" + feature.get(_this.options.labelAttributeName) + "</label>");
+                    td.appendChild(label);
+                    tr.appendChild(td);
                 }
                 ["click", "keypress"].forEach(function (k) {
-                    return tr.on(k, function () {
+                    return tr.addEventListener(k, function () {
                         if (_this.options.autoCollapse) {
                             _this.collapse();
                         }
@@ -4020,7 +4613,7 @@ define("ol3-lab/ux/ol3-grid", ["require", "exports", "jquery", "openlayers", "ol
                         });
                     });
                 });
-                tr.appendTo(tbody);
+                tbody.appendChild(tr);
             });
         };
         Grid.prototype.add = function (feature) {
@@ -4033,16 +4626,14 @@ define("ol3-lab/ux/ol3-grid", ["require", "exports", "jquery", "openlayers", "ol
         Grid.prototype.setMap = function (map) {
             var _this = this;
             _super.prototype.setMap.call(this, map);
-            var vectorLayers = map.getLayers()
-                .getArray()
-                .filter(function (l) { return l instanceof ol.layer.Vector; })
-                .map(function (l) { return l; });
             if (this.options.currentExtent) {
                 map.getView().on(["change:center", "change:resolution"], common_6.debounce(function () { return _this.redraw(); }));
             }
-            vectorLayers.forEach(function (l) { return l.getSource().on("addfeature", function (args) {
-                _this.add(args.feature);
-            }); });
+            if (this.options.layers) {
+                this.options.layers.forEach(function (l) { return l.getSource().on("addfeature", function (args) {
+                    _this.add(args.feature);
+                }); });
+            }
         };
         Grid.prototype.collapse = function () {
             var options = this.options;
@@ -4067,7 +4658,11 @@ define("ol3-lab/ux/ol3-grid", ["require", "exports", "jquery", "openlayers", "ol
     }(ol.control.Control));
     exports.Grid = Grid;
 });
-define("ol3-lab/labs/popup", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/common/common", "bower_components/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/star/flower", "bower_components/ol3-popup/ol3-popup", "ol3-lab/ux/ol3-grid"], function (require, exports, $, ol, common_7, ol3_symbolizer_5, pointStyle, ol3_popup_3, ol3_grid_1) {
+define("bower_components/ol3-grid/index", ["require", "exports", "bower_components/ol3-grid/ol3-grid/ol3-grid"], function (require, exports, Grid) {
+    "use strict";
+    return Grid;
+});
+define("ol3-lab/labs/popup", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/common/common", "bower_components/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/star/flower", "bower_components/ol3-popup/ol3-popup", "bower_components/ol3-grid/index"], function (require, exports, $, ol, common_7, ol3_symbolizer_5, pointStyle, ol3_popup_3, ol3_grid_1) {
     "use strict";
     var styler = new ol3_symbolizer_5.StyleConverter();
     function parse(v, type) {
@@ -4168,12 +4763,14 @@ define("ol3-lab/labs/popup", ["require", "exports", "jquery", "openlayers", "ol3
             setTimeout(function () { return popup.show(event.coordinate, "<div>You clicked on " + location + "</div>"); }, 50);
         });
         var grid = ol3_grid_1.Grid.create({
+            layers: [layer],
             expanded: true,
             labelAttributeName: "text"
         });
         map.addControl(grid);
         map.addControl(ol3_grid_1.Grid.create({
             className: "ol-grid top left-2",
+            layers: [layer],
             currentExtent: true,
             hideButton: false,
             closedText: "+",
@@ -4186,6 +4783,7 @@ define("ol3-lab/labs/popup", ["require", "exports", "jquery", "openlayers", "ol3
         }));
         map.addControl(ol3_grid_1.Grid.create({
             className: "ol-grid bottom left",
+            layers: [layer],
             currentExtent: true,
             hideButton: false,
             closedText: "+",
@@ -4198,6 +4796,7 @@ define("ol3-lab/labs/popup", ["require", "exports", "jquery", "openlayers", "ol3
         }));
         map.addControl(ol3_grid_1.Grid.create({
             className: "ol-grid bottom right",
+            layers: [layer],
             currentExtent: true,
             hideButton: true,
             showIcon: true,

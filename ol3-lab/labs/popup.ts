@@ -4,7 +4,7 @@ import { doif, getParameterByName } from "./common/common";
 import { StyleConverter } from "ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer";
 import pointStyle = require("ol3-symbolizer/ol3-symbolizer/styles/star/flower");
 import { Popup } from "ol3-popup/ol3-popup";
-import { Grid } from "../ux/ol3-grid";
+import { Grid } from "ol3-grid";
 
 let styler = new StyleConverter();
 
@@ -162,6 +162,7 @@ export function run() {
     });
 
     let grid = Grid.create({
+        layers: [layer],
         expanded: true,
         labelAttributeName: "text"
     });
@@ -170,6 +171,7 @@ export function run() {
 
     map.addControl(Grid.create({
         className: "ol-grid top left-2",
+        layers: [layer],
         currentExtent: true,
         hideButton: false,
         closedText: "+",
@@ -183,6 +185,7 @@ export function run() {
 
     map.addControl(Grid.create({
         className: "ol-grid bottom left",
+        layers: [layer],
         currentExtent: true,
         hideButton: false,
         closedText: "+",
@@ -196,6 +199,7 @@ export function run() {
 
     map.addControl(Grid.create({
         className: "ol-grid bottom right",
+        layers: [layer],
         currentExtent: true,
         hideButton: true,
         showIcon: true,
