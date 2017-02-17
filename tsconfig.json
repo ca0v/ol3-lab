@@ -3,13 +3,18 @@
         "removeComments": true,
         "declaration": false,
         "module": "amd",
-        "target": "es3",
+        "target": "es5",
         "noImplicitAny": true,
         "sourceMap": true,
         "outFile": "./built/index.js",
         "moduleResolution": "node",
         "baseUrl": "./bower_components"
     },
+    "include": [
+        "ol3-lab.ts",
+        "ol3-lab",
+        "typings/index.d.ts"
+    ],
     "exclude": [
         "bower_components",
         "built",

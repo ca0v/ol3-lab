@@ -410,7 +410,7 @@ define("ol3-lab/ux/osrm-proxy", ["require", "exports", "ol3-lab/labs/common/ajax
         Osrm.prototype.trip = function (loc) {
             var url = this.url + "/trip";
             return ajax.jsonp(url, {
-                loc: loc.map(function (l) { return l[0] + "," + l[1]; }).join("&loc=")
+                loc: loc.map(function (l) { return l[0] + "," + l[1]; }).join("&loc="),
             }, "jsonp");
         };
         Osrm.test = function () {
@@ -1029,7 +1029,7 @@ define("bower_components/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", [
     }());
     exports.StyleConverter = StyleConverter;
 });
-define("bower_components/ol3-symbolizer/ol3-symbolizer", ["require", "exports", "bower_components/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer"], function (require, exports, Symbolizer) {
+define("bower_components/ol3-symbolizer/index", ["require", "exports", "bower_components/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer"], function (require, exports, Symbolizer) {
     "use strict";
     return Symbolizer;
 });
@@ -1288,7 +1288,7 @@ define("bower_components/ol3-layerswitcher/ol3-layerswitcher/ol3-layerswitcher",
     }(ol.control.Control));
     exports.LayerSwitcher = LayerSwitcher;
 });
-define("bower_components/ol3-layerswitcher/ol3-layerswitcher", ["require", "exports", "bower_components/ol3-layerswitcher/ol3-layerswitcher/ol3-layerswitcher"], function (require, exports, LayerSwitcher) {
+define("bower_components/ol3-layerswitcher/index", ["require", "exports", "bower_components/ol3-layerswitcher/ol3-layerswitcher/ol3-layerswitcher"], function (require, exports, LayerSwitcher) {
     "use strict";
     return LayerSwitcher;
 });
@@ -1719,7 +1719,6 @@ define("bower_components/ol3-popup/ol3-popup/ol3-popup", ["require", "exports", 
             this.handlers.forEach(function (h) { return h(); });
             this.handlers = [];
             this.getMap().removeOverlay(this);
-            this.dispose();
             this.dispatch("dispose");
         };
         Popup.prototype.dispatch = function (name) {
@@ -1787,7 +1786,7 @@ define("bower_components/ol3-popup/ol3-popup/ol3-popup", ["require", "exports", 
     }(ol.Overlay));
     exports.Popup = Popup;
 });
-define("bower_components/ol3-popup/ol3-popup", ["require", "exports", "bower_components/ol3-popup/ol3-popup/ol3-popup"], function (require, exports, Popup) {
+define("bower_components/ol3-popup/index", ["require", "exports", "bower_components/ol3-popup/ol3-popup/ol3-popup"], function (require, exports, Popup) {
     "use strict";
     return Popup;
 });
@@ -1863,7 +1862,7 @@ define("bower_components/ol3-symbolizer/ol3-symbolizer/common/ajax", ["require",
         Ajax.prototype.put = function (args) {
             return this.ajax('PUT', args);
         };
-        Ajax.prototype["delete"] = function (args) {
+        Ajax.prototype.delete = function (args) {
             return this.ajax('DELETE', args);
         };
         return Ajax;
@@ -1938,7 +1937,7 @@ define("bower_components/ol3-symbolizer/ol3-symbolizer/format/ags-symbolizer", [
         "esriSLSDash": "dash",
         "esriSLSDashDot": "dashdot",
         "esriSLSDashDotDot": "dashdotdot",
-        "esriSFSForwardDiagonal": "forward-diagonal"
+        "esriSFSForwardDiagonal": "forward-diagonal",
     };
     var typeMap = {
         "esriSMS": "sms",
@@ -1946,7 +1945,7 @@ define("bower_components/ol3-symbolizer/ol3-symbolizer/format/ags-symbolizer", [
         "esriSFS": "sfs",
         "esriPMS": "pms",
         "esriPFS": "pfs",
-        "esriTS": "txt"
+        "esriTS": "txt",
     };
     function range(a, b) {
         var result = new Array(b - a + 1);
@@ -1993,7 +1992,7 @@ define("bower_components/ol3-symbolizer/ol3-symbolizer/format/ags-symbolizer", [
                 opacity: 1,
                 radius: this.asWidth(symbol.size / 2),
                 stroke: {
-                    color: this.asColor(symbol.outline.color)
+                    color: this.asColor(symbol.outline.color),
                 },
                 snapToPixel: true
             };
@@ -2315,7 +2314,7 @@ define("bower_components/ol3-symbolizer/ol3-symbolizer/ags/ags-source", ["requir
                         where: encodeURIComponent(options.where),
                         inSR: srs,
                         outSR: srs,
-                        outFields: "*"
+                        outFields: "*",
                     };
                     var query = options.services + "/" + options.serviceName + "/FeatureServer/" + layerId + "/query?" + asParam(params);
                     $.ajax({
@@ -2375,7 +2374,7 @@ define("bower_components/ol3-symbolizer/ol3-symbolizer/ags/ags-source", ["requir
     }());
     exports.ArcGisVectorSourceFactory = ArcGisVectorSourceFactory;
 });
-define("ol3-lab/labs/ags-viewer", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/common/common", "bower_components/ol3-symbolizer/ol3-symbolizer", "bower_components/ol3-layerswitcher/ol3-layerswitcher", "bower_components/ol3-popup/ol3-popup", "bower_components/ol3-symbolizer/ol3-symbolizer/ags/ags-source"], function (require, exports, $, ol, common_2, ol3_symbolizer_1, ol3_layerswitcher_1, ol3_popup_1, ags_source_1) {
+define("ol3-lab/labs/ags-viewer", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/common/common", "bower_components/ol3-symbolizer/index", "bower_components/ol3-layerswitcher/index", "bower_components/ol3-popup/index", "bower_components/ol3-symbolizer/ol3-symbolizer/ags/ags-source"], function (require, exports, $, ol, common_2, ol3_symbolizer_1, ol3_layerswitcher_1, ol3_popup_1, ags_source_1) {
     "use strict";
     var styler = new ol3_symbolizer_1.StyleConverter();
     function parse(v, type) {
@@ -2723,7 +2722,7 @@ define("bower_components/ol3-symbolizer/ol3-symbolizer/styles/fill/gradient", ["
         }
     ];
 });
-define("ol3-lab/labs/common/style-generator", ["require", "exports", "openlayers", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/basic", "bower_components/ol3-symbolizer/ol3-symbolizer"], function (require, exports, ol, basic_styles, ol3_symbolizer_2) {
+define("ol3-lab/labs/common/style-generator", ["require", "exports", "openlayers", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/basic", "bower_components/ol3-symbolizer/index"], function (require, exports, ol, basic_styles, ol3_symbolizer_2) {
     "use strict";
     var converter = new ol3_symbolizer_2.StyleConverter();
     var orientations = "forward,backward,diagonal,horizontal,vertical,cross".split(",");
@@ -3273,7 +3272,7 @@ define("bower_components/ol3-symbolizer/ol3-symbolizer/styles/text/text", ["requ
         }
     ];
 });
-define("ol3-lab/labs/mapmaker", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/common/common", "ol3-lab/labs/common/ol3-polyline", "bower_components/ol3-symbolizer/ol3-symbolizer", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/stroke/dashdotdot", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/stroke/solid", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/text/text", "ol3-lab/labs/common/myjson"], function (require, exports, $, ol, common_4, reduce, ol3_symbolizer_3, dashdotdot, strokeStyle, textStyle, myjson_1) {
+define("ol3-lab/labs/mapmaker", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/common/common", "ol3-lab/labs/common/ol3-polyline", "bower_components/ol3-symbolizer/index", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/stroke/dashdotdot", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/stroke/solid", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/text/text", "ol3-lab/labs/common/myjson"], function (require, exports, $, ol, common_4, reduce, ol3_symbolizer_3, dashdotdot, strokeStyle, textStyle, myjson_1) {
     "use strict";
     var styler = new ol3_symbolizer_3.StyleConverter();
     function parse(v, type) {
@@ -3439,8 +3438,65 @@ define("ol3-lab/labs/mapmaker", ["require", "exports", "jquery", "openlayers", "
     }
     exports.run = run;
 });
-define("bower_components/ol3-input/ol3-input/ol3-input", ["require", "exports", "openlayers"], function (require, exports, ol) {
+define("bower_components/ol3-fun/ol3-fun/common", ["require", "exports"], function (require, exports) {
     "use strict";
+    function parse(v, type) {
+        if (typeof type === "string")
+            return v;
+        if (typeof type === "number")
+            return parseFloat(v);
+        if (typeof type === "boolean")
+            return (v === "1" || v === "true");
+        if (Array.isArray(type)) {
+            return (v.split(",").map(function (v) { return parse(v, type[0]); }));
+        }
+        throw "unknown type: " + type;
+    }
+    exports.parse = parse;
+    function getQueryParameters(options, url) {
+        if (url === void 0) { url = window.location.href; }
+        var opts = options;
+        Object.keys(opts).forEach(function (k) {
+            doif(getParameterByName(k, url), function (v) {
+                var value = parse(v, opts[k]);
+                if (value !== undefined)
+                    opts[k] = value;
+            });
+        });
+    }
+    exports.getQueryParameters = getQueryParameters;
+    function getParameterByName(name, url) {
+        if (url === void 0) { url = window.location.href; }
+        name = name.replace(/[\[\]]/g, "\\$&");
+        var regex = new RegExp("[?&]" + name + "(=([^&#]*)|&|#|$)"), results = regex.exec(url);
+        if (!results)
+            return null;
+        if (!results[2])
+            return '';
+        return decodeURIComponent(results[2].replace(/\+/g, " "));
+    }
+    exports.getParameterByName = getParameterByName;
+    function doif(v, cb) {
+        if (v !== undefined && v !== null)
+            cb(v);
+    }
+    exports.doif = doif;
+    function mixin(a, b) {
+        Object.keys(b).forEach(function (k) { return a[k] = b[k]; });
+        return a;
+    }
+    exports.mixin = mixin;
+    function defaults(a) {
+        var b = [];
+        for (var _i = 1; _i < arguments.length; _i++) {
+            b[_i - 1] = arguments[_i];
+        }
+        b.forEach(function (b) {
+            Object.keys(b).filter(function (k) { return a[k] === undefined; }).forEach(function (k) { return a[k] = b[k]; });
+        });
+        return a;
+    }
+    exports.defaults = defaults;
     function cssin(name, css) {
         var id = "style-" + name;
         var styleTag = document.getElementById(id);
@@ -3460,12 +3516,29 @@ define("bower_components/ol3-input/ol3-input/ol3-input", ["require", "exports", 
         };
     }
     exports.cssin = cssin;
-    function mixin(a, b) {
-        Object.keys(b).forEach(function (k) { return a[k] = b[k]; });
-        return a;
+    function debounce(func, wait) {
+        if (wait === void 0) { wait = 50; }
+        var h;
+        return function () {
+            clearTimeout(h);
+            h = setTimeout(function () { return func(); }, wait);
+        };
     }
-    exports.mixin = mixin;
-    var css = "\n    .ol-input {\n        position:absolute;\n    }\n    .ol-input.top {\n        top: 0.5em;\n    }\n    .ol-input.left {\n        left: 0.5em;\n    }\n    .ol-input.bottom {\n        bottom: 0.5em;\n    }\n    .ol-input.right {\n        right: 0.5em;\n    }\n    .ol-input.top.left {\n        top: 4.5em;\n    }\n    .ol-input button {\n        min-height: 1.375em;\n        min-width: 1.375em;\n        width: auto;\n        display: inline;\n    }\n    .ol-input.left button {\n        float:right;\n    }\n    .ol-input.right button {\n        float:left;\n    }\n    .ol-input input {\n        height: 24px;\n        min-width: 240px;\n        border: none;\n        padding: 0;\n        margin: 0;\n        margin-left: 2px;\n        margin-top: 1px;\n        vertical-align: top;\n    }\n    .ol-input input.hidden {\n        display: none;\n    }\n";
+    exports.debounce = debounce;
+    function html(html) {
+        var d = document;
+        var a = d.createElement("div");
+        var b = d.createDocumentFragment();
+        a.innerHTML = html;
+        while (a.firstChild)
+            b.appendChild(a.firstChild);
+        return b.firstElementChild;
+    }
+    exports.html = html;
+});
+define("bower_components/ol3-input/ol3-input/ol3-input", ["require", "exports", "openlayers", "bower_components/ol3-fun/ol3-fun/common"], function (require, exports, ol, common_5) {
+    "use strict";
+    var css = "\n    .ol-input {\n        position:absolute;\n    }\n    .ol-input.top {\n        top: 0.5em;\n    }\n    .ol-input.top-1 {\n        top: 1.5em;\n    }\n    .ol-input.top-2 {\n        top: 2.5em;\n    }\n    .ol-input.top-3 {\n        top: 3.5em;\n    }\n    .ol-input.top-4 {\n        top: 4.5em;\n    }\n    .ol-input.left {\n        left: 0.5em;\n    }\n    .ol-input.left-1 {\n        left: 1.5em;\n    }\n    .ol-input.left-2 {\n        left: 2.5em;\n    }\n    .ol-input.left-3 {\n        left: 3.5em;\n    }\n    .ol-input.left-4 {\n        left: 4.5em;\n    }\n    .ol-input.bottom {\n        bottom: 0.5em;\n    }\n    .ol-input.bottom-1 {\n        bottom: 1.5em;\n    }\n    .ol-input.bottom-2 {\n        bottom: 2.5em;\n    }\n    .ol-input.bottom-3 {\n        bottom: 3.5em;\n    }\n    .ol-input.bottom-4 {\n        bottom: 4.5em;\n    }\n    .ol-input.right {\n        right: 0.5em;\n    }\n    .ol-input.right-1 {\n        right: 1.5em;\n    }\n    .ol-input.right-2 {\n        right: 2.5em;\n    }\n    .ol-input.right-3 {\n        right: 3.5em;\n    }\n    .ol-input.right-4 {\n        right: 4.5em;\n    }\n    .ol-input button {\n        min-height: 1.375em;\n        min-width: 1.375em;\n        width: auto;\n        display: inline;\n    }\n    .ol-input.left button {\n        float:right;\n    }\n    .ol-input.right button {\n        float:left;\n    }\n    .ol-input input {\n        height: 2.175em;\n        width: 16em;\n        border: none;\n        padding: 0;\n        margin: 0;\n        margin-left: 2px;\n        margin-top: 2px;\n        vertical-align: top;\n    }\n    .ol-input input.ol-hidden {\n        width: 0;\n        margin: 0;\n    }\n";
     var olcss = {
         CLASS_CONTROL: 'ol-control',
         CLASS_UNSELECTABLE: 'ol-unselectable',
@@ -3479,6 +3552,11 @@ define("bower_components/ol3-input/ol3-input/ol3-input", ["require", "exports", 
     var defaults = {
         className: 'ol-input bottom left',
         expanded: false,
+        autoClear: false,
+        autoCollapse: true,
+        autoSelect: true,
+        canCollapse: true,
+        hideButton: false,
         closedText: expando.right,
         openedText: expando.left,
         placeholderText: 'Search'
@@ -3486,7 +3564,13 @@ define("bower_components/ol3-input/ol3-input/ol3-input", ["require", "exports", 
     var Input = (function (_super) {
         __extends(Input, _super);
         function Input(options) {
-            var _this = _super.call(this, {
+            var _this = this;
+            if (options.hideButton) {
+                options.canCollapse = false;
+                options.autoCollapse = false;
+                options.expanded = true;
+            }
+            _this = _super.call(this, {
                 element: options.element,
                 target: options.target
             }) || this;
@@ -3494,6 +3578,9 @@ define("bower_components/ol3-input/ol3-input/ol3-input", ["require", "exports", 
             button.setAttribute('type', 'button');
             button.title = options.placeholderText;
             options.element.appendChild(button);
+            if (options.hideButton) {
+                button.style.display = "none";
+            }
             var input = _this.input = document.createElement('input');
             input.placeholder = options.placeholderText;
             options.element.appendChild(input);
@@ -3503,7 +3590,7 @@ define("bower_components/ol3-input/ol3-input/ol3-input", ["require", "exports", 
             input.addEventListener("keypress", function (args) {
                 if (args.key === "Enter") {
                     button.focus();
-                    _this.collapse(options);
+                    options.autoCollapse && _this.collapse(options);
                 }
             });
             input.addEventListener("change", function () {
@@ -3511,6 +3598,12 @@ define("bower_components/ol3-input/ol3-input/ol3-input", ["require", "exports", 
                     type: "change",
                     value: input.value
                 };
+                if (options.autoSelect) {
+                    input.select();
+                }
+                if (options.autoClear) {
+                    input.value = "";
+                }
                 _this.dispatchEvent(args);
                 if (options.onChange)
                     options.onChange(args);
@@ -3521,37 +3614,39 @@ define("bower_components/ol3-input/ol3-input/ol3-input", ["require", "exports", 
             return _this;
         }
         Input.create = function (options) {
-            cssin('ol-input', css);
-            options = mixin({
+            common_5.cssin('ol-input', css);
+            options = common_5.mixin({
                 openedText: options.className && -1 < options.className.indexOf("left") ? expando.left : expando.right,
-                closedText: options.className && -1 < options.className.indexOf("left") ? expando.right : expando.left
+                closedText: options.className && -1 < options.className.indexOf("left") ? expando.right : expando.left,
             }, options || {});
-            options = mixin(mixin({}, defaults), options);
+            options = common_5.mixin(common_5.mixin({}, defaults), options);
             var element = document.createElement('div');
             element.className = options.className + " " + olcss.CLASS_UNSELECTABLE + " " + olcss.CLASS_CONTROL;
-            var geocoderOptions = mixin({
+            var geocoderOptions = common_5.mixin({
                 element: element,
                 target: options.target,
                 expanded: false
             }, options);
             return new Input(geocoderOptions);
         };
-        Input.prototype.dispose = function () {
-            debugger;
-        };
         Input.prototype.collapse = function (options) {
+            if (!options.canCollapse)
+                return;
             options.expanded = false;
-            this.input.classList.toggle("hidden", true);
-            this.button.classList.toggle("hidden", false);
+            this.input.classList.toggle(olcss.CLASS_HIDDEN, true);
+            this.button.classList.toggle(olcss.CLASS_HIDDEN, false);
             this.button.innerHTML = options.closedText;
         };
         Input.prototype.expand = function (options) {
             options.expanded = true;
-            this.input.classList.toggle("hidden", false);
-            this.button.classList.toggle("hidden", true);
+            this.input.classList.toggle(olcss.CLASS_HIDDEN, false);
+            this.button.classList.toggle(olcss.CLASS_HIDDEN, true);
             this.button.innerHTML = options.openedText;
             this.input.focus();
             this.input.select();
+        };
+        Input.prototype.on = function (type, cb) {
+            _super.prototype.on.call(this, type, cb);
         };
         return Input;
     }(ol.control.Control));
@@ -4142,7 +4237,7 @@ define("bower_components/ol3-panzoom/index", ["require", "exports", "bower_compo
     "use strict";
     return Panzoom;
 });
-define("ol3-lab/labs/layerswitcher", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/common/common", "bower_components/ol3-symbolizer/ol3-symbolizer", "bower_components/ol3-layerswitcher/ol3-layerswitcher", "bower_components/ol3-popup/ol3-popup", "bower_components/ol3-panzoom/index", "bower_components/ol3-symbolizer/ol3-symbolizer/ags/ags-source"], function (require, exports, $, ol, common_5, ol3_symbolizer_4, ol3_layerswitcher_2, ol3_popup_2, index_1, ags_source_2) {
+define("ol3-lab/labs/layerswitcher", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/common/common", "bower_components/ol3-symbolizer/index", "bower_components/ol3-layerswitcher/index", "bower_components/ol3-popup/index", "bower_components/ol3-panzoom/index", "bower_components/ol3-symbolizer/ol3-symbolizer/ags/ags-source"], function (require, exports, $, ol, common_6, ol3_symbolizer_4, ol3_layerswitcher_2, ol3_popup_2, index_1, ags_source_2) {
     "use strict";
     var styler = new ol3_symbolizer_4.StyleConverter();
     function parse(v, type) {
@@ -4176,7 +4271,7 @@ define("ol3-lab/labs/layerswitcher", ["require", "exports", "jquery", "openlayer
         {
             var opts_5 = options;
             Object.keys(opts_5).forEach(function (k) {
-                common_5.doif(common_5.getParameterByName(k), function (v) {
+                common_6.doif(common_6.getParameterByName(k), function (v) {
                     var value = parse(v, opts_5[k]);
                     if (value !== undefined)
                         opts_5[k] = value;
@@ -4231,7 +4326,10 @@ define("ol3-lab/labs/layerswitcher", ["require", "exports", "jquery", "openlayer
             serviceName: "GoldServer860",
             layers: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20].reverse()
         }).then(function (agsLayers) {
-            agsLayers.forEach(function (agsLayer) { return map.addLayer(agsLayer); });
+            agsLayers.forEach(function (agsLayer) {
+                agsLayer.setVisible(false);
+                map.addLayer(agsLayer);
+            });
             var layerSwitcher = new ol3_layerswitcher_2.LayerSwitcher();
             layerSwitcher.setMap(map);
             var popup = new ol3_popup_2.Popup({
@@ -4352,65 +4450,12 @@ define("ol3-lab/labs/polyline-encoder", ["require", "exports", "jquery", "openla
     }
     exports.run = run;
 });
-define("bower_components/ol3-fun/ol3-fun/common", ["require", "exports"], function (require, exports) {
+define("bower_components/ol3-grid/ol3-grid/ol3-grid", ["require", "exports", "jquery", "openlayers"], function (require, exports, $, ol) {
     "use strict";
-    function parse(v, type) {
-        if (typeof type === "string")
-            return v;
-        if (typeof type === "number")
-            return parseFloat(v);
-        if (typeof type === "boolean")
-            return (v === "1" || v === "true");
-        if (Array.isArray(type)) {
-            return (v.split(",").map(function (v) { return parse(v, type[0]); }));
-        }
-        throw "unknown type: " + type;
-    }
-    exports.parse = parse;
-    function getQueryParameters(options, url) {
-        if (url === void 0) { url = window.location.href; }
-        var opts = options;
-        Object.keys(opts).forEach(function (k) {
-            doif(getParameterByName(k, url), function (v) {
-                var value = parse(v, opts[k]);
-                if (value !== undefined)
-                    opts[k] = value;
-            });
-        });
-    }
-    exports.getQueryParameters = getQueryParameters;
-    function getParameterByName(name, url) {
-        if (url === void 0) { url = window.location.href; }
-        name = name.replace(/[\[\]]/g, "\\$&");
-        var regex = new RegExp("[?&]" + name + "(=([^&#]*)|&|#|$)"), results = regex.exec(url);
-        if (!results)
-            return null;
-        if (!results[2])
-            return '';
-        return decodeURIComponent(results[2].replace(/\+/g, " "));
-    }
-    exports.getParameterByName = getParameterByName;
-    function doif(v, cb) {
-        if (v !== undefined && v !== null)
-            cb(v);
-    }
-    exports.doif = doif;
     function mixin(a, b) {
         Object.keys(b).forEach(function (k) { return a[k] = b[k]; });
         return a;
     }
-    exports.mixin = mixin;
-    function defaults(a) {
-        var b = [];
-        for (var _i = 1; _i < arguments.length; _i++) {
-            b[_i - 1] = arguments[_i];
-        }
-        b.forEach(function (b) {
-            Object.keys(b).filter(function (k) { return a[k] === undefined; }).forEach(function (k) { return a[k] = b[k]; });
-        });
-        return a;
-    }
-    exports.defaults = defaults;
     function cssin(name, css) {
         var id = "style-" + name;
         var styleTag = document.getElementById(id);
@@ -4429,7 +4474,6 @@ define("bower_components/ol3-fun/ol3-fun/common", ["require", "exports"], functi
             }
         };
     }
-    exports.cssin = cssin;
     function debounce(func, wait) {
         if (wait === void 0) { wait = 50; }
         var h;
@@ -4438,20 +4482,6 @@ define("bower_components/ol3-fun/ol3-fun/common", ["require", "exports"], functi
             h = setTimeout(function () { return func(); }, wait);
         };
     }
-    exports.debounce = debounce;
-    function html(html) {
-        var d = document;
-        var a = d.createElement("div");
-        var b = d.createDocumentFragment();
-        a.innerHTML = html;
-        while (a.firstChild)
-            b.appendChild(a.firstChild);
-        return b.firstElementChild;
-    }
-    exports.html = html;
-});
-define("bower_components/ol3-fun/ol3-fun/snapshot", ["require", "exports", "openlayers"], function (require, exports, ol) {
-    "use strict";
     var Snapshot = (function () {
         function Snapshot() {
         }
@@ -4479,12 +4509,8 @@ define("bower_components/ol3-fun/ol3-fun/snapshot", ["require", "exports", "open
         };
         return Snapshot;
     }());
-    return Snapshot;
-});
-define("bower_components/ol3-grid/ol3-grid/ol3-grid", ["require", "exports", "openlayers", "bower_components/ol3-fun/ol3-fun/common", "bower_components/ol3-fun/ol3-fun/snapshot"], function (require, exports, ol, common_6, Snapshot) {
-    "use strict";
-    var css = "\n    .ol-grid {\n        position:absolute;\n    }\n    .ol-grid.top {\n        top: 0.5em;\n    }\n    .ol-grid.top-1 {\n        top: 1.5em;\n    }\n    .ol-grid.top-2 {\n        top: 2.5em;\n    }\n    .ol-grid.top-3 {\n        top: 3.5em;\n    }\n    .ol-grid.top-4 {\n        top: 4.5em;\n    }\n    .ol-grid.left {\n        left: 0.5em;\n    }\n    .ol-grid.left-1 {\n        left: 1.5em;\n    }\n    .ol-grid.left-2 {\n        left: 2.5em;\n    }\n    .ol-grid.left-3 {\n        left: 3.5em;\n    }\n    .ol-grid.left-4 {\n        left: 4.5em;\n    }\n    .ol-grid.bottom {\n        bottom: 0.5em;\n    }\n    .ol-grid.bottom-1 {\n        bottom: 1.5em;\n    }\n    .ol-grid.bottom-2 {\n        bottom: 2.5em;\n    }\n    .ol-grid.bottom-3 {\n        bottom: 3.5em;\n    }\n    .ol-grid.bottom-4 {\n        bottom: 4.5em;\n    }\n    .ol-grid.right {\n        right: 0.5em;\n    }\n    .ol-grid.right-1 {\n        right: 1.5em;\n    }\n    .ol-grid.right-2 {\n        right: 2.5em;\n    }\n    .ol-grid.right-3 {\n        right: 3.5em;\n    }\n    .ol-grid.right-4 {\n        right: 4.5em;\n    }\n    .ol-grid .ol-grid-container {\n        max-height: 16em;\n        overflow-y: auto;\n    }\n    .ol-grid .ol-grid-container.ol-hidden {\n        display: none;\n    }\n    .ol-grid .feature-row {\n        cursor: pointer;\n    }\n    .ol-grid .feature-row:hover {\n        background: black;\n        color: white;\n    }\n    .ol-grid .feature-row:focus {\n        background: #ccc;\n        color: black;\n    }\n";
-    var grid_html = "\n<div class='ol-grid-container'>\n    <table class='ol-grid-table'>\n        <tbody><tr><td/></tr></tbody>\n    </table>\n</div>\n";
+    var css = "\n    .ol-grid {\n        position:absolute;\n    }\n    .ol-grid.top {\n        top: 0.5em;\n    }\n    .ol-grid.top-1 {\n        top: 1.5em;\n    }\n    .ol-grid.top-2 {\n        top: 2.5em;\n    }\n    .ol-grid.top-3 {\n        top: 3.5em;\n    }\n    .ol-grid.top-4 {\n        top: 4.5em;\n    }\n    .ol-grid.left {\n        left: 0.5em;\n    }\n    .ol-grid.left-1 {\n        left: 1.5em;\n    }\n    .ol-grid.left-2 {\n        left: 2.5em;\n    }\n    .ol-grid.left-3 {\n        left: 3.5em;\n    }\n    .ol-grid.left-4 {\n        left: 4.5em;\n    }\n    .ol-grid.bottom {\n        bottom: 0.5em;\n    }\n    .ol-grid.bottom-1 {\n        bottom: 1.5em;\n    }\n    .ol-grid.bottom-2 {\n        bottom: 2.5em;\n    }\n    .ol-grid.bottom-3 {\n        bottom: 3.5em;\n    }\n    .ol-grid.bottom-4 {\n        bottom: 4.5em;\n    }\n    .ol-grid.right {\n        right: 0.5em;\n    }\n    .ol-grid.right-1 {\n        right: 1.5em;\n    }\n    .ol-grid.right-2 {\n        right: 2.5em;\n    }\n    .ol-grid.right-3 {\n        right: 3.5em;\n    }\n    .ol-grid.right-4 {\n        right: 4.5em;\n    }\n    .ol-grid .ol-grid-container {\n        min-width: 8em;\n        max-height: 16em;\n        overflow-y: auto;\n    }\n    .ol-grid .ol-grid-container.ol-hidden {\n        display: none;\n    }\n    .ol-grid .feature-row {\n        cursor: pointer;\n    }\n    .ol-grid .feature-row:hover {\n        background: black;\n        color: white;\n    }\n    .ol-grid .feature-row:focus {\n        background: #ccc;\n        color: black;\n    }\n";
+    var grid_html = "\n<div class='ol-grid-container'>\n    <table class='ol-grid-table'>\n        <tbody></tbody>\n    </table>\n</div>\n";
     var olcss = {
         CLASS_CONTROL: 'ol-control',
         CLASS_UNSELECTABLE: 'ol-unselectable',
@@ -4531,9 +4557,9 @@ define("bower_components/ol3-grid/ol3-grid/ol3-grid", ["require", "exports", "op
             if (options.hideButton) {
                 button.style.display = "none";
             }
-            var grid = common_6.html(grid_html.trim());
-            _this.grid = grid.getElementsByClassName("ol-grid-table")[0];
-            options.element.appendChild(grid);
+            var grid = $(grid_html.trim());
+            _this.grid = $(".ol-grid-table", grid)[0];
+            grid.appendTo(options.element);
             if (_this.options.autoCollapse) {
                 button.addEventListener("mouseover", function () {
                     !options.expanded && _this.expand();
@@ -4549,20 +4575,20 @@ define("bower_components/ol3-grid/ol3-grid/ol3-grid", ["require", "exports", "op
                 options.expanded ? _this.collapse() : _this.expand();
             });
             options.expanded ? _this.expand() : _this.collapse();
-            _this.features.on(["addfeature", "addfeatures"], common_6.debounce(function () { return _this.redraw(); }));
+            _this.features.on(["addfeature", "addfeatures"], debounce(function () { return _this.redraw(); }));
             return _this;
         }
         Grid.create = function (options) {
             if (options === void 0) { options = {}; }
-            common_6.cssin('ol-grid', css);
-            options = common_6.mixin({
+            cssin('ol-grid', css);
+            options = mixin({
                 openedText: options.className && -1 < options.className.indexOf("left") ? expando.left : expando.right,
-                closedText: options.className && -1 < options.className.indexOf("left") ? expando.right : expando.left
+                closedText: options.className && -1 < options.className.indexOf("left") ? expando.right : expando.left,
             }, options || {});
-            options = common_6.mixin(common_6.mixin({}, defaults), options);
+            options = mixin(mixin({}, defaults), options);
             var element = document.createElement('div');
             element.className = options.className + " " + olcss.CLASS_UNSELECTABLE + " " + olcss.CLASS_CONTROL;
-            var gridOptions = common_6.mixin({
+            var gridOptions = mixin({
                 element: element,
                 expanded: false
             }, options);
@@ -4582,27 +4608,21 @@ define("bower_components/ol3-grid/ol3-grid/ol3-grid", ["require", "exports", "op
                 this.features.forEachFeature(function (f) { return void features.push(f); });
             }
             features.forEach(function (feature) {
-                var tr = document.createElement("tr");
-                tr.tabIndex = 0;
-                tr.className = "feature-row";
+                var tr = $("<tr tabindex=\"0\" class=\"feature-row\"></tr>");
                 if (_this.options.showIcon) {
-                    var td = document.createElement("td");
-                    var canvas = document.createElement("canvas");
-                    td.appendChild(canvas);
-                    canvas.className = "icon";
+                    var td = $("<td><canvas class=\"icon\"></canvas></td>");
+                    var canvas = $(".icon", td)[0];
                     canvas.width = 160;
                     canvas.height = 64;
-                    tr.appendChild(td);
+                    td.appendTo(tr);
                     Snapshot.render(canvas, feature);
                 }
                 if (_this.options.labelAttributeName) {
-                    var td = document.createElement("td");
-                    var label = common_6.html("<label class=\"label\">" + feature.get(_this.options.labelAttributeName) + "</label>");
-                    td.appendChild(label);
-                    tr.appendChild(td);
+                    var td = $("<td><label class=\"label\">" + feature.get(_this.options.labelAttributeName) + "</label></td>");
+                    td.appendTo(tr);
                 }
                 ["click", "keypress"].forEach(function (k) {
-                    return tr.addEventListener(k, function () {
+                    return tr.on(k, function () {
                         if (_this.options.autoCollapse) {
                             _this.collapse();
                         }
@@ -4613,7 +4633,7 @@ define("bower_components/ol3-grid/ol3-grid/ol3-grid", ["require", "exports", "op
                         });
                     });
                 });
-                tbody.appendChild(tr);
+                tr.appendTo(tbody);
             });
         };
         Grid.prototype.add = function (feature) {
@@ -4626,14 +4646,16 @@ define("bower_components/ol3-grid/ol3-grid/ol3-grid", ["require", "exports", "op
         Grid.prototype.setMap = function (map) {
             var _this = this;
             _super.prototype.setMap.call(this, map);
+            var vectorLayers = map.getLayers()
+                .getArray()
+                .filter(function (l) { return l instanceof ol.layer.Vector; })
+                .map(function (l) { return l; });
             if (this.options.currentExtent) {
-                map.getView().on(["change:center", "change:resolution"], common_6.debounce(function () { return _this.redraw(); }));
+                map.getView().on(["change:center", "change:resolution"], debounce(function () { return _this.redraw(); }));
             }
-            if (this.options.layers) {
-                this.options.layers.forEach(function (l) { return l.getSource().on("addfeature", function (args) {
-                    _this.add(args.feature);
-                }); });
-            }
+            vectorLayers.forEach(function (l) { return l.getSource().on("addfeature", function (args) {
+                _this.add(args.feature);
+            }); });
         };
         Grid.prototype.collapse = function () {
             var options = this.options;
@@ -4662,7 +4684,7 @@ define("bower_components/ol3-grid/index", ["require", "exports", "bower_componen
     "use strict";
     return Grid;
 });
-define("ol3-lab/labs/popup", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/common/common", "bower_components/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/star/flower", "bower_components/ol3-popup/ol3-popup", "bower_components/ol3-grid/index"], function (require, exports, $, ol, common_7, ol3_symbolizer_5, pointStyle, ol3_popup_3, ol3_grid_1) {
+define("ol3-lab/labs/popup", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/common/common", "bower_components/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/star/flower", "bower_components/ol3-popup/index", "bower_components/ol3-grid/index"], function (require, exports, $, ol, common_7, ol3_symbolizer_5, pointStyle, ol3_popup_3, ol3_grid_1) {
     "use strict";
     var styler = new ol3_symbolizer_5.StyleConverter();
     function parse(v, type) {
@@ -4685,7 +4707,7 @@ define("ol3-lab/labs/popup", ["require", "exports", "jquery", "openlayers", "ol3
         return (adverb + " " + noun).toLocaleUpperCase();
     }
     var html = "\n<div class='popup'>\n    <div class='popup-container'>\n    </div>\n</div>\n";
-    var css = "\n<style name=\"popup\" type=\"text/css\">\n    html, body, .map {\n        width: 100%;\n        height: 100%;\n        padding: 0;\n        overflow: hidden;\n        margin: 0;    \n    }\n    .popup-container {\n        position: absolute;\n        top: 1em;\n        right: 0.5em;\n        width: 10em;\n        bottom: 1em;\n        z-index: 1;\n        pointer-events: none;\n    }\n    .popup-container .ol-popup.docked {\n        min-width: auto;\n    }\n</style>\n";
+    var css = "\n<style name=\"popup\" type=\"text/css\">\n    html, body, .map {\n        width: 100%;\n        height: 100%;\n        padding: 0;\n        overflow: hidden;\n        margin: 0;    \n    }\n    .popup-container {\n        position: absolute;\n        top: 1em;\n        right: 0.5em;\n        width: 10em;\n        bottom: 1em;\n        z-index: 1;\n        pointer-events: none;\n    }\n    .popup-container .ol-popup.docked {\n        min-width: auto;\n    }\n\n    table.ol-grid-table {\n        width: 100%;\n    }\n\n    table.ol-grid-table {\n        border-collapse: collapse;\n        width: 100%;\n    }\n\n    table.ol-grid-table > td {\n        padding: 8px;\n        text-align: left;\n        border-bottom: 1px solid #ddd;\n    }\n\n    \n</style>\n";
     var css_popup = "\n.ol-popup {\n    color: white;\n    background-color: rgba(77,77,77,0.7);\n    border: 1px solid white;\n    min-width: 200px;\n    padding: 12px;\n}\n\n.ol-popup:after {\n    border-top-color: white;\n}\n";
     function run() {
         $(html).appendTo(".map");
@@ -4763,41 +4785,30 @@ define("ol3-lab/labs/popup", ["require", "exports", "jquery", "openlayers", "ol3
             setTimeout(function () { return popup.show(event.coordinate, "<div>You clicked on " + location + "</div>"); }, 50);
         });
         var grid = ol3_grid_1.Grid.create({
-            layers: [layer],
-            expanded: true,
+            currentExtent: false,
             labelAttributeName: "text"
         });
         map.addControl(grid);
         map.addControl(ol3_grid_1.Grid.create({
             className: "ol-grid top left-2",
-            layers: [layer],
-            currentExtent: true,
-            hideButton: false,
             closedText: "+",
             openedText: "-",
             autoCollapse: false,
-            autoSelect: false,
-            canCollapse: true,
-            showIcon: true,
-            labelAttributeName: ""
+            showIcon: true
         }));
         map.addControl(ol3_grid_1.Grid.create({
             className: "ol-grid bottom left",
-            layers: [layer],
             currentExtent: true,
             hideButton: false,
             closedText: "+",
             openedText: "-",
             autoCollapse: true,
-            autoSelect: false,
             canCollapse: true,
             showIcon: true,
             labelAttributeName: ""
         }));
         map.addControl(ol3_grid_1.Grid.create({
             className: "ol-grid bottom right",
-            layers: [layer],
-            currentExtent: true,
             hideButton: true,
             showIcon: true,
             labelAttributeName: "text"

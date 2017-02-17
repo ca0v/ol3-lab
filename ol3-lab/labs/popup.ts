@@ -3,7 +3,7 @@ import ol = require("openlayers");
 import { doif, getParameterByName } from "./common/common";
 import { StyleConverter } from "ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer";
 import pointStyle = require("ol3-symbolizer/ol3-symbolizer/styles/star/flower");
-import { Popup } from "ol3-popup/ol3-popup";
+import { Popup } from "ol3-popup";
 import { Grid } from "ol3-grid";
 
 let styler = new StyleConverter();
@@ -54,6 +54,23 @@ const css = `
     .popup-container .ol-popup.docked {
         min-width: auto;
     }
+
+    table.ol-grid-table {
+        width: 100%;
+    }
+
+    table.ol-grid-table {
+        border-collapse: collapse;
+        width: 100%;
+    }
+
+    table.ol-grid-table > td {
+        padding: 8px;
+        text-align: left;
+        border-bottom: 1px solid #ddd;
+    }
+
+    
 </style>
 `;
 
@@ -162,8 +179,7 @@ export function run() {
     });
 
     let grid = Grid.create({
-        layers: [layer],
-        expanded: true,
+        currentExtent: false,
         labelAttributeName: "text"
     });
 
@@ -171,27 +187,19 @@ export function run() {
 
     map.addControl(Grid.create({
         className: "ol-grid top left-2",
-        layers: [layer],
-        currentExtent: true,
-        hideButton: false,
         closedText: "+",
         openedText: "-",
         autoCollapse: false,
-        autoSelect: false,
-        canCollapse: true,
-        showIcon: true,
-        labelAttributeName: ""
+        showIcon: true
     }));
 
     map.addControl(Grid.create({
         className: "ol-grid bottom left",
-        layers: [layer],
         currentExtent: true,
         hideButton: false,
         closedText: "+",
         openedText: "-",
         autoCollapse: true,
-        autoSelect: false,
         canCollapse: true,
         showIcon: true,
         labelAttributeName: ""
@@ -199,8 +207,6 @@ export function run() {
 
     map.addControl(Grid.create({
         className: "ol-grid bottom right",
-        layers: [layer],
-        currentExtent: true,
         hideButton: true,
         showIcon: true,
         labelAttributeName: "text"
