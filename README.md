@@ -3,9 +3,20 @@
 This is Proof of Concept code for learning
 aspects of OpenLayers and related spatial libraries
 
-![alt text](./ol3-lab/ux/docs/style-lab.png "ux/style-lab")
+## All Examples
+
+* [index (3.20.1)](https://rawgit.com/ca0v/ol3-lab/v3.20.1/rawgit.html?run=ol3-lab/labs/index)
+* [index (master)](https://rawgit.com/ca0v/ol3-lab/master/rawgit.html?run=ol3-lab/labs/index)
+
+## Build using tsd, bower, tsc:
+
+* tsd install
+* bower install
+* tsc -w
 
 ## Style Lab
+![alt text](./ol3-lab/ux/docs/style-lab.png "ux/style-lab")
+
 ![5star](./ol3-lab/ux/docs/5star.png)
 ```
 [{
@@ -84,14 +95,3 @@ aspects of OpenLayers and related spatial libraries
 ```
 t`syzE}gm_dAm_@A?r@p@Bp@Hp@Ph@Td@Z`@`@Vb@Nd@xUABmF
 ```
-
-## All Examples
-
-* [index (3.20.1)](https://rawgit.com/ca0v/ol3-lab/v3.20.1/rawgit.html?run=ol3-lab/labs/index)
-* [index (master)](https://rawgit.com/ca0v/ol3-lab/master/rawgit.html?run=ol3-lab/labs/index)
-
-## Build using tsd, bower, tsc:
-
-* tsd install
-* bower install
-* tsc -w
