@@ -1,5 +1,6 @@
 import ol = require("openlayers");
 import $ = require("jquery");
+import { Popup } from "ol3-popup";
 
 import { Grid } from "ol3-grid";
 import { StyleConverter } from "ol3-symbolizer";
@@ -28,6 +29,24 @@ export function run() {
 
     cssin("examples/ol3-search", `
 
+.map {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+}
+
+.ol-popup {
+    background-color: white;
+}
+
+.ol-popup .pages {
+    max-height: 10em;
+    min-width: 20em;
+    overflow: auto;
+}
+
 .ol-grid.statecode .ol-grid-container {
     background-color: white;
     width: 10em;
@@ -40,19 +59,23 @@ export function run() {
     width: 15em;
 }
 
-.ol-grid-table {
+.ol-grid .ol-grid-table {
     width: 100%;
 }
 
-table.ol-grid-table {
+.ol-grid table.ol-grid-table {
     border-collapse: collapse;
     width: 100%;
 }
 
-table.ol-grid-table > td {
+.ol-grid table.ol-grid-table > td {
     padding: 8px;
     text-align: left;
     border-bottom: 1px solid #ddd;
+}
+
+.ol-search.nominatim form {
+    width: 20em;
 }
 
 .ol-search tr.focus {
@@ -88,6 +111,35 @@ table.ol-grid-table > td {
             projection: 'EPSG:3857',
             zoom: 6
         })
+    });
+
+    let popup = new Popup({
+        yOffset: 0,
+        positioning: "bottom-center"
+    });
+    popup.setMap(map);
+
+    map.on("click", (event: { coordinate: any; pixel: any }) => {
+        console.log("click");
+        let coord = event.coordinate;
+        popup.hide();
+
+        let pageNum = 0;
+        map.forEachFeatureAtPixel(event.pixel, (feature: ol.Feature, layer) => {
+            let page = document.createElement('p');
+            let keys = Object.keys(feature.getProperties()).filter(key => {
+                let v = feature.get(key);
+                if (typeof v === "string") return true;
+                if (typeof v === "number") return true;
+                return false;
+            });
+            page.title = "" + ++pageNum;
+            page.innerHTML = `<table>${keys.map(k => `<tr><td>${k}</td><td>${feature.get(k)}</td></tr>`).join("")}</table>`;
+            popup.pages.add(page, feature.getGeometry());
+        });
+
+        popup.show(coord, `<label>${pageNum} Features Found</label>`);
+        popup.pages.goto(0);
     });
 
     let source = new ol.source.Vector();
@@ -126,25 +178,21 @@ table.ol-grid-table > td {
         layers: [0]
     }).then(layers => {
         layers.forEach(layer => {
-
-            layer.setStyle((feature: ol.Feature, resolution) => {
-                let style = <ol.style.Style>feature.getStyle();
-                if (!style) {
-                    style = symbolizer.fromJson({
-                        fill: {
-                            color: "rgba(200,200,200,0.5)"
-                        },
-                        stroke: {
-                            color: "rgba(33,33,33,0.8)",
-                            width: 3
-                        },
-                        text: {
-                            text: feature.get("STATE_ABBR")
-                        }
-                    });
-                    feature.setStyle(style);
-                }
-                return style;
+            layer.getSource().on("addfeature", (args: { feature: ol.Feature }) => {
+                let feature = args.feature;
+                let style = symbolizer.fromJson({
+                    fill: {
+                        color: "rgba(200,200,200,0.5)"
+                    },
+                    stroke: {
+                        color: "rgba(33,33,33,0.8)",
+                        width: 3
+                    },
+                    text: {
+                        text: feature.get("STATE_ABBR")
+                    }
+                });
+                feature.setStyle(style);
             });
 
             map.addLayer(layer);
@@ -175,7 +223,7 @@ table.ol-grid-table > td {
     });
 
     let form = SearchForm.create({
-        className: 'ol-search top right',
+        className: 'ol-search nominatim top right',
         expanded: true,
         placeholderText: "Nominatim Search Form",
         fields: [
@@ -256,6 +304,9 @@ table.ol-grid-table > td {
                     ]]));
 
                     feature.set("text", r.original.display_name);
+                    Object.keys(r.original).forEach(k => {
+                        feature.set(k, r.original[k]);
+                    });
                     source.addFeature(feature);
                     zoomToFeature(map, feature);
                 } else {

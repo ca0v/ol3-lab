@@ -2655,6 +2655,25 @@ define("ol3-lab/labs/common/ol3-polyline", ["require", "exports", "bower_compone
 });
 define("bower_components/ol3-fun/ol3-fun/snapshot", ["require", "exports", "openlayers"], function (require, exports, ol) {
     "use strict";
+    function getStyle(feature) {
+        var style = feature.getStyle();
+        if (!style) {
+            var styleFn = feature.getStyleFunction();
+            if (styleFn) {
+                style = styleFn(0);
+            }
+        }
+        if (!style) {
+            style = new ol.style.Style({
+                text: new ol.style.Text({
+                    text: "?"
+                })
+            });
+        }
+        if (!Array.isArray(style))
+            style = [style];
+        return style;
+    }
     var Snapshot = (function () {
         function Snapshot() {
         }
@@ -2669,7 +2688,7 @@ define("bower_components/ol3-fun/ol3-fun/snapshot", ["require", "exports", "open
             geom.scale(scale, -scale);
             geom.translate(canvas.width / 2, canvas.height / 2);
             var vtx = ol.render.toContext(canvas.getContext("2d"));
-            var styles = feature.getStyleFunction()(0);
+            var styles = getStyle(feature);
             if (!Array.isArray(styles))
                 styles = [styles];
             styles.forEach(function (style) { return vtx.drawFeature(feature, style); });
@@ -5297,7 +5316,7 @@ define("bower_components/ol3-search/ol3-search/providers/osm", ["require", "expo
     }());
     exports.OpenStreet = OpenStreet;
 });
-define("ol3-lab/labs/ol-search", ["require", "exports", "openlayers", "jquery", "bower_components/ol3-grid/index", "bower_components/ol3-symbolizer/index", "bower_components/ol3-search/index", "bower_components/ol3-search/ol3-search/providers/osm", "bower_components/ol3-fun/ol3-fun/common", "bower_components/ol3-symbolizer/ol3-symbolizer/ags/ags-source"], function (require, exports, ol, $, ol3_grid_3, ol3_symbolizer_8, ol3_search_1, osm_3, common_12, ags_source_4) {
+define("ol3-lab/labs/ol-search", ["require", "exports", "openlayers", "jquery", "bower_components/ol3-popup/index", "bower_components/ol3-grid/index", "bower_components/ol3-symbolizer/index", "bower_components/ol3-search/index", "bower_components/ol3-search/ol3-search/providers/osm", "bower_components/ol3-fun/ol3-fun/common", "bower_components/ol3-symbolizer/ol3-symbolizer/ags/ags-source"], function (require, exports, ol, $, ol3_popup_5, ol3_grid_3, ol3_symbolizer_8, ol3_search_1, osm_3, common_12, ags_source_4) {
     "use strict";
     function zoomToFeature(map, feature) {
         var extent = feature.getGeometry().getExtent();
@@ -5313,7 +5332,7 @@ define("ol3-lab/labs/ol-search", ["require", "exports", "openlayers", "jquery", 
         });
     }
     function run() {
-        common_12.cssin("examples/ol3-search", "\n\n.ol-grid.statecode .ol-grid-container {\n    background-color: white;\n    width: 10em;\n}\n\n.ol-grid .ol-grid-container.ol-hidden {\n}\n\n.ol-grid .ol-grid-container {\n    width: 15em;\n}\n\n.ol-grid-table {\n    width: 100%;\n}\n\ntable.ol-grid-table {\n    border-collapse: collapse;\n    width: 100%;\n}\n\ntable.ol-grid-table > td {\n    padding: 8px;\n    text-align: left;\n    border-bottom: 1px solid #ddd;\n}\n\n.ol-search tr.focus {\n    background: white;\n}\n\n.ol-search:hover {\n    background: white;\n}\n\n.ol-search label.ol-search-label {\n    white-space: nowrap;\n}\n\n    ");
+        common_12.cssin("examples/ol3-search", "\n\n.map {\n    position: absolute;\n    top: 0;\n    bottom: 0;\n    left: 0;\n    right: 0;\n}\n\n.ol-popup {\n    background-color: white;\n}\n\n.ol-popup .pages {\n    max-height: 10em;\n    min-width: 20em;\n    overflow: auto;\n}\n\n.ol-grid.statecode .ol-grid-container {\n    background-color: white;\n    width: 10em;\n}\n\n.ol-grid .ol-grid-container.ol-hidden {\n}\n\n.ol-grid .ol-grid-container {\n    width: 15em;\n}\n\n.ol-grid .ol-grid-table {\n    width: 100%;\n}\n\n.ol-grid table.ol-grid-table {\n    border-collapse: collapse;\n    width: 100%;\n}\n\n.ol-grid table.ol-grid-table > td {\n    padding: 8px;\n    text-align: left;\n    border-bottom: 1px solid #ddd;\n}\n\n.ol-search.nominatim form {\n    width: 20em;\n}\n\n.ol-search tr.focus {\n    background: white;\n}\n\n.ol-search:hover {\n    background: white;\n}\n\n.ol-search label.ol-search-label {\n    white-space: nowrap;\n}\n\n    ");
         var searchProvider = new osm_3.OpenStreet();
         var center = ol.proj.transform([-120, 35], 'EPSG:4326', 'EPSG:3857');
         var mapContainer = document.getElementsByClassName("map")[0];
@@ -5330,6 +5349,33 @@ define("ol3-lab/labs/ol-search", ["require", "exports", "openlayers", "jquery", 
                 projection: 'EPSG:3857',
                 zoom: 6
             })
+        });
+        var popup = new ol3_popup_5.Popup({
+            yOffset: 0,
+            positioning: "bottom-center"
+        });
+        popup.setMap(map);
+        map.on("click", function (event) {
+            console.log("click");
+            var coord = event.coordinate;
+            popup.hide();
+            var pageNum = 0;
+            map.forEachFeatureAtPixel(event.pixel, function (feature, layer) {
+                var page = document.createElement('p');
+                var keys = Object.keys(feature.getProperties()).filter(function (key) {
+                    var v = feature.get(key);
+                    if (typeof v === "string")
+                        return true;
+                    if (typeof v === "number")
+                        return true;
+                    return false;
+                });
+                page.title = "" + ++pageNum;
+                page.innerHTML = "<table>" + keys.map(function (k) { return "<tr><td>" + k + "</td><td>" + feature.get(k) + "</td></tr>"; }).join("") + "</table>";
+                popup.pages.add(page, feature.getGeometry());
+            });
+            popup.show(coord, "<label>" + pageNum + " Features Found</label>");
+            popup.pages.goto(0);
         });
         var source = new ol.source.Vector();
         var symbolizer = new ol3_symbolizer_8.StyleConverter();
@@ -5364,24 +5410,21 @@ define("ol3-lab/labs/ol-search", ["require", "exports", "openlayers", "jquery", 
             layers: [0]
         }).then(function (layers) {
             layers.forEach(function (layer) {
-                layer.setStyle(function (feature, resolution) {
-                    var style = feature.getStyle();
-                    if (!style) {
-                        style = symbolizer.fromJson({
-                            fill: {
-                                color: "rgba(200,200,200,0.5)"
-                            },
-                            stroke: {
-                                color: "rgba(33,33,33,0.8)",
-                                width: 3
-                            },
-                            text: {
-                                text: feature.get("STATE_ABBR")
-                            }
-                        });
-                        feature.setStyle(style);
-                    }
-                    return style;
+                layer.getSource().on("addfeature", function (args) {
+                    var feature = args.feature;
+                    var style = symbolizer.fromJson({
+                        fill: {
+                            color: "rgba(200,200,200,0.5)"
+                        },
+                        stroke: {
+                            color: "rgba(33,33,33,0.8)",
+                            width: 3
+                        },
+                        text: {
+                            text: feature.get("STATE_ABBR")
+                        }
+                    });
+                    feature.setStyle(style);
                 });
                 map.addLayer(layer);
                 var grid = ol3_grid_3.Grid.create({
@@ -5404,7 +5447,7 @@ define("ol3-lab/labs/ol-search", ["require", "exports", "openlayers", "jquery", 
             map.addLayer(vector);
         });
         var form = ol3_search_1.SearchForm.create({
-            className: 'ol-search top right',
+            className: 'ol-search nominatim top right',
             expanded: true,
             placeholderText: "Nominatim Search Form",
             fields: [
@@ -5473,16 +5516,19 @@ define("ol3-lab/labs/ol-search", ["require", "exports", "openlayers", "jquery", 
                         _b = ol.proj.transform([lon1, lat1], "EPSG:4326", "EPSG:3857"), lon1 = _b[0], lat1 = _b[1];
                         _c = ol.proj.transform([lon2, lat2], "EPSG:4326", "EPSG:3857"), lon2 = _c[0], lat2 = _c[1];
                         var extent = [lon1, lat1, lon2, lat2];
-                        var feature = new ol.Feature(new ol.geom.Polygon([[
+                        var feature_1 = new ol.Feature(new ol.geom.Polygon([[
                                 ol.extent.getBottomLeft(extent),
                                 ol.extent.getTopLeft(extent),
                                 ol.extent.getTopRight(extent),
                                 ol.extent.getBottomRight(extent),
                                 ol.extent.getBottomLeft(extent)
                             ]]));
-                        feature.set("text", r.original.display_name);
-                        source.addFeature(feature);
-                        zoomToFeature(map, feature);
+                        feature_1.set("text", r.original.display_name);
+                        Object.keys(r.original).forEach(function (k) {
+                            feature_1.set(k, r.original[k]);
+                        });
+                        source.addFeature(feature_1);
+                        zoomToFeature(map, feature_1);
                     }
                     else {
                         var _d = ol.proj.transform([r.lon, r.lat], "EPSG:4326", "EPSG:3857"), lon = _d[0], lat = _d[1];
@@ -5502,7 +5548,7 @@ define("ol3-lab/labs/ol-search", ["require", "exports", "openlayers", "jquery", 
     }
     exports.run = run;
 });
-define("ol3-lab/labs/ol-symbolizer", ["require", "exports", "openlayers", "bower_components/ol3-popup/index", "bower_components/ol3-symbolizer/ol3-symbolizer/ags/ags-source", "bower_components/ol3-fun/ol3-fun/common"], function (require, exports, ol, ol3_popup_5, ags_source_5, common_13) {
+define("ol3-lab/labs/ol-symbolizer", ["require", "exports", "openlayers", "bower_components/ol3-popup/index", "bower_components/ol3-symbolizer/ol3-symbolizer/ags/ags-source", "bower_components/ol3-fun/ol3-fun/common"], function (require, exports, ol, ol3_popup_6, ags_source_5, common_13) {
     "use strict";
     function parse(v, type) {
         if (typeof type === "string")
@@ -5578,7 +5624,7 @@ define("ol3-lab/labs/ol-symbolizer", ["require", "exports", "openlayers", "bower
             layers: options.layers.reverse()
         }).then(function (agsLayers) {
             agsLayers.forEach(function (agsLayer) { return map.addLayer(agsLayer); });
-            var popup = new ol3_popup_5.Popup({
+            var popup = new ol3_popup_6.Popup({
                 css: "\n            .ol-popup {\n                background-color: white;\n            }\n            .ol-popup .page {\n                max-height: 200px;\n                overflow-y: auto;\n            }\n            "
             });
             map.addOverlay(popup);
