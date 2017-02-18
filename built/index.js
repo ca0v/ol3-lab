@@ -5395,9 +5395,14 @@ define("ol3-lab/labs/ol-search", ["require", "exports", "openlayers", "jquery", 
                             }
                         },
                         text: {
-                            text: feature.get("text")
+                            text: feature.get("text").substring(0, 20)
                         }
                     });
+                    if (feature.get("icon")) {
+                        style.setImage(new ol.style.Icon({
+                            src: feature.get("icon")
+                        }));
+                    }
                     feature.setStyle(style);
                 }
                 return style;
