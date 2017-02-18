@@ -27,6 +27,7 @@
     "ol3-panzoom": "git://github.com/ca0v/ol3-panzoom.git#v3.20.1",
     "ol3-input": "git://github.com/ca0v/ol3-input.git#v3.20.1",
     "ol3-grid": "git://github.com/ca0v/ol3-grid.git#v3.20.1",
-    "ol3-fun": "git://github.com/ca0v/ol3-fun.git#v3.20.1"
+    "ol3-fun": "git://github.com/ca0v/ol3-fun.git#v3.20.1",
+    "ol3-search": "git://github.com/ca0v/ol3-search.git#v4.0.1"
   }
 }

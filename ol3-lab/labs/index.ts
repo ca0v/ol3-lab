@@ -2,11 +2,17 @@ export function run() {
     let l = window.location;
     let path = `${l.origin}${l.pathname}?run=ol3-lab/labs/`;
     let labs = `
+    ol-grid
+    ol-input    
+    ol-layerswitcher
+    ol-panzoom
+    ol-popup
+    ol-search
+    ol-symbolizer
+
     ../ux/ags-symbols
 
     ags-viewer&services=//sampleserver3.arcgisonline.com/ArcGIS/rest/services&serviceName=SanFrancisco/311Incidents&layers=0&debug=1&center=-122.49,37.738
-    popup
-    layerswitcher
     
     style-lab
 

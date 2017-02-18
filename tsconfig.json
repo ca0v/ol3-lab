@@ -16,8 +16,6 @@
         "typings/index.d.ts"
     ],
     "exclude": [
-        "bower_components",
-        "built",
         "ol3-lab/tests/data/routes",
         "ol3-lab/tests/routing.ts"
     ]
