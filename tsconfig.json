@@ -3,27 +3,19 @@
         "removeComments": true,
         "declaration": false,
         "module": "amd",
-        "target": "es3",
+        "target": "es5",
         "noImplicitAny": true,
         "sourceMap": true,
         "outFile": "./built/index.js",
         "moduleResolution": "node",
-        "baseUrl": "./",
-        "paths": {
-            "ol3-layerswitcher/*": [
-                "./bower_components/ol3-layerswitcher/ol3-layerswitcher/*"
-            ],
-            "ol3-symbolizer/*": [
-                "./bower_components/ol3-symbolizer/ol3-symbolizer/*"
-            ],
-            "ol3-popup/*": [
-                "./bower_components/ol3-popup/ol3-popup/*"
-            ]
-        }
+        "baseUrl": "./bower_components"
     },
+    "include": [
+        "ol3-lab.ts",
+        "ol3-lab",
+        "typings/index.d.ts"
+    ],
     "exclude": [
-        "bower_components",
-        "built",
         "ol3-lab/tests/data/routes",
         "ol3-lab/tests/routing.ts"
     ]

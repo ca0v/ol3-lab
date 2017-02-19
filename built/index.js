@@ -410,7 +410,7 @@ define("ol3-lab/ux/osrm-proxy", ["require", "exports", "ol3-lab/labs/common/ajax
         Osrm.prototype.trip = function (loc) {
             var url = this.url + "/trip";
             return ajax.jsonp(url, {
-                loc: loc.map(function (l) { return l[0] + "," + l[1]; }).join("&loc=")
+                loc: loc.map(function (l) { return l[0] + "," + l[1]; }).join("&loc="),
             }, "jsonp");
         };
         Osrm.test = function () {
@@ -533,138 +533,107 @@ define("ol3-lab", ["require", "exports", "openlayers", "ol3-lab/ux/mapquest-dire
     }
     return run;
 });
-define("bower_components/ol3-symbolizer/ol3-symbolizer/common/ajax", ["require", "exports", "jquery"], function (require, exports, $) {
+define("bower_components/ol3-fun/ol3-fun/common", ["require", "exports"], function (require, exports) {
     "use strict";
-    var Ajax = (function () {
-        function Ajax(url) {
-            this.url = url;
-            this.options = {
-                use_json: true,
-                use_cors: true
-            };
+    function parse(v, type) {
+        if (typeof type === "string")
+            return v;
+        if (typeof type === "number")
+            return parseFloat(v);
+        if (typeof type === "boolean")
+            return (v === "1" || v === "true");
+        if (Array.isArray(type)) {
+            return (v.split(",").map(function (v) { return parse(v, type[0]); }));
         }
-        Ajax.prototype.jsonp = function (args, url) {
-            if (url === void 0) { url = this.url; }
-            var d = $.Deferred();
-            args["callback"] = "define";
-            var uri = url + "?" + Object.keys(args).map(function (k) { return k + "=" + args[k]; }).join('&');
-            require([uri], function (data) { return d.resolve(data); });
-            return d;
-        };
-        Ajax.prototype.ajax = function (method, args, url) {
-            if (url === void 0) { url = this.url; }
-            var isData = method === "POST" || method === "PUT";
-            var isJson = this.options.use_json;
-            var isCors = this.options.use_cors;
-            var d = $.Deferred();
-            var client = new XMLHttpRequest();
-            if (isCors)
-                client.withCredentials = true;
-            var uri = url;
-            var data = null;
-            if (args) {
-                if (isData) {
-                    data = JSON.stringify(args);
-                }
-                else {
-                    uri += '?';
-                    var argcount = 0;
-                    for (var key in args) {
-                        if (args.hasOwnProperty(key)) {
-                            if (argcount++) {
-                                uri += '&';
-                            }
-                            uri += encodeURIComponent(key) + '=' + encodeURIComponent(args[key]);
-                        }
-                    }
-                }
-            }
-            client.open(method, uri, true);
-            if (isData && isJson)
-                client.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
-            client.send(data);
-            client.onload = function () {
-                console.log("content-type", client.getResponseHeader("Content-Type"));
-                if (client.status >= 200 && client.status < 300) {
-                    isJson = isJson || 0 === client.getResponseHeader("Content-Type").indexOf("application/json");
-                    d.resolve(isJson ? JSON.parse(client.response) : client.response);
-                }
-                else {
-                    d.reject(client.statusText);
-                }
-            };
-            client.onerror = function () { return d.reject(client.statusText); };
-            return d;
-        };
-        Ajax.prototype.get = function (args) {
-            return this.ajax('GET', args);
-        };
-        Ajax.prototype.post = function (args) {
-            return this.ajax('POST', args);
-        };
-        Ajax.prototype.put = function (args) {
-            return this.ajax('PUT', args);
-        };
-        Ajax.prototype["delete"] = function (args) {
-            return this.ajax('DELETE', args);
-        };
-        return Ajax;
-    }());
-    return Ajax;
-});
-define("bower_components/ol3-symbolizer/ol3-symbolizer/ags/ags-catalog", ["require", "exports", "bower_components/ol3-symbolizer/ol3-symbolizer/common/ajax"], function (require, exports, Ajax) {
-    "use strict";
+        throw "unknown type: " + type;
+    }
+    exports.parse = parse;
+    function getQueryParameters(options, url) {
+        if (url === void 0) { url = window.location.href; }
+        var opts = options;
+        Object.keys(opts).forEach(function (k) {
+            doif(getParameterByName(k, url), function (v) {
+                var value = parse(v, opts[k]);
+                if (value !== undefined)
+                    opts[k] = value;
+            });
+        });
+    }
+    exports.getQueryParameters = getQueryParameters;
+    function getParameterByName(name, url) {
+        if (url === void 0) { url = window.location.href; }
+        name = name.replace(/[\[\]]/g, "\\$&");
+        var regex = new RegExp("[?&]" + name + "(=([^&#]*)|&|#|$)"), results = regex.exec(url);
+        if (!results)
+            return null;
+        if (!results[2])
+            return '';
+        return decodeURIComponent(results[2].replace(/\+/g, " "));
+    }
+    exports.getParameterByName = getParameterByName;
+    function doif(v, cb) {
+        if (v !== undefined && v !== null)
+            cb(v);
+    }
+    exports.doif = doif;
+    function mixin(a, b) {
+        Object.keys(b).forEach(function (k) { return a[k] = b[k]; });
+        return a;
+    }
+    exports.mixin = mixin;
     function defaults(a) {
         var b = [];
         for (var _i = 1; _i < arguments.length; _i++) {
             b[_i - 1] = arguments[_i];
         }
-        b.filter(function (b) { return !!b; }).forEach(function (b) {
+        b.forEach(function (b) {
             Object.keys(b).filter(function (k) { return a[k] === undefined; }).forEach(function (k) { return a[k] = b[k]; });
         });
         return a;
     }
-    var Catalog = (function () {
-        function Catalog(url) {
-            this.ajax = new Ajax(url);
+    exports.defaults = defaults;
+    function cssin(name, css) {
+        var id = "style-" + name;
+        var styleTag = document.getElementById(id);
+        if (!styleTag) {
+            styleTag = document.createElement("style");
+            styleTag.id = id;
+            styleTag.innerText = css;
+            document.head.appendChild(styleTag);
         }
-        Catalog.prototype.about = function (data) {
-            var req = defaults({
-                f: "pjson"
-            }, data);
-            return this.ajax.jsonp(req);
+        var dataset = styleTag.dataset;
+        dataset["count"] = parseInt(dataset["count"] || "0") + 1 + "";
+        return function () {
+            dataset["count"] = parseInt(dataset["count"] || "0") - 1 + "";
+            if (dataset["count"] === "0") {
+                styleTag.remove();
+            }
         };
-        Catalog.prototype.aboutFolder = function (folder) {
-            var ajax = new Ajax(this.ajax.url + "/" + folder);
-            var req = {
-                f: "pjson"
-            };
-            return ajax.jsonp(req);
+    }
+    exports.cssin = cssin;
+    function debounce(func, wait) {
+        if (wait === void 0) { wait = 50; }
+        var h;
+        return function () {
+            clearTimeout(h);
+            h = setTimeout(function () { return func(); }, wait);
         };
-        Catalog.prototype.aboutFeatureServer = function (name) {
-            var ajax = new Ajax(this.ajax.url + "/" + name + "/FeatureServer");
-            var req = {
-                f: "pjson"
-            };
-            return defaults(ajax.jsonp(req), { url: ajax.url });
-        };
-        Catalog.prototype.aboutMapServer = function (name) {
-            var ajax = new Ajax(this.ajax.url + "/" + name + "/MapServer");
-            var req = {
-                f: "pjson"
-            };
-            return defaults(ajax.jsonp(req), { url: ajax.url });
-        };
-        Catalog.prototype.aboutLayer = function (layer) {
-            var ajax = new Ajax(this.ajax.url + "/" + layer);
-            var req = {
-                f: "pjson"
-            };
-            return ajax.jsonp(req);
-        };
-        return Catalog;
-    }());
-    exports.Catalog = Catalog;
+    }
+    exports.debounce = debounce;
+    function html(html) {
+        var d = document;
+        var a = d.createElement("div");
+        var b = d.createDocumentFragment();
+        a.innerHTML = html;
+        while (a.firstChild)
+            b.appendChild(a.firstChild);
+        return b.firstElementChild;
+    }
+    exports.html = html;
+});
+define("ol3-lab/labs/common/common", ["require", "exports", "bower_components/ol3-fun/ol3-fun/common"], function (require, exports, Common) {
+    "use strict";
+    return Common;
 });
 define("bower_components/ol3-symbolizer/ol3-symbolizer/format/base", ["require", "exports"], function (require, exports) {
     "use strict";
@@ -1105,473 +1074,11 @@ define("bower_components/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", [
     }());
     exports.StyleConverter = StyleConverter;
 });
-define("bower_components/ol3-symbolizer/ol3-symbolizer/format/ags-symbolizer", ["require", "exports", "jquery", "bower_components/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer"], function (require, exports, $, Symbolizer) {
+define("bower_components/ol3-symbolizer/index", ["require", "exports", "bower_components/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer"], function (require, exports, Symbolizer) {
     "use strict";
-    var symbolizer = new Symbolizer.StyleConverter();
-    var styleMap = {
-        "esriSMSCircle": "circle",
-        "esriSMSDiamond": "diamond",
-        "esriSMSX": "x",
-        "esriSMSCross": "cross",
-        "esriSLSSolid": "solid",
-        "esriSFSSolid": "solid",
-        "esriSLSDot": "dot",
-        "esriSLSDash": "dash",
-        "esriSLSDashDot": "dashdot",
-        "esriSLSDashDotDot": "dashdotdot",
-        "esriSFSForwardDiagonal": "forward-diagonal"
-    };
-    var typeMap = {
-        "esriSMS": "sms",
-        "esriSLS": "sls",
-        "esriSFS": "sfs",
-        "esriPMS": "pms",
-        "esriPFS": "pfs",
-        "esriTS": "txt"
-    };
-    function range(a, b) {
-        var result = new Array(b - a + 1);
-        while (a <= b)
-            result.push(a++);
-        return result;
-    }
-    function clone(o) {
-        return JSON.parse(JSON.stringify(o));
-    }
-    var StyleConverter = (function () {
-        function StyleConverter() {
-        }
-        StyleConverter.prototype.asWidth = function (v) {
-            return v * 4 / 3;
-        };
-        StyleConverter.prototype.asColor = function (color) {
-            if (color.length === 4)
-                return "rgba(" + color[0] + "," + color[1] + "," + color[2] + "," + color[3] / 255 + ")";
-            if (color.length === 3)
-                return "rgb(" + color[0] + "," + color[1] + "," + color[2] + "})";
-            return "#" + color.map(function (v) { return ("0" + v.toString(16)).substr(0, 2); }).join("");
-        };
-        StyleConverter.prototype.fromSFSSolid = function (symbol, style) {
-            style.fill = {
-                color: this.asColor(symbol.color)
-            };
-            this.fromSLS(symbol.outline, style);
-        };
-        StyleConverter.prototype.fromSFS = function (symbol, style) {
-            switch (symbol.style) {
-                case "esriSFSSolid":
-                    this.fromSFSSolid(symbol, style);
-                    break;
-                case "esriSFSForwardDiagonal":
-                    this.fromSFSSolid(symbol, style);
-                    break;
-                default:
-                    throw "invalid-style: " + symbol.style;
-            }
-        };
-        StyleConverter.prototype.fromSMSCircle = function (symbol, style) {
-            style.circle = {
-                opacity: 1,
-                radius: this.asWidth(symbol.size / 2),
-                stroke: {
-                    color: this.asColor(symbol.outline.color)
-                },
-                snapToPixel: true
-            };
-            this.fromSFSSolid(symbol, style.circle);
-            this.fromSLS(symbol.outline, style.circle);
-        };
-        StyleConverter.prototype.fromSMSCross = function (symbol, style) {
-            style.star = {
-                points: 4,
-                angle: 0,
-                radius: this.asWidth(symbol.size / Math.sqrt(2)),
-                radius2: 0
-            };
-            this.fromSFSSolid(symbol, style.star);
-            this.fromSLS(symbol.outline, style.star);
-        };
-        StyleConverter.prototype.fromSMSDiamond = function (symbol, style) {
-            style.star = {
-                points: 4,
-                angle: 0,
-                radius: this.asWidth(symbol.size / Math.sqrt(2)),
-                radius2: this.asWidth(symbol.size / Math.sqrt(2))
-            };
-            this.fromSFSSolid(symbol, style.star);
-            this.fromSLS(symbol.outline, style.star);
-        };
-        StyleConverter.prototype.fromSMSPath = function (symbol, style) {
-            var size = 2 * this.asWidth(symbol.size);
-            style.svg = {
-                imgSize: [size, size],
-                path: symbol.path,
-                rotation: symbol.angle
-            };
-            this.fromSLSSolid(symbol, style.svg);
-            this.fromSLS(symbol.outline, style.svg);
-        };
-        StyleConverter.prototype.fromSMSSquare = function (symbol, style) {
-            style.star = {
-                points: 4,
-                angle: Math.PI / 4,
-                radius: this.asWidth(symbol.size / Math.sqrt(2)),
-                radius2: this.asWidth(symbol.size / Math.sqrt(2))
-            };
-            this.fromSFSSolid(symbol, style.star);
-            this.fromSLS(symbol.outline, style.star);
-        };
-        StyleConverter.prototype.fromSMSX = function (symbol, style) {
-            style.star = {
-                points: 4,
-                angle: Math.PI / 4,
-                radius: this.asWidth(symbol.size / Math.sqrt(2)),
-                radius2: 0
-            };
-            this.fromSFSSolid(symbol, style.star);
-            this.fromSLS(symbol.outline, style.star);
-        };
-        StyleConverter.prototype.fromSMS = function (symbol, style) {
-            switch (symbol.style) {
-                case "esriSMSCircle":
-                    this.fromSMSCircle(symbol, style);
-                    break;
-                case "esriSMSCross":
-                    this.fromSMSCross(symbol, style);
-                    break;
-                case "esriSMSDiamond":
-                    this.fromSMSDiamond(symbol, style);
-                    break;
-                case "esriSMSPath":
-                    this.fromSMSPath(symbol, style);
-                    break;
-                case "esriSMSSquare":
-                    this.fromSMSSquare(symbol, style);
-                    break;
-                case "esriSMSX":
-                    this.fromSMSX(symbol, style);
-                    break;
-                default:
-                    throw "invalid-style: " + symbol.style;
-            }
-        };
-        StyleConverter.prototype.fromPMS = function (symbol, style) {
-            style.image = {};
-            style.image.src = symbol.url;
-            if (symbol.imageData) {
-                style.image.src = "data:image/png;base64," + symbol.imageData;
-            }
-            style.image["anchor-x"] = this.asWidth(symbol.xoffset);
-            style.image["anchor-y"] = this.asWidth(symbol.yoffset);
-            style.image.imgSize = [this.asWidth(symbol.width), this.asWidth(symbol.height)];
-        };
-        StyleConverter.prototype.fromSLSSolid = function (symbol, style) {
-            style.stroke = {
-                color: this.asColor(symbol.color),
-                width: this.asWidth(symbol.width),
-                lineDash: [],
-                lineJoin: "",
-                miterLimit: 4
-            };
-        };
-        StyleConverter.prototype.fromSLS = function (symbol, style) {
-            switch (symbol.style) {
-                case "esriSLSSolid":
-                    this.fromSLSSolid(symbol, style);
-                    break;
-                case "esriSLSDot":
-                    this.fromSLSSolid(symbol, style);
-                    break;
-                case "esriSLSDash":
-                    this.fromSLSSolid(symbol, style);
-                    break;
-                case "esriSLSDashDot":
-                    this.fromSLSSolid(symbol, style);
-                    break;
-                case "esriSLSDashDotDot":
-                    this.fromSLSSolid(symbol, style);
-                    break;
-                default:
-                    this.fromSLSSolid(symbol, style);
-                    console.warn("invalid-style: " + symbol.style);
-                    break;
-            }
-        };
-        StyleConverter.prototype.fromPFS = function (symbol, style) {
-            throw "not-implemented";
-        };
-        StyleConverter.prototype.fromTS = function (symbol, style) {
-            throw "not-implemented";
-        };
-        StyleConverter.prototype.fromJson = function (symbol) {
-            var style = {};
-            this.fromSymbol(symbol, style);
-            return symbolizer.fromJson(style);
-        };
-        StyleConverter.prototype.fromSymbol = function (symbol, style) {
-            switch (symbol.type) {
-                case "esriSFS":
-                    this.fromSFS(symbol, style);
-                    break;
-                case "esriSLS":
-                    this.fromSLS(symbol, style);
-                    break;
-                case "esriPMS":
-                    this.fromPMS(symbol, style);
-                    break;
-                case "esriPFS":
-                    this.fromPFS(symbol, style);
-                    break;
-                case "esriSMS":
-                    this.fromSMS(symbol, style);
-                    break;
-                case "esriTS":
-                    this.fromTS(symbol, style);
-                    break;
-                default:
-                    throw "invalid-symbol-type: " + symbol.type;
-            }
-        };
-        StyleConverter.prototype.fromRenderer = function (renderer, args) {
-            var _this = this;
-            switch (renderer.type) {
-                case "simple":
-                    {
-                        return this.fromJson(renderer.symbol);
-                    }
-                case "uniqueValue":
-                    {
-                        var styles_1 = {};
-                        var defaultStyle_1 = (renderer.defaultSymbol) && this.fromJson(renderer.defaultSymbol);
-                        if (renderer.uniqueValueInfos) {
-                            renderer.uniqueValueInfos.forEach(function (info) {
-                                styles_1[info.value] = _this.fromJson(info.symbol);
-                            });
-                        }
-                        return function (feature) { return styles_1[feature.get(renderer.field1)] || defaultStyle_1; };
-                    }
-                case "classBreaks": {
-                    var styles_2 = {};
-                    var classBreakRenderer_1 = renderer;
-                    if (classBreakRenderer_1.classBreakInfos) {
-                        console.log("processing classBreakInfos");
-                        if (classBreakRenderer_1.visualVariables) {
-                            classBreakRenderer_1.visualVariables.forEach(function (vars) {
-                                switch (vars.type) {
-                                    case "sizeInfo": {
-                                        var steps_1 = range(classBreakRenderer_1.authoringInfo.visualVariables[0].minSliderValue, classBreakRenderer_1.authoringInfo.visualVariables[0].maxSliderValue);
-                                        var dx_1 = (vars.maxSize - vars.minSize) / steps_1.length;
-                                        var dataValue_1 = (vars.maxDataValue - vars.minDataValue) / steps_1.length;
-                                        classBreakRenderer_1.classBreakInfos.forEach(function (classBreakInfo) {
-                                            var icons = steps_1.map(function (step) {
-                                                var json = $.extend({}, classBreakInfo.symbol);
-                                                json.size = vars.minSize + dx_1 * (dataValue_1 - vars.minDataValue);
-                                                var style = _this.fromJson(json);
-                                                styles_2[dataValue_1] = style;
-                                            });
-                                        });
-                                        debugger;
-                                        break;
-                                    }
-                                    default:
-                                        debugger;
-                                        break;
-                                }
-                            });
-                        }
-                    }
-                    return function (feature) {
-                        debugger;
-                        var value = feature.get(renderer.field1);
-                        for (var key in styles_2) {
-                            return styles_2[key];
-                        }
-                    };
-                }
-                default:
-                    {
-                        debugger;
-                        console.error("unsupported renderer type: ", renderer.type);
-                        break;
-                    }
-            }
-        };
-        return StyleConverter;
-    }());
-    exports.StyleConverter = StyleConverter;
+    return Symbolizer;
 });
-define("ol3-lab/alpha/format/ags-symbolizer", ["require", "exports", "bower_components/ol3-symbolizer/ol3-symbolizer/format/ags-symbolizer"], function (require, exports, Symbolizer) {
-    "use strict";
-    var AgsSymbolizer = {
-        StyleConverter: Symbolizer.StyleConverter
-    };
-    return AgsSymbolizer;
-});
-define("ol3-lab/alpha/arcgis-source", ["require", "exports", "jquery", "openlayers", "bower_components/ol3-symbolizer/ol3-symbolizer/ags/ags-catalog", "ol3-lab/alpha/format/ags-symbolizer"], function (require, exports, $, ol, AgsCatalog, Symbolizer) {
-    "use strict";
-    var esrijsonFormat = new ol.format.EsriJSON();
-    function asParam(options) {
-        return Object
-            .keys(options)
-            .map(function (k) { return k + "=" + options[k]; })
-            .join("&");
-    }
-    ;
-    var DEFAULT_OPTIONS = {
-        tileSize: 512
-    };
-    var ArcGisVectorSourceFactory = (function () {
-        function ArcGisVectorSourceFactory() {
-        }
-        ArcGisVectorSourceFactory.create = function (options) {
-            var d = $.Deferred();
-            options = $.extend(options, DEFAULT_OPTIONS);
-            var srs = options.map.getView()
-                .getProjection()
-                .getCode()
-                .split(":")
-                .pop();
-            var all = options.layers.map(function (layerId) {
-                var d = $.Deferred();
-                var tileGrid = ol.tilegrid.createXYZ({
-                    tileSize: options.tileSize
-                });
-                var strategy = ol.loadingstrategy.tile(tileGrid);
-                var loader = function (extent, resolution, projection) {
-                    var box = {
-                        xmin: extent[0],
-                        ymin: extent[1],
-                        xmax: extent[2],
-                        ymax: extent[3]
-                    };
-                    var params = {
-                        f: "json",
-                        returnGeometry: true,
-                        spatialRel: "esriSpatialRelIntersects",
-                        geometry: encodeURIComponent(JSON.stringify(box)),
-                        geometryType: "esriGeometryEnvelope",
-                        resultType: "tile",
-                        inSR: srs,
-                        outSR: srs,
-                        outFields: "*"
-                    };
-                    var query = options.services + "/" + options.serviceName + "/FeatureServer/" + layerId + "/query?" + asParam(params);
-                    $.ajax({
-                        url: query,
-                        dataType: 'jsonp',
-                        success: function (response) {
-                            if (response.error) {
-                                alert(response.error.message + '\n' +
-                                    response.error.details.join('\n'));
-                            }
-                            else {
-                                var features = esrijsonFormat.readFeatures(response, {
-                                    featureProjection: projection,
-                                    dataProjection: projection
-                                });
-                                if (features.length > 0) {
-                                    source.addFeatures(features);
-                                }
-                            }
-                        }
-                    });
-                };
-                var source = new ol.source.Vector({
-                    strategy: strategy,
-                    loader: loader
-                });
-                var catalog = new AgsCatalog.Catalog(options.services + "/" + options.serviceName + "/FeatureServer");
-                var converter = new Symbolizer.StyleConverter();
-                catalog.aboutLayer(layerId).then(function (layerInfo) {
-                    var layer = new ol.layer.Vector({
-                        title: layerInfo.name,
-                        source: source
-                    });
-                    var styleMap = converter.fromRenderer(layerInfo.drawingInfo.renderer, { url: "for icons?" });
-                    layer.setStyle(function (feature, resolution) {
-                        if (styleMap instanceof ol.style.Style) {
-                            return styleMap;
-                        }
-                        else {
-                            return styleMap(feature);
-                        }
-                    });
-                    d.resolve(layer);
-                });
-                return d;
-            });
-            $.when.apply($, all).then(function () {
-                var args = [];
-                for (var _i = 0; _i < arguments.length; _i++) {
-                    args[_i] = arguments[_i];
-                }
-                return d.resolve(args);
-            });
-            return d;
-        };
-        return ArcGisVectorSourceFactory;
-    }());
-    exports.ArcGisVectorSourceFactory = ArcGisVectorSourceFactory;
-});
-define("ol3-lab/alpha/format/base", ["require", "exports"], function (require, exports) {
-    "use strict";
-});
-define("ol3-lab/alpha/format/ol3-symbolizer", ["require", "exports", "bower_components/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer"], function (require, exports, ol3_symbolizer_1) {
-    "use strict";
-    var Ol3Symbolizer = {
-        StyleConverter: ol3_symbolizer_1.StyleConverter
-    };
-    return Ol3Symbolizer;
-});
-define("ol3-lab/labs/common/common", ["require", "exports"], function (require, exports) {
-    "use strict";
-    function getParameterByName(name, url) {
-        if (url === void 0) { url = window.location.href; }
-        name = name.replace(/[\[\]]/g, "\\$&");
-        var regex = new RegExp("[?&]" + name + "(=([^&#]*)|&|#|$)"), results = regex.exec(url);
-        if (!results)
-            return null;
-        if (!results[2])
-            return '';
-        return decodeURIComponent(results[2].replace(/\+/g, " "));
-    }
-    exports.getParameterByName = getParameterByName;
-    function doif(v, cb) {
-        if (v !== undefined && v !== null)
-            cb(v);
-    }
-    exports.doif = doif;
-    function mixin(a, b) {
-        Object.keys(b).forEach(function (k) { return a[k] = b[k]; });
-        return a;
-    }
-    exports.mixin = mixin;
-    function defaults(a, b) {
-        Object.keys(b).filter(function (k) { return a[k] == undefined; }).forEach(function (k) { return a[k] = b[k]; });
-        return a;
-    }
-    exports.defaults = defaults;
-    function cssin(name, css) {
-        var id = "style-" + name;
-        var styleTag = document.getElementById(id);
-        if (!styleTag) {
-            styleTag = document.createElement("style");
-            styleTag.id = id;
-            styleTag.innerText = css;
-            document.head.appendChild(styleTag);
-        }
-        var dataset = styleTag.dataset;
-        dataset["count"] = parseInt(dataset["count"] || "0") + 1 + "";
-        return function () {
-            dataset["count"] = parseInt(dataset["count"] || "0") - 1 + "";
-            if (dataset["count"] === "0") {
-                styleTag.remove();
-            }
-        };
-    }
-    exports.cssin = cssin;
-});
-define("ol3-lab/ux/styles/star/flower", ["require", "exports"], function (require, exports) {
+define("bower_components/ol3-symbolizer/ol3-symbolizer/styles/star/flower", ["require", "exports"], function (require, exports) {
     "use strict";
     return [
         {
@@ -1825,6 +1332,10 @@ define("bower_components/ol3-layerswitcher/ol3-layerswitcher/ol3-layerswitcher",
         return LayerSwitcher;
     }(ol.control.Control));
     exports.LayerSwitcher = LayerSwitcher;
+});
+define("bower_components/ol3-layerswitcher/index", ["require", "exports", "bower_components/ol3-layerswitcher/ol3-layerswitcher/ol3-layerswitcher"], function (require, exports, LayerSwitcher) {
+    "use strict";
+    return LayerSwitcher;
 });
 define("bower_components/ol3-popup/ol3-popup/paging/paging", ["require", "exports", "openlayers"], function (require, exports, ol) {
     "use strict";
@@ -2253,7 +1764,6 @@ define("bower_components/ol3-popup/ol3-popup/ol3-popup", ["require", "exports", 
             this.handlers.forEach(function (h) { return h(); });
             this.handlers = [];
             this.getMap().removeOverlay(this);
-            this.dispose();
             this.dispatch("dispose");
         };
         Popup.prototype.dispatch = function (name) {
@@ -2321,9 +1831,597 @@ define("bower_components/ol3-popup/ol3-popup/ol3-popup", ["require", "exports", 
     }(ol.Overlay));
     exports.Popup = Popup;
 });
-define("ol3-lab/labs/ags-viewer", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/common/common", "ol3-lab/alpha/format/ol3-symbolizer", "bower_components/ol3-layerswitcher/ol3-layerswitcher/ol3-layerswitcher", "bower_components/ol3-popup/ol3-popup/ol3-popup", "ol3-lab/alpha/arcgis-source"], function (require, exports, $, ol, common_1, ol3_symbolizer_2, ol3_layerswitcher_1, ol3_popup_1, arcgis_source_1) {
+define("bower_components/ol3-popup/index", ["require", "exports", "bower_components/ol3-popup/ol3-popup/ol3-popup"], function (require, exports, Popup) {
     "use strict";
-    var styler = new ol3_symbolizer_2.StyleConverter();
+    return Popup;
+});
+define("bower_components/ol3-symbolizer/ol3-symbolizer/common/ajax", ["require", "exports", "jquery"], function (require, exports, $) {
+    "use strict";
+    var Ajax = (function () {
+        function Ajax(url) {
+            this.url = url;
+            this.options = {
+                use_json: true,
+                use_cors: true
+            };
+        }
+        Ajax.prototype.jsonp = function (args, url) {
+            if (url === void 0) { url = this.url; }
+            var d = $.Deferred();
+            args["callback"] = "define";
+            var uri = url + "?" + Object.keys(args).map(function (k) { return k + "=" + args[k]; }).join('&');
+            require([uri], function (data) { return d.resolve(data); });
+            return d;
+        };
+        Ajax.prototype.ajax = function (method, args, url) {
+            if (url === void 0) { url = this.url; }
+            var isData = method === "POST" || method === "PUT";
+            var isJson = this.options.use_json;
+            var isCors = this.options.use_cors;
+            var d = $.Deferred();
+            var client = new XMLHttpRequest();
+            if (isCors)
+                client.withCredentials = true;
+            var uri = url;
+            var data = null;
+            if (args) {
+                if (isData) {
+                    data = JSON.stringify(args);
+                }
+                else {
+                    uri += '?';
+                    var argcount = 0;
+                    for (var key in args) {
+                        if (args.hasOwnProperty(key)) {
+                            if (argcount++) {
+                                uri += '&';
+                            }
+                            uri += encodeURIComponent(key) + '=' + encodeURIComponent(args[key]);
+                        }
+                    }
+                }
+            }
+            client.open(method, uri, true);
+            if (isData && isJson)
+                client.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+            client.send(data);
+            client.onload = function () {
+                console.log("content-type", client.getResponseHeader("Content-Type"));
+                if (client.status >= 200 && client.status < 300) {
+                    isJson = isJson || 0 === client.getResponseHeader("Content-Type").indexOf("application/json");
+                    d.resolve(isJson ? JSON.parse(client.response) : client.response);
+                }
+                else {
+                    d.reject(client.statusText);
+                }
+            };
+            client.onerror = function () { return d.reject(client.statusText); };
+            return d;
+        };
+        Ajax.prototype.get = function (args) {
+            return this.ajax('GET', args);
+        };
+        Ajax.prototype.post = function (args) {
+            return this.ajax('POST', args);
+        };
+        Ajax.prototype.put = function (args) {
+            return this.ajax('PUT', args);
+        };
+        Ajax.prototype.delete = function (args) {
+            return this.ajax('DELETE', args);
+        };
+        return Ajax;
+    }());
+    return Ajax;
+});
+define("bower_components/ol3-symbolizer/ol3-symbolizer/ags/ags-catalog", ["require", "exports", "bower_components/ol3-symbolizer/ol3-symbolizer/common/ajax"], function (require, exports, Ajax) {
+    "use strict";
+    function defaults(a) {
+        var b = [];
+        for (var _i = 1; _i < arguments.length; _i++) {
+            b[_i - 1] = arguments[_i];
+        }
+        b.filter(function (b) { return !!b; }).forEach(function (b) {
+            Object.keys(b).filter(function (k) { return a[k] === undefined; }).forEach(function (k) { return a[k] = b[k]; });
+        });
+        return a;
+    }
+    var Catalog = (function () {
+        function Catalog(url) {
+            this.ajax = new Ajax(url);
+        }
+        Catalog.prototype.about = function (data) {
+            var req = defaults({
+                f: "pjson"
+            }, data);
+            return this.ajax.jsonp(req);
+        };
+        Catalog.prototype.aboutFolder = function (folder) {
+            var ajax = new Ajax(this.ajax.url + "/" + folder);
+            var req = {
+                f: "pjson"
+            };
+            return ajax.jsonp(req);
+        };
+        Catalog.prototype.aboutFeatureServer = function (name) {
+            var ajax = new Ajax(this.ajax.url + "/" + name + "/FeatureServer");
+            var req = {
+                f: "pjson"
+            };
+            return defaults(ajax.jsonp(req), { url: ajax.url });
+        };
+        Catalog.prototype.aboutMapServer = function (name) {
+            var ajax = new Ajax(this.ajax.url + "/" + name + "/MapServer");
+            var req = {
+                f: "pjson"
+            };
+            return defaults(ajax.jsonp(req), { url: ajax.url });
+        };
+        Catalog.prototype.aboutLayer = function (layer) {
+            var ajax = new Ajax(this.ajax.url + "/" + layer);
+            var req = {
+                f: "pjson"
+            };
+            return ajax.jsonp(req);
+        };
+        return Catalog;
+    }());
+    exports.Catalog = Catalog;
+});
+define("bower_components/ol3-symbolizer/ol3-symbolizer/format/ags-symbolizer", ["require", "exports", "jquery", "bower_components/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer"], function (require, exports, $, Symbolizer) {
+    "use strict";
+    var symbolizer = new Symbolizer.StyleConverter();
+    var styleMap = {
+        "esriSMSCircle": "circle",
+        "esriSMSDiamond": "diamond",
+        "esriSMSX": "x",
+        "esriSMSCross": "cross",
+        "esriSLSSolid": "solid",
+        "esriSFSSolid": "solid",
+        "esriSLSDot": "dot",
+        "esriSLSDash": "dash",
+        "esriSLSDashDot": "dashdot",
+        "esriSLSDashDotDot": "dashdotdot",
+        "esriSFSForwardDiagonal": "forward-diagonal",
+    };
+    var typeMap = {
+        "esriSMS": "sms",
+        "esriSLS": "sls",
+        "esriSFS": "sfs",
+        "esriPMS": "pms",
+        "esriPFS": "pfs",
+        "esriTS": "txt",
+    };
+    function range(a, b) {
+        var result = new Array(b - a + 1);
+        while (a <= b)
+            result.push(a++);
+        return result;
+    }
+    function clone(o) {
+        return JSON.parse(JSON.stringify(o));
+    }
+    var StyleConverter = (function () {
+        function StyleConverter() {
+        }
+        StyleConverter.prototype.asWidth = function (v) {
+            return v * 4 / 3;
+        };
+        StyleConverter.prototype.asColor = function (color) {
+            if (color.length === 4)
+                return "rgba(" + color[0] + "," + color[1] + "," + color[2] + "," + color[3] / 255 + ")";
+            if (color.length === 3)
+                return "rgb(" + color[0] + "," + color[1] + "," + color[2] + "})";
+            return "#" + color.map(function (v) { return ("0" + v.toString(16)).substr(0, 2); }).join("");
+        };
+        StyleConverter.prototype.fromSFSSolid = function (symbol, style) {
+            style.fill = {
+                color: this.asColor(symbol.color)
+            };
+            this.fromSLS(symbol.outline, style);
+        };
+        StyleConverter.prototype.fromSFS = function (symbol, style) {
+            switch (symbol.style) {
+                case "esriSFSSolid":
+                    this.fromSFSSolid(symbol, style);
+                    break;
+                case "esriSFSForwardDiagonal":
+                    this.fromSFSSolid(symbol, style);
+                    break;
+                default:
+                    throw "invalid-style: " + symbol.style;
+            }
+        };
+        StyleConverter.prototype.fromSMSCircle = function (symbol, style) {
+            style.circle = {
+                opacity: 1,
+                radius: this.asWidth(symbol.size / 2),
+                stroke: {
+                    color: this.asColor(symbol.outline.color),
+                },
+                snapToPixel: true
+            };
+            this.fromSFSSolid(symbol, style.circle);
+            this.fromSLS(symbol.outline, style.circle);
+        };
+        StyleConverter.prototype.fromSMSCross = function (symbol, style) {
+            style.star = {
+                points: 4,
+                angle: 0,
+                radius: this.asWidth(symbol.size / Math.sqrt(2)),
+                radius2: 0
+            };
+            this.fromSFSSolid(symbol, style.star);
+            this.fromSLS(symbol.outline, style.star);
+        };
+        StyleConverter.prototype.fromSMSDiamond = function (symbol, style) {
+            style.star = {
+                points: 4,
+                angle: 0,
+                radius: this.asWidth(symbol.size / Math.sqrt(2)),
+                radius2: this.asWidth(symbol.size / Math.sqrt(2))
+            };
+            this.fromSFSSolid(symbol, style.star);
+            this.fromSLS(symbol.outline, style.star);
+        };
+        StyleConverter.prototype.fromSMSPath = function (symbol, style) {
+            var size = 2 * this.asWidth(symbol.size);
+            style.svg = {
+                imgSize: [size, size],
+                path: symbol.path,
+                rotation: symbol.angle
+            };
+            this.fromSLSSolid(symbol, style.svg);
+            this.fromSLS(symbol.outline, style.svg);
+        };
+        StyleConverter.prototype.fromSMSSquare = function (symbol, style) {
+            style.star = {
+                points: 4,
+                angle: Math.PI / 4,
+                radius: this.asWidth(symbol.size / Math.sqrt(2)),
+                radius2: this.asWidth(symbol.size / Math.sqrt(2))
+            };
+            this.fromSFSSolid(symbol, style.star);
+            this.fromSLS(symbol.outline, style.star);
+        };
+        StyleConverter.prototype.fromSMSX = function (symbol, style) {
+            style.star = {
+                points: 4,
+                angle: Math.PI / 4,
+                radius: this.asWidth(symbol.size / Math.sqrt(2)),
+                radius2: 0
+            };
+            this.fromSFSSolid(symbol, style.star);
+            this.fromSLS(symbol.outline, style.star);
+        };
+        StyleConverter.prototype.fromSMS = function (symbol, style) {
+            switch (symbol.style) {
+                case "esriSMSCircle":
+                    this.fromSMSCircle(symbol, style);
+                    break;
+                case "esriSMSCross":
+                    this.fromSMSCross(symbol, style);
+                    break;
+                case "esriSMSDiamond":
+                    this.fromSMSDiamond(symbol, style);
+                    break;
+                case "esriSMSPath":
+                    this.fromSMSPath(symbol, style);
+                    break;
+                case "esriSMSSquare":
+                    this.fromSMSSquare(symbol, style);
+                    break;
+                case "esriSMSX":
+                    this.fromSMSX(symbol, style);
+                    break;
+                default:
+                    throw "invalid-style: " + symbol.style;
+            }
+        };
+        StyleConverter.prototype.fromPMS = function (symbol, style) {
+            style.image = {};
+            style.image.src = symbol.url;
+            if (symbol.imageData) {
+                style.image.src = "data:image/png;base64," + symbol.imageData;
+            }
+            style.image["anchor-x"] = this.asWidth(symbol.xoffset);
+            style.image["anchor-y"] = this.asWidth(symbol.yoffset);
+            style.image.imgSize = [this.asWidth(symbol.width), this.asWidth(symbol.height)];
+        };
+        StyleConverter.prototype.fromSLSSolid = function (symbol, style) {
+            style.stroke = {
+                color: this.asColor(symbol.color),
+                width: this.asWidth(symbol.width),
+                lineDash: [],
+                lineJoin: "",
+                miterLimit: 4
+            };
+        };
+        StyleConverter.prototype.fromSLS = function (symbol, style) {
+            switch (symbol.style) {
+                case "esriSLSSolid":
+                    this.fromSLSSolid(symbol, style);
+                    break;
+                case "esriSLSDot":
+                    this.fromSLSSolid(symbol, style);
+                    break;
+                case "esriSLSDash":
+                    this.fromSLSSolid(symbol, style);
+                    break;
+                case "esriSLSDashDot":
+                    this.fromSLSSolid(symbol, style);
+                    break;
+                case "esriSLSDashDotDot":
+                    this.fromSLSSolid(symbol, style);
+                    break;
+                default:
+                    this.fromSLSSolid(symbol, style);
+                    console.warn("invalid-style: " + symbol.style);
+                    break;
+            }
+        };
+        StyleConverter.prototype.fromPFS = function (symbol, style) {
+            throw "not-implemented";
+        };
+        StyleConverter.prototype.fromTS = function (symbol, style) {
+            throw "not-implemented";
+        };
+        StyleConverter.prototype.fromJson = function (symbol) {
+            var style = {};
+            this.fromSymbol(symbol, style);
+            return symbolizer.fromJson(style);
+        };
+        StyleConverter.prototype.fromSymbol = function (symbol, style) {
+            switch (symbol.type) {
+                case "esriSFS":
+                    this.fromSFS(symbol, style);
+                    break;
+                case "esriSLS":
+                    this.fromSLS(symbol, style);
+                    break;
+                case "esriPMS":
+                    this.fromPMS(symbol, style);
+                    break;
+                case "esriPFS":
+                    this.fromPFS(symbol, style);
+                    break;
+                case "esriSMS":
+                    this.fromSMS(symbol, style);
+                    break;
+                case "esriTS":
+                    this.fromTS(symbol, style);
+                    break;
+                default:
+                    throw "invalid-symbol-type: " + symbol.type;
+            }
+        };
+        StyleConverter.prototype.fromRenderer = function (renderer, args) {
+            var _this = this;
+            switch (renderer.type) {
+                case "simple":
+                    {
+                        return this.fromJson(renderer.symbol);
+                    }
+                case "uniqueValue":
+                    {
+                        var styles_1 = {};
+                        var defaultStyle_1 = (renderer.defaultSymbol) && this.fromJson(renderer.defaultSymbol);
+                        if (renderer.uniqueValueInfos) {
+                            renderer.uniqueValueInfos.forEach(function (info) {
+                                styles_1[info.value] = _this.fromJson(info.symbol);
+                            });
+                        }
+                        return function (feature) { return styles_1[feature.get(renderer.field1)] || defaultStyle_1; };
+                    }
+                case "classBreaks": {
+                    var styles_2 = {};
+                    var classBreakRenderer_1 = renderer;
+                    if (classBreakRenderer_1.classBreakInfos) {
+                        console.log("processing classBreakInfos");
+                        if (classBreakRenderer_1.visualVariables) {
+                            classBreakRenderer_1.visualVariables.forEach(function (vars) {
+                                switch (vars.type) {
+                                    case "sizeInfo": {
+                                        var steps_1 = range(classBreakRenderer_1.authoringInfo.visualVariables[0].minSliderValue, classBreakRenderer_1.authoringInfo.visualVariables[0].maxSliderValue);
+                                        var dx_1 = (vars.maxSize - vars.minSize) / steps_1.length;
+                                        var dataValue_1 = (vars.maxDataValue - vars.minDataValue) / steps_1.length;
+                                        classBreakRenderer_1.classBreakInfos.forEach(function (classBreakInfo) {
+                                            var icons = steps_1.map(function (step) {
+                                                var json = $.extend({}, classBreakInfo.symbol);
+                                                json.size = vars.minSize + dx_1 * (dataValue_1 - vars.minDataValue);
+                                                var style = _this.fromJson(json);
+                                                styles_2[dataValue_1] = style;
+                                            });
+                                        });
+                                        debugger;
+                                        break;
+                                    }
+                                    default:
+                                        debugger;
+                                        break;
+                                }
+                            });
+                        }
+                    }
+                    return function (feature) {
+                        debugger;
+                        var value = feature.get(renderer.field1);
+                        for (var key in styles_2) {
+                            return styles_2[key];
+                        }
+                    };
+                }
+                default:
+                    {
+                        debugger;
+                        console.error("unsupported renderer type: ", renderer.type);
+                        break;
+                    }
+            }
+        };
+        return StyleConverter;
+    }());
+    exports.StyleConverter = StyleConverter;
+});
+define("bower_components/ol3-symbolizer/ol3-symbolizer/common/common", ["require", "exports"], function (require, exports) {
+    "use strict";
+    function getParameterByName(name, url) {
+        if (url === void 0) { url = window.location.href; }
+        name = name.replace(/[\[\]]/g, "\\$&");
+        var regex = new RegExp("[?&]" + name + "(=([^&#]*)|&|#|$)"), results = regex.exec(url);
+        if (!results)
+            return null;
+        if (!results[2])
+            return '';
+        return decodeURIComponent(results[2].replace(/\+/g, " "));
+    }
+    exports.getParameterByName = getParameterByName;
+    function doif(v, cb) {
+        if (v !== undefined && v !== null)
+            cb(v);
+    }
+    exports.doif = doif;
+    function mixin(a, b) {
+        Object.keys(b).forEach(function (k) { return a[k] = b[k]; });
+        return a;
+    }
+    exports.mixin = mixin;
+    function defaults(a, b) {
+        Object.keys(b).filter(function (k) { return a[k] == undefined; }).forEach(function (k) { return a[k] = b[k]; });
+        return a;
+    }
+    exports.defaults = defaults;
+    function cssin(name, css) {
+        var id = "style-" + name;
+        var styleTag = document.getElementById(id);
+        if (!styleTag) {
+            styleTag = document.createElement("style");
+            styleTag.id = id;
+            styleTag.innerText = css;
+            document.head.appendChild(styleTag);
+        }
+        var dataset = styleTag.dataset;
+        dataset["count"] = parseInt(dataset["count"] || "0") + 1 + "";
+        return function () {
+            dataset["count"] = parseInt(dataset["count"] || "0") - 1 + "";
+            if (dataset["count"] === "0") {
+                styleTag.remove();
+            }
+        };
+    }
+    exports.cssin = cssin;
+});
+define("bower_components/ol3-symbolizer/ol3-symbolizer/ags/ags-source", ["require", "exports", "jquery", "openlayers", "bower_components/ol3-symbolizer/ol3-symbolizer/ags/ags-catalog", "bower_components/ol3-symbolizer/ol3-symbolizer/format/ags-symbolizer", "bower_components/ol3-symbolizer/ol3-symbolizer/common/common"], function (require, exports, $, ol, AgsCatalog, Symbolizer, common_1) {
+    "use strict";
+    var esrijsonFormat = new ol.format.EsriJSON();
+    function asParam(options) {
+        return Object
+            .keys(options)
+            .map(function (k) { return k + "=" + options[k]; })
+            .join("&");
+    }
+    ;
+    var DEFAULT_OPTIONS = {
+        tileSize: 512,
+        where: "1=1"
+    };
+    var ArcGisVectorSourceFactory = (function () {
+        function ArcGisVectorSourceFactory() {
+        }
+        ArcGisVectorSourceFactory.create = function (options) {
+            var d = $.Deferred();
+            options = common_1.defaults(options, DEFAULT_OPTIONS);
+            var srs = options.map.getView()
+                .getProjection()
+                .getCode()
+                .split(":")
+                .pop();
+            var all = options.layers.map(function (layerId) {
+                var d = $.Deferred();
+                var tileGrid = ol.tilegrid.createXYZ({
+                    tileSize: options.tileSize
+                });
+                var strategy = ol.loadingstrategy.tile(tileGrid);
+                var loader = function (extent, resolution, projection) {
+                    var box = {
+                        xmin: extent[0],
+                        ymin: extent[1],
+                        xmax: extent[2],
+                        ymax: extent[3]
+                    };
+                    var params = {
+                        f: "json",
+                        returnGeometry: true,
+                        spatialRel: "esriSpatialRelIntersects",
+                        geometry: encodeURIComponent(JSON.stringify(box)),
+                        geometryType: "esriGeometryEnvelope",
+                        resultType: "tile",
+                        where: encodeURIComponent(options.where),
+                        inSR: srs,
+                        outSR: srs,
+                        outFields: "*",
+                    };
+                    var query = options.services + "/" + options.serviceName + "/FeatureServer/" + layerId + "/query?" + asParam(params);
+                    $.ajax({
+                        url: query,
+                        dataType: 'jsonp',
+                        success: function (response) {
+                            if (response.error) {
+                                alert(response.error.message + '\n' +
+                                    response.error.details.join('\n'));
+                            }
+                            else {
+                                var features = esrijsonFormat.readFeatures(response, {
+                                    featureProjection: projection,
+                                    dataProjection: projection
+                                });
+                                if (features.length > 0) {
+                                    source.addFeatures(features);
+                                }
+                            }
+                        }
+                    });
+                };
+                var source = new ol.source.Vector({
+                    strategy: strategy,
+                    loader: loader
+                });
+                var catalog = new AgsCatalog.Catalog(options.services + "/" + options.serviceName + "/FeatureServer");
+                var converter = new Symbolizer.StyleConverter();
+                catalog.aboutLayer(layerId).then(function (layerInfo) {
+                    var layer = new ol.layer.Vector({
+                        title: layerInfo.name,
+                        source: source
+                    });
+                    var styleMap = converter.fromRenderer(layerInfo.drawingInfo.renderer, { url: "for icons?" });
+                    layer.setStyle(function (feature, resolution) {
+                        if (styleMap instanceof ol.style.Style) {
+                            return styleMap;
+                        }
+                        else {
+                            return styleMap(feature);
+                        }
+                    });
+                    d.resolve(layer);
+                });
+                return d;
+            });
+            $.when.apply($, all).then(function () {
+                var args = [];
+                for (var _i = 0; _i < arguments.length; _i++) {
+                    args[_i] = arguments[_i];
+                }
+                return d.resolve(args);
+            });
+            return d;
+        };
+        return ArcGisVectorSourceFactory;
+    }());
+    exports.ArcGisVectorSourceFactory = ArcGisVectorSourceFactory;
+});
+define("ol3-lab/labs/ags-viewer", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/common/common", "bower_components/ol3-symbolizer/index", "bower_components/ol3-layerswitcher/index", "bower_components/ol3-popup/index", "bower_components/ol3-symbolizer/ol3-symbolizer/ags/ags-source"], function (require, exports, $, ol, common_2, ol3_symbolizer_1, ol3_layerswitcher_1, ol3_popup_1, ags_source_1) {
+    "use strict";
+    var styler = new ol3_symbolizer_1.StyleConverter();
     function parse(v, type) {
         if (typeof type === "string")
             return v;
@@ -2358,7 +2456,7 @@ define("ol3-lab/labs/ags-viewer", ["require", "exports", "jquery", "openlayers",
         {
             var opts_1 = options;
             Object.keys(opts_1).forEach(function (k) {
-                common_1.doif(common_1.getParameterByName(k), function (v) {
+                common_2.doif(common_2.getParameterByName(k), function (v) {
                     var value = parse(v, opts_1[k]);
                     if (value !== undefined)
                         opts_1[k] = value;
@@ -2396,7 +2494,7 @@ define("ol3-lab/labs/ags-viewer", ["require", "exports", "jquery", "openlayers",
                 })
             ]
         });
-        arcgis_source_1.ArcGisVectorSourceFactory.create({
+        ags_source_1.ArcGisVectorSourceFactory.create({
             tileSize: 256,
             map: map,
             services: options.services,
@@ -2481,7 +2579,7 @@ define("ol3-lab/labs/common/myjson", ["require", "exports", "jquery"], function 
     }());
     exports.MyJson = MyJson;
 });
-define("ol3-lab/labs/common/ol3-patch", ["require", "exports", "openlayers", "ol3-lab/labs/common/common"], function (require, exports, ol3, common_2) {
+define("ol3-lab/labs/common/ol3-patch", ["require", "exports", "openlayers", "ol3-lab/labs/common/common"], function (require, exports, ol3, common_3) {
     "use strict";
     if (!ol3.geom.SimpleGeometry.prototype.scale) {
         var scale_1 = function (flatCoordinates, offset, end, stride, deltaX, deltaY, opt_dest) {
@@ -2500,7 +2598,7 @@ define("ol3-lab/labs/common/ol3-patch", ["require", "exports", "openlayers", "ol
             }
             return dest;
         };
-        common_2.mixin(ol3.geom.SimpleGeometry.prototype, {
+        common_3.mixin(ol3.geom.SimpleGeometry.prototype, {
             scale: function (deltaX, deltaY) {
                 var it = this;
                 it.applyTransform(function (flatCoordinates, output, stride) {
@@ -2513,7 +2611,7 @@ define("ol3-lab/labs/common/ol3-patch", ["require", "exports", "openlayers", "ol
     }
     return ol3;
 });
-define("ol3-lab/labs/common/ol3-polyline", ["require", "exports", "openlayers"], function (require, exports, ol) {
+define("bower_components/ol3-fun/ol3-fun/ol3-polyline", ["require", "exports", "openlayers"], function (require, exports, ol) {
     "use strict";
     var Polyline = ol.format.Polyline;
     var PolylineEncoder = (function () {
@@ -2551,8 +2649,31 @@ define("ol3-lab/labs/common/ol3-polyline", ["require", "exports", "openlayers"],
     }());
     return PolylineEncoder;
 });
-define("ol3-lab/labs/common/snapshot", ["require", "exports", "ol3-lab/labs/common/ol3-patch"], function (require, exports, ol) {
+define("ol3-lab/labs/common/ol3-polyline", ["require", "exports", "bower_components/ol3-fun/ol3-fun/ol3-polyline"], function (require, exports, PolylineEncoder) {
     "use strict";
+    return PolylineEncoder;
+});
+define("bower_components/ol3-fun/ol3-fun/snapshot", ["require", "exports", "openlayers"], function (require, exports, ol) {
+    "use strict";
+    function getStyle(feature) {
+        var style = feature.getStyle();
+        if (!style) {
+            var styleFn = feature.getStyleFunction();
+            if (styleFn) {
+                style = styleFn(0);
+            }
+        }
+        if (!style) {
+            style = new ol.style.Style({
+                text: new ol.style.Text({
+                    text: "?"
+                })
+            });
+        }
+        if (!Array.isArray(style))
+            style = [style];
+        return style;
+    }
     var Snapshot = (function () {
         function Snapshot() {
         }
@@ -2567,7 +2688,7 @@ define("ol3-lab/labs/common/snapshot", ["require", "exports", "ol3-lab/labs/comm
             geom.scale(scale, -scale);
             geom.translate(canvas.width / 2, canvas.height / 2);
             var vtx = ol.render.toContext(canvas.getContext("2d"));
-            var styles = feature.getStyleFunction()(0);
+            var styles = getStyle(feature);
             if (!Array.isArray(styles))
                 styles = [styles];
             styles.forEach(function (style) { return vtx.drawFeature(feature, style); });
@@ -2582,7 +2703,11 @@ define("ol3-lab/labs/common/snapshot", ["require", "exports", "ol3-lab/labs/comm
     }());
     return Snapshot;
 });
-define("ol3-lab/ux/styles/basic", ["require", "exports"], function (require, exports) {
+define("ol3-lab/labs/common/snapshot", ["require", "exports", "bower_components/ol3-fun/ol3-fun/snapshot"], function (require, exports, Snapshot) {
+    "use strict";
+    return Snapshot;
+});
+define("bower_components/ol3-symbolizer/ol3-symbolizer/styles/basic", ["require", "exports"], function (require, exports) {
     "use strict";
     var stroke = {
         color: 'black',
@@ -2648,7 +2773,7 @@ define("ol3-lab/ux/styles/basic", ["require", "exports"], function (require, exp
         x: [{ star: x }]
     };
 });
-define("ol3-lab/ux/styles/fill/gradient", ["require", "exports"], function (require, exports) {
+define("bower_components/ol3-symbolizer/ol3-symbolizer/styles/fill/gradient", ["require", "exports"], function (require, exports) {
     "use strict";
     return [
         {
@@ -2669,9 +2794,9 @@ define("ol3-lab/ux/styles/fill/gradient", ["require", "exports"], function (requ
         }
     ];
 });
-define("ol3-lab/labs/common/style-generator", ["require", "exports", "openlayers", "ol3-lab/ux/styles/basic", "ol3-lab/alpha/format/ol3-symbolizer"], function (require, exports, ol, basic_styles, ol3_symbolizer_3) {
+define("ol3-lab/labs/common/style-generator", ["require", "exports", "openlayers", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/basic", "bower_components/ol3-symbolizer/index"], function (require, exports, ol, basic_styles, ol3_symbolizer_2) {
     "use strict";
-    var converter = new ol3_symbolizer_3.StyleConverter();
+    var converter = new ol3_symbolizer_2.StyleConverter();
     var orientations = "forward,backward,diagonal,horizontal,vertical,cross".split(",");
     function mixin(a, b) {
         Object.keys(b).forEach(function (k) { return a[k] = b[k]; });
@@ -3159,7 +3284,7 @@ define("ol3-lab/labs/facebook", ["require", "exports", "openlayers", "jquery"], 
     }
     exports.run = run;
 });
-define("ol3-lab/ux/styles/stroke/linedash", ["require", "exports"], function (require, exports) {
+define("bower_components/ol3-symbolizer/ol3-symbolizer/styles/stroke/linedash", ["require", "exports"], function (require, exports) {
     "use strict";
     var dasharray = {
         solid: "none",
@@ -3176,7 +3301,7 @@ define("ol3-lab/ux/styles/stroke/linedash", ["require", "exports"], function (re
     };
     return dasharray;
 });
-define("ol3-lab/ux/styles/stroke/dashdotdot", ["require", "exports", "ol3-lab/ux/styles/stroke/linedash"], function (require, exports, Dashes) {
+define("bower_components/ol3-symbolizer/ol3-symbolizer/styles/stroke/dashdotdot", ["require", "exports", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/stroke/linedash"], function (require, exports, Dashes) {
     "use strict";
     return [
         {
@@ -3188,7 +3313,7 @@ define("ol3-lab/ux/styles/stroke/dashdotdot", ["require", "exports", "ol3-lab/ux
         }
     ];
 });
-define("ol3-lab/ux/styles/stroke/solid", ["require", "exports"], function (require, exports) {
+define("bower_components/ol3-symbolizer/ol3-symbolizer/styles/stroke/solid", ["require", "exports"], function (require, exports) {
     "use strict";
     return [
         {
@@ -3199,7 +3324,7 @@ define("ol3-lab/ux/styles/stroke/solid", ["require", "exports"], function (requi
         }
     ];
 });
-define("ol3-lab/ux/styles/text/text", ["require", "exports"], function (require, exports) {
+define("bower_components/ol3-symbolizer/ol3-symbolizer/styles/text/text", ["require", "exports"], function (require, exports) {
     "use strict";
     return [
         {
@@ -3219,9 +3344,9 @@ define("ol3-lab/ux/styles/text/text", ["require", "exports"], function (require,
         }
     ];
 });
-define("ol3-lab/labs/mapmaker", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/common/common", "ol3-lab/labs/common/ol3-polyline", "ol3-lab/alpha/format/ol3-symbolizer", "ol3-lab/ux/styles/stroke/dashdotdot", "ol3-lab/ux/styles/stroke/solid", "ol3-lab/ux/styles/text/text", "ol3-lab/labs/common/myjson"], function (require, exports, $, ol, common_3, reduce, ol3_symbolizer_4, dashdotdot, strokeStyle, textStyle, myjson_1) {
+define("ol3-lab/labs/mapmaker", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/common/common", "ol3-lab/labs/common/ol3-polyline", "bower_components/ol3-symbolizer/index", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/stroke/dashdotdot", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/stroke/solid", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/text/text", "ol3-lab/labs/common/myjson"], function (require, exports, $, ol, common_4, reduce, ol3_symbolizer_3, dashdotdot, strokeStyle, textStyle, myjson_1) {
     "use strict";
-    var styler = new ol3_symbolizer_4.StyleConverter();
+    var styler = new ol3_symbolizer_3.StyleConverter();
     function parse(v, type) {
         if (typeof type === "string")
             return v;
@@ -3253,7 +3378,7 @@ define("ol3-lab/labs/mapmaker", ["require", "exports", "jquery", "openlayers", "
         {
             var opts_2 = options;
             Object.keys(opts_2).forEach(function (k) {
-                common_3.doif(common_3.getParameterByName(k), function (v) {
+                common_4.doif(common_4.getParameterByName(k), function (v) {
                     var value = parse(v, opts_2[k]);
                     if (value !== undefined)
                         opts_2[k] = value;
@@ -3314,7 +3439,7 @@ define("ol3-lab/labs/mapmaker", ["require", "exports", "jquery", "openlayers", "
                     feature.setStyle(style);
                     features.push(feature);
                 });
-                if (!common_3.getParameterByName("center")) {
+                if (!common_4.getParameterByName("center")) {
                     map.getView().fit(layer.getSource().getExtent(), map.getSize());
                 }
             }
@@ -3355,13 +3480,13 @@ define("ol3-lab/labs/mapmaker", ["require", "exports", "jquery", "openlayers", "
                         if (options.myjson) {
                             myjson_3.id = options.myjson;
                             myjson_3.put().then(function () {
-                                var url = encodeURI(href + "?run=labs/mapmaker&myjson=" + myjson_3.id);
+                                var url = encodeURI(href + "?run=ol3-lab/labs/mapmaker&myjson=" + myjson_3.id);
                                 window.open(url, "_blank");
                             });
                         }
                         else {
                             myjson_3.post().then(function () {
-                                var url = encodeURI(href + "?run=labs/mapmaker&myjson=" + myjson_3.id);
+                                var url = encodeURI(href + "?run=ol3-lab/labs/mapmaker&myjson=" + myjson_3.id);
                                 window.open(url, "_blank");
                             });
                         }
@@ -3369,14 +3494,14 @@ define("ol3-lab/labs/mapmaker", ["require", "exports", "jquery", "openlayers", "
                     else {
                         var opts_3 = options;
                         var querystring = Object.keys(options).map(function (k) { return k + "=" + opts_3[k]; }).join("&");
-                        var url = encodeURI(href + "?run=labs/mapmaker&" + querystring);
+                        var url = encodeURI(href + "?run=ol3-lab/labs/mapmaker&" + querystring);
                         window.open(url, "_blank");
                     }
                 }
                 else {
                     var opts_4 = options;
                     var querystring = Object.keys(options).map(function (k) { return k + "=" + opts_4[k]; }).join("&");
-                    var url = encodeURI(href + "?run=labs/mapmaker&" + querystring);
+                    var url = encodeURI(href + "?run=ol3-lab/labs/mapmaker&" + querystring);
                     window.open(url, "_blank");
                 }
             });
@@ -3385,9 +3510,9 @@ define("ol3-lab/labs/mapmaker", ["require", "exports", "jquery", "openlayers", "
     }
     exports.run = run;
 });
-define("ol3-lab/ux/controls/input", ["require", "exports", "openlayers", "ol3-lab/labs/common/common"], function (require, exports, ol, common_4) {
+define("bower_components/ol3-input/ol3-input/ol3-input", ["require", "exports", "openlayers", "bower_components/ol3-fun/ol3-fun/common"], function (require, exports, ol, common_5) {
     "use strict";
-    var css = "\n    .ol-input {\n        position:absolute;\n    }\n    .ol-input.top {\n        top: 0.5em;\n    }\n    .ol-input.left {\n        left: 0.5em;\n    }\n    .ol-input.bottom {\n        bottom: 0.5em;\n    }\n    .ol-input.right {\n        right: 0.5em;\n    }\n    .ol-input.top.left {\n        top: 4.5em;\n    }\n    .ol-input button {\n        min-height: 1.375em;\n        min-width: 1.375em;\n        width: auto;\n        display: inline;\n    }\n    .ol-input.left button {\n        float:right;\n    }\n    .ol-input.right button {\n        float:left;\n    }\n    .ol-input input {\n        height: 24px;\n        min-width: 240px;\n        border: none;\n        padding: 0;\n        margin: 0;\n        margin-left: 2px;\n        margin-top: 1px;\n        vertical-align: top;\n    }\n    .ol-input input.hidden {\n        display: none;\n    }\n";
+    var css = "\n    .ol-input {\n        position:absolute;\n    }\n    .ol-input.top {\n        top: 0.5em;\n    }\n    .ol-input.top-1 {\n        top: 1.5em;\n    }\n    .ol-input.top-2 {\n        top: 2.5em;\n    }\n    .ol-input.top-3 {\n        top: 3.5em;\n    }\n    .ol-input.top-4 {\n        top: 4.5em;\n    }\n    .ol-input.left {\n        left: 0.5em;\n    }\n    .ol-input.left-1 {\n        left: 1.5em;\n    }\n    .ol-input.left-2 {\n        left: 2.5em;\n    }\n    .ol-input.left-3 {\n        left: 3.5em;\n    }\n    .ol-input.left-4 {\n        left: 4.5em;\n    }\n    .ol-input.bottom {\n        bottom: 0.5em;\n    }\n    .ol-input.bottom-1 {\n        bottom: 1.5em;\n    }\n    .ol-input.bottom-2 {\n        bottom: 2.5em;\n    }\n    .ol-input.bottom-3 {\n        bottom: 3.5em;\n    }\n    .ol-input.bottom-4 {\n        bottom: 4.5em;\n    }\n    .ol-input.right {\n        right: 0.5em;\n    }\n    .ol-input.right-1 {\n        right: 1.5em;\n    }\n    .ol-input.right-2 {\n        right: 2.5em;\n    }\n    .ol-input.right-3 {\n        right: 3.5em;\n    }\n    .ol-input.right-4 {\n        right: 4.5em;\n    }\n    .ol-input button {\n        min-height: 1.375em;\n        min-width: 1.375em;\n        width: auto;\n        display: inline;\n    }\n    .ol-input.left button {\n        float:right;\n    }\n    .ol-input.right button {\n        float:left;\n    }\n    .ol-input input {\n        height: 2.175em;\n        width: 16em;\n        border: none;\n        padding: 0;\n        margin: 0;\n        margin-left: 2px;\n        margin-top: 2px;\n        vertical-align: top;\n    }\n    .ol-input input.ol-hidden {\n        width: 0;\n        margin: 0;\n    }\n";
     var olcss = {
         CLASS_CONTROL: 'ol-control',
         CLASS_UNSELECTABLE: 'ol-unselectable',
@@ -3401,14 +3526,25 @@ define("ol3-lab/ux/controls/input", ["require", "exports", "openlayers", "ol3-la
     var defaults = {
         className: 'ol-input bottom left',
         expanded: false,
+        autoClear: false,
+        autoCollapse: true,
+        autoSelect: true,
+        canCollapse: true,
+        hideButton: false,
         closedText: expando.right,
         openedText: expando.left,
         placeholderText: 'Search'
     };
-    var Geocoder = (function (_super) {
-        __extends(Geocoder, _super);
-        function Geocoder(options) {
-            var _this = _super.call(this, {
+    var Input = (function (_super) {
+        __extends(Input, _super);
+        function Input(options) {
+            var _this = this;
+            if (options.hideButton) {
+                options.canCollapse = false;
+                options.autoCollapse = false;
+                options.expanded = true;
+            }
+            _this = _super.call(this, {
                 element: options.element,
                 target: options.target
             }) || this;
@@ -3416,6 +3552,9 @@ define("ol3-lab/ux/controls/input", ["require", "exports", "openlayers", "ol3-la
             button.setAttribute('type', 'button');
             button.title = options.placeholderText;
             options.element.appendChild(button);
+            if (options.hideButton) {
+                button.style.display = "none";
+            }
             var input = _this.input = document.createElement('input');
             input.placeholder = options.placeholderText;
             options.element.appendChild(input);
@@ -3425,7 +3564,7 @@ define("ol3-lab/ux/controls/input", ["require", "exports", "openlayers", "ol3-la
             input.addEventListener("keypress", function (args) {
                 if (args.key === "Enter") {
                     button.focus();
-                    _this.collapse(options);
+                    options.autoCollapse && _this.collapse(options);
                 }
             });
             input.addEventListener("change", function () {
@@ -3433,6 +3572,12 @@ define("ol3-lab/ux/controls/input", ["require", "exports", "openlayers", "ol3-la
                     type: "change",
                     value: input.value
                 };
+                if (options.autoSelect) {
+                    input.select();
+                }
+                if (options.autoClear) {
+                    input.value = "";
+                }
                 _this.dispatchEvent(args);
                 if (options.onChange)
                     options.onChange(args);
@@ -3442,44 +3587,50 @@ define("ol3-lab/ux/controls/input", ["require", "exports", "openlayers", "ol3-la
             options.expanded ? _this.expand(options) : _this.collapse(options);
             return _this;
         }
-        Geocoder.create = function (options) {
-            common_4.cssin('ol-input', css);
-            options = common_4.mixin({
+        Input.create = function (options) {
+            common_5.cssin('ol-input', css);
+            options = common_5.mixin({
                 openedText: options.className && -1 < options.className.indexOf("left") ? expando.left : expando.right,
-                closedText: options.className && -1 < options.className.indexOf("left") ? expando.right : expando.left
+                closedText: options.className && -1 < options.className.indexOf("left") ? expando.right : expando.left,
             }, options || {});
-            options = common_4.mixin(common_4.mixin({}, defaults), options);
+            options = common_5.mixin(common_5.mixin({}, defaults), options);
             var element = document.createElement('div');
             element.className = options.className + " " + olcss.CLASS_UNSELECTABLE + " " + olcss.CLASS_CONTROL;
-            var geocoderOptions = common_4.mixin({
+            var geocoderOptions = common_5.mixin({
                 element: element,
                 target: options.target,
                 expanded: false
             }, options);
-            return new Geocoder(geocoderOptions);
+            return new Input(geocoderOptions);
         };
-        Geocoder.prototype.dispose = function () {
-            debugger;
-        };
-        Geocoder.prototype.collapse = function (options) {
+        Input.prototype.collapse = function (options) {
+            if (!options.canCollapse)
+                return;
             options.expanded = false;
-            this.input.classList.toggle("hidden", true);
-            this.button.classList.toggle("hidden", false);
+            this.input.classList.toggle(olcss.CLASS_HIDDEN, true);
+            this.button.classList.toggle(olcss.CLASS_HIDDEN, false);
             this.button.innerHTML = options.closedText;
         };
-        Geocoder.prototype.expand = function (options) {
+        Input.prototype.expand = function (options) {
             options.expanded = true;
-            this.input.classList.toggle("hidden", false);
-            this.button.classList.toggle("hidden", true);
+            this.input.classList.toggle(olcss.CLASS_HIDDEN, false);
+            this.button.classList.toggle(olcss.CLASS_HIDDEN, true);
             this.button.innerHTML = options.openedText;
             this.input.focus();
             this.input.select();
         };
-        return Geocoder;
+        Input.prototype.on = function (type, cb) {
+            _super.prototype.on.call(this, type, cb);
+        };
+        return Input;
     }(ol.control.Control));
-    exports.Geocoder = Geocoder;
+    exports.Input = Input;
 });
-define("ol3-lab/labs/providers/osm", ["require", "exports"], function (require, exports) {
+define("bower_components/ol3-input/index", ["require", "exports", "bower_components/ol3-input/ol3-input/ol3-input"], function (require, exports, Input) {
+    "use strict";
+    return Input;
+});
+define("bower_components/ol3-input/ol3-input/providers/osm", ["require", "exports"], function (require, exports) {
     "use strict";
     var OpenStreet = (function () {
         function OpenStreet() {
@@ -3529,7 +3680,7 @@ define("ol3-lab/labs/providers/osm", ["require", "exports"], function (require, 
     }());
     exports.OpenStreet = OpenStreet;
 });
-define("ol3-lab/labs/geocoder", ["require", "exports", "ol3-lab/labs/mapmaker", "ol3-lab/ux/controls/input", "ol3-lab/labs/providers/osm"], function (require, exports, MapMaker, input_3, osm_1) {
+define("ol3-lab/labs/geocoder", ["require", "exports", "ol3-lab/labs/mapmaker", "bower_components/ol3-input/index", "bower_components/ol3-input/ol3-input/providers/osm"], function (require, exports, MapMaker, ol3_input_1, osm_1) {
     "use strict";
     function run() {
         MapMaker.run().then(function (map) {
@@ -3566,26 +3717,26 @@ define("ol3-lab/labs/geocoder", ["require", "exports", "ol3-lab/labs/mapmaker", 
                     console.error("geocoder failed");
                 });
             };
-            var geocoder = input_3.Geocoder.create({
+            var geocoder = ol3_input_1.Input.create({
                 closedText: "+",
                 openedText: "−",
                 placeholderText: "Bottom Left Search",
                 onChange: changeHandler
             });
             map.addControl(geocoder);
-            map.addControl(input_3.Geocoder.create({
+            map.addControl(ol3_input_1.Input.create({
                 className: 'ol-input bottom right',
                 expanded: true,
                 placeholderText: "Bottom Right Search",
                 onChange: changeHandler
             }));
-            map.addControl(input_3.Geocoder.create({
+            map.addControl(ol3_input_1.Input.create({
                 className: 'ol-input top right',
                 expanded: false,
                 placeholderText: "Top Right",
                 onChange: changeHandler
             }));
-            map.addControl(input_3.Geocoder.create({
+            map.addControl(ol3_input_1.Input.create({
                 className: 'ol-input top left',
                 expanded: false,
                 placeholderText: "Top Left Search",
@@ -3731,7 +3882,7 @@ define("ol3-lab/labs/index", ["require", "exports"], function (require, exports)
     function run() {
         var l = window.location;
         var path = "" + l.origin + l.pathname + "?run=ol3-lab/labs/";
-        var labs = "\n    ../ux/ags-symbols\n\n    ags-viewer&services=//sampleserver3.arcgisonline.com/ArcGIS/rest/services&serviceName=SanFrancisco/311Incidents&layers=0&debug=1&center=-122.49,37.738\n    popup\n    layerswitcher\n    \n    style-lab\n\n    style-viewer\n    style-viewer&geom=point&style=icon/png\n    style-viewer&geom=point&style=icon/png,text/text\n    style-viewer&geom=point&style=%5B%7B\"image\":%7B\"imgSize\":%5B45,45%5D,\"rotation\":0,\"stroke\":%7B\"color\":\"rgba(255,25,0,0.8)\",\"width\":3%7D,\"path\":\"M23%202%20L23%2023%20L43%2016.5%20L23%2023%20L35%2040%20L23%2023%20L11%2040%20L23%2023%20L3%2017%20L23%2023%20L23%202%20Z\"%7D%7D%5D\n\n    style-viewer&geom=point&style=%5B%7B\"circle\":%7B\"fill\":%7B\"gradient\":%7B\"type\":\"linear(32,32,96,96)\",\"stops\":\"rgba(0,255,0,0.1)%200%25;rgba(0,255,0,0.8)%20100%25\"%7D%7D,\"opacity\":1,\"stroke\":%7B\"color\":\"rgba(0,255,0,1)\",\"width\":1%7D,\"radius\":64%7D%7D,%7B\"image\":%7B\"anchor\":%5B16,48%5D,\"size\":%5B32,48%5D,\"anchorXUnits\":\"pixels\",\"anchorYUnits\":\"pixels\",\"src\":\"http://openlayers.org/en/v3.20.1/examples/data/icon.png\"%7D%7D,%7B\"text\":%7B\"fill\":%7B\"color\":\"rgba(75,92,85,0.85)\"%7D,\"stroke\":%7B\"color\":\"rgba(255,255,255,1)\",\"width\":5%7D,\"offset-x\":0,\"offset-y\":16,\"text\":\"fantasy%20light\",\"font\":\"18px%20serif\"%7D%7D%5D    \n\n    style-viewer&geom=point&style=%5B%7B\"image\":%7B\"imgSize\":%5B13,21%5D,\"fill\":%7B\"color\":\"rgba(0,0,0,0.5)\"%7D,\"path\":\"M6.3,0C6.3,0,0,0.1,0,7.5c0,3.8,6.3,12.6,6.3,12.6s6.3-8.8,6.3-12.7C12.6,0.1,6.3,0,6.3,0z%20M6.3,8.8%20c-1.4,0-2.5-1.1-2.5-2.5c0-1.4,1.1-2.5,2.5-2.5c1.4,0,2.5,1.1,2.5,2.5C8.8,7.7,7.7,8.8,6.3,8.8z\"%7D%7D%5D\n\n    style-viewer&geom=point&style=%5B%7B\"image\":%7B\"imgSize\":%5B15,15%5D,\"anchor\":%5B0,0.5%5D,\"fill\":%7B\"color\":\"rgba(255,0,0,0.1)\"%7D,\"stroke\":%7B\"color\":\"rgba(255,0,0,1)\",\"width\":0.1%7D,\"scale\":8,\"rotation\":0.7,\"img\":\"lock\"%7D%7D,%7B\"image\":%7B\"imgSize\":%5B15,15%5D,\"anchor\":%5B100,0.5%5D,\"anchorXUnits\":\"pixels\",\"fill\":%7B\"color\":\"rgba(0,255,0,0.4)\"%7D,\"stroke\":%7B\"color\":\"rgba(255,0,0,1)\",\"width\":0.1%7D,\"scale\":1.5,\"rotation\":0.7,\"img\":\"lock\"%7D%7D,%7B\"image\":%7B\"imgSize\":%5B15,15%5D,\"anchor\":%5B-10,0%5D,\"anchorXUnits\":\"pixels\",\"anchorOrigin\":\"top-right\",\"fill\":%7B\"color\":\"rgba(230,230,80,1)\"%7D,\"stroke\":%7B\"color\":\"rgba(0,0,0,1)\",\"width\":0.5%7D,\"scale\":2,\"rotation\":0.8,\"img\":\"lock\"%7D%7D%5D\n\n\n    style-viewer&geom=multipoint&style=icon/png\n\n    style-viewer&geom=polyline&style=stroke/dot\n\n    style-viewer&geom=polygon&style=fill/diagonal\n    style-viewer&geom=polygon&style=fill/horizontal,fill/vertical,stroke/dashdotdot\n    style-viewer&geom=polygon&style=stroke/solid,text/text\n    style-viewer&geom=polygon-with-holes&style=fill/cross,stroke/solid\n\n    style-viewer&geom=multipolygon&style=stroke/solid,fill/horizontal,text/text\n\n    style-to-canvas\n    polyline-encoder\n    image-data-viewer\n\n    mapmaker\n    mapmaker&background=light\n    mapmaker&geom=t`syzE}gm_dAm_@A?r@p@Bp@Hp@Ph@Td@Z`@`@Vb@Nd@xUABmF\n    mapmaker&geom=t`syzE}gm_dAm_@A?r@p@Bp@Hp@Ph@Td@Z`@`@Vb@Nd@xUABmF&color=yellow&background=dark&modify=1\n    \n    geocoder&modify=1\n\n    facebook\n    google-identity\n    index\n    ";
+        var labs = "\n    ol-grid\n    ol-input    \n    ol-layerswitcher\n    ol-panzoom\n    ol-popup\n    ol-search\n    ol-symbolizer\n\n    ../ux/ags-symbols\n\n    ags-viewer&services=//sampleserver3.arcgisonline.com/ArcGIS/rest/services&serviceName=SanFrancisco/311Incidents&layers=0&debug=1&center=-122.49,37.738\n    \n    style-lab\n\n    style-viewer\n    style-viewer&geom=point&style=icon/png\n    style-viewer&geom=point&style=icon/png,text/text\n    style-viewer&geom=point&style=%5B%7B\"image\":%7B\"imgSize\":%5B45,45%5D,\"rotation\":0,\"stroke\":%7B\"color\":\"rgba(255,25,0,0.8)\",\"width\":3%7D,\"path\":\"M23%202%20L23%2023%20L43%2016.5%20L23%2023%20L35%2040%20L23%2023%20L11%2040%20L23%2023%20L3%2017%20L23%2023%20L23%202%20Z\"%7D%7D%5D\n\n    style-viewer&geom=point&style=%5B%7B\"circle\":%7B\"fill\":%7B\"gradient\":%7B\"type\":\"linear(32,32,96,96)\",\"stops\":\"rgba(0,255,0,0.1)%200%25;rgba(0,255,0,0.8)%20100%25\"%7D%7D,\"opacity\":1,\"stroke\":%7B\"color\":\"rgba(0,255,0,1)\",\"width\":1%7D,\"radius\":64%7D%7D,%7B\"image\":%7B\"anchor\":%5B16,48%5D,\"size\":%5B32,48%5D,\"anchorXUnits\":\"pixels\",\"anchorYUnits\":\"pixels\",\"src\":\"http://openlayers.org/en/v3.20.1/examples/data/icon.png\"%7D%7D,%7B\"text\":%7B\"fill\":%7B\"color\":\"rgba(75,92,85,0.85)\"%7D,\"stroke\":%7B\"color\":\"rgba(255,255,255,1)\",\"width\":5%7D,\"offset-x\":0,\"offset-y\":16,\"text\":\"fantasy%20light\",\"font\":\"18px%20serif\"%7D%7D%5D    \n\n    style-viewer&geom=point&style=%5B%7B\"image\":%7B\"imgSize\":%5B13,21%5D,\"fill\":%7B\"color\":\"rgba(0,0,0,0.5)\"%7D,\"path\":\"M6.3,0C6.3,0,0,0.1,0,7.5c0,3.8,6.3,12.6,6.3,12.6s6.3-8.8,6.3-12.7C12.6,0.1,6.3,0,6.3,0z%20M6.3,8.8%20c-1.4,0-2.5-1.1-2.5-2.5c0-1.4,1.1-2.5,2.5-2.5c1.4,0,2.5,1.1,2.5,2.5C8.8,7.7,7.7,8.8,6.3,8.8z\"%7D%7D%5D\n\n    style-viewer&geom=point&style=%5B%7B\"image\":%7B\"imgSize\":%5B15,15%5D,\"anchor\":%5B0,0.5%5D,\"fill\":%7B\"color\":\"rgba(255,0,0,0.1)\"%7D,\"stroke\":%7B\"color\":\"rgba(255,0,0,1)\",\"width\":0.1%7D,\"scale\":8,\"rotation\":0.7,\"img\":\"lock\"%7D%7D,%7B\"image\":%7B\"imgSize\":%5B15,15%5D,\"anchor\":%5B100,0.5%5D,\"anchorXUnits\":\"pixels\",\"fill\":%7B\"color\":\"rgba(0,255,0,0.4)\"%7D,\"stroke\":%7B\"color\":\"rgba(255,0,0,1)\",\"width\":0.1%7D,\"scale\":1.5,\"rotation\":0.7,\"img\":\"lock\"%7D%7D,%7B\"image\":%7B\"imgSize\":%5B15,15%5D,\"anchor\":%5B-10,0%5D,\"anchorXUnits\":\"pixels\",\"anchorOrigin\":\"top-right\",\"fill\":%7B\"color\":\"rgba(230,230,80,1)\"%7D,\"stroke\":%7B\"color\":\"rgba(0,0,0,1)\",\"width\":0.5%7D,\"scale\":2,\"rotation\":0.8,\"img\":\"lock\"%7D%7D%5D\n\n\n    style-viewer&geom=multipoint&style=icon/png\n\n    style-viewer&geom=polyline&style=stroke/dot\n\n    style-viewer&geom=polygon&style=fill/diagonal\n    style-viewer&geom=polygon&style=fill/horizontal,fill/vertical,stroke/dashdotdot\n    style-viewer&geom=polygon&style=stroke/solid,text/text\n    style-viewer&geom=polygon-with-holes&style=fill/cross,stroke/solid\n\n    style-viewer&geom=multipolygon&style=stroke/solid,fill/horizontal,text/text\n\n    style-to-canvas\n    polyline-encoder\n    image-data-viewer\n\n    mapmaker\n    mapmaker&background=light\n    mapmaker&geom=t`syzE}gm_dAm_@A?r@p@Bp@Hp@Ph@Td@Z`@`@Vb@Nd@xUABmF\n    mapmaker&geom=t`syzE}gm_dAm_@A?r@p@Bp@Hp@Ph@Td@Z`@`@Vb@Nd@xUABmF&color=yellow&background=dark&modify=1\n    \n    geocoder&modify=1\n\n    facebook\n    google-identity\n    index\n    ";
         var styles = document.createElement("style");
         document.head.appendChild(styles);
         styles.innerText += "\n    #map {\n        display: none;\n    }\n    .test {\n        margin: 20px;\n    }\n    ";
@@ -3745,14 +3896,908 @@ define("ol3-lab/labs/index", ["require", "exports"], function (require, exports)
             .join("\n");
         var testDiv = document.createElement("div");
         document.body.appendChild(testDiv);
-        testDiv.innerHTML = "<a href='" + l.origin + l.pathname + "?run=tests/index'>tests</a>";
+        testDiv.innerHTML = "<a href='" + l.origin + l.pathname + "?run=ol3-lab/tests/index'>tests</a>";
     }
     exports.run = run;
     ;
 });
-define("ol3-lab/labs/layerswitcher", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/common/common", "ol3-lab/alpha/format/ol3-symbolizer", "bower_components/ol3-layerswitcher/ol3-layerswitcher/ol3-layerswitcher", "bower_components/ol3-popup/ol3-popup/ol3-popup", "ol3-lab/alpha/arcgis-source"], function (require, exports, $, ol, common_5, ol3_symbolizer_5, ol3_layerswitcher_2, ol3_popup_2, arcgis_source_2) {
+define("bower_components/ol3-grid/ol3-grid/ol3-grid", ["require", "exports", "jquery", "openlayers"], function (require, exports, $, ol) {
     "use strict";
-    var styler = new ol3_symbolizer_5.StyleConverter();
+    function mixin(a, b) {
+        Object.keys(b).forEach(function (k) { return a[k] = b[k]; });
+        return a;
+    }
+    function cssin(name, css) {
+        var id = "style-" + name;
+        var styleTag = document.getElementById(id);
+        if (!styleTag) {
+            styleTag = document.createElement("style");
+            styleTag.id = id;
+            styleTag.innerText = css;
+            document.head.appendChild(styleTag);
+        }
+        var dataset = styleTag.dataset;
+        dataset["count"] = parseInt(dataset["count"] || "0") + 1 + "";
+        return function () {
+            dataset["count"] = parseInt(dataset["count"] || "0") - 1 + "";
+            if (dataset["count"] === "0") {
+                styleTag.remove();
+            }
+        };
+    }
+    function debounce(func, wait) {
+        if (wait === void 0) { wait = 50; }
+        var h;
+        return function () {
+            clearTimeout(h);
+            h = setTimeout(function () { return func(); }, wait);
+        };
+    }
+    var Snapshot = (function () {
+        function Snapshot() {
+        }
+        Snapshot.render = function (canvas, feature) {
+            feature = feature.clone();
+            var geom = feature.getGeometry();
+            var extent = geom.getExtent();
+            var isPoint = extent[0] === extent[2];
+            var _a = ol.extent.getCenter(extent), dx = _a[0], dy = _a[1];
+            var scale = isPoint ? 1 : Math.min(canvas.width / ol.extent.getWidth(extent), canvas.height / ol.extent.getHeight(extent));
+            geom.translate(-dx, -dy);
+            geom.scale(scale, -scale);
+            geom.translate(canvas.width / 2, canvas.height / 2);
+            var vtx = ol.render.toContext(canvas.getContext("2d"));
+            var styles = feature.getStyleFunction()(0);
+            if (!Array.isArray(styles))
+                styles = [styles];
+            styles.forEach(function (style) { return vtx.drawFeature(feature, style); });
+        };
+        Snapshot.snapshot = function (feature) {
+            var canvas = document.createElement("canvas");
+            var geom = feature.getGeometry();
+            this.render(canvas, feature);
+            return canvas.toDataURL();
+        };
+        return Snapshot;
+    }());
+    var css = "\n    .ol-grid {\n        position:absolute;\n    }\n    .ol-grid.top {\n        top: 0.5em;\n    }\n    .ol-grid.top-1 {\n        top: 1.5em;\n    }\n    .ol-grid.top-2 {\n        top: 2.5em;\n    }\n    .ol-grid.top-3 {\n        top: 3.5em;\n    }\n    .ol-grid.top-4 {\n        top: 4.5em;\n    }\n    .ol-grid.left {\n        left: 0.5em;\n    }\n    .ol-grid.left-1 {\n        left: 1.5em;\n    }\n    .ol-grid.left-2 {\n        left: 2.5em;\n    }\n    .ol-grid.left-3 {\n        left: 3.5em;\n    }\n    .ol-grid.left-4 {\n        left: 4.5em;\n    }\n    .ol-grid.bottom {\n        bottom: 0.5em;\n    }\n    .ol-grid.bottom-1 {\n        bottom: 1.5em;\n    }\n    .ol-grid.bottom-2 {\n        bottom: 2.5em;\n    }\n    .ol-grid.bottom-3 {\n        bottom: 3.5em;\n    }\n    .ol-grid.bottom-4 {\n        bottom: 4.5em;\n    }\n    .ol-grid.right {\n        right: 0.5em;\n    }\n    .ol-grid.right-1 {\n        right: 1.5em;\n    }\n    .ol-grid.right-2 {\n        right: 2.5em;\n    }\n    .ol-grid.right-3 {\n        right: 3.5em;\n    }\n    .ol-grid.right-4 {\n        right: 4.5em;\n    }\n    .ol-grid .ol-grid-container {\n        min-width: 8em;\n        max-height: 16em;\n        overflow-y: auto;\n    }\n    .ol-grid .ol-grid-container.ol-hidden {\n        display: none;\n    }\n    .ol-grid .feature-row {\n        cursor: pointer;\n    }\n    .ol-grid .feature-row:hover {\n        background: black;\n        color: white;\n    }\n    .ol-grid .feature-row:focus {\n        background: #ccc;\n        color: black;\n    }\n";
+    var grid_html = "\n<div class='ol-grid-container'>\n    <table class='ol-grid-table'>\n        <tbody></tbody>\n    </table>\n</div>\n";
+    var olcss = {
+        CLASS_CONTROL: 'ol-control',
+        CLASS_UNSELECTABLE: 'ol-unselectable',
+        CLASS_UNSUPPORTED: 'ol-unsupported',
+        CLASS_HIDDEN: 'ol-hidden'
+    };
+    var expando = {
+        right: '»',
+        left: '«'
+    };
+    var defaults = {
+        className: 'ol-grid top right',
+        expanded: false,
+        autoCollapse: true,
+        autoSelect: true,
+        canCollapse: true,
+        currentExtent: true,
+        hideButton: false,
+        showIcon: false,
+        labelAttributeName: "",
+        closedText: expando.right,
+        openedText: expando.left,
+        placeholderText: 'Search'
+    };
+    var Grid = (function (_super) {
+        __extends(Grid, _super);
+        function Grid(options) {
+            var _this = this;
+            if (options.hideButton) {
+                options.canCollapse = false;
+                options.autoCollapse = false;
+                options.expanded = true;
+            }
+            _this = _super.call(this, {
+                element: options.element,
+                target: options.target
+            }) || this;
+            _this.options = options;
+            _this.features = new ol.source.Vector();
+            var button = _this.button = document.createElement('button');
+            button.setAttribute('type', 'button');
+            button.title = options.placeholderText;
+            options.element.appendChild(button);
+            if (options.hideButton) {
+                button.style.display = "none";
+            }
+            var grid = $(grid_html.trim());
+            _this.grid = $(".ol-grid-table", grid)[0];
+            grid.appendTo(options.element);
+            if (_this.options.autoCollapse) {
+                button.addEventListener("mouseover", function () {
+                    !options.expanded && _this.expand();
+                });
+                button.addEventListener("focus", function () {
+                    !options.expanded && _this.expand();
+                });
+                button.addEventListener("blur", function () {
+                    options.expanded && _this.collapse();
+                });
+            }
+            button.addEventListener("click", function () {
+                options.expanded ? _this.collapse() : _this.expand();
+            });
+            options.expanded ? _this.expand() : _this.collapse();
+            _this.features.on(["addfeature", "addfeatures"], debounce(function () { return _this.redraw(); }));
+            return _this;
+        }
+        Grid.create = function (options) {
+            if (options === void 0) { options = {}; }
+            cssin('ol-grid', css);
+            options = mixin({
+                openedText: options.className && -1 < options.className.indexOf("left") ? expando.left : expando.right,
+                closedText: options.className && -1 < options.className.indexOf("left") ? expando.right : expando.left,
+            }, options || {});
+            options = mixin(mixin({}, defaults), options);
+            var element = document.createElement('div');
+            element.className = options.className + " " + olcss.CLASS_UNSELECTABLE + " " + olcss.CLASS_CONTROL;
+            var gridOptions = mixin({
+                element: element,
+                expanded: false
+            }, options);
+            return new Grid(gridOptions);
+        };
+        Grid.prototype.redraw = function () {
+            var _this = this;
+            var map = this.getMap();
+            var extent = map.getView().calculateExtent(map.getSize());
+            var tbody = this.grid.tBodies[0];
+            tbody.innerHTML = "";
+            var features = [];
+            if (this.options.currentExtent) {
+                this.features.forEachFeatureInExtent(extent, function (f) { return void features.push(f); });
+            }
+            else {
+                this.features.forEachFeature(function (f) { return void features.push(f); });
+            }
+            features.forEach(function (feature) {
+                var tr = $("<tr tabindex=\"0\" class=\"feature-row\"></tr>");
+                if (_this.options.showIcon) {
+                    var td = $("<td><canvas class=\"icon\"></canvas></td>");
+                    var canvas = $(".icon", td)[0];
+                    canvas.width = 160;
+                    canvas.height = 64;
+                    td.appendTo(tr);
+                    Snapshot.render(canvas, feature);
+                }
+                if (_this.options.labelAttributeName) {
+                    var td = $("<td><label class=\"label\">" + feature.get(_this.options.labelAttributeName) + "</label></td>");
+                    td.appendTo(tr);
+                }
+                ["click", "keypress"].forEach(function (k) {
+                    return tr.on(k, function () {
+                        if (_this.options.autoCollapse) {
+                            _this.collapse();
+                        }
+                        _this.dispatchEvent({
+                            type: "feature-click",
+                            feature: feature,
+                            row: tr[0]
+                        });
+                    });
+                });
+                tr.appendTo(tbody);
+            });
+        };
+        Grid.prototype.add = function (feature) {
+            this.features.addFeature(feature);
+        };
+        Grid.prototype.clear = function () {
+            var tbody = this.grid.tBodies[0];
+            tbody.innerHTML = "";
+        };
+        Grid.prototype.setMap = function (map) {
+            var _this = this;
+            _super.prototype.setMap.call(this, map);
+            var vectorLayers = map.getLayers()
+                .getArray()
+                .filter(function (l) { return l instanceof ol.layer.Vector; })
+                .map(function (l) { return l; });
+            if (this.options.currentExtent) {
+                map.getView().on(["change:center", "change:resolution"], debounce(function () { return _this.redraw(); }));
+            }
+            vectorLayers.forEach(function (l) { return l.getSource().on("addfeature", function (args) {
+                _this.add(args.feature);
+            }); });
+        };
+        Grid.prototype.collapse = function () {
+            var options = this.options;
+            if (!options.canCollapse)
+                return;
+            options.expanded = false;
+            this.grid.parentElement.classList.toggle(olcss.CLASS_HIDDEN, true);
+            this.button.classList.toggle(olcss.CLASS_HIDDEN, false);
+            this.button.innerHTML = options.closedText;
+        };
+        Grid.prototype.expand = function () {
+            var options = this.options;
+            options.expanded = true;
+            this.grid.parentElement.classList.toggle(olcss.CLASS_HIDDEN, false);
+            this.button.classList.toggle(olcss.CLASS_HIDDEN, true);
+            this.button.innerHTML = options.openedText;
+        };
+        Grid.prototype.on = function (type, cb) {
+            return _super.prototype.on.call(this, type, cb);
+        };
+        return Grid;
+    }(ol.control.Control));
+    exports.Grid = Grid;
+});
+define("bower_components/ol3-grid/index", ["require", "exports", "bower_components/ol3-grid/ol3-grid/ol3-grid"], function (require, exports, Grid) {
+    "use strict";
+    return Grid;
+});
+define("ol3-lab/labs/ol-grid", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/common/common", "bower_components/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/star/flower", "bower_components/ol3-popup/index", "bower_components/ol3-grid/index"], function (require, exports, $, ol, common_6, ol3_symbolizer_4, pointStyle, ol3_popup_2, ol3_grid_1) {
+    "use strict";
+    var styler = new ol3_symbolizer_4.StyleConverter();
+    function parse(v, type) {
+        if (typeof type === "string")
+            return v;
+        if (typeof type === "number")
+            return parseFloat(v);
+        if (typeof type === "boolean")
+            return (v === "1" || v === "true");
+        if (Array.isArray(type)) {
+            return (v.split(",").map(function (v) { return parse(v, type[0]); }));
+        }
+        throw "unknown type: " + type;
+    }
+    function randomName() {
+        var nouns = "cat,dog,bird,horse,pig,elephant,giraffe,tiger,bear,cow,chicken,moose".split(",");
+        var adverbs = "running,walking,turning,jumping,hiding,pouncing,stomping,rutting,landing,floating,sinking".split(",");
+        var noun = nouns[(Math.random() * nouns.length) | 0];
+        var adverb = adverbs[(Math.random() * adverbs.length) | 0];
+        return (adverb + " " + noun).toLocaleUpperCase();
+    }
+    var html = "\n<div class='popup'>\n    <div class='popup-container'>\n    </div>\n</div>\n";
+    var css = "\n<style name=\"popup\" type=\"text/css\">\n    html, body, .map {\n        width: 100%;\n        height: 100%;\n        padding: 0;\n        overflow: hidden;\n        margin: 0;    \n    }\n    .popup-container {\n        position: absolute;\n        top: 1em;\n        right: 0.5em;\n        width: 10em;\n        bottom: 1em;\n        z-index: 1;\n        pointer-events: none;\n    }\n    .popup-container .ol-popup.docked {\n        min-width: auto;\n    }\n\n    table.ol-grid-table {\n        width: 100%;\n    }\n\n    table.ol-grid-table {\n        border-collapse: collapse;\n        width: 100%;\n    }\n\n    table.ol-grid-table > td {\n        padding: 8px;\n        text-align: left;\n        border-bottom: 1px solid #ddd;\n    }\n\n    \n</style>\n";
+    var css_popup = "\n.ol-popup {\n    color: white;\n    background-color: rgba(77,77,77,0.7);\n    border: 1px solid white;\n    min-width: 200px;\n    padding: 12px;\n}\n\n.ol-popup:after {\n    border-top-color: white;\n}\n";
+    function run() {
+        $(html).appendTo(".map");
+        $(css).appendTo("head");
+        var options = {
+            srs: 'EPSG:4326',
+            center: [-82.4, 34.85],
+            zoom: 15,
+            basemap: "bing"
+        };
+        {
+            var opts_5 = options;
+            Object.keys(opts_5).forEach(function (k) {
+                common_6.doif(common_6.getParameterByName(k), function (v) {
+                    var value = parse(v, opts_5[k]);
+                    if (value !== undefined)
+                        opts_5[k] = value;
+                });
+            });
+        }
+        var map = new ol.Map({
+            target: "map",
+            keyboardEventTarget: document,
+            loadTilesWhileAnimating: true,
+            loadTilesWhileInteracting: true,
+            controls: ol.control.defaults({ attribution: false }),
+            view: new ol.View({
+                projection: options.srs,
+                center: options.center,
+                zoom: options.zoom
+            }),
+            layers: [
+                new ol.layer.Tile({
+                    opacity: 0.8,
+                    source: options.basemap !== "bing" ? new ol.source.OSM() : new ol.source.BingMaps({
+                        key: 'AuPHWkNxvxVAL_8Z4G8Pcq_eOKGm5eITH_cJMNAyYoIC1S_29_HhE893YrUUbIGl',
+                        imagerySet: 'Aerial'
+                    })
+                })
+            ]
+        });
+        var features = new ol.Collection();
+        var source = new ol.source.Vector({
+            features: features
+        });
+        var layer = new ol.layer.Vector({
+            source: source
+        });
+        map.addLayer(layer);
+        var popup = new ol3_popup_2.Popup({
+            dockContainer: '.popup-container',
+            pointerPosition: 100,
+            positioning: "bottom-left",
+            yOffset: 20,
+            css: css_popup
+        });
+        popup.setMap(map);
+        map.on("click", function (event) {
+            var location = event.coordinate.map(function (v) { return v.toFixed(5); }).join(", ");
+            var point = new ol.geom.Point(event.coordinate);
+            point.set("location", location);
+            var feature = new ol.Feature(point);
+            feature.set("text", randomName());
+            var textStyle = pointStyle.filter(function (p) { return p.text; })[0];
+            ;
+            if (textStyle && textStyle.text) {
+                textStyle.text["offset-y"] = -24;
+                textStyle.text.text = feature.get("text");
+            }
+            pointStyle[0].star.points = 3 + (Math.random() * 12) | 0;
+            pointStyle[0].star.stroke.width = 1 + Math.random() * 5;
+            var style = pointStyle.map(function (s) { return styler.fromJson(s); });
+            feature.setStyle(function (resolution) { return style; });
+            source.addFeature(feature);
+            setTimeout(function () { return popup.show(event.coordinate, "<div>You clicked on " + location + "</div>"); }, 50);
+        });
+        var grid = ol3_grid_1.Grid.create({
+            currentExtent: false,
+            labelAttributeName: "text"
+        });
+        map.addControl(grid);
+        map.addControl(ol3_grid_1.Grid.create({
+            className: "ol-grid top left-2",
+            closedText: "+",
+            openedText: "-",
+            autoCollapse: false,
+            showIcon: true
+        }));
+        map.addControl(ol3_grid_1.Grid.create({
+            className: "ol-grid bottom left",
+            currentExtent: true,
+            hideButton: false,
+            closedText: "+",
+            openedText: "-",
+            autoCollapse: true,
+            canCollapse: true,
+            showIcon: true,
+            labelAttributeName: ""
+        }));
+        map.addControl(ol3_grid_1.Grid.create({
+            className: "ol-grid bottom right",
+            hideButton: true,
+            showIcon: true,
+            labelAttributeName: "text"
+        }));
+        map.getControls().getArray()
+            .filter(function (c) { return c instanceof ol3_grid_1.Grid; })
+            .forEach(function (grid) { return grid.on("feature-click", function (args) {
+            var center = args.feature.getGeometry().getClosestPoint(map.getView().getCenter());
+            map.getView().animate({
+                center: center
+            });
+            popup.show(center, args.feature.get("text"));
+        }); });
+        return map;
+    }
+    exports.run = run;
+});
+define("ol3-lab/labs/ol-input", ["require", "exports", "openlayers", "jquery", "bower_components/ol3-grid/index", "bower_components/ol3-symbolizer/index", "bower_components/ol3-input/index", "bower_components/ol3-input/ol3-input/providers/osm", "bower_components/ol3-fun/ol3-fun/common", "bower_components/ol3-symbolizer/ol3-symbolizer/ags/ags-source"], function (require, exports, ol, $, ol3_grid_2, ol3_symbolizer_5, ol3_input_2, osm_2, common_7, ags_source_2) {
+    "use strict";
+    function zoomToFeature(map, feature) {
+        var extent = feature.getGeometry().getExtent();
+        map.getView().animate({
+            center: ol.extent.getCenter(extent),
+            duration: 2500
+        });
+        var w1 = ol.extent.getWidth(map.getView().calculateExtent(map.getSize()));
+        var w2 = ol.extent.getWidth(extent);
+        map.getView().animate({
+            zoom: map.getView().getZoom() + Math.round(Math.log(w1 / w2) / Math.log(2)) - 1,
+            duration: 2500
+        });
+    }
+    function run() {
+        common_7.cssin("examples/ol3-input", "\n.ol-grid .ol-grid-container.ol-hidden {\n}\n\n.ol-grid .ol-grid-container {\n    width: 15em;\n}\n\n.ol-input.top.right > input {\n    width: 18em;\n}\n\n.ol-grid-table {\n    width: 100%;\n}\n\ntable.ol-grid-table {\n    border-collapse: collapse;\n    width: 100%;\n}\n\ntable.ol-grid-table > td {\n    padding: 8px;\n    text-align: left;\n    border-bottom: 1px solid #ddd;\n}\n\n.ol-input input {\n    height: 1.75em !important;\n}\n\n.ol-input.statecode > input {\n    text-transform: uppercase;\n    width: 2em;\n    text-align: center;\n}\n    ");
+        var searchProvider = new osm_2.OpenStreet();
+        var center = ol.proj.transform([-120, 35], 'EPSG:4326', 'EPSG:3857');
+        var mapContainer = document.getElementsByClassName("map")[0];
+        var map = new ol.Map({
+            loadTilesWhileAnimating: true,
+            target: mapContainer,
+            layers: [
+                new ol.layer.Tile({
+                    source: new ol.source.OSM()
+                })
+            ],
+            view: new ol.View({
+                center: center,
+                projection: 'EPSG:3857',
+                zoom: 6
+            })
+        });
+        var source = new ol.source.Vector();
+        var symbolizer = new ol3_symbolizer_5.StyleConverter();
+        var vector = new ol.layer.Vector({
+            source: source,
+            style: function (feature, resolution) {
+                var style = feature.getStyle();
+                if (!style) {
+                    style = symbolizer.fromJson({
+                        circle: {
+                            radius: 4,
+                            fill: {
+                                color: "rgba(33, 33, 33, 0.2)"
+                            },
+                            stroke: {
+                                color: "#F00"
+                            }
+                        },
+                        text: {
+                            text: feature.get("text")
+                        }
+                    });
+                    feature.setStyle(style);
+                }
+                return style;
+            }
+        });
+        ags_source_2.ArcGisVectorSourceFactory.create({
+            map: map,
+            services: 'https://services.arcgis.com/P3ePLMYs2RVChkJx/ArcGIS/rest/services',
+            serviceName: 'USA_States_Generalized',
+            layers: [0]
+        }).then(function (layers) {
+            layers.forEach(function (layer) {
+                var getStyleFunction = layer.getStyleFunction();
+                layer.setStyle(function (f, resolution) {
+                    var style = f.getStyle();
+                    if (!style) {
+                        style = getStyleFunction(f, 0);
+                        f.setStyle(style);
+                    }
+                    return style;
+                });
+                layer.setOpacity(0.5);
+                map.addLayer(layer);
+                var input = ol3_input_2.Input.create({
+                    className: "ol-input statecode top left-2 ",
+                    closedText: "+",
+                    openedText: "−",
+                    autoSelect: true,
+                    autoClear: false,
+                    autoCollapse: false,
+                    placeholderText: "XX"
+                });
+                map.addControl(input);
+                input.on("change", function (args) {
+                    var value = args.value.toLocaleLowerCase();
+                    var feature = layer.getSource().forEachFeature(function (feature) {
+                        var text = feature.get("STATE_ABBR");
+                        if (!text)
+                            return;
+                        if (-1 < text.toLocaleLowerCase().indexOf(value)) {
+                            return feature;
+                        }
+                    });
+                    if (feature) {
+                        zoomToFeature(map, feature);
+                    }
+                    else {
+                        changeHandler({ value: value });
+                    }
+                });
+            });
+        }).then(function () {
+            var grid = ol3_grid_2.Grid.create({
+                className: "ol-grid top-2 right",
+                currentExtent: true,
+                autoCollapse: false,
+                labelAttributeName: "STATE_ABBR",
+                showIcon: true
+            });
+            grid.on("feature-click", function (args) {
+                zoomToFeature(map, args.feature);
+            });
+            map.addControl(grid);
+            map.addLayer(vector);
+        });
+        var changeHandler = function (args) {
+            if (!args.value)
+                return;
+            console.log("search", args.value);
+            var searchArgs = searchProvider.getParameters({
+                query: args.value,
+                limit: 1,
+                countrycodes: 'us',
+                lang: 'en'
+            });
+            $.ajax({
+                url: searchArgs.url,
+                method: searchProvider.method || 'GET',
+                data: searchArgs.params,
+                dataType: searchProvider.dataType || 'json'
+            }).then(function (json) {
+                var results = searchProvider.handleResponse(json);
+                results.some(function (r) {
+                    console.log(r);
+                    if (r.original.boundingbox) {
+                        var _a = r.original.boundingbox.map(function (v) { return parseFloat(v); }), lat1 = _a[0], lat2 = _a[1], lon1 = _a[2], lon2 = _a[3];
+                        _b = ol.proj.transform([lon1, lat1], "EPSG:4326", "EPSG:3857"), lon1 = _b[0], lat1 = _b[1];
+                        _c = ol.proj.transform([lon2, lat2], "EPSG:4326", "EPSG:3857"), lon2 = _c[0], lat2 = _c[1];
+                        var extent = [lon1, lat1, lon2, lat2];
+                        var feature = new ol.Feature(new ol.geom.Polygon([[
+                                ol.extent.getBottomLeft(extent),
+                                ol.extent.getTopLeft(extent),
+                                ol.extent.getTopRight(extent),
+                                ol.extent.getBottomRight(extent),
+                                ol.extent.getBottomLeft(extent)
+                            ]]));
+                        feature.set("text", r.original.display_name);
+                        source.addFeature(feature);
+                        zoomToFeature(map, feature);
+                    }
+                    else {
+                        var _d = ol.proj.transform([r.lon, r.lat], "EPSG:4326", "EPSG:3857"), lon = _d[0], lat = _d[1];
+                        var feature = new ol.Feature(new ol.geom.Point([lon, lat]));
+                        feature.set("text", r.original.display_name);
+                        source.addFeature(feature);
+                        zoomToFeature(map, feature);
+                    }
+                    return true;
+                    var _b, _c;
+                });
+            }).fail(function () {
+                console.error("geocoder failed");
+            });
+        };
+        map.addControl(ol3_input_2.Input.create({
+            className: 'ol-input bottom-2 right',
+            expanded: true,
+            placeholderText: "Bottom Right Search",
+            onChange: changeHandler
+        }));
+        map.addControl(ol3_input_2.Input.create({
+            className: 'ol-input top right',
+            expanded: true,
+            openedText: "?",
+            placeholderText: "Feature Finder",
+            autoClear: true,
+            autoCollapse: false,
+            canCollapse: false,
+            hideButton: true,
+            onChange: function (args) {
+                var value = args.value.toLocaleLowerCase();
+                var feature = source.forEachFeature(function (feature) {
+                    var text = feature.get("text");
+                    if (!text)
+                        return;
+                    if (-1 < text.toLocaleLowerCase().indexOf(value)) {
+                        return feature;
+                    }
+                });
+                if (feature) {
+                    map.getView().animate({
+                        center: feature.getGeometry().getClosestPoint(map.getView().getCenter()),
+                        duration: 1000
+                    });
+                }
+                else {
+                    changeHandler({ value: value });
+                }
+            }
+        }));
+    }
+    exports.run = run;
+});
+define("bower_components/ol3-panzoom/ol3-panzoom/zoomslidercontrol", ["require", "exports", "openlayers"], function (require, exports, ol) {
+    "use strict";
+    var ZoomSlider = (function (_super) {
+        __extends(ZoomSlider, _super);
+        function ZoomSlider(opt_options) {
+            return _super.call(this, opt_options) || this;
+        }
+        ZoomSlider.prototype.getElement = function () {
+            return this.element;
+        };
+        return ZoomSlider;
+    }(ol.control.ZoomSlider));
+    return ZoomSlider;
+});
+define("bower_components/ol3-panzoom/ol3-panzoom/ol3-panzoom", ["require", "exports", "openlayers", "bower_components/ol3-panzoom/ol3-panzoom/zoomslidercontrol"], function (require, exports, ol, ZoomSlider) {
+    "use strict";
+    function defaults(a) {
+        var b = [];
+        for (var _i = 1; _i < arguments.length; _i++) {
+            b[_i - 1] = arguments[_i];
+        }
+        b.forEach(function (b) {
+            Object.keys(b).filter(function (k) { return a[k] === undefined; }).forEach(function (k) { return a[k] = b[k]; });
+        });
+        return a;
+    }
+    function on(element, event, listener) {
+        element.addEventListener(event, listener);
+        return function () { return element.removeEventListener(event, listener); };
+    }
+    var DEFAULT_OPTIONS = {};
+    var PanZoom = (function (_super) {
+        __extends(PanZoom, _super);
+        function PanZoom(options) {
+            if (options === void 0) { options = DEFAULT_OPTIONS; }
+            var _this = this;
+            options = defaults({}, options, DEFAULT_OPTIONS);
+            _this = _super.call(this, options) || this;
+            _this.className_ = options.className ? options.className : 'ol-panzoom';
+            _this.imgPath_ = options.imgPath || './ol3-panzoom/resources/ol2img';
+            var element = _this.element = _this.element_ = _this.createEl_();
+            _this.setTarget(options.target);
+            _this.listenerKeys_ = [];
+            _this.duration_ = options.duration !== undefined ? options.duration : 100;
+            _this.maxExtent_ = options.maxExtent ? options.maxExtent : null;
+            _this.maxZoom_ = options.maxZoom ? options.maxZoom : 19;
+            _this.minZoom_ = options.minZoom ? options.minZoom : 0;
+            _this.pixelDelta_ = options.pixelDelta !== undefined ? options.pixelDelta : 128;
+            _this.slider_ = options.slider !== undefined ? options.slider : false;
+            _this.zoomDelta_ = options.zoomDelta !== undefined ? options.zoomDelta : 1;
+            _this.panEastEl_ = _this.createButtonEl_('pan-east');
+            _this.panNorthEl_ = _this.createButtonEl_('pan-north');
+            _this.panSouthEl_ = _this.createButtonEl_('pan-south');
+            _this.panWestEl_ = _this.createButtonEl_('pan-west');
+            _this.zoomInEl_ = _this.createButtonEl_('zoom-in');
+            _this.zoomOutEl_ = _this.createButtonEl_('zoom-out');
+            _this.zoomMaxEl_ = (!_this.slider_ && _this.maxExtent_) ? _this.createButtonEl_('zoom-max') : null;
+            _this.zoomSliderCtrl_ = (_this.slider_) ? new ZoomSlider() : null;
+            element.appendChild(_this.panNorthEl_);
+            element.appendChild(_this.panWestEl_);
+            element.appendChild(_this.panEastEl_);
+            element.appendChild(_this.panSouthEl_);
+            element.appendChild(_this.zoomInEl_);
+            element.appendChild(_this.zoomOutEl_);
+            if (_this.zoomMaxEl_) {
+                element.appendChild(_this.zoomMaxEl_);
+            }
+            return _this;
+        }
+        PanZoom.prototype.setMap = function (map) {
+            var _this = this;
+            var keys = this.listenerKeys_;
+            var zoomSlider = this.zoomSliderCtrl_;
+            var currentMap = this.getMap();
+            if (currentMap && currentMap instanceof ol.Map) {
+                keys.forEach(function (k) { return k(); });
+                keys.length = 0;
+                if (this.zoomSliderCtrl_) {
+                    this.zoomSliderCtrl_.setTarget(null);
+                    window.setTimeout(function () {
+                        currentMap.removeControl(zoomSlider);
+                    }, 0);
+                }
+            }
+            _super.prototype.setMap.call(this, map);
+            if (map) {
+                keys.push(on(this.panEastEl_, "click", function (evt) { return _this.pan_('east', evt); }));
+                keys.push(on(this.panNorthEl_, "click", function (evt) { return _this.pan_('north', evt); }));
+                keys.push(on(this.panSouthEl_, "click", function (evt) { return _this.pan_('south', evt); }));
+                keys.push(on(this.panWestEl_, "click", function (evt) { return _this.pan_('west', evt); }));
+                keys.push(on(this.zoomInEl_, "click", function (evt) { return _this.zoom_('in', evt); }));
+                keys.push(on(this.zoomOutEl_, "click", function (evt) { return _this.zoom_('out', evt); }));
+                if (this.maxExtent_ && !this.slider_) {
+                    keys.push(on(this.zoomMaxEl_, "click", function (evt) { return _this.zoom_('max', evt); }));
+                }
+                if (this.slider_) {
+                    zoomSlider.setTarget(this.element_);
+                    window.setTimeout(function () {
+                        map.addControl(zoomSlider);
+                    }, 0);
+                    this.adjustZoomSlider_();
+                }
+            }
+        };
+        PanZoom.prototype.createEl_ = function () {
+            var path = this.imgPath_;
+            var className = this.className_;
+            var cssClasses = [
+                className,
+                'ol-unselectable'
+            ];
+            if (!path) {
+                cssClasses.push('ol-control');
+            }
+            var element = document.createElement('div');
+            element.className = cssClasses.join(' ');
+            if (path) {
+                element.style.left = '4px';
+                element.style.position = 'absolute';
+                element.style.top = '4px';
+            }
+            return element;
+        };
+        PanZoom.prototype.createButtonEl_ = function (action) {
+            var divEl = document.createElement('div');
+            var path = this.imgPath_;
+            var maxExtent = this.maxExtent_;
+            var slider = this.slider_;
+            if (path) {
+                divEl.style.width = '18px';
+                divEl.style.height = '18px';
+                divEl.style.position = 'absolute';
+                divEl.style.cursor = 'pointer';
+                var imgEl = document.createElement('img');
+                imgEl.style.width = '18px';
+                imgEl.style.height = '18px';
+                imgEl.style['vertical-align'] = 'top';
+                switch (action) {
+                    case 'pan-east':
+                        imgEl.id = 'OpenLayers_Control_PanZoom_panright_innerImage';
+                        imgEl.src = [path, 'east-mini.png'].join('/');
+                        divEl.id = 'OpenLayers_Control_PanZoom_panright';
+                        divEl.style.top = '22px';
+                        divEl.style.left = '22px';
+                        break;
+                    case 'pan-north':
+                        imgEl.id = 'OpenLayers_Control_PanZoom_panup_innerImage';
+                        imgEl.src = [path, 'north-mini.png'].join('/');
+                        divEl.id = 'OpenLayers_Control_PanZoom_panup';
+                        divEl.style.top = '4px';
+                        divEl.style.left = '13px';
+                        break;
+                    case 'pan-south':
+                        imgEl.id = 'OpenLayers_Control_PanZoom_pandown_innerImage';
+                        imgEl.src = [path, 'south-mini.png'].join('/');
+                        divEl.id = 'OpenLayers_Control_PanZoom_pandown';
+                        divEl.style.top = '40px';
+                        divEl.style.left = '13px';
+                        break;
+                    case 'pan-west':
+                        imgEl.id = 'OpenLayers_Control_PanZoom_panleft_innerImage';
+                        imgEl.src = [path, 'west-mini.png'].join('/');
+                        divEl.id = 'OpenLayers_Control_PanZoom_panleft';
+                        divEl.style.top = '22px';
+                        divEl.style.left = '4px';
+                        break;
+                    case 'zoom-in':
+                        imgEl.id = 'OpenLayers_Control_PanZoom_zoomin_innerImage';
+                        imgEl.src = [path, 'zoom-plus-mini.png'].join('/');
+                        divEl.id = 'OpenLayers_Control_PanZoom_zoomin';
+                        divEl.style.top = '63px';
+                        divEl.style.left = '13px';
+                        break;
+                    case 'zoom-out':
+                        imgEl.id = 'OpenLayers_Control_PanZoom_zoomout_innerImage';
+                        imgEl.src = [path, 'zoom-minus-mini.png'].join('/');
+                        divEl.id = 'OpenLayers_Control_PanZoom_zoomout';
+                        if (slider) {
+                            divEl.style.top = [this.getSliderSize_() + 81, 'px'].join('');
+                        }
+                        else if (maxExtent) {
+                            divEl.style.top = '99px';
+                        }
+                        else {
+                            divEl.style.top = '81px';
+                        }
+                        divEl.style.left = '13px';
+                        break;
+                    case 'zoom-max':
+                        imgEl.id = 'OpenLayers_Control_PanZoom_zoomworld_innerImage';
+                        imgEl.src = [path, 'zoom-world-mini.png'].join('/');
+                        divEl.id = 'OpenLayers_Control_PanZoom_zoomworld';
+                        divEl.style.top = '81px';
+                        divEl.style.left = '13px';
+                        break;
+                }
+                divEl.appendChild(imgEl);
+            }
+            return divEl;
+        };
+        PanZoom.prototype.pan_ = function (direction, evt) {
+            var stopEvent = false;
+            var map = this.getMap();
+            console.assert(!!map, 'map must be set');
+            var view = map.getView();
+            console.assert(!!view, 'map must have view');
+            var mapUnitsDelta = view.getResolution() * this.pixelDelta_;
+            var deltaX = 0, deltaY = 0;
+            if (direction == 'south') {
+                deltaY = -mapUnitsDelta;
+            }
+            else if (direction == 'west') {
+                deltaX = -mapUnitsDelta;
+            }
+            else if (direction == 'east') {
+                deltaX = mapUnitsDelta;
+            }
+            else {
+                deltaY = mapUnitsDelta;
+            }
+            var delta = [deltaX, deltaY];
+            ol.coordinate.rotate(delta, view.getRotation());
+            var currentCenter = view.getCenter();
+            if (currentCenter) {
+                if (this.duration_ && this.duration_ > 0) {
+                    map.beforeRender(ol.animation.pan({
+                        source: currentCenter,
+                        duration: this.duration_,
+                        easing: ol.easing.linear
+                    }));
+                }
+                var center = view.constrainCenter([currentCenter[0] + delta[0], currentCenter[1] + delta[1]]);
+                view.setCenter(center);
+            }
+            evt.preventDefault();
+            stopEvent = true;
+            return !stopEvent;
+        };
+        PanZoom.prototype.zoom_ = function (direction, evt) {
+            if (direction === 'in') {
+                this.zoomByDelta_(this.zoomDelta_);
+            }
+            else if (direction === 'out') {
+                this.zoomByDelta_(-this.zoomDelta_);
+            }
+            else if (direction === 'max') {
+                var map = this.getMap();
+                var view = map.getView();
+                var extent = !this.maxExtent_ ?
+                    view.getProjection().getExtent() : this.maxExtent_;
+                var size = map.getSize();
+                console.assert(!!size, 'size should be defined');
+                view.fit(extent, size);
+            }
+        };
+        PanZoom.prototype.zoomByDelta_ = function (delta) {
+            var map = this.getMap();
+            var view = map.getView();
+            if (!view) {
+                return;
+            }
+            var currentResolution = view.getResolution();
+            if (currentResolution) {
+                if (this.duration_ > 0) {
+                    map.beforeRender(ol.animation.zoom({
+                        resolution: currentResolution,
+                        duration: this.duration_,
+                        easing: ol.easing.easeOut
+                    }));
+                }
+                var newResolution = view.constrainResolution(currentResolution, delta);
+                view.setResolution(newResolution);
+            }
+        };
+        PanZoom.prototype.adjustZoomSlider_ = function () {
+            var zoomSlider = this.zoomSliderCtrl_;
+            var path = this.imgPath_;
+            if (!zoomSlider || !path) {
+                return;
+            }
+            var height = [this.getSliderSize_(), 'px'].join('');
+            var zoomSliderEl = zoomSlider.getElement();
+            zoomSliderEl.style.background =
+                ['url(', path, '/', 'zoombar.png', ')'].join('');
+            zoomSliderEl.style.border = '0';
+            zoomSliderEl.style['border-radius'] = '0';
+            zoomSliderEl.style.height = height;
+            zoomSliderEl.style.left = '13px';
+            zoomSliderEl.style.padding = '0';
+            zoomSliderEl.style.top = '81px';
+            zoomSliderEl.style.width = '18px';
+            var sliderEl = zoomSliderEl.children[0];
+            console.assert(sliderEl instanceof Element);
+            sliderEl.style.background = ['url(', path, '/', 'slider.png', ')'].join('');
+            sliderEl.style.border = "none";
+            sliderEl.style.height = '9px';
+            sliderEl.style.margin = '0 -1px';
+            sliderEl.style.width = '20px';
+        };
+        PanZoom.prototype.getSliderSize_ = function () {
+            return (this.maxZoom_ - this.minZoom_ + 1) * 11;
+        };
+        return PanZoom;
+    }(ol.control.Control));
+    exports.PanZoom = PanZoom;
+});
+define("bower_components/ol3-panzoom/index", ["require", "exports", "bower_components/ol3-panzoom/ol3-panzoom/ol3-panzoom"], function (require, exports, Panzoom) {
+    "use strict";
+    return Panzoom;
+});
+define("ol3-lab/labs/ol-layerswitcher", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/common/common", "bower_components/ol3-symbolizer/index", "bower_components/ol3-layerswitcher/index", "bower_components/ol3-popup/index", "bower_components/ol3-panzoom/index", "bower_components/ol3-symbolizer/ol3-symbolizer/ags/ags-source"], function (require, exports, $, ol, common_8, ol3_symbolizer_6, ol3_layerswitcher_2, ol3_popup_3, index_1, ags_source_3) {
+    "use strict";
+    var styler = new ol3_symbolizer_6.StyleConverter();
     function parse(v, type) {
         if (typeof type === "string")
             return v;
@@ -3782,12 +4827,12 @@ define("ol3-lab/labs/layerswitcher", ["require", "exports", "jquery", "openlayer
             zoom: 10
         };
         {
-            var opts_5 = options;
-            Object.keys(opts_5).forEach(function (k) {
-                common_5.doif(common_5.getParameterByName(k), function (v) {
-                    var value = parse(v, opts_5[k]);
+            var opts_6 = options;
+            Object.keys(opts_6).forEach(function (k) {
+                common_8.doif(common_8.getParameterByName(k), function (v) {
+                    var value = parse(v, opts_6[k]);
                     if (value !== undefined)
-                        opts_5[k] = value;
+                        opts_6[k] = value;
                 });
             });
         }
@@ -3796,10 +4841,20 @@ define("ol3-lab/labs/layerswitcher", ["require", "exports", "jquery", "openlayer
             keyboardEventTarget: document,
             loadTilesWhileAnimating: true,
             loadTilesWhileInteracting: true,
-            controls: ol.control.defaults({ attribution: false }),
+            controls: ol.control.defaults({
+                attribution: false,
+                zoom: false
+            }).extend([new index_1.PanZoom({
+                    minZoom: 5,
+                    maxZoom: 21,
+                    imgPath: "https://raw.githubusercontent.com/ca0v/ol3-panzoom/master/ol3-panzoom/resources/zoombar_black",
+                    slider: true
+                })]),
             view: new ol.View({
                 projection: options.srs,
                 center: options.center,
+                minZoom: 5,
+                maxZoom: 21,
                 zoom: options.zoom
             }),
             layers: [
@@ -3822,18 +4877,759 @@ define("ol3-lab/labs/layerswitcher", ["require", "exports", "jquery", "openlayer
                 })
             ]
         });
-        arcgis_source_2.ArcGisVectorSourceFactory.create({
+        ags_source_3.ArcGisVectorSourceFactory.create({
             tileSize: 256,
             map: map,
             services: "https://services7.arcgis.com/k0UprFPHKieFB9UY/arcgis/rest/services",
             serviceName: "GoldServer860",
             layers: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20].reverse()
         }).then(function (agsLayers) {
-            agsLayers.forEach(function (agsLayer) { return map.addLayer(agsLayer); });
+            agsLayers.forEach(function (agsLayer) {
+                agsLayer.setVisible(false);
+                map.addLayer(agsLayer);
+            });
             var layerSwitcher = new ol3_layerswitcher_2.LayerSwitcher();
             layerSwitcher.setMap(map);
-            layerSwitcher.isVisible;
-            var popup = new ol3_popup_2.Popup({
+            var popup = new ol3_popup_3.Popup({
+                css: "\n            .ol-popup {\n                background-color: white;\n            }\n            .ol-popup .page {\n                max-height: 200px;\n                overflow-y: auto;\n            }\n            "
+            });
+            map.addOverlay(popup);
+            map.on("click", function (event) {
+                console.log("click");
+                var coord = event.coordinate;
+                popup.hide();
+                var pageNum = 0;
+                map.forEachFeatureAtPixel(event.pixel, function (feature, layer) {
+                    var page = document.createElement('p');
+                    var keys = Object.keys(feature.getProperties()).filter(function (key) {
+                        var v = feature.get(key);
+                        if (typeof v === "string")
+                            return true;
+                        if (typeof v === "number")
+                            return true;
+                        return false;
+                    });
+                    page.title = "" + ++pageNum;
+                    page.innerHTML = "<table>" + keys.map(function (k) { return "<tr><td>" + k + "</td><td>" + feature.get(k) + "</td></tr>"; }).join("") + "</table>";
+                    popup.pages.add(page, feature.getGeometry());
+                });
+                popup.show(coord, "<label>" + pageNum + " Features Found</label>");
+                popup.pages.goto(0);
+            });
+        });
+        return map;
+    }
+    exports.run = run;
+});
+define("ol3-lab/labs/ol-panzoom", ["require", "exports", "openlayers", "bower_components/ol3-panzoom/index"], function (require, exports, ol, ol3_panzoom_1) {
+    "use strict";
+    function run() {
+        var panZoom = new ol3_panzoom_1.PanZoom({
+            imgPath: "https://raw.githubusercontent.com/ca0v/ol3-panzoom/v3.20.1/ol3-panzoom/resources/ol2img"
+        });
+        var map = new ol.Map({
+            controls: ol.control.defaults({
+                zoom: false
+            }).extend([
+                panZoom
+            ]),
+            layers: [
+                new ol.layer.Tile({
+                    source: new ol.source.OSM()
+                })
+            ],
+            target: 'map',
+            view: new ol.View({
+                center: ol.proj.transform([-70, 50], 'EPSG:4326', 'EPSG:3857'),
+                zoom: 5
+            })
+        });
+    }
+    exports.run = run;
+});
+define("ol3-lab/labs/ol-popup", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/common/common", "bower_components/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/star/flower", "bower_components/ol3-popup/index"], function (require, exports, $, ol, common_9, ol3_symbolizer_7, pointStyle, ol3_popup_4) {
+    "use strict";
+    var styler = new ol3_symbolizer_7.StyleConverter();
+    function parse(v, type) {
+        if (typeof type === "string")
+            return v;
+        if (typeof type === "number")
+            return parseFloat(v);
+        if (typeof type === "boolean")
+            return (v === "1" || v === "true");
+        if (Array.isArray(type)) {
+            return (v.split(",").map(function (v) { return parse(v, type[0]); }));
+        }
+        throw "unknown type: " + type;
+    }
+    function randomName() {
+        var nouns = "cat,dog,bird,horse,pig,elephant,giraffe,tiger,bear,cow,chicken,moose".split(",");
+        var adverbs = "running,walking,turning,jumping,hiding,pouncing,stomping,rutting,landing,floating,sinking".split(",");
+        var noun = nouns[(Math.random() * nouns.length) | 0];
+        var adverb = adverbs[(Math.random() * adverbs.length) | 0];
+        return (adverb + " " + noun).toLocaleUpperCase();
+    }
+    var html = "\n<div class='popup'>\n    <div class='popup-container'>\n    </div>\n</div>\n";
+    var css = "\n<style name=\"popup\" type=\"text/css\">\n    html, body, .map {\n        width: 100%;\n        height: 100%;\n        padding: 0;\n        overflow: hidden;\n        margin: 0;    \n    }\n    .popup-container {\n        position: absolute;\n        top: 1em;\n        right: 0.5em;\n        width: 10em;\n        bottom: 1em;\n        z-index: 1;\n        pointer-events: none;\n    }\n    .popup-container .ol-popup.docked {\n        min-width: auto;\n    }\n    \n</style>\n";
+    var css_popup = "\n.ol-popup {\n    color: white;\n    background-color: rgba(77,77,77,0.7);\n    border: 1px solid white;\n    min-width: 200px;\n    padding: 12px;\n}\n\n.ol-popup:after {\n    border-top-color: white;\n}\n";
+    function run() {
+        $(html).appendTo(".map");
+        $(css).appendTo("head");
+        var options = {
+            srs: 'EPSG:4326',
+            center: [-82.4, 34.85],
+            zoom: 15,
+            basemap: "bing"
+        };
+        {
+            var opts_7 = options;
+            Object.keys(opts_7).forEach(function (k) {
+                common_9.doif(common_9.getParameterByName(k), function (v) {
+                    var value = parse(v, opts_7[k]);
+                    if (value !== undefined)
+                        opts_7[k] = value;
+                });
+            });
+        }
+        var map = new ol.Map({
+            target: "map",
+            keyboardEventTarget: document,
+            loadTilesWhileAnimating: true,
+            loadTilesWhileInteracting: true,
+            controls: ol.control.defaults({ attribution: false }),
+            view: new ol.View({
+                projection: options.srs,
+                center: options.center,
+                zoom: options.zoom
+            }),
+            layers: [
+                new ol.layer.Tile({
+                    opacity: 0.8,
+                    source: options.basemap !== "bing" ? new ol.source.OSM() : new ol.source.BingMaps({
+                        key: 'AuPHWkNxvxVAL_8Z4G8Pcq_eOKGm5eITH_cJMNAyYoIC1S_29_HhE893YrUUbIGl',
+                        imagerySet: 'Aerial'
+                    })
+                })
+            ]
+        });
+        var features = new ol.Collection();
+        var source = new ol.source.Vector({
+            features: features
+        });
+        var layer = new ol.layer.Vector({
+            source: source
+        });
+        map.addLayer(layer);
+        var popup = new ol3_popup_4.Popup({
+            dockContainer: '.popup-container',
+            pointerPosition: 100,
+            positioning: "bottom-left",
+            yOffset: 20,
+            css: css_popup
+        });
+        popup.setMap(map);
+        map.on("click", function (event) {
+            var location = event.coordinate.map(function (v) { return v.toFixed(5); }).join(", ");
+            var point = new ol.geom.Point(event.coordinate);
+            point.set("location", location);
+            var feature = new ol.Feature(point);
+            feature.set("text", randomName());
+            var textStyle = pointStyle.filter(function (p) { return p.text; })[0];
+            ;
+            if (textStyle && textStyle.text) {
+                textStyle.text["offset-y"] = -24;
+                textStyle.text.text = feature.get("text");
+            }
+            pointStyle[0].star.points = 3 + (Math.random() * 12) | 0;
+            pointStyle[0].star.stroke.width = 1 + Math.random() * 5;
+            var style = pointStyle.map(function (s) { return styler.fromJson(s); });
+            feature.setStyle(function (resolution) { return style; });
+            source.addFeature(feature);
+            setTimeout(function () { return popup.show(event.coordinate, "<div>You clicked on " + location + "</div>"); }, 50);
+        });
+        return map;
+    }
+    exports.run = run;
+});
+define("bower_components/ol3-search/ol3-search/ol3-search", ["require", "exports", "openlayers", "bower_components/ol3-fun/ol3-fun/common"], function (require, exports, ol, common_10) {
+    "use strict";
+    var css = (function (I) { return "\n    ." + I.name + " {\n        position:absolute;\n    }\n    ." + I.name + ".top {\n        top: 0.5em;\n    }\n    ." + I.name + ".top-1 {\n        top: 1.5em;\n    }\n    ." + I.name + ".top-2 {\n        top: 2.5em;\n    }\n    ." + I.name + ".top-3 {\n        top: 3.5em;\n    }\n    ." + I.name + ".top-4 {\n        top: 4.5em;\n    }\n    ." + I.name + ".left {\n        left: 0.5em;\n    }\n    ." + I.name + ".left-1 {\n        left: 1.5em;\n    }\n    ." + I.name + ".left-2 {\n        left: 2.5em;\n    }\n    ." + I.name + ".left-3 {\n        left: 3.5em;\n    }\n    ." + I.name + ".left-4 {\n        left: 4.5em;\n    }\n    ." + I.name + ".bottom {\n        bottom: 0.5em;\n    }\n    ." + I.name + ".bottom-1 {\n        bottom: 1.5em;\n    }\n    ." + I.name + ".bottom-2 {\n        bottom: 2.5em;\n    }\n    ." + I.name + ".bottom-3 {\n        bottom: 3.5em;\n    }\n    ." + I.name + ".bottom-4 {\n        bottom: 4.5em;\n    }\n    ." + I.name + ".right {\n        right: 0.5em;\n    }\n    ." + I.name + ".right-1 {\n        right: 1.5em;\n    }\n    ." + I.name + ".right-2 {\n        right: 2.5em;\n    }\n    ." + I.name + ".right-3 {\n        right: 3.5em;\n    }\n    ." + I.name + ".right-4 {\n        right: 4.5em;\n    }\n    ." + I.name + " button {\n        min-height: 1.375em;\n        min-width: 1.375em;\n        width: auto;\n        display: inline;\n    }\n    ." + I.name + ".left button {\n        float:right;\n    }\n    ." + I.name + ".right button {\n        float:left;\n    }\n    ." + I.name + " form {\n        width: 16em;\n        border: none;\n        padding: 0;\n        margin: 0;\n        margin-left: 2px;\n        margin-top: 2px;\n        vertical-align: top;\n    }\n    ." + I.name + " form.ol-hidden {\n        display: none;\n    }\n"; })({ name: 'ol-search' });
+    var olcss = {
+        CLASS_CONTROL: 'ol-control',
+        CLASS_UNSELECTABLE: 'ol-unselectable',
+        CLASS_UNSUPPORTED: 'ol-unsupported',
+        CLASS_HIDDEN: 'ol-hidden'
+    };
+    var expando = {
+        right: '»',
+        left: '«'
+    };
+    var defaults = {
+        className: 'ol-search bottom left',
+        expanded: false,
+        autoChange: false,
+        autoClear: false,
+        autoCollapse: true,
+        canCollapse: true,
+        hideButton: false,
+        closedText: expando.right,
+        openedText: expando.left,
+        placeholderText: 'Search',
+    };
+    var SearchForm = (function (_super) {
+        __extends(SearchForm, _super);
+        function SearchForm(options) {
+            var _this = this;
+            if (options.hideButton) {
+                options.canCollapse = false;
+                options.autoCollapse = false;
+                options.expanded = true;
+            }
+            _this = _super.call(this, {
+                element: options.element,
+                target: options.target
+            }) || this;
+            _this.options = options;
+            var button = _this.button = document.createElement('button');
+            button.setAttribute('type', 'button');
+            button.title = options.placeholderText;
+            options.element.appendChild(button);
+            if (options.hideButton) {
+                button.style.display = "none";
+            }
+            var form = _this.form = common_10.html(("\n        <form>\n            <label class=\"title\">" + options.placeholderText + "</label>\n            <section class=\"header\"></section>\n            <section class=\"body\">\n            <table class=\"fields\">\n                <thead>\n                    <tr><td>Field</td><td>Value</td></tr>\n                </thead>\n                <tbody>\n                    <tr><td>Field</td><td>Value</td></tr>\n                </tbody>\n            </table>\n            </section>\n            <section class=\"footer\"></section>\n        </form>\n        ").trim());
+            options.element.appendChild(form);
+            {
+                var body_1 = form.getElementsByTagName("tbody")[0];
+                body_1.innerHTML = "";
+                options.fields.forEach(function (field) {
+                    var tr = document.createElement("tr");
+                    var label = document.createElement("td");
+                    var value = document.createElement("td");
+                    field.type = field.type || "string";
+                    label.innerHTML = "<label for=\"" + field.name + "\" class=\"ol-search-label\">" + field.alias + "</label>";
+                    var input;
+                    switch (field.type) {
+                        case "boolean":
+                            input = common_10.html("<input class=\"input\" name=\"" + field.name + "\" type=\"checkbox\" />");
+                            break;
+                        case "integer":
+                            input = common_10.html("<input class=\"input\" name=\"" + field.name + "\" type=\"number\" min=\"0\" step=\"1\" />");
+                            break;
+                        case "number":
+                            input = common_10.html("<input class=\"input\" name=\"" + field.name + "\" type=\"number\" min=\"0\" max=\"" + Array(field.length || 3).join("9") + "\" />");
+                            break;
+                        case "string":
+                        default:
+                            input = common_10.html("<input class=\"input\" name=\"" + field.name + "\" type=\"text\" />");
+                            input.maxLength = field.length || 20;
+                            break;
+                    }
+                    input.addEventListener("focus", function () { return tr.classList.add("focus"); });
+                    input.addEventListener("blur", function () { return tr.classList.remove("focus"); });
+                    value.appendChild(input);
+                    tr.appendChild(label);
+                    tr.appendChild(value);
+                    body_1.appendChild(tr);
+                });
+            }
+            {
+                var footer = form.getElementsByClassName("footer")[0];
+                var searchButton_1 = common_10.html("<input type=\"button\" class=\"ol-search-button\" value=\"Search\"/>");
+                footer.appendChild(searchButton_1);
+                form.addEventListener("keydown", function (args) {
+                    if (args.key === "Enter") {
+                        if (args.srcElement !== searchButton_1) {
+                            searchButton_1.focus();
+                        }
+                        else {
+                            options.autoCollapse && button.focus();
+                        }
+                    }
+                });
+                searchButton_1.addEventListener("click", function () {
+                    _this.dispatchEvent({
+                        type: "change",
+                        value: _this.value
+                    });
+                });
+            }
+            button.addEventListener("click", function () {
+                options.expanded ? _this.collapse(options) : _this.expand(options);
+            });
+            if (options.autoCollapse) {
+                form.addEventListener("blur", function () {
+                    _this.collapse(options);
+                });
+            }
+            if (options.autoChange) {
+                form.addEventListener("keypress", common_10.debounce(function () {
+                    _this.dispatchEvent({
+                        type: "change",
+                        value: _this.value
+                    });
+                }, 500));
+            }
+            options.expanded ? _this.expand(options) : _this.collapse(options);
+            return _this;
+        }
+        SearchForm.create = function (options) {
+            common_10.cssin('ol-search', css);
+            options = common_10.mixin({
+                openedText: options.className && -1 < options.className.indexOf("left") ? expando.left : expando.right,
+                closedText: options.className && -1 < options.className.indexOf("left") ? expando.right : expando.left,
+            }, options || {});
+            options = common_10.mixin(common_10.mixin({}, defaults), options);
+            var element = document.createElement('div');
+            element.className = options.className + " " + olcss.CLASS_UNSELECTABLE + " " + olcss.CLASS_CONTROL;
+            var geocoderOptions = common_10.mixin({
+                element: element,
+                target: options.target,
+                expanded: false
+            }, options);
+            return new SearchForm(geocoderOptions);
+        };
+        SearchForm.prototype.collapse = function (options) {
+            if (!options.canCollapse)
+                return;
+            options.expanded = false;
+            this.form.classList.toggle(olcss.CLASS_HIDDEN, true);
+            this.button.classList.toggle(olcss.CLASS_HIDDEN, false);
+            this.button.innerHTML = options.closedText;
+        };
+        SearchForm.prototype.expand = function (options) {
+            options.expanded = true;
+            this.form.classList.toggle(olcss.CLASS_HIDDEN, false);
+            this.button.classList.toggle(olcss.CLASS_HIDDEN, true);
+            this.button.innerHTML = options.openedText;
+            this.form.focus();
+        };
+        SearchForm.prototype.on = function (type, cb) {
+            _super.prototype.on.call(this, type, cb);
+        };
+        Object.defineProperty(SearchForm.prototype, "value", {
+            get: function () {
+                var _this = this;
+                var result = {};
+                this.options.fields.forEach(function (field) {
+                    var input = _this.form.querySelector("[name=\"" + field.name + "\"]");
+                    var value = input.value;
+                    switch (field.type) {
+                        case "integer":
+                            value = parseInt(value, 10);
+                            value = isNaN(value) ? null : value;
+                            break;
+                        case "number":
+                            value = parseFloat(value);
+                            value = isNaN(value) ? null : value;
+                            break;
+                        case "boolean":
+                            value = input.checked;
+                            break;
+                        case "string":
+                            value = value || null;
+                            break;
+                    }
+                    if (undefined !== value && null !== value) {
+                        result[input.name] = value;
+                    }
+                });
+                return result;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        return SearchForm;
+    }(ol.control.Control));
+    exports.SearchForm = SearchForm;
+});
+define("bower_components/ol3-search/index", ["require", "exports", "bower_components/ol3-search/ol3-search/ol3-search"], function (require, exports, Input) {
+    "use strict";
+    return Input;
+});
+define("bower_components/ol3-search/ol3-search/providers/osm", ["require", "exports", "openlayers", "bower_components/ol3-fun/ol3-fun/common"], function (require, exports, ol, common_11) {
+    "use strict";
+    var DEFAULTS = {
+        url: '//nominatim.openstreetmap.org/search/',
+        params: {
+            q: '',
+            format: 'json',
+            addressdetails: true,
+            limit: 10,
+            countrycodes: ['us'],
+            'accept-language': 'en-US'
+        }
+    };
+    var OpenStreet = (function () {
+        function OpenStreet() {
+            this.dataType = 'json';
+            this.method = 'GET';
+        }
+        OpenStreet.prototype.getParameters = function (options, map) {
+            var result = {
+                url: DEFAULTS.url,
+                params: common_11.mixin(common_11.mixin({}, DEFAULTS.params), options)
+            };
+            if (!result.params.viewbox && map) {
+                var extent = map.getView().calculateExtent(map.getSize());
+                var _a = ol.extent.getBottomLeft(extent), left = _a[0], bottom = _a[1];
+                var _b = ol.extent.getTopRight(extent), right = _b[0], top_1 = _b[1];
+                var inSrs = map.getView().getProjection();
+                _c = ol.proj.transform([left, top_1], inSrs, "EPSG:4326"), left = _c[0], top_1 = _c[1];
+                _d = ol.proj.transform([right, bottom], inSrs, "EPSG:4326"), right = _d[0], bottom = _d[1];
+                result.params.viewbox = {
+                    bottom: bottom,
+                    top: top_1,
+                    left: left,
+                    right: right
+                };
+            }
+            if (result.params.countrycodes) {
+                result.params.countrycodes = result.params.countrycodes.join(",");
+            }
+            if (result.params.viewbox) {
+                var x = result.params.viewbox;
+                result.params.viewbox = [x.left, x.top, x.right, x.bottom].map(function (v) { return v.toFixed(5); }).join(",");
+            }
+            Object.keys(result.params).filter(function (k) { return typeof result.params[k] === "boolean"; }).forEach(function (k) {
+                result.params[k] = result.params[k] ? "1" : "0";
+            });
+            return result;
+            var _c, _d;
+        };
+        OpenStreet.prototype.handleResponse = function (args) {
+            return args.sort(function (v) { return v.importance || 1; }).map(function (result) { return ({
+                original: result,
+                lon: parseFloat(result.lon),
+                lat: parseFloat(result.lat),
+                address: {
+                    name: result.address.neighbourhood || '',
+                    road: result.address.road || '',
+                    postcode: result.address.postcode,
+                    city: result.address.city || result.address.town,
+                    state: result.address.state,
+                    country: result.address.country
+                }
+            }); });
+        };
+        return OpenStreet;
+    }());
+    exports.OpenStreet = OpenStreet;
+});
+define("ol3-lab/labs/ol-search", ["require", "exports", "openlayers", "jquery", "bower_components/ol3-popup/index", "bower_components/ol3-grid/index", "bower_components/ol3-symbolizer/index", "bower_components/ol3-search/index", "bower_components/ol3-search/ol3-search/providers/osm", "bower_components/ol3-fun/ol3-fun/common", "bower_components/ol3-symbolizer/ol3-symbolizer/ags/ags-source"], function (require, exports, ol, $, ol3_popup_5, ol3_grid_3, ol3_symbolizer_8, ol3_search_1, osm_3, common_12, ags_source_4) {
+    "use strict";
+    function zoomToFeature(map, feature) {
+        var extent = feature.getGeometry().getExtent();
+        map.getView().animate({
+            center: ol.extent.getCenter(extent),
+            duration: 2500
+        });
+        var w1 = ol.extent.getWidth(map.getView().calculateExtent(map.getSize()));
+        var w2 = ol.extent.getWidth(extent);
+        map.getView().animate({
+            zoom: map.getView().getZoom() + Math.round(Math.log(w1 / w2) / Math.log(2)) - 1,
+            duration: 2500
+        });
+    }
+    function run() {
+        common_12.cssin("examples/ol3-search", "\n\n.map {\n    position: absolute;\n    top: 0;\n    bottom: 0;\n    left: 0;\n    right: 0;\n}\n\n.ol-popup {\n    background-color: white;\n}\n\n.ol-popup .pages {\n    max-height: 10em;\n    min-width: 20em;\n    overflow: auto;\n}\n\n.ol-grid.statecode .ol-grid-container {\n    background-color: white;\n    width: 10em;\n}\n\n.ol-grid .ol-grid-container.ol-hidden {\n}\n\n.ol-grid .ol-grid-container {\n    width: 15em;\n}\n\n.ol-grid .ol-grid-table {\n    width: 100%;\n}\n\n.ol-grid table.ol-grid-table {\n    border-collapse: collapse;\n    width: 100%;\n}\n\n.ol-grid table.ol-grid-table > td {\n    padding: 8px;\n    text-align: left;\n    border-bottom: 1px solid #ddd;\n}\n\n.ol-search.nominatim form {\n    width: 20em;\n}\n\n.ol-search tr.focus {\n    background: white;\n}\n\n.ol-search:hover {\n    background: white;\n}\n\n.ol-search label.ol-search-label {\n    white-space: nowrap;\n}\n\n    ");
+        var searchProvider = new osm_3.OpenStreet();
+        var center = ol.proj.transform([-120, 35], 'EPSG:4326', 'EPSG:3857');
+        var mapContainer = document.getElementsByClassName("map")[0];
+        var map = new ol.Map({
+            loadTilesWhileAnimating: true,
+            target: mapContainer,
+            layers: [
+                new ol.layer.Tile({
+                    source: new ol.source.OSM()
+                })
+            ],
+            view: new ol.View({
+                center: center,
+                projection: 'EPSG:3857',
+                zoom: 6
+            })
+        });
+        var popup = new ol3_popup_5.Popup({
+            yOffset: 0,
+            positioning: "bottom-center"
+        });
+        popup.setMap(map);
+        map.on("click", function (event) {
+            console.log("click");
+            var coord = event.coordinate;
+            popup.hide();
+            var pageNum = 0;
+            map.forEachFeatureAtPixel(event.pixel, function (feature, layer) {
+                var page = document.createElement('p');
+                var keys = Object.keys(feature.getProperties()).filter(function (key) {
+                    var v = feature.get(key);
+                    if (typeof v === "string")
+                        return true;
+                    if (typeof v === "number")
+                        return true;
+                    return false;
+                });
+                page.title = "" + ++pageNum;
+                page.innerHTML = "<table>" + keys.map(function (k) { return "<tr><td>" + k + "</td><td>" + feature.get(k) + "</td></tr>"; }).join("") + "</table>";
+                popup.pages.add(page, feature.getGeometry());
+            });
+            popup.show(coord, "<label>" + pageNum + " Features Found</label>");
+            popup.pages.goto(0);
+        });
+        var source = new ol.source.Vector();
+        var symbolizer = new ol3_symbolizer_8.StyleConverter();
+        var vector = new ol.layer.Vector({
+            source: source,
+            style: function (feature, resolution) {
+                var style = feature.getStyle();
+                if (!style) {
+                    style = symbolizer.fromJson({
+                        circle: {
+                            radius: 4,
+                            fill: {
+                                color: "rgba(33, 33, 33, 0.2)"
+                            },
+                            stroke: {
+                                color: "#F00"
+                            }
+                        },
+                        text: {
+                            text: feature.get("text").substring(0, 20)
+                        }
+                    });
+                    if (feature.get("icon")) {
+                        style.setImage(new ol.style.Icon({
+                            src: feature.get("icon")
+                        }));
+                    }
+                    feature.setStyle(style);
+                }
+                return style;
+            }
+        });
+        ags_source_4.ArcGisVectorSourceFactory.create({
+            map: map,
+            services: 'https://services.arcgis.com/P3ePLMYs2RVChkJx/ArcGIS/rest/services',
+            serviceName: 'USA_States_Generalized',
+            layers: [0]
+        }).then(function (layers) {
+            layers.forEach(function (layer) {
+                layer.getSource().on("addfeature", function (args) {
+                    var feature = args.feature;
+                    var style = symbolizer.fromJson({
+                        fill: {
+                            color: "rgba(200,200,200,0.5)"
+                        },
+                        stroke: {
+                            color: "rgba(33,33,33,0.8)",
+                            width: 3
+                        },
+                        text: {
+                            text: feature.get("STATE_ABBR")
+                        }
+                    });
+                    feature.setStyle(style);
+                });
+                map.addLayer(layer);
+                var grid = ol3_grid_3.Grid.create({
+                    className: "ol-grid statecode top left-2",
+                    expanded: true,
+                    currentExtent: true,
+                    autoCollapse: true,
+                    autoPan: false,
+                    showIcon: true,
+                    layers: [layer]
+                });
+                map.addControl(grid);
+                grid.on("feature-click", function (args) {
+                    zoomToFeature(map, args.feature);
+                });
+                grid.on("feature-hover", function (args) {
+                });
+            });
+        }).then(function () {
+            map.addLayer(vector);
+        });
+        var form = ol3_search_1.SearchForm.create({
+            className: 'ol-search nominatim top right',
+            expanded: true,
+            placeholderText: "Nominatim Search Form",
+            fields: [
+                {
+                    name: "q",
+                    alias: "*"
+                },
+                {
+                    name: "postalcode",
+                    alias: "Postal Code"
+                },
+                {
+                    name: "housenumber",
+                    alias: "House Number",
+                    length: 10,
+                    type: "integer"
+                },
+                {
+                    name: "streetname",
+                    alias: "Street Name"
+                },
+                {
+                    name: "city",
+                    alias: "City"
+                },
+                {
+                    name: "county",
+                    alias: "County"
+                },
+                {
+                    name: "country",
+                    alias: "Country",
+                    domain: {
+                        type: "",
+                        name: "",
+                        codedValues: [
+                            {
+                                name: "us", code: "us"
+                            }
+                        ]
+                    }
+                },
+                {
+                    name: "bounded",
+                    alias: "Current Extent?",
+                    type: "boolean"
+                }
+            ]
+        });
+        form.on("change", function (args) {
+            if (!args.value)
+                return;
+            console.log("search", args.value);
+            var searchArgs = searchProvider.getParameters(args.value, map);
+            $.ajax({
+                url: searchArgs.url,
+                method: searchProvider.method || 'GET',
+                data: searchArgs.params,
+                dataType: searchProvider.dataType || 'json'
+            }).then(function (json) {
+                var results = searchProvider.handleResponse(json);
+                results.some(function (r) {
+                    console.log(r);
+                    if (r.original.boundingbox) {
+                        var _a = r.original.boundingbox.map(function (v) { return parseFloat(v); }), lat1 = _a[0], lat2 = _a[1], lon1 = _a[2], lon2 = _a[3];
+                        _b = ol.proj.transform([lon1, lat1], "EPSG:4326", "EPSG:3857"), lon1 = _b[0], lat1 = _b[1];
+                        _c = ol.proj.transform([lon2, lat2], "EPSG:4326", "EPSG:3857"), lon2 = _c[0], lat2 = _c[1];
+                        var extent = [lon1, lat1, lon2, lat2];
+                        var feature_1 = new ol.Feature(new ol.geom.Polygon([[
+                                ol.extent.getBottomLeft(extent),
+                                ol.extent.getTopLeft(extent),
+                                ol.extent.getTopRight(extent),
+                                ol.extent.getBottomRight(extent),
+                                ol.extent.getBottomLeft(extent)
+                            ]]));
+                        feature_1.set("text", r.original.display_name);
+                        Object.keys(r.original).forEach(function (k) {
+                            feature_1.set(k, r.original[k]);
+                        });
+                        source.addFeature(feature_1);
+                        zoomToFeature(map, feature_1);
+                    }
+                    else {
+                        var _d = ol.proj.transform([r.lon, r.lat], "EPSG:4326", "EPSG:3857"), lon = _d[0], lat = _d[1];
+                        var feature = new ol.Feature(new ol.geom.Point([lon, lat]));
+                        feature.set("text", r.original.display_name);
+                        source.addFeature(feature);
+                        zoomToFeature(map, feature);
+                    }
+                    return true;
+                    var _b, _c;
+                });
+            }).fail(function () {
+                console.error("geocoder failed");
+            });
+        });
+        map.addControl(form);
+    }
+    exports.run = run;
+});
+define("ol3-lab/labs/ol-symbolizer", ["require", "exports", "openlayers", "bower_components/ol3-popup/index", "bower_components/ol3-symbolizer/ol3-symbolizer/ags/ags-source", "bower_components/ol3-fun/ol3-fun/common"], function (require, exports, ol, ol3_popup_6, ags_source_5, common_13) {
+    "use strict";
+    function parse(v, type) {
+        if (typeof type === "string")
+            return v;
+        if (typeof type === "number")
+            return parseFloat(v);
+        if (typeof type === "boolean")
+            return (v === "1" || v === "true");
+        if (Array.isArray(type)) {
+            return (v.split(",").map(function (v) { return parse(v, type[0]); }));
+        }
+        throw "unknown type: " + type;
+    }
+    var html = "\n<div class='popup'>\n    <div class='popup-container'>\n    </div>\n</div>\n";
+    var css = "\n<style name=\"popup\" type=\"text/css\">\n    html, body, .map {\n        width: 100%;\n        height: 100%;\n        padding: 0;\n        overflow: hidden;\n        margin: 0;    \n    }\n</style>\n";
+    var css_popup = "\n.popup-container {\n    position: absolute;\n    top: 1em;\n    right: 0.5em;\n    width: 10em;\n    bottom: 1em;\n    z-index: 1;\n    pointer-events: none;\n}\n\n.ol-popup {\n    color: white;\n    background-color: rgba(77,77,77,0.7);\n    min-width: 200px;\n}\n\n.ol-popup:after {\n    border-top-color: rgba(77,77,77,0.7);\n}\n\n";
+    var center = {
+        fire: [-117.754430386, 34.2606862490001],
+        wichita: [-97.4, 37.8],
+        vegas: [-115.235, 36.173]
+    };
+    function run() {
+        var target = document.getElementsByClassName("map")[0];
+        target.appendChild(common_13.html(html));
+        document.head.appendChild(common_13.html(css));
+        var options = {
+            srs: 'EPSG:4326',
+            center: center.vegas,
+            zoom: 10,
+            services: "//sampleserver3.arcgisonline.com/ArcGIS/rest/services",
+            serviceName: "SanFrancisco/311Incidents",
+            where: "1=1",
+            filter: {},
+            layers: [0]
+        };
+        {
+            var opts_8 = options;
+            Object.keys(opts_8).forEach(function (k) {
+                common_13.doif(common_13.getParameterByName(k), function (v) {
+                    var value = parse(v, opts_8[k]);
+                    if (value !== undefined)
+                        opts_8[k] = value;
+                });
+            });
+        }
+        var map = new ol.Map({
+            target: "map",
+            keyboardEventTarget: document,
+            loadTilesWhileAnimating: true,
+            loadTilesWhileInteracting: true,
+            controls: ol.control.defaults({ attribution: false }),
+            view: new ol.View({
+                projection: options.srs,
+                center: options.center,
+                zoom: options.zoom
+            }),
+            layers: [
+                new ol.layer.Tile({
+                    title: "OSM",
+                    type: 'base',
+                    opacity: 0.8,
+                    visible: true,
+                    source: new ol.source.OSM()
+                })
+            ]
+        });
+        ags_source_5.ArcGisVectorSourceFactory.create({
+            tileSize: 256,
+            map: map,
+            services: options.services,
+            serviceName: options.serviceName,
+            where: options.where,
+            layers: options.layers.reverse()
+        }).then(function (agsLayers) {
+            agsLayers.forEach(function (agsLayer) { return map.addLayer(agsLayer); });
+            var popup = new ol3_popup_6.Popup({
                 css: "\n            .ol-popup {\n                background-color: white;\n            }\n            .ol-popup .page {\n                max-height: 200px;\n                overflow-y: auto;\n            }\n            "
             });
             map.addOverlay(popup);
@@ -3951,137 +5747,10 @@ define("ol3-lab/labs/polyline-encoder", ["require", "exports", "jquery", "openla
     }
     exports.run = run;
 });
-define("bower_components/ol3-symbolizer/ol3-symbolizer/styles/star/flower", ["require", "exports"], function (require, exports) {
-    "use strict";
-    return [
-        {
-            "star": {
-                "fill": {
-                    "color": "rgba(106,9,251,0.7)"
-                },
-                "opacity": 1,
-                "stroke": {
-                    "color": "rgba(42,128,244,0.8)",
-                    "width": 8
-                },
-                "radius": 14,
-                "radius2": 9,
-                "points": 10
-            },
-            "text": {
-                "fill": {
-                    "color": "rgba(255,255,255,1)"
-                },
-                "stroke": {
-                    "color": "rgba(0,0,0,1)",
-                    "width": 2
-                },
-                "text": "Test",
-                "offset-x": 0,
-                "offset-y": 20,
-                "font": "18px fantasy"
-            }
-        }
-    ];
-});
-define("ol3-lab/labs/popup", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/common/common", "bower_components/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/star/flower", "bower_components/ol3-popup/ol3-popup/ol3-popup"], function (require, exports, $, ol, common_6, ol3_symbolizer_6, pointStyle, ol3_popup_3) {
-    "use strict";
-    var styler = new ol3_symbolizer_6.StyleConverter();
-    function parse(v, type) {
-        if (typeof type === "string")
-            return v;
-        if (typeof type === "number")
-            return parseFloat(v);
-        if (typeof type === "boolean")
-            return (v === "1" || v === "true");
-        if (Array.isArray(type)) {
-            return (v.split(",").map(function (v) { return parse(v, type[0]); }));
-        }
-        throw "unknown type: " + type;
-    }
-    var html = "\n<div class='popup'>\n    <div class='popup-container'>\n    </div>\n</div>\n";
-    var css = "\n<style name=\"popup\" type=\"text/css\">\n    html, body, .map {\n        width: 100%;\n        height: 100%;\n        padding: 0;\n        overflow: hidden;\n        margin: 0;    \n    }\n    .popup-container {\n        position: absolute;\n        top: 1em;\n        right: 0.5em;\n        width: 10em;\n        bottom: 1em;\n        z-index: 1;\n        pointer-events: none;\n    }\n    .popup-container .ol-popup.docked {\n        min-width: auto;\n    }\n</style>\n";
-    var css_popup = "\n.ol-popup {\n    color: white;\n    background-color: rgba(77,77,77,0.7);\n    border: 1px solid white;\n    min-width: 200px;\n    padding: 12px;\n}\n\n.ol-popup:after {\n    border-top-color: white;\n}\n";
-    function run() {
-        $(html).appendTo(".map");
-        $(css).appendTo("head");
-        var options = {
-            srs: 'EPSG:4326',
-            center: [-82.4, 34.85],
-            zoom: 15,
-            basemap: "bing"
-        };
-        {
-            var opts_6 = options;
-            Object.keys(opts_6).forEach(function (k) {
-                common_6.doif(common_6.getParameterByName(k), function (v) {
-                    var value = parse(v, opts_6[k]);
-                    if (value !== undefined)
-                        opts_6[k] = value;
-                });
-            });
-        }
-        var map = new ol.Map({
-            target: "map",
-            keyboardEventTarget: document,
-            loadTilesWhileAnimating: true,
-            loadTilesWhileInteracting: true,
-            controls: ol.control.defaults({ attribution: false }),
-            view: new ol.View({
-                projection: options.srs,
-                center: options.center,
-                zoom: options.zoom
-            }),
-            layers: [
-                new ol.layer.Tile({
-                    opacity: 0.8,
-                    source: options.basemap !== "bing" ? new ol.source.OSM() : new ol.source.BingMaps({
-                        key: 'AuPHWkNxvxVAL_8Z4G8Pcq_eOKGm5eITH_cJMNAyYoIC1S_29_HhE893YrUUbIGl',
-                        imagerySet: 'Aerial'
-                    })
-                })
-            ]
-        });
-        var features = new ol.Collection();
-        var source = new ol.source.Vector({
-            features: features
-        });
-        var layer = new ol.layer.Vector({
-            source: source,
-            style: function (feature, resolution) {
-                var style = pointStyle.filter(function (p) { return p.text; })[0];
-                if (style) {
-                    style.text["offset-y"] = -24;
-                    style.text.text = feature.getGeometry().get("location") || "unknown location";
-                }
-                return pointStyle.map(function (s) { return styler.fromJson(s); });
-            }
-        });
-        map.addLayer(layer);
-        var popup = new ol3_popup_3.Popup({
-            dockContainer: '.popup-container',
-            pointerPosition: 100,
-            positioning: "bottom-left",
-            yOffset: 20,
-            css: css_popup
-        });
-        popup.setMap(map);
-        map.on("click", function (event) {
-            var location = event.coordinate.map(function (v) { return v.toFixed(5); }).join(", ");
-            var point = new ol.geom.Point(event.coordinate);
-            point.set("location", location);
-            var feature = new ol.Feature(point);
-            source.addFeature(feature);
-            setTimeout(function () { return popup.show(event.coordinate, "<div>You clicked on " + location + "</div>"); }, 50);
-        });
-        return map;
-    }
-    exports.run = run;
-});
-define("ol3-lab/labs/route-editor", ["require", "exports", "openlayers", "ol3-lab/alpha/format/ol3-symbolizer", "ol3-lab/labs/common/common"], function (require, exports, ol, ol3_symbolizer_7, common_7) {
+define("ol3-lab/labs/route-editor", ["require", "exports", "openlayers", "bower_components/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", "ol3-lab/labs/common/common"], function (require, exports, ol, ol3_symbolizer_9, common_14) {
     "use strict";
     var delta = 16;
-    var formatter = new ol3_symbolizer_7.StyleConverter();
+    var formatter = new ol3_symbolizer_9.StyleConverter();
     function fromJson(styles) {
         return styles.map(function (style) { return formatter.fromJson(style); });
     }
@@ -4103,7 +5772,7 @@ define("ol3-lab/labs/route-editor", ["require", "exports", "openlayers", "ol3-la
     ]; };
     var Route = (function () {
         function Route(options) {
-            this.options = common_7.defaults(options, {
+            this.options = common_14.defaults(options, {
                 color: "black",
                 delta: delta,
                 stops: [],
@@ -4410,7 +6079,7 @@ define("ol3-lab/ux/serializers/serializer", ["require", "exports"], function (re
             }]
     };
 });
-define("ol3-lab/ux/serializers/ags-simplemarkersymbol", ["require", "exports", "ol3-lab/alpha/format/ags-symbolizer"], function (require, exports, ags_symbolizer_1) {
+define("ol3-lab/ux/serializers/ags-simplemarkersymbol", ["require", "exports", "bower_components/ol3-symbolizer/ol3-symbolizer/format/ags-symbolizer"], function (require, exports, ags_symbolizer_1) {
     "use strict";
     var converter = new ags_symbolizer_1.StyleConverter();
     var SimpleMarkerConverter = (function () {
@@ -4426,10 +6095,10 @@ define("ol3-lab/ux/serializers/ags-simplemarkersymbol", ["require", "exports", "
     }());
     exports.SimpleMarkerConverter = SimpleMarkerConverter;
 });
-define("ol3-lab/labs/style-lab", ["require", "exports", "openlayers", "jquery", "ol3-lab/alpha/format/ol3-symbolizer", "ol3-lab/labs/common/style-generator"], function (require, exports, ol, $, ol3_symbolizer_8, StyleGenerator) {
+define("ol3-lab/labs/style-lab", ["require", "exports", "openlayers", "jquery", "bower_components/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", "ol3-lab/labs/common/style-generator"], function (require, exports, ol, $, ol3_symbolizer_10, StyleGenerator) {
     "use strict";
     var center = [-82.4, 34.85];
-    var formatter = new ol3_symbolizer_8.StyleConverter();
+    var formatter = new ol3_symbolizer_10.StyleConverter();
     var generator = new StyleGenerator({
         center: center,
         fromJson: function (json) { return formatter.fromJson(json); }
@@ -4439,7 +6108,7 @@ define("ol3-lab/labs/style-lab", ["require", "exports", "openlayers", "jquery", 
     function run() {
         $(ux).appendTo(".map");
         $(css).appendTo("head");
-        var formatter = new ol3_symbolizer_8.StyleConverter();
+        var formatter = new ol3_symbolizer_10.StyleConverter();
         var map = new ol.Map({
             target: "map",
             view: new ol.View({
@@ -4562,7 +6231,7 @@ define("ol3-lab/labs/style-to-canvas", ["require", "exports", "openlayers", "jqu
     }
     exports.run = run;
 });
-define("ol3-lab/ux/styles/icon/png", ["require", "exports"], function (require, exports) {
+define("bower_components/ol3-symbolizer/ol3-symbolizer/styles/icon/png", ["require", "exports"], function (require, exports) {
     "use strict";
     return [
         {
@@ -4592,7 +6261,7 @@ define("ol3-lab/ux/styles/icon/png", ["require", "exports"], function (require, 
         }
     ];
 });
-define("ol3-lab/labs/style-viewer", ["require", "exports", "openlayers", "jquery", "ol3-lab/labs/common/snapshot", "ol3-lab/labs/common/common", "ol3-lab/alpha/format/ol3-symbolizer", "ol3-lab/ux/styles/icon/png"], function (require, exports, ol, $, Snapshot, common_8, ol3_symbolizer_9, pointStyle) {
+define("ol3-lab/labs/style-viewer", ["require", "exports", "openlayers", "jquery", "ol3-lab/labs/common/snapshot", "ol3-lab/labs/common/common", "bower_components/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/icon/png"], function (require, exports, ol, $, Snapshot, common_15, ol3_symbolizer_11, pointStyle) {
     "use strict";
     var html = "\n<div class='style-to-canvas'>\n    <h3>Renders a feature on a canvas</h3>\n    <div class=\"area\">\n        <label>256 x 256 Canvas</label>\n        <div id='canvas-collection'></div>\n    </div>\n    <div class=\"area\">\n        <label>Style</label>\n        <textarea class='style'></textarea>\n        <button class=\"save\">Save</button>\n    </div>\n    <div class=\"area\">\n        <label>Potential control for setting linear gradient start/stop locations</label>\n        <div class=\"colorramp\">\n            <input class=\"top\" type=\"range\" min=\"0\" max=\"100\" value=\"20\"/>\n            <input class=\"bottom\" type=\"range\" min=\"0\" max=\"100\" value=\"80\"/>\n        </div>\n    </div>\n</div>\n";
     var css = "\n<style>\n    #map {\n        display: none;\n    }\n\n    .style-to-canvas {\n    }\n\n    .style-to-canvas .area label {\n        display: block;\n        vertical-align: top;\n    }\n\n    .style-to-canvas .area {\n        border: 1px solid black;\n        padding: 20px;\n        margin: 20px;\n    }\n\n    .style-to-canvas .area .style {\n        width: 100%;\n        height: 400px;\n    }\n\n    .style-to-canvas #canvas-collection canvas {\n        font-family: sans serif;\n        font-size: 20px;\n        border: 1px solid black;\n        padding: 20px;\n        margin: 20px;\n    }\n\n    div.colorramp {\n        display: inline-block;\n        background: linear-gradient(to right, rgba(250,0,0,0), rgba(250,0,0,1) 60%, rgba(250,100,0,1) 85%, rgb(250,250,0) 95%);\n        width:100%;\n    }\n\n    div.colorramp > input[type=range] {\n        -webkit-appearance: slider-horizontal;\n        display:block;\n        width:100%;\n        background-color:transparent;\n    }\n\n    div.colorramp > label {\n        display: inline-block;\n    }\n\n    div.colorramp > input[type='range'] {\n        box-shadow: 0 0 0 white;\n    }\n\n    div.colorramp > input[type=range]::-webkit-slider-runnable-track {\n        height: 0px;     \n    }\n\n    div.colorramp > input[type='range'].top::-webkit-slider-thumb {\n        margin-top: -10px;\n    }\n\n    div.colorramp > input[type='range'].bottom::-webkit-slider-thumb {\n        margin-top: -12px;\n    }\n    \n</style>\n";
@@ -4603,7 +6272,7 @@ define("ol3-lab/labs/style-viewer", ["require", "exports", "openlayers", "jquery
             d.resolve(JSON.parse(name));
         }
         else {
-            var mids = name.split(",").map(function (name) { return "../ux/styles/" + name; });
+            var mids = name.split(",").map(function (name) { return "bower_components/ol3-symbolizer/ol3-symbolizer/styles/" + name; });
             require(mids, function () {
                 var styles = [];
                 for (var _i = 0; _i < arguments.length; _i++) {
@@ -4631,7 +6300,7 @@ define("ol3-lab/labs/style-viewer", ["require", "exports", "openlayers", "jquery
     var styles = {
         point: pointStyle
     };
-    var serializer = new ol3_symbolizer_9.StyleConverter();
+    var serializer = new ol3_symbolizer_11.StyleConverter();
     var Renderer = (function () {
         function Renderer(geom) {
             this.feature = new ol.Feature(geom);
@@ -4657,8 +6326,8 @@ define("ol3-lab/labs/style-viewer", ["require", "exports", "openlayers", "jquery
         $(html).appendTo("body");
         $(svg).appendTo("body");
         $(css).appendTo("head");
-        var geom = common_8.getParameterByName("geom") || "polygon-with-holes";
-        var style = common_8.getParameterByName("style") || "fill/gradient";
+        var geom = common_15.getParameterByName("geom") || "polygon-with-holes";
+        var style = common_15.getParameterByName("style") || "fill/gradient";
         $(".save").click(function () {
             var style = JSON.stringify(JSON.parse($(".style").val()));
             var loc = window.location;
@@ -5748,7 +7417,7 @@ define("ol3-lab/tests/webmap", ["require", "exports", "jquery"], function (requi
     }
     exports.run = run;
 });
-define("ol3-lab/ux/styles/ags/simplemarkersymbol-circle", ["require", "exports"], function (require, exports) {
+define("bower_components/ol3-symbolizer/ol3-symbolizer/styles/ags/simplemarkersymbol-circle", ["require", "exports"], function (require, exports) {
     "use strict";
     var styles = [{
             "color": [
@@ -5777,7 +7446,7 @@ define("ol3-lab/ux/styles/ags/simplemarkersymbol-circle", ["require", "exports"]
         }];
     return styles;
 });
-define("ol3-lab/ux/styles/ags/simplemarkersymbol-cross", ["require", "exports"], function (require, exports) {
+define("bower_components/ol3-symbolizer/ol3-symbolizer/styles/ags/simplemarkersymbol-cross", ["require", "exports"], function (require, exports) {
     "use strict";
     return [
         {
@@ -5807,7 +7476,7 @@ define("ol3-lab/ux/styles/ags/simplemarkersymbol-cross", ["require", "exports"],
         }
     ];
 });
-define("ol3-lab/ux/styles/ags/simplemarkersymbol-square", ["require", "exports"], function (require, exports) {
+define("bower_components/ol3-symbolizer/ol3-symbolizer/styles/ags/simplemarkersymbol-square", ["require", "exports"], function (require, exports) {
     "use strict";
     return [
         {
@@ -5837,7 +7506,7 @@ define("ol3-lab/ux/styles/ags/simplemarkersymbol-square", ["require", "exports"]
         }
     ];
 });
-define("ol3-lab/ux/styles/ags/simplemarkersymbol-diamond", ["require", "exports"], function (require, exports) {
+define("bower_components/ol3-symbolizer/ol3-symbolizer/styles/ags/simplemarkersymbol-diamond", ["require", "exports"], function (require, exports) {
     "use strict";
     return [
         {
@@ -5867,7 +7536,7 @@ define("ol3-lab/ux/styles/ags/simplemarkersymbol-diamond", ["require", "exports"
         }
     ];
 });
-define("ol3-lab/ux/styles/ags/simplemarkersymbol-path", ["require", "exports"], function (require, exports) {
+define("bower_components/ol3-symbolizer/ol3-symbolizer/styles/ags/simplemarkersymbol-path", ["require", "exports"], function (require, exports) {
     "use strict";
     return [
         {
@@ -5898,10 +7567,9 @@ define("ol3-lab/ux/styles/ags/simplemarkersymbol-path", ["require", "exports"], 
         }
     ];
 });
-define("ol3-lab/ux/styles/ags/simplemarkersymbol-x", ["require", "exports"], function (require, exports) {
+define("bower_components/ol3-symbolizer/ol3-symbolizer/styles/ags/simplemarkersymbol-x", ["require", "exports"], function (require, exports) {
     "use strict";
-    return [
-        {
+    return [{
             "color": [
                 255,
                 255,
@@ -5925,10 +7593,9 @@ define("ol3-lab/ux/styles/ags/simplemarkersymbol-x", ["require", "exports"], fun
                 "type": "esriSLS",
                 "style": "esriSLSSolid"
             }
-        }
-    ];
+        }];
 });
-define("ol3-lab/ux/styles/ags/picturemarkersymbol", ["require", "exports"], function (require, exports) {
+define("bower_components/ol3-symbolizer/ol3-symbolizer/styles/ags/picturemarkersymbol", ["require", "exports"], function (require, exports) {
     "use strict";
     return [
         {
@@ -5942,7 +7609,7 @@ define("ol3-lab/ux/styles/ags/picturemarkersymbol", ["require", "exports"], func
         }
     ];
 });
-define("ol3-lab/ux/styles/ags/picturemarkersymbol-imagedata", ["require", "exports"], function (require, exports) {
+define("bower_components/ol3-symbolizer/ol3-symbolizer/styles/ags/picturemarkersymbol-imagedata", ["require", "exports"], function (require, exports) {
     "use strict";
     var style = [{
             "type": "esriPMS",
@@ -5958,7 +7625,7 @@ define("ol3-lab/ux/styles/ags/picturemarkersymbol-imagedata", ["require", "expor
         }];
     return style;
 });
-define("ol3-lab/ux/ags-symbols", ["require", "exports", "openlayers", "ol3-lab/labs/common/style-generator", "ol3-lab/ux/styles/ags/simplemarkersymbol-circle", "ol3-lab/ux/styles/ags/simplemarkersymbol-cross", "ol3-lab/ux/styles/ags/simplemarkersymbol-square", "ol3-lab/ux/styles/ags/simplemarkersymbol-diamond", "ol3-lab/ux/styles/ags/simplemarkersymbol-path", "ol3-lab/ux/styles/ags/simplemarkersymbol-x", "ol3-lab/ux/styles/ags/picturemarkersymbol", "ol3-lab/ux/styles/ags/picturemarkersymbol-imagedata", "ol3-lab/alpha/format/ags-symbolizer"], function (require, exports, ol, StyleGenerator, circleSymbol, crossSymbol, squareSymbol, diamondSymbol, pathSymbol, xSymbol, iconurl, iconimagedata, ags_symbolizer_2) {
+define("ol3-lab/ux/ags-symbols", ["require", "exports", "openlayers", "ol3-lab/labs/common/style-generator", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/ags/simplemarkersymbol-circle", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/ags/simplemarkersymbol-cross", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/ags/simplemarkersymbol-square", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/ags/simplemarkersymbol-diamond", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/ags/simplemarkersymbol-path", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/ags/simplemarkersymbol-x", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/ags/picturemarkersymbol", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/ags/picturemarkersymbol-imagedata", "bower_components/ol3-symbolizer/ol3-symbolizer/format/ags-symbolizer"], function (require, exports, ol, StyleGenerator, circleSymbol, crossSymbol, squareSymbol, diamondSymbol, pathSymbol, xSymbol, iconurl, iconimagedata, ags_symbolizer_2) {
     "use strict";
     var center = [-82.4, 34.85];
     function run() {
@@ -6076,349 +7743,5 @@ define("ol3-lab/ux/serializers/ags-simplefillsymbol", ["require", "exports"], fu
         return SimpleFillConverter;
     }());
     exports.SimpleFillConverter = SimpleFillConverter;
-});
-define("ol3-lab/ux/styles/ags/cartographiclinesymbol", ["require", "exports"], function (require, exports) {
-    "use strict";
-    var symbol = function () { return ({
-        "type": "esriSLS",
-        "style": "esriSLSLongDashDot",
-        "color": [
-            152,
-            230,
-            0,
-            255
-        ],
-        "width": 1,
-        "cap": "esriLCSButt",
-        "join": "esriLJSBevel",
-        "miterLimit": 9.75
-    }); };
-    var styles = "Dash,DashDot,DashDotDot,Dot,LongDash,LongDashDot,ShortDash,ShortDashDot,ShortDashDotDot,ShortDot,Solid".split(",");
-    var caps = "Butt,Round,Square".split(",");
-    var joins = "Bevel,Miter,Round".split(",");
-    var symbols = styles.map(function (style, i) {
-        var result = symbol();
-        result.style = "esriSLS" + style;
-        result.cap = "esriLCS" + caps[i % caps.length];
-        result.join = "esriLJS" + joins[i % joins.length];
-        return result;
-    });
-    return symbols;
-});
-define("ol3-lab/ux/styles/ags/picturefillsymbol", ["require", "exports"], function (require, exports) {
-    "use strict";
-    return [{
-            "color": [
-                0,
-                0,
-                0,
-                255
-            ],
-            "type": "esriPFS",
-            "url": "http://www.free.designquery.com/01/bg0245.jpg",
-            "width": 112.5,
-            "height": 112.5,
-            "xoffset": 0,
-            "yoffset": 0,
-            "xscale": 1,
-            "yscale": 1
-        }];
-});
-define("ol3-lab/ux/styles/ags/simplefillsymbol", ["require", "exports"], function (require, exports) {
-    "use strict";
-    var symbol = function () { return ({
-        "color": [
-            0,
-            0,
-            0,
-            64
-        ],
-        "outline": {
-            "color": [
-                0,
-                0,
-                0,
-                255
-            ],
-            "width": 1.5,
-            "type": "esriSLS",
-            "style": "esriSLSDashDotDot"
-        },
-        "type": "esriSFS",
-        "style": "esriSFSBackwardDiagonal"
-    }); };
-    var styles = "BackwardDiagonal,Cross,DiagonalCross,ForwardDiagonal,Horizontal,Solid,Vertical".split(",");
-    var symbols = styles.map(function (style) {
-        var result = symbol();
-        result.style = "esriSFS" + style;
-        return result;
-    });
-    return symbols;
-});
-define("ol3-lab/ux/styles/ags/textsymbol", ["require", "exports"], function (require, exports) {
-    "use strict";
-    return [
-        {
-            "color": [
-                0,
-                0,
-                0,
-                255
-            ],
-            "type": "esriTS",
-            "horizontalAlignment": "center",
-            "angle": 0,
-            "xoffset": 0,
-            "yoffset": 0,
-            "text": "Sample Text",
-            "rotated": false,
-            "kerning": true,
-            "font": {
-                "size": 10,
-                "style": "normal",
-                "variant": "normal",
-                "weight": "normal",
-                "family": "serif"
-            }
-        }
-    ];
-});
-define("ol3-lab/ux/styles/circle/alert", ["require", "exports"], function (require, exports) {
-    "use strict";
-    return [
-        {
-            "circle": {
-                "fill": {
-                    "color": "rgba(197,37,84,0.90)"
-                },
-                "opacity": 1,
-                "stroke": {
-                    "color": "rgba(227,83,105,1)",
-                    "width": 4.4
-                },
-                "radius": 7.3
-            },
-            "text": {
-                "fill": {
-                    "color": "rgba(205,86,109,0.9)"
-                },
-                "stroke": {
-                    "color": "rgba(252,175,131,0.5)",
-                    "width": 2
-                },
-                "text": "Test",
-                "offset-x": 0,
-                "offset-y": 20,
-                "font": "18px fantasy"
-            }
-        }
-    ];
-});
-define("ol3-lab/ux/styles/circle/gradient", ["require", "exports"], function (require, exports) {
-    "use strict";
-    return [
-        {
-            "circle": {
-                "fill": {
-                    "color": "rgba(197,37,84,0.2)",
-                    "gradient": ["rgba(197,37,84,0.2)", "rgba(197,37,84,0.8)"]
-                },
-                "opacity": 1,
-                "stroke": {
-                    "color": "rgba(227,83,105,0.5)",
-                    "width": 4
-                },
-                "radius": 7
-            }
-        }
-    ];
-});
-define("ol3-lab/ux/styles/fill/cross", ["require", "exports"], function (require, exports) {
-    "use strict";
-    return [{
-            "fill": {
-                "pattern": {
-                    "orientation": "cross",
-                    "color": "rgba(12,236,43,1)",
-                    "spacing": 7,
-                    "repitition": "repeat"
-                }
-            }
-        }];
-});
-define("ol3-lab/ux/styles/fill/diagonal", ["require", "exports"], function (require, exports) {
-    "use strict";
-    return [
-        {
-            "fill": {
-                "pattern": {
-                    "orientation": "diagonal",
-                    "color": "rgba(230,113,26,1)",
-                    "spacing": 3,
-                    "repitition": "repeat"
-                }
-            }
-        }
-    ];
-});
-define("ol3-lab/ux/styles/fill/horizontal", ["require", "exports"], function (require, exports) {
-    "use strict";
-    return [{
-            "fill": {
-                "pattern": {
-                    "orientation": "horizontal",
-                    "color": "rgba(115,38,12,1)",
-                    "spacing": 6,
-                    "repitition": "repeat"
-                }
-            }
-        }];
-});
-define("ol3-lab/ux/styles/fill/vertical", ["require", "exports"], function (require, exports) {
-    "use strict";
-    return [{
-            "fill": {
-                "pattern": {
-                    "orientation": "vertical",
-                    "color": "rgba(12,236,43,1)",
-                    "spacing": 7,
-                    "repitition": "repeat"
-                }
-            }
-        }];
-});
-define("ol3-lab/ux/styles/icon/svg", ["require", "exports"], function (require, exports) {
-    "use strict";
-    return [
-        {
-            "image": {
-                "imgSize": [
-                    48,
-                    48
-                ],
-                "stroke": {
-                    "color": "rgba(255,25,0,0.8)",
-                    "width": 10
-                },
-                "path": "M23 2 L23 23 L43 16.5 L23 23 L35 40 L23 23 L11 40 L23 23 L3 17 L23 23 L23 2 Z"
-            }
-        }
-    ];
-});
-define("ol3-lab/ux/styles/peace", ["require", "exports"], function (require, exports) {
-    "use strict";
-    return [
-        {
-            "star": {
-                "fill": {
-                    "color": "rgba(182,74,9,0.2635968300410687)"
-                },
-                "opacity": 1,
-                "stroke": {
-                    "color": "rgba(49,14,23,0.6699808995760113)",
-                    "width": 3.4639032010315107
-                },
-                "radius": 6.63376222856383,
-                "radius2": 0,
-                "points": 3
-            },
-            "text": {
-                "fill": {
-                    "color": "rgba(207,45,78,0.44950090791791375)"
-                },
-                "stroke": {
-                    "color": "rgba(233,121,254,0.3105821877136521)",
-                    "width": 4.019676388210171
-                },
-                "text": "Test",
-                "offset-x": 0,
-                "offset-y": 14.239434215855646,
-                "font": "18px fantasy"
-            }
-        }
-    ];
-});
-define("ol3-lab/ux/styles/star/4star", ["require", "exports"], function (require, exports) {
-    "use strict";
-    return [
-        {
-            "star": {
-                "fill": {
-                    "color": "rgba(238,162,144,0.4)"
-                },
-                "opacity": 1,
-                "stroke": {
-                    "color": "rgba(169,141,168,0.8)",
-                    "width": 5
-                },
-                "radius": 13,
-                "radius2": 7,
-                "points": 4
-            }
-        }
-    ];
-});
-define("ol3-lab/ux/styles/star/6star", ["require", "exports"], function (require, exports) {
-    "use strict";
-    return [
-        {
-            "star": {
-                "fill": {
-                    "color": "rgba(54,47,234,1)"
-                },
-                "stroke": {
-                    "color": "rgba(75,92,105,0.85)",
-                    "width": 4
-                },
-                "radius": 9,
-                "radius2": 0,
-                "points": 6
-            }
-        }
-    ];
-});
-define("ol3-lab/ux/styles/star/cold", ["require", "exports"], function (require, exports) {
-    "use strict";
-    return [
-        {
-            "star": {
-                "fill": {
-                    "color": "rgb(127,220,241)"
-                },
-                "opacity": 0.5,
-                "stroke": {
-                    "color": "rgb(160,164,166)",
-                    "width": 3
-                },
-                "radius": 11,
-                "radius2": 5,
-                "points": 12
-            }
-        }
-    ];
-});
-define("ol3-lab/ux/styles/stroke/dash", ["require", "exports", "ol3-lab/ux/styles/stroke/linedash"], function (require, exports, Dashes) {
-    "use strict";
-    return [
-        {
-            "stroke": {
-                "color": "red",
-                "width": 2,
-                "lineDash": Dashes.dash
-            }
-        }
-    ];
-});
-define("ol3-lab/ux/styles/stroke/dot", ["require", "exports", "ol3-lab/ux/styles/stroke/linedash"], function (require, exports, Dashes) {
-    "use strict";
-    return [
-        {
-            "stroke": {
-                "color": "yellow",
-                "width": 2,
-                "lineDash": Dashes.dot
-            }
-        }
-    ];
 });
 //# sourceMappingURL=index.js.map

@@ -1,9 +1,10 @@
 import $ = require("jquery");
 import ol = require("openlayers");
 import { doif, getParameterByName } from "./common/common";
-import { StyleConverter } from "ol3-symbolizer/format/ol3-symbolizer";
-import pointStyle = require("ol3-symbolizer/styles/star/flower");
-import { Popup } from "ol3-popup/ol3-popup";
+import { StyleConverter } from "ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer";
+import pointStyle = require("ol3-symbolizer/ol3-symbolizer/styles/star/flower");
+import { Popup } from "ol3-popup";
+import { Grid } from "ol3-grid";
 
 let styler = new StyleConverter();
 
@@ -15,6 +16,14 @@ function parse<T>(v: string, type: T): T {
         return <any>(v.split(",").map(v => parse(v, (<any>type)[0])));
     }
     throw `unknown type: ${type}`;
+}
+
+function randomName() {
+    const nouns = "cat,dog,bird,horse,pig,elephant,giraffe,tiger,bear,cow,chicken,moose".split(",");
+    const adverbs = "running,walking,turning,jumping,hiding,pouncing,stomping,rutting,landing,floating,sinking".split(",");
+    let noun = nouns[(Math.random() * nouns.length) | 0];
+    let adverb = adverbs[(Math.random() * adverbs.length) | 0];
+    return `${adverb} ${noun}`.toLocaleUpperCase();
 }
 
 const html = `
@@ -45,6 +54,23 @@ const css = `
     .popup-container .ol-popup.docked {
         min-width: auto;
     }
+
+    table.ol-grid-table {
+        width: 100%;
+    }
+
+    table.ol-grid-table {
+        border-collapse: collapse;
+        width: 100%;
+    }
+
+    table.ol-grid-table > td {
+        padding: 8px;
+        text-align: left;
+        border-bottom: 1px solid #ddd;
+    }
+
+    
 </style>
 `;
 
@@ -113,15 +139,7 @@ export function run() {
 
 
     let layer = new ol.layer.Vector({
-        source: source,
-        style: (feature: ol.render.Feature, resolution: number) => {
-            let style = pointStyle.filter(p => p.text)[0];
-            if (style) {
-                style.text["offset-y"] = -24;
-                style.text.text = feature.getGeometry().get("location") || "unknown location";
-            }
-            return pointStyle.map(s => styler.fromJson(s));
-        }
+        source: source
     });
 
     map.addLayer(layer);
@@ -142,11 +160,67 @@ export function run() {
         let point = new ol.geom.Point(event.coordinate);
         point.set("location", location);
         let feature = new ol.Feature(point);
+        feature.set("text", randomName());
+
+        let textStyle = pointStyle.filter(p => p.text)[0];;
+        if (textStyle && textStyle.text) {
+            textStyle.text["offset-y"] = -24;
+            textStyle.text.text = feature.get("text");
+        }
+        pointStyle[0].star.points = 3 + (Math.random() * 12) | 0;
+        pointStyle[0].star.stroke.width = 1 + Math.random() * 5;
+        let style = pointStyle.map(s => styler.fromJson(s));
+        feature.setStyle((resolution: number) => style);
+
         source.addFeature(feature);
 
         setTimeout(() => popup.show(event.coordinate, `<div>You clicked on ${location}</div>`), 50);
 
     });
+
+    let grid = Grid.create({
+        currentExtent: false,
+        labelAttributeName: "text"
+    });
+
+    map.addControl(grid);
+
+    map.addControl(Grid.create({
+        className: "ol-grid top left-2",
+        closedText: "+",
+        openedText: "-",
+        autoCollapse: false,
+        showIcon: true
+    }));
+
+    map.addControl(Grid.create({
+        className: "ol-grid bottom left",
+        currentExtent: true,
+        hideButton: false,
+        closedText: "+",
+        openedText: "-",
+        autoCollapse: true,
+        canCollapse: true,
+        showIcon: true,
+        labelAttributeName: ""
+    }));
+
+    map.addControl(Grid.create({
+        className: "ol-grid bottom right",
+        hideButton: true,
+        showIcon: true,
+        labelAttributeName: "text"
+    }));
+
+    map.getControls().getArray()
+        .filter(c => c instanceof Grid)
+        .forEach(grid => grid.on("feature-click", (args: { feature: ol.Feature }) => {
+            let center = args.feature.getGeometry().getClosestPoint(map.getView().getCenter());
+            map.getView().animate({
+                center: center
+            });
+            popup.show(center, args.feature.get("text"));
+        }));
 
     return map;
 

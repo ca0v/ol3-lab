@@ -1,12 +1,12 @@
 import $ = require("jquery");
 import ol = require("openlayers");
-import {doif, getParameterByName, mixin} from "./common/common";
+import { doif, getParameterByName, mixin } from "./common/common";
 import reduce = require("./common/ol3-polyline");
-import {StyleConverter} from "../alpha/format/ol3-symbolizer";
-import dashdotdot = require("../ux/styles/stroke/dashdotdot");
-import strokeStyle = require("../ux/styles/stroke/solid");
-import textStyle = require("../ux/styles/text/text");
-import {MyJson} from "./common/myjson";
+import { StyleConverter } from "ol3-symbolizer";
+import dashdotdot = require("ol3-symbolizer/ol3-symbolizer/styles/stroke/dashdotdot");
+import strokeStyle = require("ol3-symbolizer/ol3-symbolizer/styles/stroke/solid");
+import textStyle = require("ol3-symbolizer/ol3-symbolizer/styles/text/text");
+import { MyJson } from "./common/myjson";
 
 let styler = new StyleConverter();
 
@@ -221,12 +221,12 @@ export function run() {
                     if (options.myjson) {
                         myjson.id = options.myjson;
                         myjson.put().then(() => {
-                            let url = encodeURI(`${href}?run=labs/mapmaker&myjson=${myjson.id}`);
+                            let url = encodeURI(`${href}?run=ol3-lab/labs/mapmaker&myjson=${myjson.id}`);
                             window.open(url, "_blank");
                         });
                     } else {
                         myjson.post().then(() => {
-                            let url = encodeURI(`${href}?run=labs/mapmaker&myjson=${myjson.id}`);
+                            let url = encodeURI(`${href}?run=ol3-lab/labs/mapmaker&myjson=${myjson.id}`);
                             window.open(url, "_blank");
                         });
                     }
@@ -234,19 +234,19 @@ export function run() {
                     let opts = <any>options;
                     let querystring = Object.keys(options).map(k => `${k}=${opts[k]}`).join("&");
 
-                    let url = encodeURI(`${href}?run=labs/mapmaker&${querystring}`);
+                    let url = encodeURI(`${href}?run=ol3-lab/labs/mapmaker&${querystring}`);
                     window.open(url, "_blank");
                 }
             } else {
                 let opts = <any>options;
                 let querystring = Object.keys(options).map(k => `${k}=${opts[k]}`).join("&");
 
-                let url = encodeURI(`${href}?run=labs/mapmaker&${querystring}`);
+                let url = encodeURI(`${href}?run=ol3-lab/labs/mapmaker&${querystring}`);
                 window.open(url, "_blank");
             }
         });
 
-        return map;        
+        return map;
     });
 
 }

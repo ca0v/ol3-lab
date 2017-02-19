@@ -1,6 +1,6 @@
 import ol = require("openlayers");
 import $ = require("jquery");
-import { Format, StyleConverter } from "../alpha/format/ol3-symbolizer";
+import { Format, StyleConverter } from "ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer";
 import AgsMarkerSerializer = require("../ux/serializers/ags-simplemarkersymbol");
 import StyleGenerator = require("./common/style-generator");
 

@@ -12,8 +12,8 @@ import ol = require("openlayers");
 import $ = require("jquery");
 import Snapshot = require("./common/snapshot");
 import { getParameterByName } from "./common/common";
-import { Format, StyleConverter } from "../alpha/format/ol3-symbolizer";
-import pointStyle = require("../ux/styles/icon/png");
+import { Format, StyleConverter } from "ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer";
+import pointStyle = require("ol3-symbolizer/ol3-symbolizer/styles/icon/png");
 
 const html = `
 <div class='style-to-canvas'>
@@ -131,7 +131,7 @@ function loadStyle(name: string) {
     if ('[' === name[0]) {
         d.resolve(JSON.parse(name));
     } else {
-        let mids = name.split(",").map(name => `../ux/styles/${name}`);
+        let mids = name.split(",").map(name => `bower_components/ol3-symbolizer/ol3-symbolizer/styles/${name}`);
         require(mids, (...styles: T[]) => {
             let style = <T>[];
             styles.forEach(s => style = style.concat(s));

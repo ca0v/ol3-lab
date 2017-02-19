@@ -1,7 +1,7 @@
 import ol = require("openlayers");
 
 import Serializer = require("./serializer");
-import { StyleConverter } from "../../alpha/format/ags-symbolizer";
+import { StyleConverter } from "ol3-symbolizer/ol3-symbolizer/format/ags-symbolizer";
 
 
 const converter = new StyleConverter();

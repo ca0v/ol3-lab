@@ -5,6 +5,8 @@ import { StyleConverter } from "ol3-symbolizer";
 import pointStyle = require("ol3-symbolizer/ol3-symbolizer/styles/star/flower");
 import { LayerSwitcher } from "ol3-layerswitcher";
 import { Popup } from "ol3-popup";
+import { PanZoom } from "ol3-panzoom/index";
+
 import { ArcGisVectorSourceFactory } from "ol3-symbolizer/ol3-symbolizer/ags/ags-source";
 
 let styler = new StyleConverter();
@@ -75,10 +77,7 @@ export function run() {
     let options = {
         srs: 'EPSG:4326',
         center: <[number, number]>center.vegas,
-        zoom: 10,
-        services: "http://sampleserver3.arcgisonline.com/ArcGIS/rest/services",
-        serviceName: "SanFrancisco/311Incidents",
-        layers: [0]
+        zoom: 10
     }
 
     {
@@ -96,10 +95,20 @@ export function run() {
         keyboardEventTarget: document,
         loadTilesWhileAnimating: true,
         loadTilesWhileInteracting: true,
-        controls: ol.control.defaults({ attribution: false }),
+        controls: ol.control.defaults({
+            attribution: false,
+            zoom: false
+        }).extend([new PanZoom({
+            minZoom: 5,
+            maxZoom: 21,
+            imgPath: "https://raw.githubusercontent.com/ca0v/ol3-panzoom/master/ol3-panzoom/resources/zoombar_black",
+            slider: true
+        })]),
         view: new ol.View({
             projection: options.srs,
             center: options.center,
+            minZoom: 5,
+            maxZoom: 21,
             zoom: options.zoom
         }),
         layers: [
@@ -125,12 +134,15 @@ export function run() {
     ArcGisVectorSourceFactory.create({
         tileSize: 256,
         map: map,
-        services: options.services,
-        serviceName: options.serviceName,
-        layers: options.layers.reverse()
+        services: "https://services7.arcgis.com/k0UprFPHKieFB9UY/arcgis/rest/services",
+        serviceName: "GoldServer860",
+        layers: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20].reverse()
     }).then(agsLayers => {
 
-        agsLayers.forEach(agsLayer => map.addLayer(agsLayer));
+        agsLayers.forEach(agsLayer => {
+            agsLayer.setVisible(false);
+            map.addLayer(agsLayer);
+        });
 
         let layerSwitcher = new LayerSwitcher();
         layerSwitcher.setMap(map);

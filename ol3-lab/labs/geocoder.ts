@@ -1,7 +1,7 @@
 import MapMaker = require("../labs/mapmaker");
 
-import {Geocoder} from "../ux/controls/input";
-import {OpenStreet} from "../labs/providers/osm";
+import { Input } from "ol3-input";
+import { OpenStreet } from "ol3-input/ol3-input/providers/osm";
 
 export function run() {
 
@@ -43,7 +43,7 @@ export function run() {
         };
 
         // vertical elipsis: &#x22EE;
-        let geocoder = Geocoder.create({
+        let geocoder = Input.create({
             closedText: "+",
             openedText: "−",
             placeholderText: "Bottom Left Search",
@@ -51,21 +51,21 @@ export function run() {
         });
         map.addControl(geocoder);
 
-        map.addControl(Geocoder.create({
+        map.addControl(Input.create({
             className: 'ol-input bottom right',
             expanded: true,
             placeholderText: "Bottom Right Search",
             onChange: changeHandler
         }));
 
-        map.addControl(Geocoder.create({
+        map.addControl(Input.create({
             className: 'ol-input top right',
             expanded: false,
             placeholderText: "Top Right",
             onChange: changeHandler
         }));
 
-        map.addControl(Geocoder.create({
+        map.addControl(Input.create({
             className: 'ol-input top left',
             expanded: false,
             placeholderText: "Top Left Search",

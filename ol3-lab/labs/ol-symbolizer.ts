@@ -1,13 +1,7 @@
-import $ = require("jquery");
 import ol = require("openlayers");
-import { doif, getParameterByName } from "./common/common";
-import { StyleConverter } from "../alpha/format/ol3-symbolizer";
-import pointStyle = require("../ux/styles/star/flower");
-import { LayerSwitcher } from "ol3-layerswitcher/ol3-layerswitcher";
-import { Popup } from "ol3-popup/ol3-popup";
-import { ArcGisVectorSourceFactory } from "../alpha/arcgis-source";
-
-let styler = new StyleConverter();
+import { Popup } from "ol3-popup";
+import { ArcGisVectorSourceFactory } from "ol3-symbolizer/ol3-symbolizer/ags/ags-source";
+import {doif, getParameterByName, html as asHtml} from "ol3-fun/ol3-fun/common";
 
 function parse<T>(v: string, type: T): T {
     if (typeof type === "string") return <any>v;
@@ -69,13 +63,19 @@ let center = {
 
 export function run() {
 
-    $(html).appendTo(".map");
-    $(css).appendTo("head");
+    let target = document.getElementsByClassName("map")[0];
+    target.appendChild(asHtml(html));
+    document.head.appendChild(asHtml(css));
 
     let options = {
         srs: 'EPSG:4326',
         center: <[number, number]>center.vegas,
-        zoom: 10
+        zoom: 10,
+        services: "//sampleserver3.arcgisonline.com/ArcGIS/rest/services",
+        serviceName: "SanFrancisco/311Incidents",
+        where: "1=1",
+        filter: <{ [name: string]: any }>{},
+        layers: [0]
     }
 
     {
@@ -106,32 +106,20 @@ export function run() {
                 opacity: 0.8,
                 visible: true,
                 source: new ol.source.OSM()
-            }),
-            new ol.layer.Tile({
-                title: "Bing",
-                type: 'base',
-                opacity: 0.8,
-                visible: false,
-                source: new ol.source.BingMaps({
-                    key: 'AuPHWkNxvxVAL_8Z4G8Pcq_eOKGm5eITH_cJMNAyYoIC1S_29_HhE893YrUUbIGl',
-                    imagerySet: 'Aerial'
-                })
             })]
     });
 
     ArcGisVectorSourceFactory.create({
         tileSize: 256,
         map: map,
-        services: "https://services7.arcgis.com/k0UprFPHKieFB9UY/arcgis/rest/services",
-        serviceName: "GoldServer860",
-        layers: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20].reverse()
+        services: options.services,
+        serviceName: options.serviceName,
+        where: options.where,
+        layers: options.layers.reverse()
     }).then(agsLayers => {
 
         agsLayers.forEach(agsLayer => map.addLayer(agsLayer));
 
-        let layerSwitcher = new LayerSwitcher();
-        layerSwitcher.setMap(map);
-layerSwitcher.isVisible
         let popup = new Popup({
             css: `
             .ol-popup {
