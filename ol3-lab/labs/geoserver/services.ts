@@ -205,10 +205,10 @@ function saveTigerAddr(feature: ol.Feature) {
     let requestBody = format.writeTransaction(
         [feature], [], [],
         {
-            featureNS: "http://www.census.gov",
-            featurePrefix: "tiger",
-            featureType: "vegas_addresses",
-            srsName: "EPSG:3421",
+            featureNS: "http://www.opengeospatial.net/cite",
+            featurePrefix: "cite",
+            featureType: "addresses",
+            srsName: "EPSG:3857",
             nativeElements: []
         });
 
@@ -216,7 +216,7 @@ function saveTigerAddr(feature: ol.Feature) {
 
     $.ajax({
         type: "POST",
-        url: "http://localhost:8080/geoserver/tiger/wfs",
+        url: "http://localhost:8080/geoserver/cite/wfs",
         data: data,
         contentType: "application/xml",
         dataType: "xml",
@@ -231,9 +231,9 @@ export function run() {
     // get "WARM RIVER" addresses
     let format = new ol.format.WFS();
     let requestBody = format.writeGetFeature({
-        featureNS: "http://geoserver.org/vegas11",
-        featurePrefix: "vegas11",
-        featureTypes: ["addresses", "parcels"],
+        featureNS: "http://www.opengeospatial.net/cite",
+        featurePrefix: "cite",
+        featureTypes: ["addresses"],
         srsName: "EPSG:3857",
         filter: filter.equalTo("strname", "WARM RIVER")
     });
@@ -243,7 +243,7 @@ export function run() {
 
     $.ajax({
         type: "POST",
-        url: "http://localhost:8080/geoserver/vegas11/wfs",
+        url: "http://localhost:8080/geoserver/cite/wfs",
         data: data,
         contentType: "application/xml",
         dataType: "xml",
@@ -251,8 +251,16 @@ export function run() {
             console.log("response", serializer.serializeToString(response));
             let features = format.readFeatures(response);
             console.log("features", features);
+
+            if (!features.length) {
+                let feature = new ol.Feature({
+                    owner: "COREY ALIX"
+                });
+                feature.setGeometry(new ol.geom.Point([755000, 26769000]));
+                features.push(feature);
+            }
+
             saveTigerAddr(features[0]);
-            return;
 
             let extent = ol.extent.createEmpty();
             features.forEach(f => ol.extent.extend(extent, f.getGeometry().getExtent()));
