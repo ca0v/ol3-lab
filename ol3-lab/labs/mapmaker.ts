@@ -112,7 +112,7 @@ const DEFAULT_OPTIONS = <IOptions>{
 
 export function run(options?: typeof DEFAULT_OPTIONS) {
 
-    defaults(options || {}, DEFAULT_OPTIONS);
+    options = defaults(options || {}, DEFAULT_OPTIONS);
 
     $(html).appendTo(".map");
     $(css).appendTo("head");
