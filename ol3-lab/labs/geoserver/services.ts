@@ -2,11 +2,72 @@ import $ = require("jquery");
 import ol = require("openlayers");
 import MapMaker = require("../mapmaker");
 import Symbolizer = require("ol3-symbolizer");
+import { debounce } from "ol3-fun/ol3-fun/common";
 import { Popup } from "ol3-popup";
 import { Draw } from "ol3-draw";
 import { Modify } from "ol3-draw/ol3-draw/ol3-edit";
 import { Delete } from "ol3-draw/ol3-draw/ol3-delete";
 import { Translate } from "ol3-draw/ol3-draw/ol3-translate";
+
+let lastSavedTime = Date.now();
+
+function saveDrawings(args: {
+    features: ol.Feature[];
+    deletes: ol.Feature[];
+    points: string;
+    lines: string;
+    polygons: string;
+}) {
+    let features = args.features.filter(f => lastSavedTime <= f.get("touched"));
+    features.forEach(f => f.set("touched", undefined));
+    console.log("saving", features.map(f => f.get("touched")));
+
+    let saveTo = (featureType: string, geomType: ol.geom.GeometryType) => {
+        let toSave = features.filter(f => f.getGeometry().getType() === geomType);
+        let toDelete = args.deletes.filter(f => !!f.get("gid"));
+
+        if (0 === (toSave.length + toDelete.length)) {
+            console.info("nothing to save", featureType, geomType);
+            return;
+        }
+
+        let format = new ol.format.WFS();
+        let requestBody = format.writeTransaction(
+            toSave.filter(f => !f.get("gid")),
+            toSave.filter(f => !!f.get("gid")),
+            toDelete,
+            {
+                featureNS: "http://www.opengeospatial.net/cite",
+                featurePrefix: "cite",
+                featureType: featureType,
+                srsName: "EPSG:3857",
+                nativeElements: []
+            });
+
+        let data = serializer.serializeToString(requestBody);
+        console.log("data", data);
+
+        $.ajax({
+            type: "POST",
+            url: "http://localhost:8080/geoserver/cite/wfs",
+            data: data,
+            contentType: "application/xml",
+            dataType: "xml",
+            success: (response: XMLDocument) => {
+                console.warn(serializer.serializeToString(response));
+                let features = format.readFeatures(response);
+                // delete existing features, add these
+                console.log("saved features", features);
+            }
+        });
+    };
+
+    lastSavedTime = Date.now();
+    args.points && saveTo(args.points, "Point");
+    args.lines && saveTo(args.lines, "MultiLineString");
+    args.polygons && saveTo(args.polygons, "MultiPolygon");
+
+}
 
 // workspaces
 declare module namespace {
@@ -233,13 +294,12 @@ export function run() {
     let requestBody = format.writeGetFeature({
         featureNS: "http://www.opengeospatial.net/cite",
         featurePrefix: "cite",
-        featureTypes: ["addresses"],
+        featureTypes: ["addresses", "streets", "parcels"],
         srsName: "EPSG:3857",
         filter: filter.equalTo("strname", "WARM RIVER")
     });
 
     let data = serializer.serializeToString(requestBody);
-    console.log("data", data);
 
     $.ajax({
         type: "POST",
@@ -248,19 +308,9 @@ export function run() {
         contentType: "application/xml",
         dataType: "xml",
         success: (response: XMLDocument) => {
-            console.log("response", serializer.serializeToString(response));
             let features = format.readFeatures(response);
-            console.log("features", features);
 
-            if (!features.length) {
-                let feature = new ol.Feature({
-                    owner: "COREY ALIX"
-                });
-                feature.setGeometry(new ol.geom.Point([755000, 26769000]));
-                features.push(feature);
-            }
-
-            saveTigerAddr(features[0]);
+            features = features.filter(f => !!f.getGeometry());
 
             let extent = ol.extent.createEmpty();
             features.forEach(f => ol.extent.extend(extent, f.getGeometry().getExtent()));
@@ -275,7 +325,8 @@ export function run() {
                         color: "rgba(33,33,33,0.5)"
                     },
                     stroke: {
-                        color: "rgba(33,33,33,1)"
+                        color: "rgba(50,100,50,0.8)",
+                        width: 3
                     },
                     circle: {
                         fill: {
@@ -309,7 +360,7 @@ export function run() {
                 });
                 map.addOverlay(popup);
 
-                map.on("click", (event: { coordinate: any; pixel: any }) => {
+                false && map.on("click", (event: { coordinate: any; pixel: any }) => {
                     console.log("click");
                     let coord = event.coordinate;
                     popup.hide();
@@ -332,23 +383,47 @@ export function run() {
                     popup.pages.goto(0);
                 });
 
-                map.addControl(Draw.create({ geometryType: "Polygon", label: "▧", position: "right-4 top" }));
-                map.addControl(Draw.create({ geometryType: "MultiLineString", label: "▬", position: "right-2 top" }));
-                map.addControl(Draw.create({ geometryType: "Point", label: "●", position: "right top" }));
+                map.addControl(Draw.create({ geometryType: "MultiPolygon", label: "▧", position: "right-4 top", layers: [layer] }));
+                map.addControl(Draw.create({ geometryType: "MultiLineString", label: "▬", position: "right-2 top", layers: [layer]  }));
+                map.addControl(Draw.create({ geometryType: "Point", label: "●", position: "right top", layers: [layer] }));
                 map.addControl(Translate.create({ position: "right-4 top-2" }));
                 map.addControl(Modify.create({ label: "Δ", position: "right-2 top-2" }));
                 map.addControl(Delete.create({ label: "X", position: "right top-2" }));
 
-                source.forEachFeature(f => {
-                    f.on("change", () => {
-                        console.log("feature change", f);
-                        f.set("touched", Date.now());
-                    });
+                let deletes = <ol.Feature[]>[];
 
+                let save = debounce(() => saveDrawings({
+                    features: layer.getSource().getFeatures().filter(f => !!f.get("touched")),
+                    deletes: deletes,
+                    points: "addresses",
+                    lines: "streets",
+                    polygons: "parcels"
+                }), 1000);
+
+                let touch = (f: ol.Feature) => {
+                    f.set("touched", Date.now());
+                    save();
+                };
+
+                let watch = (f: ol.Feature) => {
+                    f.getGeometry().on("change", () => touch(f));
                     f.on("propertychange", (args: { key: string; oldValue: any }) => {
                         if (args.key === "touched") return;
-                        f.set("touched", Date.now());
+                        touch(f);
                     });
+                };
+
+                source.forEachFeature(f => watch(f));
+
+                source.on("addfeature", (args: ol.source.VectorEvent) => {
+                    args.feature.set("strname", "WARM RIVER");
+                    watch(args.feature);
+                    touch(args.feature);
+                });
+
+                source.on("removefeature", (args: ol.source.VectorEvent) => {
+                    deletes.push(args.feature);
+                    touch(args.feature);
                 });
 
             });
