@@ -1,6 +1,6 @@
 import $ = require("jquery");
 import ol = require("openlayers");
-import { doif, getParameterByName, mixin } from "./common/common";
+import { doif, getParameterByName, defaults } from "./common/common";
 import reduce = require("./common/ol3-polyline");
 import { StyleConverter } from "ol3-symbolizer";
 import dashdotdot = require("ol3-symbolizer/ol3-symbolizer/styles/stroke/dashdotdot");
@@ -85,22 +85,37 @@ let css = `
 </style>
 `;
 
-export function run() {
+
+export interface IOptions {
+    srs?: string;
+    center?: [number, number];
+    zoom?: number;
+    background?: string;
+    myjson?:string;
+    geom?: string;//t`syzE}gm_dAm_@A?r@p@Bp@Hp@Ph@Td@Z`@`@Vb@Nd@xUABmF",
+    color?: string;
+    modify?: boolean;
+    basemap?: string;
+}
+
+const DEFAULT_OPTIONS = <IOptions>{
+    srs: 'EPSG:4326',
+    center: [-82.4, 34.85],
+    zoom: 15,
+    background: "bright",
+    myjson: "",
+    geom: "",//t`syzE}gm_dAm_@A?r@p@Bp@Hp@Ph@Td@Z`@`@Vb@Nd@xUABmF",
+    color: "red",
+    modify: false,
+    basemap: "osm"
+}
+
+export function run(options?: typeof DEFAULT_OPTIONS) {
+
+    options = defaults(options || {}, DEFAULT_OPTIONS);
 
     $(html).appendTo(".map");
     $(css).appendTo("head");
-
-    let options = {
-        srs: 'EPSG:4326',
-        center: [-82.4, 34.85],
-        zoom: 15,
-        background: "bright",
-        myjson: "",
-        geom: "",//t`syzE}gm_dAm_@A?r@p@Bp@Hp@Ph@Td@Z`@`@Vb@Nd@xUABmF",
-        color: "red",
-        modify: false,
-        basemap: "bing"
-    }
 
     {
         let opts = <any>options;

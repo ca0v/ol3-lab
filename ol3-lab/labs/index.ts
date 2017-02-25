@@ -2,6 +2,9 @@ export function run() {
     let l = window.location;
     let path = `${l.origin}${l.pathname}?run=ol3-lab/labs/`;
     let labs = `
+    geoserver/services
+    wfs-map
+    ol-draw
     ol-grid
     ol-input    
     ol-layerswitcher
