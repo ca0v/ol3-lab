@@ -54,10 +54,7 @@ function saveDrawings(args: {
             contentType: "application/xml",
             dataType: "xml",
             success: (response: XMLDocument) => {
-                console.warn(serializer.serializeToString(response));
-                let features = format.readFeatures(response);
-                // delete existing features, add these
-                console.log("saved features", features);
+                console.warn("TODO: key assignment", serializer.serializeToString(response));
             }
         });
     };
