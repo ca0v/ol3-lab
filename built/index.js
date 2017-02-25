@@ -4188,9 +4188,7 @@ define("ol3-lab/labs/geoserver/services", ["require", "exports", "jquery", "open
                 contentType: "application/xml",
                 dataType: "xml",
                 success: function (response) {
-                    console.warn(serializer.serializeToString(response));
-                    var features = format.readFeatures(response);
-                    console.log("saved features", features);
+                    console.warn("TODO: key assignment", serializer.serializeToString(response));
                 }
             });
         };
