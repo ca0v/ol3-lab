@@ -3,12 +3,13 @@ import { debounce, defaults } from "ol3-fun/ol3-fun/common";
 export interface IOptions {
     wfsUrl: string;
     source: ol.source.Vector;
-    formatter: ol.format.WFS;
-    targets: { [name: string]: string }; // ol.geom.GeometryType
-    lastUpdateFieldName?: string;
     featureNS: string;
     featurePrefix: string;
-    srsName: string;
+    formatter?: ol.format.WFS;
+    // feature geometry to layer mapping (Point -> "point-layer")
+    targets: { [name: string]: string }; // ol.geom.GeometryType
+    lastUpdateFieldName?: string;
+    srsName?: string;
     featureIdFieldName?: string;
 }
 
@@ -21,16 +22,19 @@ export class WfsSync {
     private deletes: ol.Feature[];
 
     static DEFAULT_OPTIONS = <IOptions>{
-        wfsUrl: "http://localhost:8080/geoserver/cite/wfs",
-        featureNS: "http://www.opengeospatial.net/cite",
-        featurePrefix: "cite",
         featureIdFieldName: "gid",
         lastUpdateFieldName: "touched",
-        srsName: "EPSG:3857",
     }
 
     static create(options?: IOptions) {
         options = defaults(options || {}, WfsSync.DEFAULT_OPTIONS);
+        if (!options.formatter) {
+            options.formatter = new ol.format.WFS();
+        }
+        if (!options.srsName) {
+            // isn't generally set...better to get map from layer?
+            options.srsName = options.source.getProjection().getCode();
+        }
         let result = new WfsSync(options);
         return result;
     }
