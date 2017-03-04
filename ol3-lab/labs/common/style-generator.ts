@@ -2,22 +2,14 @@ import ol = require("openlayers");
 import basic_styles = require("ol3-symbolizer/ol3-symbolizer/styles/basic");
 import { StyleConverter } from "ol3-symbolizer";
 import gradient_style = require("ol3-symbolizer/ol3-symbolizer/styles/fill/gradient");
+import { mixin, range } from "ol3-fun/ol3-fun/common";
 
 let converter = new StyleConverter();
 
 // TODO: do these have pre-defined names on ol3/ags?
 const orientations = "forward,backward,diagonal,horizontal,vertical,cross".split(",");
-
-function mixin<A extends any, B extends any>(a: A, b: B) {
-    Object.keys(b).forEach(k => a[k] = b[k]);
-    return <A & B>a;
-}
-
-let range = (n: number) => {
-    var result = new Array(n);
-    for (var i = 0; i < n; i++) result[i] = i;
-    return result;
-};
+type Rgba = [number, number, number, number];
+type Rgb = [number, number, number, 1];
 
 let randint = (n: number) => Math.round(n * Math.random());
 
@@ -43,17 +35,17 @@ class StyleGenerator {
 
     asPastel() {
         let [r, g, b] = [255, 255, 255].map(n => Math.round((1 - Math.random() * Math.random()) * n));
-        return [r, g, b, (10 + randint(50)) / 100];
+        return <Rgba>[r, g, b, (10 + randint(50)) / 100];
     }
 
     asRgb() {
-        return [255, 255, 255].map(n => Math.round((Math.random() * Math.random()) * n));
+        return <Rgb>[255, 255, 255].map(n => Math.round((Math.random() * Math.random()) * n));
     }
 
     asRgba() {
         let color = this.asRgb();
         color.push((10 + randint(90)) / 100);
-        return color;
+        return <Rgba>color;
     }
 
     asFill() {
@@ -294,7 +286,6 @@ class StyleGenerator {
             stroke: this.asStroke(),
             points: this.asPoints(),
             radius: this.asRadius(),
-            width: this.asWidth(),
             radius2: 0
         });
         return style;

@@ -8,16 +8,10 @@ import { Draw } from "ol3-draw";
 import { Modify } from "ol3-draw/ol3-draw/ol3-edit";
 import { Delete } from "ol3-draw/ol3-draw/ol3-delete";
 import { Translate } from "ol3-draw/ol3-draw/ol3-translate";
-import { WfsSync } from "../../ux/wfs-sync";
+import { WfsSync } from "ol3-draw/ol3-draw/services/wfs-sync";
 
 const symbolizer = new Symbolizer.StyleConverter();
 const serializer = new XMLSerializer();
-
-let filter = <{
-    and(a: string, b: string): string;
-    bbox(geom: string, extent: ol.Extent, srs?: string): string;
-    equalTo(a: string, b: string): string;
-}>ol.format.filter;
 
 export function run() {
 
@@ -61,14 +55,13 @@ export function run() {
         map.addLayer(layer);
 
         {
-            // get "WARM RIVER" addresses
             let format = new ol.format.WFS();
             let requestBody = format.writeGetFeature({
                 featureNS: featureNS,
                 featurePrefix: featurePrefix,
-                featureTypes: Object.keys(targets).map(k => targets[k]),
+                featureTypes: Object.keys(targets).map((k: keyof typeof targets) => targets[k]),
                 srsName: srsName,
-                filter: filter.equalTo("strname", "WARM RIVER")
+                filter: ol.format.filter.equalTo("strname", "29615")
             });
             let data = serializer.serializeToString(requestBody);
 
