@@ -644,6 +644,12 @@ define("bower_components/ol3-fun/ol3-fun/common", ["require", "exports"], functi
         return b.firstElementChild;
     }
     exports.html = html;
+    function pair(a1, a2) {
+        var result = [];
+        a1.forEach(function (v1) { return a2.forEach(function (v2) { return result.push([v1, v2]); }); });
+        return result;
+    }
+    exports.pair = pair;
     function range(n) {
         var result = new Array(n);
         for (var i = 0; i < n; i++)
@@ -3383,8 +3389,8 @@ define("ol3-lab/labs/mapmaker", ["require", "exports", "jquery", "openlayers", "
         }
         throw "unknown type: " + type;
     }
-    var html = "\n<div class='mapmaker'>\n    <div class='toolbar'>\n        <button class='share'>Share</button>\n        <button class='clone'>Add</button>\n    </div>\n</div>\n";
-    var css = "\n<style>\n    html, body, .map {\n        width: 100%;\n        height: 100%;\n        padding: 0;\n        overflow: hidden;\n        margin: 0;    \n    }\n\n    .map {\n        background-color: black;\n    }\n\n    .map.dark {\n        background: black;\n    }\n\n    .map.light {\n        background: silver;\n    }\n\n    .map.bright {\n        background: white;\n    }\n\n    .mapmaker {\n        position: absolute;\n        top: 0;\n        left: 0;\n        width: 0;\n        height: 0;\n        background: transparent;\n        z-index: 1;\n    }\n    .mapmaker .toolbar {\n        position: relative;\n        top: 10px;\n        left: 42px;\n        width: 240px;\n    }\n    .mapmaker .toolbar button {\n        border: 1px solid transparent;\n        background: transparent;\n    }\n\n    .mapmaker .toolbar button:hover {\n        border: 1px solid black;\n        background: white;\n    }\n    button.clone {\n        display:none;\n    }\n</style>\n";
+    var html = "\n<div class='mapmaker'>\n    <div class='toolbar'>\n        <button class='share'>Share</button>\n        <button class='clone'>Add</button>\n    </div>\n    <div class='dock-container'>\n    </div>\n</div>\n";
+    var css = "\n<style>\n    html, body, .map {\n        width: 100%;\n        height: 100%;\n        padding: 0;\n        overflow: hidden;\n        margin: 0;    \n    }\n\n    .map {\n        background-color: black;\n    }\n\n    .map.dark {\n        background: black;\n    }\n\n    .map.light {\n        background: silver;\n    }\n\n    .map.bright {\n        background: white;\n    }\n\n    .mapmaker {\n        position: absolute;\n        top: 0;\n        left: 0;\n        width: 0;\n        height: 0;\n        background: transparent;\n        z-index: 1;\n    }\n    .mapmaker .toolbar {\n        position: relative;\n        top: 10px;\n        left: 42px;\n        width: 240px;\n    }\n    .mapmaker .toolbar button {\n        border: 1px solid transparent;\n        background: transparent;\n    }\n\n    .mapmaker .toolbar button:hover {\n        border: 1px solid black;\n        background: white;\n    }\n\n    .mapmaker .dock-container {\n        position: relative;\n        background: transparent;\n        left: 10em;\n        top: 1em;\n        width: 12em;\n        height: 15em;\n    }\n\n    button.clone {\n        display:none;\n    }\n</style>\n";
     var DEFAULT_OPTIONS = {
         srs: 'EPSG:4326',
         center: [-82.4, 34.85],
@@ -4019,10 +4025,12 @@ define("bower_components/ol3-draw/ol3-draw/ol3-delete", ["require", "exports", "
         function Delete(options) {
             var _this = _super.call(this, options) || this;
             var map = options.map;
-            var select = new ol.interaction.Select({
-                wrapX: false,
+            var featureLayers = [];
+            var selection = new ol.interaction.Select({
+                condition: ol.events.condition.click,
+                multi: false,
                 style: function (feature, res) {
-                    var index = select.getFeatures().getArray().indexOf(feature);
+                    var index = selection.getFeatures().getArray().indexOf(feature);
                     var fillColor = "rgba(0,0,0,0.2)";
                     var strokeColor = "red";
                     var textTemplate = {
@@ -4036,76 +4044,71 @@ define("bower_components/ol3-draw/ol3-draw/ol3-delete", ["require", "exports", "
                         },
                         scale: 3
                     };
-                    switch (feature.getGeometry().getType()) {
-                        case "Point":
-                            return _this.symbolizer.fromJson({
-                                circle: {
-                                    radius: 20,
-                                    fill: {
-                                        color: fillColor
-                                    },
-                                    stroke: {
-                                        color: strokeColor,
-                                        width: 2
-                                    },
-                                    opacity: 1
-                                },
-                                text: textTemplate
-                            });
-                        case "MultiLineString":
-                            return _this.symbolizer.fromJson({
-                                stroke: {
-                                    color: strokeColor,
-                                    width: 2
-                                },
-                                text: textTemplate
-                            });
-                        case "Circle":
-                        case "Polygon":
-                        case "MultiPolygon":
-                            return _this.symbolizer.fromJson({
-                                fill: {
-                                    color: fillColor
-                                },
-                                stroke: {
-                                    color: strokeColor,
-                                    width: 2
-                                },
-                                text: textTemplate
-                            });
-                        default:
-                            debugger;
-                    }
+                    var style = options.style[feature.getGeometry().getType()]
+                        .map(function (s) { return _this.symbolizer.fromJson(common_10.defaults({ text: textTemplate }, s)); });
+                    return style;
                 }
             });
+            var boxSelect = new ol.interaction.DragBox({
+                condition: options.boxSelectCondition
+            });
+            boxSelect.on("boxend", function (args) {
+                var extent = boxSelect.getGeometry().getExtent();
+                var features = selection.getFeatures().getArray();
+                options.map.getLayers()
+                    .getArray()
+                    .filter(function (l) { return l instanceof ol.layer.Vector; })
+                    .map(function (l) { return l; })
+                    .forEach(function (l) { return l.getSource().forEachFeatureIntersectingExtent(extent, function (feature) {
+                    if (-1 === features.indexOf(feature)) {
+                        selection.getFeatures().push(feature);
+                        _this.addFeatureLayerAssociation(feature, l);
+                    }
+                    else {
+                        selection.getFeatures().remove(feature);
+                        _this.addFeatureLayerAssociation(feature, null);
+                    }
+                }); });
+            });
             var doit = function () {
-                select.getFeatures().forEach(function (f) {
-                    var l = select.getLayer(f);
-                    l.getSource().removeFeature(f);
+                selection.getFeatures().forEach(function (f) {
+                    var l = selection.getLayer(f) || _this.featureLayerAssociation_[f.getId()];
+                    l && l.getSource().removeFeature(f);
                 });
-                select.getFeatures().clear();
+                selection.getFeatures().clear();
+                _this.featureLayerAssociation_ = [];
             };
             _this.once("change:active", function () {
-                select.setActive(false);
-                map.addInteraction(select);
+                [selection, boxSelect].forEach(function (i) {
+                    i.setActive(false);
+                    map.addInteraction(i);
+                });
                 _this.handlers.push(function () {
-                    select.setActive(false);
-                    map.removeInteraction(select);
+                    [selection, boxSelect].forEach(function (i) {
+                        i.setActive(false);
+                        map.removeInteraction(i);
+                    });
                 });
             });
             _this.on("change:active", function () {
                 var active = _this.get("active");
                 if (!active) {
                     doit();
-                    select.getFeatures().clear();
+                    selection.getFeatures().clear();
                 }
-                select.setActive(active);
+                [boxSelect, selection].forEach(function (i) { return i.setActive(active); });
             });
             return _this;
         }
         Delete.create = function (options) {
-            options = common_10.mixin(common_10.mixin({}, Delete.DEFAULT_OPTIONS), options);
+            options = common_10.defaults({}, options, Delete.DEFAULT_OPTIONS);
             return ol3_button_3.Button.create(options);
+        };
+        Delete.prototype.addFeatureLayerAssociation = function (feature, layer) {
+            if (!this.featureLayerAssociation_)
+                this.featureLayerAssociation_ = [];
+            var key = feature.getId();
+            this.featureLayerAssociation_[key] = layer;
         };
         return Delete;
     }(ol3_button_3.Button));
@@ -4114,7 +4117,56 @@ define("bower_components/ol3-draw/ol3-draw/ol3-delete", ["require", "exports", "
         label: "␡",
         title: "Delete",
         buttonType: Delete,
-        eventName: "delete-feature"
+        eventName: "delete-feature",
+        boxSelectCondition: ol.events.condition.shiftKeyOnly,
+        style: {
+            "Point": [{
+                    circle: {
+                        radius: 20,
+                        fill: {
+                            color: "blue"
+                        },
+                        stroke: {
+                            color: "red",
+                            width: 2
+                        },
+                        opacity: 1
+                    }
+                }],
+            "MultiLineString": [{
+                    stroke: {
+                        color: "red",
+                        width: 2
+                    }
+                }],
+            "Circle": [{
+                    fill: {
+                        color: "blue"
+                    },
+                    stroke: {
+                        color: "red",
+                        width: 2
+                    }
+                }],
+            "Polygon": [{
+                    fill: {
+                        color: "blue"
+                    },
+                    stroke: {
+                        color: "red",
+                        width: 2
+                    }
+                }],
+            "MultiPolygon": [{
+                    fill: {
+                        color: "blue"
+                    },
+                    stroke: {
+                        color: "red",
+                        width: 2
+                    }
+                }]
+        }
     };
     exports.Delete = Delete;
 });
@@ -4238,26 +4290,41 @@ define("bower_components/ol3-draw/ol3-draw/services/wfs-sync", ["require", "expo
                     var srsOut_1 = new ol.proj.Projection({ code: _this.options.srsName });
                     toSave = toSave.map(function (f) { return f.clone(); });
                     toSave.forEach(function (f) { return f.getGeometry().transform(srsIn_1, srsOut_1); });
-                    debugger;
+                    throw "should not be necessary, perform on server, cloning will prevent insert key from updating";
                 }
                 var format = _this.options.formatter;
-                var requestBody = format.writeTransaction(toSave.filter(function (f) { return !f.get(_this.options.featureIdFieldName); }), toSave.filter(function (f) { return !!f.get(_this.options.featureIdFieldName); }), toDelete, {
+                var toInsert = toSave.filter(function (f) { return !f.get(_this.options.featureIdFieldName); });
+                var toUpdate = toSave.filter(function (f) { return !!f.get(_this.options.featureIdFieldName); });
+                var requestBody = format.writeTransaction(toInsert, toUpdate, toDelete, {
                     featureNS: _this.options.featureNS,
                     featurePrefix: _this.options.featurePrefix,
                     featureType: featureType,
                     srsName: _this.options.srsName,
                     nativeElements: []
                 });
-                var data = serializer.serializeToString(requestBody);
-                console.log("data", data);
                 $.ajax({
                     type: "POST",
                     url: _this.options.wfsUrl,
-                    data: data,
+                    data: serializer.serializeToString(requestBody),
                     contentType: "application/xml",
                     dataType: "xml",
                     success: function (response) {
-                        console.warn("TODO: key assignment", serializer.serializeToString(response));
+                        var responseInfo = format.readTransactionResponse(response);
+                        if (responseInfo.transactionSummary.totalDeleted) {
+                            console.log("totalDeleted: ", responseInfo.transactionSummary.totalDeleted);
+                        }
+                        if (responseInfo.transactionSummary.totalInserted) {
+                            console.log("totalInserted: ", responseInfo.transactionSummary.totalInserted);
+                        }
+                        if (responseInfo.transactionSummary.totalUpdated) {
+                            console.log("totalUpdated: ", responseInfo.transactionSummary.totalUpdated);
+                        }
+                        console.assert(toInsert.length === responseInfo.transactionSummary.totalInserted, "number inserted should equal number of new keys");
+                        toInsert.forEach(function (f, i) {
+                            var id = responseInfo.insertIds[i];
+                            f.set("gid", id.split(".").pop());
+                            f.setId(id);
+                        });
                     }
                 });
             };
@@ -6964,8 +7031,8 @@ define("bower_components/ol3-symbolizer/ol3-symbolizer/styles/icon/png", ["requi
 });
 define("ol3-lab/labs/style-viewer", ["require", "exports", "openlayers", "jquery", "ol3-lab/labs/common/snapshot", "ol3-lab/labs/common/common", "bower_components/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/icon/png"], function (require, exports, ol, $, Snapshot, common_23, ol3_symbolizer_12, pointStyle) {
     "use strict";
-    var html = "\n<div class='style-to-canvas'>\n    <h3>Renders a feature on a canvas</h3>\n    <div class=\"area\">\n        <label>256 x 256 Canvas</label>\n        <div id='canvas-collection'></div>\n    </div>\n    <div class=\"area\">\n        <label>Style</label>\n        <textarea class='style'></textarea>\n        <button class=\"save\">Save</button>\n    </div>\n    <div class=\"area\">\n        <label>Potential control for setting linear gradient start/stop locations</label>\n        <div class=\"colorramp\">\n            <input class=\"top\" type=\"range\" min=\"0\" max=\"100\" value=\"20\"/>\n            <input class=\"bottom\" type=\"range\" min=\"0\" max=\"100\" value=\"80\"/>\n        </div>\n    </div>\n</div>\n";
-    var css = "\n<style>\n    #map {\n        display: none;\n    }\n\n    .style-to-canvas {\n    }\n\n    .style-to-canvas .area label {\n        display: block;\n        vertical-align: top;\n    }\n\n    .style-to-canvas .area {\n        border: 1px solid black;\n        padding: 20px;\n        margin: 20px;\n    }\n\n    .style-to-canvas .area .style {\n        width: 100%;\n        height: 400px;\n    }\n\n    .style-to-canvas #canvas-collection canvas {\n        font-family: sans serif;\n        font-size: 20px;\n        border: 1px solid black;\n        padding: 20px;\n        margin: 20px;\n    }\n\n    div.colorramp {\n        display: inline-block;\n        background: linear-gradient(to right, rgba(250,0,0,0), rgba(250,0,0,1) 60%, rgba(250,100,0,1) 85%, rgb(250,250,0) 95%);\n        width:100%;\n    }\n\n    div.colorramp > input[type=range] {\n        -webkit-appearance: slider-horizontal;\n        display:block;\n        width:100%;\n        background-color:transparent;\n    }\n\n    div.colorramp > label {\n        display: inline-block;\n    }\n\n    div.colorramp > input[type='range'] {\n        box-shadow: 0 0 0 white;\n    }\n\n    div.colorramp > input[type=range]::-webkit-slider-runnable-track {\n        height: 0px;     \n    }\n\n    div.colorramp > input[type='range'].top::-webkit-slider-thumb {\n        margin-top: -10px;\n    }\n\n    div.colorramp > input[type='range'].bottom::-webkit-slider-thumb {\n        margin-top: -12px;\n    }\n    \n</style>\n";
+    var html = "\n<div class='style-to-canvas'>\n    <h3>Renders a feature on a canvas</h3>\n    <div class=\"area\">\n        <label>256 x 256 Canvas</label>\n        <div id='canvas-collection'></div>\n    </div>\n    <div class=\"area\">\n        <label>Style</label>\n        <textarea class='style'></textarea>\n    </div>\n    <div class=\"area\">\n        <label>Potential control for setting linear gradient start/stop locations</label>\n        <div class=\"colorramp\">\n            <input class=\"top\" type=\"range\" min=\"0\" max=\"100\" value=\"20\"/>\n            <input class=\"bottom\" type=\"range\" min=\"0\" max=\"100\" value=\"80\"/>\n        </div>\n    </div>\n</div>\n";
+    var css = "\n<style>\n    #map {\n        display: none;\n    }\n\n    .style-to-canvas {\n    }\n\n    .style-to-canvas .area label {\n        display: block;\n        vertical-align: top;\n    }\n\n    .style-to-canvas .area {\n        border: 1px solid black;\n        padding: 20px;\n        margin: 20px;\n    }\n\n    .style-to-canvas .area .style {\n        width: 100%;\n        height: 400px;\n    }\n\n    .style-to-canvas #canvas-collection canvas {\n        font-family: sans serif;\n        font-size: 20px;\n        border: 1px solid black;\n        padding: 20px;\n        margin: 20px;\n        background: linear-gradient(#333, #ccc);\n    }\n\n    div.colorramp {\n        display: inline-block;\n        background: linear-gradient(to right, rgba(250,0,0,0), rgba(250,0,0,1) 60%, rgba(250,100,0,1) 85%, rgb(250,250,0) 95%);\n        width:100%;\n    }\n\n    div.colorramp > input[type=range] {\n        -webkit-appearance: slider-horizontal;\n        display:block;\n        width:100%;\n        background-color:transparent;\n    }\n\n    div.colorramp > label {\n        display: inline-block;\n    }\n\n    div.colorramp > input[type='range'] {\n        box-shadow: 0 0 0 white;\n    }\n\n    div.colorramp > input[type=range]::-webkit-slider-runnable-track {\n        height: 0px;     \n    }\n\n    div.colorramp > input[type='range'].top::-webkit-slider-thumb {\n        margin-top: -10px;\n    }\n\n    div.colorramp > input[type='range'].bottom::-webkit-slider-thumb {\n        margin-top: -12px;\n    }\n    \n</style>\n";
     var svg = "\n<div style='display:none'>\n<svg xmlns=\"http://www.w3.org/2000/svg\">\n<symbol viewBox=\"5 0 20 15\" id=\"lock\">\n    <title>lock</title>\n    <path d=\"M10.9,11.6c-0.3-0.6-0.3-2.3,0-2.8c0.4-0.6,3.4,1.4,3.4,1.4c0.9,0.4,0.9-6.1,0-5.7\n\tc0,0-3.1,2.1-3.4,1.4c-0.3-0.7-0.3-2.1,0-2.8C11.2,2.5,15,2.4,15,2.4C15,1.7,12.1,1,10.9,1S8.4,1.1,6.8,1.8C5.2,2.4,3.9,3.4,2.7,4.6\n\tS0,8.2,0,8.9s1.5,2.8,3.7,3.7s3.3,1.1,4.5,1.3c1.1,0.1,2.6,0,3.9-0.3c1-0.2,2.9-0.7,2.9-1.1C15,12.3,11.2,12.2,10.9,11.6z M4.5,9.3\n\tC3.7,9.3,3,8.6,3,7.8s0.7-1.5,1.5-1.5S6,7,6,7.8S5.3,9.3,4.5,9.3z\"\n    />\n</symbol>\n<symbol viewBox=\"0 0 37 37\" id=\"marker\">\n      <title>marker</title>\n      <path d=\"M19.75 2.75 L32.47792206135786 7.022077938642145 L36.75 19.75 L32.47792206135786 32.47792206135786 L19.75 36.75 L7.022077938642145 32.47792206135786 L2.75 19.750000000000004 L7.022077938642141 7.022077938642145 L19.749999999999996 2.75 Z\" /> </symbol>\n</svg>\n</div>\n";
     function loadStyle(name) {
         var d = $.Deferred();
@@ -7029,12 +7096,13 @@ define("ol3-lab/labs/style-viewer", ["require", "exports", "openlayers", "jquery
         $(css).appendTo("head");
         var geom = common_23.getParameterByName("geom") || "polygon-with-holes";
         var style = common_23.getParameterByName("style") || "fill/gradient";
-        $(".save").click(function () {
+        var save = function () {
             var style = JSON.stringify(JSON.parse($(".style").val()));
             var loc = window.location;
-            var url = "" + loc.origin + loc.pathname + "?run=labs/style-viewer&geom=" + geom + "&style=" + encodeURI(style);
-            loc.replace(url);
-        });
+            var url = "" + loc.origin + loc.pathname + "?run=ol3-lab/labs/style-viewer&geom=" + geom + "&style=" + encodeURI(style);
+            history.replaceState({}, "Changes", url);
+            return url;
+        };
         loadStyle(style).then(function (styles) {
             loadGeom(geom).then(function (geoms) {
                 var style = JSON.stringify(styles, null, ' ');
@@ -7045,6 +7113,7 @@ define("ol3-lab/labs/style-viewer", ["require", "exports", "openlayers", "jquery
                     try {
                         var style_1 = JSON.parse($(".style").val());
                         renderers.forEach(function (r) { return r.draw(style_1); });
+                        save();
                     }
                     catch (ex) {
                     }
