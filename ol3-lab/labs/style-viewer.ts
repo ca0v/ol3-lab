@@ -25,7 +25,6 @@ const html = `
     <div class="area">
         <label>Style</label>
         <textarea class='style'></textarea>
-        <button class="save">Save</button>
     </div>
     <div class="area">
         <label>Potential control for setting linear gradient start/stop locations</label>
@@ -68,6 +67,7 @@ const css = `
         border: 1px solid black;
         padding: 20px;
         margin: 20px;
+        background: linear-gradient(#333, #ccc);
     }
 
     div.colorramp {
@@ -194,12 +194,13 @@ export function run() {
     let geom = getParameterByName("geom") || "polygon-with-holes";
     let style = getParameterByName("style") || "fill/gradient";
 
-    $(".save").click(() => {
+    let save = () => {
         let style = JSON.stringify(JSON.parse($(".style").val()));
         let loc = window.location;
-        let url = `${loc.origin}${loc.pathname}?run=labs/style-viewer&geom=${geom}&style=${encodeURI(style)}`;
-        loc.replace(url); // replace will not save history, assign will save history
-    });
+        let url = `${loc.origin}${loc.pathname}?run=ol3-lab/labs/style-viewer&geom=${geom}&style=${encodeURI(style)}`;
+        history.replaceState({}, "Changes", url);
+        return url;
+    };
 
     loadStyle(style).then(styles => {
         loadGeom(geom).then(geoms => {
@@ -213,6 +214,7 @@ export function run() {
                 try {
                     let style = JSON.parse($(".style").val());
                     renderers.forEach(r => r.draw(style));
+                    save();
                 } catch (ex) {
                     // invalid json, try later
                 }
