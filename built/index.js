@@ -1,10 +1,16 @@
-var __extends = (this && this.__extends) || function (d, b) {
-    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
-    function __() { this.constructor = d; }
-    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
-};
+var __extends = (this && this.__extends) || (function () {
+    var extendStatics = Object.setPrototypeOf ||
+        ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
+        function (d, b) { for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p]; };
+    return function (d, b) {
+        extendStatics(d, b);
+        function __() { this.constructor = d; }
+        d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+    };
+})();
 define("ol3-lab/labs/common/ajax", ["require", "exports", "jquery"], function (require, exports, $) {
     "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
     function jsonp(url, args, callback) {
         if (args === void 0) { args = {}; }
         if (callback === void 0) { callback = "callback"; }
@@ -535,6 +541,7 @@ define("ol3-lab", ["require", "exports", "openlayers", "ol3-lab/ux/mapquest-dire
 });
 define("bower_components/ol3-fun/ol3-fun/common", ["require", "exports"], function (require, exports) {
     "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
     function parse(v, type) {
         if (typeof type === "string")
             return v;
@@ -678,9 +685,11 @@ define("ol3-lab/labs/common/common", ["require", "exports", "bower_components/ol
 });
 define("bower_components/ol3-symbolizer/ol3-symbolizer/format/base", ["require", "exports"], function (require, exports) {
     "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
 });
 define("bower_components/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", ["require", "exports", "openlayers"], function (require, exports, ol) {
     "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
     function doif(v, cb) {
         if (v !== undefined && v !== null)
             cb(v);
@@ -1154,6 +1163,7 @@ define("bower_components/ol3-symbolizer/ol3-symbolizer/styles/star/flower", ["re
 });
 define("bower_components/ol3-layerswitcher/ol3-layerswitcher/ol3-layerswitcher", ["require", "exports", "openlayers"], function (require, exports, ol) {
     "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
     function defaults(a) {
         var b = [];
         for (var _i = 1; _i < arguments.length; _i++) {
@@ -1380,6 +1390,7 @@ define("bower_components/ol3-layerswitcher/index", ["require", "exports", "bower
 });
 define("bower_components/ol3-popup/ol3-popup/paging/paging", ["require", "exports", "openlayers"], function (require, exports, ol) {
     "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
     function getInteriorPoint(geom) {
         if (geom["getInteriorPoint"])
             return geom["getInteriorPoint"]().getCoordinates();
@@ -1605,6 +1616,7 @@ define("bower_components/ol3-popup/ol3-popup/paging/page-navigator", ["require",
 });
 define("bower_components/ol3-popup/ol3-popup/ol3-popup", ["require", "exports", "jquery", "openlayers", "bower_components/ol3-popup/ol3-popup/paging/paging", "bower_components/ol3-popup/ol3-popup/paging/page-navigator"], function (require, exports, $, ol, paging_1, PageNavigator) {
     "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
     var css = "\n.ol-popup {\n    position: absolute;\n    bottom: 12px;\n    left: -50px;\n}\n\n.ol-popup:after {\n    top: auto;\n    bottom: -20px;\n    left: 50px;\n    border: solid transparent;\n    border-top-color: inherit;\n    content: \" \";\n    height: 0;\n    width: 0;\n    position: absolute;\n    pointer-events: none;\n    border-width: 10px;\n    margin-left: -10px;\n}\n\n.ol-popup.docked {\n    position:absolute;\n    bottom:0;\n    top:0;\n    left:0;\n    right:0;\n    width:auto;\n    height:auto;\n    pointer-events: all;\n}\n\n.ol-popup.docked:after {\n    display:none;\n}\n\n.ol-popup.docked .pages {\n    max-height: inherit;\n    overflow: auto;\n    height: calc(100% - 60px);\n}\n\n.ol-popup.docked .pagination {\n    position: absolute;\n    bottom: 0;\n}\n\n.ol-popup .pagination .btn-prev::after {\n    content: \"\u21E6\"; \n}\n\n.ol-popup .pagination .btn-next::after {\n    content: \"\u21E8\"; \n}\n\n.ol-popup .pagination.hidden {\n    display: none;\n}\n\n.ol-popup .ol-popup-closer {\n    border: none;\n    background: transparent;\n    color: inherit;\n    position: absolute;\n    top: 0;\n    right: 0;\n    text-decoration: none;\n}\n    \n.ol-popup .ol-popup-closer:after {\n    content:'\u2716';\n}\n\n.ol-popup .ol-popup-docker {\n    border: none;\n    background: transparent;\n    color: inherit;\n    text-decoration: none;\n    position: absolute;\n    top: 0;\n    right: 20px;\n}\n\n.ol-popup .ol-popup-docker:after {\n    content:'\u25A1';\n}\n";
     var classNames = {
         olPopup: 'ol-popup',
@@ -1957,6 +1969,7 @@ define("bower_components/ol3-symbolizer/ol3-symbolizer/common/ajax", ["require",
 });
 define("bower_components/ol3-symbolizer/ol3-symbolizer/ags/ags-catalog", ["require", "exports", "bower_components/ol3-symbolizer/ol3-symbolizer/common/ajax"], function (require, exports, Ajax) {
     "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
     function defaults(a) {
         var b = [];
         for (var _i = 1; _i < arguments.length; _i++) {
@@ -2011,6 +2024,7 @@ define("bower_components/ol3-symbolizer/ol3-symbolizer/ags/ags-catalog", ["requi
 });
 define("bower_components/ol3-symbolizer/ol3-symbolizer/format/ags-symbolizer", ["require", "exports", "jquery", "bower_components/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer"], function (require, exports, $, Symbolizer) {
     "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
     var symbolizer = new Symbolizer.StyleConverter();
     var styleMap = {
         "esriSMSCircle": "circle",
@@ -2306,6 +2320,7 @@ define("bower_components/ol3-symbolizer/ol3-symbolizer/format/ags-symbolizer", [
 });
 define("bower_components/ol3-symbolizer/ol3-symbolizer/common/common", ["require", "exports"], function (require, exports) {
     "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
     function getParameterByName(name, url) {
         if (url === void 0) { url = window.location.href; }
         name = name.replace(/[\[\]]/g, "\\$&");
@@ -2354,6 +2369,7 @@ define("bower_components/ol3-symbolizer/ol3-symbolizer/common/common", ["require
 });
 define("bower_components/ol3-symbolizer/ol3-symbolizer/ags/ags-source", ["require", "exports", "jquery", "openlayers", "bower_components/ol3-symbolizer/ol3-symbolizer/ags/ags-catalog", "bower_components/ol3-symbolizer/ol3-symbolizer/format/ags-symbolizer", "bower_components/ol3-symbolizer/ol3-symbolizer/common/common"], function (require, exports, $, ol, AgsCatalog, Symbolizer, common_1) {
     "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
     var esrijsonFormat = new ol.format.EsriJSON();
     function asParam(options) {
         return Object
@@ -2462,6 +2478,7 @@ define("bower_components/ol3-symbolizer/ol3-symbolizer/ags/ags-source", ["requir
 });
 define("ol3-lab/labs/ags-viewer", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/common/common", "bower_components/ol3-symbolizer/index", "bower_components/ol3-layerswitcher/index", "bower_components/ol3-popup/index", "bower_components/ol3-symbolizer/ol3-symbolizer/ags/ags-source"], function (require, exports, $, ol, common_2, ol3_symbolizer_1, ol3_layerswitcher_1, ol3_popup_1, ags_source_1) {
     "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
     var styler = new ol3_symbolizer_1.StyleConverter();
     function parse(v, type) {
         if (typeof type === "string")
@@ -2576,566 +2593,9 @@ define("ol3-lab/labs/ags-viewer", ["require", "exports", "jquery", "openlayers",
     }
     exports.run = run;
 });
-define("ol3-lab/labs/common/myjson", ["require", "exports", "jquery"], function (require, exports, $) {
-    "use strict";
-    var MyJson = (function () {
-        function MyJson(json, id, endpoint) {
-            if (id === void 0) { id = "4acgf"; }
-            if (endpoint === void 0) { endpoint = "https://api.myjson.com/bins"; }
-            this.json = json;
-            this.id = id;
-            this.endpoint = endpoint;
-        }
-        MyJson.prototype.get = function () {
-            var _this = this;
-            return $.ajax({
-                url: this.endpoint + "/" + this.id,
-                type: 'GET'
-            }).then(function (json) { return _this.json = json; });
-        };
-        MyJson.prototype.put = function () {
-            var _this = this;
-            return $.ajax({
-                url: this.endpoint + "/" + this.id,
-                type: 'PUT',
-                data: JSON.stringify(this.json),
-                contentType: 'application/json; charset=utf-8',
-                dataType: 'json'
-            }).then(function (json) { return _this.json = json; });
-        };
-        MyJson.prototype.post = function () {
-            var _this = this;
-            return $.ajax({
-                url: "" + this.endpoint,
-                type: 'POST',
-                data: JSON.stringify(this.json),
-                contentType: 'application/json; charset=utf-8',
-                dataType: 'json'
-            }).then(function (data) {
-                debugger;
-                _this.id = data.uri.substr(1 + _this.endpoint.length);
-            });
-        };
-        return MyJson;
-    }());
-    exports.MyJson = MyJson;
-});
-define("ol3-lab/labs/common/ol3-patch", ["require", "exports", "openlayers", "ol3-lab/labs/common/common"], function (require, exports, ol3, common_3) {
-    "use strict";
-    if (!ol3.geom.SimpleGeometry.prototype.scale) {
-        var scale_1 = function (flatCoordinates, offset, end, stride, deltaX, deltaY, opt_dest) {
-            var dest = opt_dest ? opt_dest : [];
-            var i = 0;
-            var j, k;
-            for (j = offset; j < end; j += stride) {
-                dest[i++] = flatCoordinates[j] * deltaX;
-                dest[i++] = flatCoordinates[j + 1] * deltaY;
-                for (k = j + 2; k < j + stride; ++k) {
-                    dest[i++] = flatCoordinates[k];
-                }
-            }
-            if (opt_dest && dest.length != i) {
-                dest.length = i;
-            }
-            return dest;
-        };
-        common_3.mixin(ol3.geom.SimpleGeometry.prototype, {
-            scale: function (deltaX, deltaY) {
-                var it = this;
-                it.applyTransform(function (flatCoordinates, output, stride) {
-                    scale_1(flatCoordinates, 0, flatCoordinates.length, stride, deltaX, deltaY, flatCoordinates);
-                    return flatCoordinates;
-                });
-                it.changed();
-            }
-        });
-    }
-    return ol3;
-});
-define("bower_components/ol3-fun/ol3-fun/ol3-polyline", ["require", "exports", "openlayers"], function (require, exports, ol) {
-    "use strict";
-    var Polyline = ol.format.Polyline;
-    var PolylineEncoder = (function () {
-        function PolylineEncoder(precision, stride) {
-            if (precision === void 0) { precision = 5; }
-            if (stride === void 0) { stride = 2; }
-            this.precision = precision;
-            this.stride = stride;
-        }
-        PolylineEncoder.prototype.flatten = function (points) {
-            var nums = new Array(points.length * this.stride);
-            var i = 0;
-            points.forEach(function (p) { return p.map(function (p) { return nums[i++] = p; }); });
-            return nums;
-        };
-        PolylineEncoder.prototype.unflatten = function (nums) {
-            var points = new Array(nums.length / this.stride);
-            for (var i = 0; i < nums.length / this.stride; i++) {
-                points[i] = nums.slice(i * this.stride, (i + 1) * this.stride);
-            }
-            return points;
-        };
-        PolylineEncoder.prototype.round = function (nums) {
-            var factor = Math.pow(10, this.precision);
-            return nums.map(function (n) { return Math.round(n * factor) / factor; });
-        };
-        PolylineEncoder.prototype.decode = function (str) {
-            var nums = Polyline.decodeDeltas(str, this.stride, Math.pow(10, this.precision));
-            return this.unflatten(this.round(nums));
-        };
-        PolylineEncoder.prototype.encode = function (points) {
-            return Polyline.encodeDeltas(this.flatten(points), this.stride, Math.pow(10, this.precision));
-        };
-        return PolylineEncoder;
-    }());
-    return PolylineEncoder;
-});
-define("ol3-lab/labs/common/ol3-polyline", ["require", "exports", "bower_components/ol3-fun/ol3-fun/ol3-polyline"], function (require, exports, PolylineEncoder) {
-    "use strict";
-    return PolylineEncoder;
-});
-define("bower_components/ol3-fun/ol3-fun/snapshot", ["require", "exports", "openlayers"], function (require, exports, ol) {
-    "use strict";
-    function getStyle(feature) {
-        var style = feature.getStyle();
-        if (!style) {
-            var styleFn = feature.getStyleFunction();
-            if (styleFn) {
-                style = styleFn(0);
-            }
-        }
-        if (!style) {
-            style = new ol.style.Style({
-                text: new ol.style.Text({
-                    text: "?"
-                })
-            });
-        }
-        if (!Array.isArray(style))
-            style = [style];
-        return style;
-    }
-    var Snapshot = (function () {
-        function Snapshot() {
-        }
-        Snapshot.render = function (canvas, feature) {
-            feature = feature.clone();
-            var geom = feature.getGeometry();
-            var extent = geom.getExtent();
-            var isPoint = extent[0] === extent[2];
-            var _a = ol.extent.getCenter(extent), dx = _a[0], dy = _a[1];
-            var scale = isPoint ? 1 : Math.min(canvas.width / ol.extent.getWidth(extent), canvas.height / ol.extent.getHeight(extent));
-            geom.translate(-dx, -dy);
-            geom.scale(scale, -scale);
-            geom.translate(canvas.width / 2, canvas.height / 2);
-            var vtx = ol.render.toContext(canvas.getContext("2d"));
-            var styles = getStyle(feature);
-            if (!Array.isArray(styles))
-                styles = [styles];
-            styles.forEach(function (style) { return vtx.drawFeature(feature, style); });
-        };
-        Snapshot.snapshot = function (feature) {
-            var canvas = document.createElement("canvas");
-            var geom = feature.getGeometry();
-            this.render(canvas, feature);
-            return canvas.toDataURL();
-        };
-        return Snapshot;
-    }());
-    return Snapshot;
-});
-define("ol3-lab/labs/common/snapshot", ["require", "exports", "bower_components/ol3-fun/ol3-fun/snapshot"], function (require, exports, Snapshot) {
-    "use strict";
-    return Snapshot;
-});
-define("bower_components/ol3-symbolizer/ol3-symbolizer/styles/basic", ["require", "exports"], function (require, exports) {
-    "use strict";
-    var stroke = {
-        color: 'black',
-        width: 2
-    };
-    var fill = {
-        color: 'red'
-    };
-    var radius = 10;
-    var opacity = 0.5;
-    var square = {
-        fill: fill,
-        stroke: stroke,
-        points: 4,
-        radius: radius,
-        angle: Math.PI / 4
-    };
-    var diamond = {
-        fill: fill,
-        stroke: stroke,
-        points: 4,
-        radius: radius,
-        angle: 0
-    };
-    var triangle = {
-        fill: fill,
-        stroke: stroke,
-        points: 3,
-        radius: radius,
-        angle: 0
-    };
-    var star = {
-        fill: fill,
-        stroke: stroke,
-        points: 5,
-        radius: radius,
-        radius2: 4,
-        angle: 0
-    };
-    var cross = {
-        opacity: opacity,
-        fill: fill,
-        stroke: stroke,
-        points: 4,
-        radius: radius,
-        radius2: 0,
-        angle: 0
-    };
-    var x = {
-        fill: fill,
-        stroke: stroke,
-        points: 4,
-        radius: radius,
-        radius2: 0,
-        angle: Math.PI / 4
-    };
-    return {
-        cross: [{ star: cross }],
-        square: [{ star: square }],
-        diamond: [{ star: diamond }],
-        star: [{ star: star }],
-        triangle: [{ star: triangle }],
-        x: [{ star: x }]
-    };
-});
-define("bower_components/ol3-symbolizer/ol3-symbolizer/styles/fill/gradient", ["require", "exports"], function (require, exports) {
-    "use strict";
-    return [
-        {
-            "fill": {
-                "gradient": {
-                    "type": "linear(200,0,201,0)",
-                    "stops": "rgba(255,0,0,.1) 0%;rgba(255,0,0,0.8) 100%"
-                }
-            }
-        },
-        {
-            "fill": {
-                "gradient": {
-                    "type": "linear(0,200,0,201)",
-                    "stops": "rgba(0,255,0,0.1) 0%;rgba(0,255,0,0.8) 100%"
-                }
-            }
-        }
-    ];
-});
-define("ol3-lab/labs/common/style-generator", ["require", "exports", "openlayers", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/basic", "bower_components/ol3-symbolizer/index", "bower_components/ol3-fun/ol3-fun/common"], function (require, exports, ol, basic_styles, ol3_symbolizer_2, common_4) {
-    "use strict";
-    var converter = new ol3_symbolizer_2.StyleConverter();
-    var orientations = "forward,backward,diagonal,horizontal,vertical,cross".split(",");
-    var randint = function (n) { return Math.round(n * Math.random()); };
-    var StyleGenerator = (function () {
-        function StyleGenerator(options) {
-            this.options = options;
-        }
-        StyleGenerator.prototype.asPoints = function () {
-            return 3 + Math.round(10 * Math.random());
-        };
-        StyleGenerator.prototype.asRadius = function () {
-            return 14 + Math.round(10 * Math.random());
-        };
-        StyleGenerator.prototype.asWidth = function () {
-            return 1 + Math.round(20 * Math.random() * Math.random());
-        };
-        StyleGenerator.prototype.asPastel = function () {
-            var _a = [255, 255, 255].map(function (n) { return Math.round((1 - Math.random() * Math.random()) * n); }), r = _a[0], g = _a[1], b = _a[2];
-            return [r, g, b, (10 + randint(50)) / 100];
-        };
-        StyleGenerator.prototype.asRgb = function () {
-            return [255, 255, 255].map(function (n) { return Math.round((Math.random() * Math.random()) * n); });
-        };
-        StyleGenerator.prototype.asRgba = function () {
-            var color = this.asRgb();
-            color.push((10 + randint(90)) / 100);
-            return color;
-        };
-        StyleGenerator.prototype.asFill = function () {
-            var fill = new ol.style.Fill({
-                color: this.asPastel()
-            });
-            return fill;
-        };
-        StyleGenerator.prototype.asStroke = function () {
-            var stroke = new ol.style.Stroke({
-                width: this.asWidth(),
-                color: this.asRgba()
-            });
-            return stroke;
-        };
-        StyleGenerator.prototype.addColorStops = function (gradient) {
-            var stops = [
-                {
-                    stop: 0,
-                    color: "rgba(" + this.asRgba().join(",") + ")"
-                },
-                {
-                    stop: 1,
-                    color: "rgba(" + this.asRgba().join(",") + ")"
-                }
-            ];
-            while (0.5 < Math.random()) {
-                stops.push({
-                    stop: 0.1 + randint(80) / 100,
-                    color: "rgba(" + this.asRgba().join(",") + ")"
-                });
-            }
-            stops = stops.sort(function (a, b) { return a.stop - b.stop; });
-            stops.forEach(function (stop) { return gradient.addColorStop(stop.stop, stop.color); });
-            common_4.mixin(gradient, {
-                stops: stops.map(function (stop) { return stop.color + " " + Math.round(100 * stop.stop) + "%"; }).join(";")
-            });
-        };
-        StyleGenerator.prototype.asRadialGradient = function (context, radius) {
-            var canvas = context.canvas;
-            var _a = [
-                canvas.width / 2, canvas.height / 2, radius,
-                canvas.width / 2, canvas.height / 2, 0
-            ], x0 = _a[0], y0 = _a[1], r0 = _a[2], x1 = _a[3], y1 = _a[4], r1 = _a[5];
-            var gradient = context.createRadialGradient(x0, y0, r0, x1, y1, r1);
-            return common_4.mixin(gradient, {
-                type: "radial(" + [x0, y0, r0, x1, y1, r1].join(",") + ")"
-            });
-        };
-        StyleGenerator.prototype.asLinearGradient = function (context, radius) {
-            var _a = [
-                randint(radius), 0,
-                randint(radius), 2 * radius
-            ], x0 = _a[0], y0 = _a[1], x1 = _a[2], y1 = _a[3];
-            var gradient = context.createLinearGradient(x0, y0, x1, y1);
-            return common_4.mixin(gradient, { type: "linear(" + [x0, y0, x1, y1].join(",") + ")" });
-        };
-        StyleGenerator.prototype.asGradient = function () {
-            var radius = this.asRadius();
-            var stroke = this.asStroke();
-            var canvas = document.createElement('canvas');
-            canvas.width = canvas.height = 2 * (radius + stroke.getWidth());
-            var context = canvas.getContext('2d');
-            var gradient;
-            if (0.5 < Math.random()) {
-                gradient = this.asLinearGradient(context, radius);
-            }
-            else {
-                gradient = this.asRadialGradient(context, radius);
-            }
-            this.addColorStops(gradient);
-            var fill = new ol.style.Fill({
-                color: gradient
-            });
-            var style = new ol.style.Circle({
-                fill: fill,
-                radius: radius,
-                stroke: stroke,
-                snapToPixel: false
-            });
-            return style;
-        };
-        StyleGenerator.prototype.asPattern = function () {
-            var radius = this.asRadius();
-            var spacing = 3 + randint(5);
-            var color = ol.color.asString(this.asRgb());
-            var canvas = document.createElement('canvas');
-            var context = canvas.getContext('2d');
-            var orientation = orientations[Math.round((orientations.length - 1) * Math.random())];
-            var pattern;
-            switch (orientation) {
-                case "horizontal":
-                    canvas.width = 1;
-                    canvas.height = 1 + randint(10);
-                    context.strokeStyle = color;
-                    context.beginPath();
-                    context.lineWidth = 1 + randint(canvas.height);
-                    context.strokeStyle = color;
-                    context.moveTo(0, 0);
-                    context.lineTo(canvas.width, 0);
-                    context.stroke();
-                    context.closePath();
-                    pattern = context.createPattern(canvas, 'repeat');
-                    break;
-                case "vertical":
-                    canvas.width = spacing;
-                    canvas.height = spacing;
-                    context.fillStyle = ol.color.asString(this.asRgba());
-                    for (var i = 0; i < spacing; i++) {
-                        context.fillRect(0, i, 1, 1);
-                    }
-                    pattern = context.createPattern(canvas, 'repeat');
-                    break;
-                case "cross":
-                    canvas.width = spacing;
-                    canvas.height = spacing;
-                    context.fillStyle = color;
-                    for (var i = 0; i < spacing; i++) {
-                        context.fillRect(i, 0, 1, 1);
-                        context.fillRect(0, i, 1, 1);
-                    }
-                    pattern = context.createPattern(canvas, 'repeat');
-                    break;
-                case "forward":
-                    canvas.width = spacing;
-                    canvas.height = spacing;
-                    context.fillStyle = color;
-                    for (var i = 0; i < spacing; i++) {
-                        context.fillRect(i, i, 1, 1);
-                    }
-                    pattern = context.createPattern(canvas, 'repeat');
-                    break;
-                case "backward":
-                    canvas.width = spacing;
-                    canvas.height = spacing;
-                    context.fillStyle = color;
-                    for (var i = 0; i < spacing; i++) {
-                        context.fillRect(spacing - 1 - i, i, 1, 1);
-                    }
-                    pattern = context.createPattern(canvas, 'repeat');
-                    break;
-                case "diagonal":
-                    canvas.width = spacing;
-                    canvas.height = spacing;
-                    context.fillStyle = color;
-                    for (var i = 0; i < spacing; i++) {
-                        context.fillRect(i, i, 1, 1);
-                        context.fillRect(spacing - 1 - i, i, 1, 1);
-                    }
-                    pattern = context.createPattern(canvas, 'repeat');
-                    break;
-                default:
-                    throw "invalid orientation";
-            }
-            common_4.mixin(pattern, {
-                orientation: orientation,
-                color: color,
-                spacing: spacing,
-                repitition: "repeat"
-            });
-            var fill = new ol.style.Fill({
-                color: pattern
-            });
-            var style = new ol.style.Circle({
-                fill: fill,
-                radius: radius,
-                stroke: this.asStroke(),
-                snapToPixel: false
-            });
-            return style;
-        };
-        StyleGenerator.prototype.asBasic = function () {
-            var basic = [basic_styles.cross, basic_styles.x, basic_styles.square, basic_styles.diamond, basic_styles.star, basic_styles.triangle];
-            var config = basic[Math.round((basic.length - 1) * Math.random())];
-            return converter.fromJson(config[0]).getImage();
-        };
-        StyleGenerator.prototype.asCircle = function () {
-            var style = new ol.style.Circle({
-                fill: this.asFill(),
-                radius: this.asRadius(),
-                stroke: this.asStroke(),
-                snapToPixel: false
-            });
-            return style;
-        };
-        StyleGenerator.prototype.asStar = function () {
-            var style = new ol.style.RegularShape({
-                fill: this.asFill(),
-                stroke: this.asStroke(),
-                points: this.asPoints(),
-                radius: this.asRadius(),
-                radius2: this.asRadius()
-            });
-            return style;
-        };
-        StyleGenerator.prototype.asPoly = function () {
-            var style = new ol.style.RegularShape({
-                fill: this.asFill(),
-                stroke: this.asStroke(),
-                points: this.asPoints(),
-                radius: this.asRadius(),
-                radius2: 0
-            });
-            return style;
-        };
-        StyleGenerator.prototype.asText = function () {
-            var style = new ol.style.Text({
-                font: "18px fantasy",
-                text: "Test",
-                fill: this.asFill(),
-                stroke: this.asStroke(),
-                offsetY: 30 - Math.random() * 20
-            });
-            style.getFill().setColor(this.asRgba());
-            style.getStroke().setColor(this.asPastel());
-            return style;
-        };
-        StyleGenerator.prototype.asPoint = function () {
-            var _a = this.options.center, x = _a[0], y = _a[1];
-            x += (Math.random() - 0.5);
-            y += (Math.random() - 0.5);
-            return new ol.geom.Point([x, y]);
-        };
-        StyleGenerator.prototype.asPointFeature = function (styleCount) {
-            var _this = this;
-            if (styleCount === void 0) { styleCount = 1; }
-            var feature = new ol.Feature();
-            var gens = [function () { return _this.asStar(); }, function () { return _this.asCircle(); }, function () { return _this.asPoly(); }, function () { return _this.asBasic(); }, function () { return _this.asGradient(); }, function () { return _this.asPattern(); }];
-            feature.setGeometry(this.asPoint());
-            var styles = common_4.range(styleCount).map(function (x) { return new ol.style.Style({
-                image: gens[Math.round((gens.length - 1) * Math.random())](),
-                text: null && _this.asText()
-            }); });
-            feature.setStyle(styles);
-            return feature;
-        };
-        StyleGenerator.prototype.asLineFeature = function () {
-            var feature = new ol.Feature();
-            var p1 = this.asPoint();
-            var p2 = this.asPoint();
-            p2.setCoordinates([p2.getCoordinates()[0], p1.getCoordinates()[1]]);
-            var polyline = new ol.geom.LineString([p1, p2].map(function (p) { return p.getCoordinates(); }));
-            feature.setGeometry(polyline);
-            feature.setStyle([new ol.style.Style({
-                    stroke: this.asStroke(),
-                    text: this.asText()
-                })]);
-            return feature;
-        };
-        StyleGenerator.prototype.asLineLayer = function () {
-            var _this = this;
-            var layer = new ol.layer.Vector();
-            var source = new ol.source.Vector();
-            layer.setSource(source);
-            var features = common_4.range(10).map(function (i) { return _this.asLineFeature(); });
-            source.addFeatures(features);
-            return layer;
-        };
-        StyleGenerator.prototype.asMarkerLayer = function (args) {
-            var _this = this;
-            var layer = new ol.layer.Vector();
-            var source = new ol.source.Vector();
-            layer.setSource(source);
-            var features = common_4.range(args.markerCount || 100).map(function (i) { return _this.asPointFeature(args.styleCount || 1); });
-            source.addFeatures(features);
-            return layer;
-        };
-        return StyleGenerator;
-    }());
-    return StyleGenerator;
-});
 define("ol3-lab/labs/facebook", ["require", "exports", "openlayers", "jquery"], function (require, exports, ol, $) {
     "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
     requirejs.config({
         shim: {
             'facebook': {
@@ -3314,6 +2774,48 @@ define("ol3-lab/labs/facebook", ["require", "exports", "openlayers", "jquery"], 
     }
     exports.run = run;
 });
+define("bower_components/ol3-fun/ol3-fun/ol3-polyline", ["require", "exports", "openlayers"], function (require, exports, ol) {
+    "use strict";
+    var Polyline = ol.format.Polyline;
+    var PolylineEncoder = (function () {
+        function PolylineEncoder(precision, stride) {
+            if (precision === void 0) { precision = 5; }
+            if (stride === void 0) { stride = 2; }
+            this.precision = precision;
+            this.stride = stride;
+        }
+        PolylineEncoder.prototype.flatten = function (points) {
+            var nums = new Array(points.length * this.stride);
+            var i = 0;
+            points.forEach(function (p) { return p.map(function (p) { return nums[i++] = p; }); });
+            return nums;
+        };
+        PolylineEncoder.prototype.unflatten = function (nums) {
+            var points = new Array(nums.length / this.stride);
+            for (var i = 0; i < nums.length / this.stride; i++) {
+                points[i] = nums.slice(i * this.stride, (i + 1) * this.stride);
+            }
+            return points;
+        };
+        PolylineEncoder.prototype.round = function (nums) {
+            var factor = Math.pow(10, this.precision);
+            return nums.map(function (n) { return Math.round(n * factor) / factor; });
+        };
+        PolylineEncoder.prototype.decode = function (str) {
+            var nums = Polyline.decodeDeltas(str, this.stride, Math.pow(10, this.precision));
+            return this.unflatten(this.round(nums));
+        };
+        PolylineEncoder.prototype.encode = function (points) {
+            return Polyline.encodeDeltas(this.flatten(points), this.stride, Math.pow(10, this.precision));
+        };
+        return PolylineEncoder;
+    }());
+    return PolylineEncoder;
+});
+define("ol3-lab/labs/common/ol3-polyline", ["require", "exports", "bower_components/ol3-fun/ol3-fun/ol3-polyline"], function (require, exports, PolylineEncoder) {
+    "use strict";
+    return PolylineEncoder;
+});
 define("bower_components/ol3-symbolizer/ol3-symbolizer/styles/stroke/linedash", ["require", "exports"], function (require, exports) {
     "use strict";
     var dasharray = {
@@ -3374,9 +2876,55 @@ define("bower_components/ol3-symbolizer/ol3-symbolizer/styles/text/text", ["requ
         }
     ];
 });
-define("ol3-lab/labs/mapmaker", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/common/common", "ol3-lab/labs/common/ol3-polyline", "bower_components/ol3-symbolizer/index", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/stroke/dashdotdot", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/stroke/solid", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/text/text", "ol3-lab/labs/common/myjson"], function (require, exports, $, ol, common_5, reduce, ol3_symbolizer_3, dashdotdot, strokeStyle, textStyle, myjson_1) {
+define("ol3-lab/labs/common/myjson", ["require", "exports", "jquery"], function (require, exports, $) {
     "use strict";
-    var styler = new ol3_symbolizer_3.StyleConverter();
+    Object.defineProperty(exports, "__esModule", { value: true });
+    var MyJson = (function () {
+        function MyJson(json, id, endpoint) {
+            if (id === void 0) { id = "4acgf"; }
+            if (endpoint === void 0) { endpoint = "https://api.myjson.com/bins"; }
+            this.json = json;
+            this.id = id;
+            this.endpoint = endpoint;
+        }
+        MyJson.prototype.get = function () {
+            var _this = this;
+            return $.ajax({
+                url: this.endpoint + "/" + this.id,
+                type: 'GET'
+            }).then(function (json) { return _this.json = json; });
+        };
+        MyJson.prototype.put = function () {
+            var _this = this;
+            return $.ajax({
+                url: this.endpoint + "/" + this.id,
+                type: 'PUT',
+                data: JSON.stringify(this.json),
+                contentType: 'application/json; charset=utf-8',
+                dataType: 'json'
+            }).then(function (json) { return _this.json = json; });
+        };
+        MyJson.prototype.post = function () {
+            var _this = this;
+            return $.ajax({
+                url: "" + this.endpoint,
+                type: 'POST',
+                data: JSON.stringify(this.json),
+                contentType: 'application/json; charset=utf-8',
+                dataType: 'json'
+            }).then(function (data) {
+                debugger;
+                _this.id = data.uri.substr(1 + _this.endpoint.length);
+            });
+        };
+        return MyJson;
+    }());
+    exports.MyJson = MyJson;
+});
+define("ol3-lab/labs/mapmaker", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/common/common", "ol3-lab/labs/common/ol3-polyline", "bower_components/ol3-symbolizer/index", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/stroke/dashdotdot", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/stroke/solid", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/text/text", "ol3-lab/labs/common/myjson"], function (require, exports, $, ol, common_3, reduce, ol3_symbolizer_2, dashdotdot, strokeStyle, textStyle, myjson_1) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    var styler = new ol3_symbolizer_2.StyleConverter();
     function parse(v, type) {
         if (typeof type === "string")
             return v;
@@ -3403,13 +2951,13 @@ define("ol3-lab/labs/mapmaker", ["require", "exports", "jquery", "openlayers", "
         basemap: "osm"
     };
     function run(options) {
-        options = common_5.defaults(options || {}, DEFAULT_OPTIONS);
+        options = common_3.defaults(options || {}, DEFAULT_OPTIONS);
         $(html).appendTo(".map");
         $(css).appendTo("head");
         {
             var opts_2 = options;
             Object.keys(opts_2).forEach(function (k) {
-                common_5.doif(common_5.getParameterByName(k), function (v) {
+                common_3.doif(common_3.getParameterByName(k), function (v) {
                     var value = parse(v, opts_2[k]);
                     if (value !== undefined)
                         opts_2[k] = value;
@@ -3470,7 +3018,7 @@ define("ol3-lab/labs/mapmaker", ["require", "exports", "jquery", "openlayers", "
                     feature.setStyle(style);
                     features.push(feature);
                 });
-                if (!common_5.getParameterByName("center")) {
+                if (!common_3.getParameterByName("center")) {
                     map.getView().fit(layer.getSource().getExtent(), map.getSize());
                 }
             }
@@ -3541,8 +3089,9 @@ define("ol3-lab/labs/mapmaker", ["require", "exports", "jquery", "openlayers", "
     }
     exports.run = run;
 });
-define("bower_components/ol3-input/ol3-input/ol3-input", ["require", "exports", "openlayers", "bower_components/ol3-fun/ol3-fun/common"], function (require, exports, ol, common_6) {
+define("bower_components/ol3-input/ol3-input/ol3-input", ["require", "exports", "openlayers", "bower_components/ol3-fun/ol3-fun/common"], function (require, exports, ol, common_4) {
     "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
     var css = "\n    .ol-input {\n        position:absolute;\n    }\n    .ol-input.top {\n        top: 0.5em;\n    }\n    .ol-input.top-1 {\n        top: 1.5em;\n    }\n    .ol-input.top-2 {\n        top: 2.5em;\n    }\n    .ol-input.top-3 {\n        top: 3.5em;\n    }\n    .ol-input.top-4 {\n        top: 4.5em;\n    }\n    .ol-input.left {\n        left: 0.5em;\n    }\n    .ol-input.left-1 {\n        left: 1.5em;\n    }\n    .ol-input.left-2 {\n        left: 2.5em;\n    }\n    .ol-input.left-3 {\n        left: 3.5em;\n    }\n    .ol-input.left-4 {\n        left: 4.5em;\n    }\n    .ol-input.bottom {\n        bottom: 0.5em;\n    }\n    .ol-input.bottom-1 {\n        bottom: 1.5em;\n    }\n    .ol-input.bottom-2 {\n        bottom: 2.5em;\n    }\n    .ol-input.bottom-3 {\n        bottom: 3.5em;\n    }\n    .ol-input.bottom-4 {\n        bottom: 4.5em;\n    }\n    .ol-input.right {\n        right: 0.5em;\n    }\n    .ol-input.right-1 {\n        right: 1.5em;\n    }\n    .ol-input.right-2 {\n        right: 2.5em;\n    }\n    .ol-input.right-3 {\n        right: 3.5em;\n    }\n    .ol-input.right-4 {\n        right: 4.5em;\n    }\n    .ol-input button {\n        min-height: 1.375em;\n        min-width: 1.375em;\n        width: auto;\n        display: inline;\n    }\n    .ol-input.left button {\n        float:right;\n    }\n    .ol-input.right button {\n        float:left;\n    }\n    .ol-input input {\n        height: 2.175em;\n        width: 16em;\n        border: none;\n        padding: 0;\n        margin: 0;\n        margin-left: 2px;\n        margin-top: 2px;\n        vertical-align: top;\n    }\n    .ol-input input.ol-hidden {\n        width: 0;\n        margin: 0;\n    }\n";
     var olcss = {
         CLASS_CONTROL: 'ol-control',
@@ -3619,15 +3168,15 @@ define("bower_components/ol3-input/ol3-input/ol3-input", ["require", "exports", 
             return _this;
         }
         Input.create = function (options) {
-            common_6.cssin('ol-input', css);
-            options = common_6.mixin({
+            common_4.cssin('ol-input', css);
+            options = common_4.mixin({
                 openedText: options.className && -1 < options.className.indexOf("left") ? expando.left : expando.right,
                 closedText: options.className && -1 < options.className.indexOf("left") ? expando.right : expando.left,
             }, options || {});
-            options = common_6.mixin(common_6.mixin({}, defaults), options);
+            options = common_4.mixin(common_4.mixin({}, defaults), options);
             var element = document.createElement('div');
             element.className = options.className + " " + olcss.CLASS_UNSELECTABLE + " " + olcss.CLASS_CONTROL;
-            var geocoderOptions = common_6.mixin({
+            var geocoderOptions = common_4.mixin({
                 element: element,
                 target: options.target,
                 expanded: false
@@ -3663,6 +3212,7 @@ define("bower_components/ol3-input/index", ["require", "exports", "bower_compone
 });
 define("bower_components/ol3-input/ol3-input/providers/osm", ["require", "exports"], function (require, exports) {
     "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
     var OpenStreet = (function () {
         function OpenStreet() {
             this.dataType = 'json';
@@ -3713,6 +3263,7 @@ define("bower_components/ol3-input/ol3-input/providers/osm", ["require", "export
 });
 define("ol3-lab/labs/geocoder", ["require", "exports", "ol3-lab/labs/mapmaker", "bower_components/ol3-input/index", "bower_components/ol3-input/ol3-input/providers/osm"], function (require, exports, MapMaker, ol3_input_1, osm_1) {
     "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
     function run() {
         MapMaker.run().then(function (map) {
             var searchProvider = new osm_1.OpenStreet();
@@ -3777,691 +3328,9 @@ define("ol3-lab/labs/geocoder", ["require", "exports", "ol3-lab/labs/mapmaker", 
     }
     exports.run = run;
 });
-define("bower_components/ol3-draw/ol3-draw/ol3-button", ["require", "exports", "openlayers", "bower_components/ol3-fun/ol3-fun/common", "bower_components/ol3-symbolizer/index"], function (require, exports, ol, common_7, ol3_symbolizer_4) {
-    "use strict";
-    function range(n) {
-        var result = new Array(n);
-        for (var i = 0; i < n; i++)
-            result[i] = i;
-        return result;
-    }
-    function pair(a1, a2) {
-        var result = [];
-        a1.forEach(function (v1) { return a2.forEach(function (v2) { return result.push([v1, v2]); }); });
-        return result;
-    }
-    var Button = (function (_super) {
-        __extends(Button, _super);
-        function Button(options) {
-            var _this = _super.call(this, options) || this;
-            _this.options = options;
-            _this.handlers = [];
-            _this.symbolizer = new ol3_symbolizer_4.StyleConverter();
-            _this.cssin();
-            options.element.className = options.className + " " + options.position;
-            var button = common_7.html("<input type=\"button\" value=\"" + options.label + "\" />");
-            _this.handlers.push(function () { return options.element.remove(); });
-            button.title = options.title;
-            options.element.appendChild(button);
-            _this.set("active", false);
-            button.addEventListener("click", function () {
-                _this.dispatchEvent("click");
-                _this.set("active", !_this.get("active"));
-            });
-            _this.on("change:active", function () {
-                _this.options.element.classList.toggle("active", _this.get("active"));
-                options.map.dispatchEvent({
-                    type: options.eventName,
-                    control: _this
-                });
-            });
-            return _this;
-        }
-        Button.create = function (options) {
-            options = common_7.mixin(common_7.mixin({}, Button.DEFAULT_OPTIONS), options);
-            options.element = options.element || document.createElement("DIV");
-            var button = new (options.buttonType)(options);
-            if (options.map) {
-                options.map.addControl(button);
-            }
-            return button;
-        };
-        Button.prototype.setPosition = function (position) {
-            var _this = this;
-            this.options.position.split(' ')
-                .forEach(function (k) { return _this.options.element.classList.remove(k); });
-            position.split(' ')
-                .forEach(function (k) { return _this.options.element.classList.add(k); });
-            this.options.position = position;
-        };
-        Button.prototype.destroy = function () {
-            this.handlers.forEach(function (h) { return h(); });
-            this.setTarget(null);
-        };
-        Button.prototype.cssin = function () {
-            var className = this.options.className;
-            var positions = pair("top left right bottom".split(" "), range(24))
-                .map(function (pos) { return "." + className + "." + (pos[0] + (-pos[1] || '')) + " { " + pos[0] + ":" + (0.5 + pos[1]) + "em; }"; });
-            this.handlers.push(common_7.cssin(className, "\n            ." + className + " {\n                position: absolute;\n                background-color: rgba(255,255,255,.4);\n            }\n            ." + className + ".active {\n                background-color: white;\n            }\n            ." + className + ":hover {\n                background-color: white;\n            }\n            ." + className + " input[type=\"button\"] {\n                color: rgba(0,60,136,1);\n                background: transparent;\n                border: none;\n                width: 2em;\n                height: 2em;\n            }\n            " + positions.join('\n') + "\n        "));
-        };
-        Button.prototype.setMap = function (map) {
-            var options = this.options;
-            _super.prototype.setMap.call(this, map);
-            options.map = map;
-            if (!map) {
-                this.destroy();
-                return;
-            }
-        };
-        return Button;
-    }(ol.control.Control));
-    Button.DEFAULT_OPTIONS = {
-        className: "ol-button",
-        position: "top right",
-        label: "Button",
-        title: "Button",
-        eventName: "click:button",
-        buttonType: Button
-    };
-    exports.Button = Button;
-});
-define("bower_components/ol3-draw/ol3-draw/ol3-draw", ["require", "exports", "openlayers", "bower_components/ol3-draw/ol3-draw/ol3-button", "bower_components/ol3-fun/ol3-fun/common"], function (require, exports, ol, ol3_button_1, common_8) {
-    "use strict";
-    var Draw = (function (_super) {
-        __extends(Draw, _super);
-        function Draw(options) {
-            var _this = _super.call(this, options) || this;
-            _this.interactions = {};
-            _this.handlers.push(function () { return Object.keys(_this.interactions).forEach(function (k) {
-                var interaction = _this.interactions[k];
-                interaction.setActive(false);
-                options.map.removeInteraction(interaction);
-            }); });
-            _this.on("change:active", function () {
-                var active = _this.get("active");
-                var interaction = _this.interactions[options.geometryType];
-                if (active) {
-                    if (!interaction) {
-                        interaction = _this.interactions[options.geometryType] = _this.createInteraction();
-                    }
-                    interaction.setActive(true);
-                }
-                else {
-                    interaction && interaction.setActive(false);
-                }
-            });
-            var style = _this.options.style.map(function (s) { return _this.symbolizer.fromJson(s); });
-            if (!options.layers) {
-                var layer = new ol.layer.Vector({
-                    style: style,
-                    source: new ol.source.Vector()
-                });
-                options.map.addLayer(layer);
-                options.layers = [layer];
-            }
-            return _this;
-        }
-        Draw.create = function (options) {
-            options = common_8.mixin(common_8.mixin({}, Draw.DEFAULT_OPTIONS), options);
-            return ol3_button_1.Button.create(options);
-        };
-        Draw.prototype.createInteraction = function () {
-            var _this = this;
-            var options = this.options;
-            var source = options.layers[0].getSource();
-            var draw = new ol.interaction.Draw({
-                type: options.geometryType,
-                geometryName: options.geometryName,
-                source: source
-            });
-            draw.setActive(false);
-            draw.on("change:active", function () {
-                return _this.options.element.classList.toggle("active", draw.getActive());
-            });
-            options.map.addInteraction(draw);
-            return draw;
-        };
-        return Draw;
-    }(ol3_button_1.Button));
-    Draw.DEFAULT_OPTIONS = {
-        className: "ol-draw",
-        geometryType: "Point",
-        geometryName: "geom",
-        label: "Draw",
-        title: "Draw",
-        buttonType: Draw,
-        eventName: "draw-feature",
-        style: [
-            {
-                circle: {
-                    radius: 12,
-                    opacity: 1,
-                    fill: {
-                        color: "rgba(0,0,0,0.5)"
-                    },
-                    stroke: {
-                        color: "rgba(255,255,255,1)",
-                        width: 3
-                    }
-                }
-            },
-            {
-                fill: {
-                    color: "rgba(0,0,0,0.5)"
-                },
-                stroke: {
-                    color: "rgba(255,255,255,1)",
-                    width: 5
-                }
-            },
-            {
-                stroke: {
-                    color: "rgba(0,0,0,1)",
-                    width: 1
-                }
-            }
-        ]
-    };
-    exports.Draw = Draw;
-});
-define("bower_components/ol3-draw/index", ["require", "exports", "bower_components/ol3-draw/ol3-draw/ol3-draw"], function (require, exports, Draw) {
-    "use strict";
-    return Draw;
-});
-define("bower_components/ol3-draw/ol3-draw/ol3-edit", ["require", "exports", "openlayers", "bower_components/ol3-fun/ol3-fun/common", "bower_components/ol3-draw/ol3-draw/ol3-button"], function (require, exports, ol, common_9, ol3_button_2) {
-    "use strict";
-    var Modify = (function (_super) {
-        __extends(Modify, _super);
-        function Modify(options) {
-            var _this = _super.call(this, options) || this;
-            var select = new ol.interaction.Select({
-                wrapX: false
-            });
-            var modify = new ol.interaction.Modify({
-                features: select.getFeatures()
-            });
-            select.on("select", function (args) {
-                modify.setActive(true);
-            });
-            _this.once("change:active", function () {
-                [select, modify].forEach(function (i) {
-                    i.setActive(false);
-                    options.map.addInteraction(i);
-                });
-                _this.handlers.push(function () {
-                    [select, modify].forEach(function (i) {
-                        i.setActive(false);
-                        options.map.removeInteraction(i);
-                    });
-                });
-            });
-            _this.on("change:active", function () {
-                var active = _this.get("active");
-                select.setActive(active);
-                if (!active)
-                    select.getFeatures().clear();
-            });
-            return _this;
-        }
-        Modify.create = function (options) {
-            options = common_9.mixin(common_9.mixin({}, Modify.DEFAULT_OPTIONS), options);
-            return ol3_button_2.Button.create(options);
-        };
-        return Modify;
-    }(ol3_button_2.Button));
-    Modify.DEFAULT_OPTIONS = {
-        className: "ol-edit",
-        label: "Edit",
-        title: "Edit",
-        eventName: "modify-feature",
-        buttonType: Modify
-    };
-    exports.Modify = Modify;
-});
-define("bower_components/ol3-draw/ol3-draw/ol3-delete", ["require", "exports", "openlayers", "bower_components/ol3-draw/ol3-draw/ol3-button", "bower_components/ol3-fun/ol3-fun/common"], function (require, exports, ol, ol3_button_3, common_10) {
-    "use strict";
-    var Delete = (function (_super) {
-        __extends(Delete, _super);
-        function Delete(options) {
-            var _this = _super.call(this, options) || this;
-            var map = options.map;
-            var featureLayers = [];
-            var selection = new ol.interaction.Select({
-                condition: ol.events.condition.click,
-                multi: false,
-                style: function (feature, res) {
-                    var index = selection.getFeatures().getArray().indexOf(feature);
-                    var fillColor = "rgba(0,0,0,0.2)";
-                    var strokeColor = "red";
-                    var textTemplate = {
-                        text: "X" + (index + 1),
-                        fill: {
-                            color: strokeColor
-                        },
-                        stroke: {
-                            color: fillColor,
-                            width: 2
-                        },
-                        scale: 3
-                    };
-                    var style = options.style[feature.getGeometry().getType()]
-                        .map(function (s) { return _this.symbolizer.fromJson(common_10.defaults({ text: textTemplate }, s)); });
-                    return style;
-                }
-            });
-            var boxSelect = new ol.interaction.DragBox({
-                condition: options.boxSelectCondition
-            });
-            boxSelect.on("boxend", function (args) {
-                var extent = boxSelect.getGeometry().getExtent();
-                var features = selection.getFeatures().getArray();
-                options.map.getLayers()
-                    .getArray()
-                    .filter(function (l) { return l instanceof ol.layer.Vector; })
-                    .map(function (l) { return l; })
-                    .forEach(function (l) { return l.getSource().forEachFeatureIntersectingExtent(extent, function (feature) {
-                    if (-1 === features.indexOf(feature)) {
-                        selection.getFeatures().push(feature);
-                        _this.addFeatureLayerAssociation(feature, l);
-                    }
-                    else {
-                        selection.getFeatures().remove(feature);
-                        _this.addFeatureLayerAssociation(feature, null);
-                    }
-                }); });
-            });
-            var doit = function () {
-                selection.getFeatures().forEach(function (f) {
-                    var l = selection.getLayer(f) || _this.featureLayerAssociation_[f.getId()];
-                    l && l.getSource().removeFeature(f);
-                });
-                selection.getFeatures().clear();
-                _this.featureLayerAssociation_ = [];
-            };
-            _this.once("change:active", function () {
-                [selection, boxSelect].forEach(function (i) {
-                    i.setActive(false);
-                    map.addInteraction(i);
-                });
-                _this.handlers.push(function () {
-                    [selection, boxSelect].forEach(function (i) {
-                        i.setActive(false);
-                        map.removeInteraction(i);
-                    });
-                });
-            });
-            _this.on("change:active", function () {
-                var active = _this.get("active");
-                if (!active) {
-                    doit();
-                    selection.getFeatures().clear();
-                }
-                [boxSelect, selection].forEach(function (i) { return i.setActive(active); });
-            });
-            return _this;
-        }
-        Delete.create = function (options) {
-            options = common_10.defaults({}, options, Delete.DEFAULT_OPTIONS);
-            return ol3_button_3.Button.create(options);
-        };
-        Delete.prototype.addFeatureLayerAssociation = function (feature, layer) {
-            if (!this.featureLayerAssociation_)
-                this.featureLayerAssociation_ = [];
-            var key = feature.getId();
-            this.featureLayerAssociation_[key] = layer;
-        };
-        return Delete;
-    }(ol3_button_3.Button));
-    Delete.DEFAULT_OPTIONS = {
-        className: "ol-delete",
-        label: "␡",
-        title: "Delete",
-        buttonType: Delete,
-        eventName: "delete-feature",
-        boxSelectCondition: ol.events.condition.shiftKeyOnly,
-        style: {
-            "Point": [{
-                    circle: {
-                        radius: 20,
-                        fill: {
-                            color: "blue"
-                        },
-                        stroke: {
-                            color: "red",
-                            width: 2
-                        },
-                        opacity: 1
-                    }
-                }],
-            "MultiLineString": [{
-                    stroke: {
-                        color: "red",
-                        width: 2
-                    }
-                }],
-            "Circle": [{
-                    fill: {
-                        color: "blue"
-                    },
-                    stroke: {
-                        color: "red",
-                        width: 2
-                    }
-                }],
-            "Polygon": [{
-                    fill: {
-                        color: "blue"
-                    },
-                    stroke: {
-                        color: "red",
-                        width: 2
-                    }
-                }],
-            "MultiPolygon": [{
-                    fill: {
-                        color: "blue"
-                    },
-                    stroke: {
-                        color: "red",
-                        width: 2
-                    }
-                }]
-        }
-    };
-    exports.Delete = Delete;
-});
-define("bower_components/ol3-draw/ol3-draw/ol3-translate", ["require", "exports", "openlayers", "bower_components/ol3-draw/ol3-draw/ol3-button", "bower_components/ol3-fun/ol3-fun/common"], function (require, exports, ol, ol3_button_4, common_11) {
-    "use strict";
-    var Translate = (function (_super) {
-        __extends(Translate, _super);
-        function Translate(options) {
-            var _this = _super.call(this, options) || this;
-            var map = options.map;
-            var select = new ol.interaction.Select({
-                wrapX: false
-            });
-            var translate = new ol.interaction.Translate({
-                features: select.getFeatures()
-            });
-            select.on("select", function (args) {
-                translate.setActive(true);
-            });
-            _this.once("change:active", function () {
-                [select, translate].forEach(function (i) {
-                    i.setActive(false);
-                    options.map.addInteraction(i);
-                });
-                _this.handlers.push(function () {
-                    [select, translate].forEach(function (i) {
-                        i.setActive(false);
-                        options.map.removeInteraction(i);
-                    });
-                });
-            });
-            _this.on("change:active", function () {
-                var active = _this.get("active");
-                _this.options.element.classList.toggle("active", active);
-                select.setActive(active);
-                if (!active)
-                    select.getFeatures().clear();
-            });
-            return _this;
-        }
-        Translate.create = function (options) {
-            options = common_11.defaults({}, options, Translate.DEFAULT_OPTIONS);
-            return ol3_button_4.Button.create(options);
-        };
-        return Translate;
-    }(ol3_button_4.Button));
-    Translate.DEFAULT_OPTIONS = {
-        className: "ol-translate",
-        position: "top right",
-        label: "XY",
-        title: "Translate",
-        eventName: "translate-feature",
-        buttonType: Translate
-    };
-    exports.Translate = Translate;
-});
-define("bower_components/ol3-draw/ol3-draw/services/wfs-sync", ["require", "exports", "openlayers", "jquery", "bower_components/ol3-fun/ol3-fun/common"], function (require, exports, ol, $, common_12) {
-    "use strict";
-    var serializer = new XMLSerializer();
-    var WfsSync = (function () {
-        function WfsSync(options) {
-            this.options = options;
-            this.lastSavedTime = Date.now();
-            this.deletes = [];
-            this.watch();
-        }
-        WfsSync.create = function (options) {
-            options = common_12.defaults(options || {}, WfsSync.DEFAULT_OPTIONS);
-            if (!options.formatter) {
-                options.formatter = new ol.format.WFS();
-            }
-            if (!options.srsName) {
-                options.srsName = options.source.getProjection().getCode();
-            }
-            var result = new WfsSync(options);
-            return result;
-        };
-        WfsSync.prototype.watch = function () {
-            var _this = this;
-            var save = common_12.debounce(function () { return _this.saveDrawings({
-                features: _this.options.source.getFeatures().filter(function (f) { return !!f.get(_this.options.lastUpdateFieldName); })
-            }); }, 1000);
-            var touch = function (f) {
-                f.set(_this.options.lastUpdateFieldName, Date.now());
-                save();
-            };
-            var watch = function (f) {
-                f.getGeometry().on("change", function () { return touch(f); });
-                f.on("propertychange", function (args) {
-                    if (args.key === _this.options.lastUpdateFieldName)
-                        return;
-                    touch(f);
-                });
-            };
-            var source = this.options.source;
-            source.forEachFeature(function (f) { return watch(f); });
-            source.on("addfeature", function (args) {
-                args.feature.set("strname", "29615");
-                watch(args.feature);
-                touch(args.feature);
-            });
-            source.on("removefeature", function (args) {
-                _this.deletes.push(args.feature);
-                touch(args.feature);
-            });
-        };
-        WfsSync.prototype.saveDrawings = function (args) {
-            var _this = this;
-            var features = args.features.filter(function (f) { return _this.lastSavedTime <= f.get(_this.options.lastUpdateFieldName); });
-            features.forEach(function (f) { return f.set(_this.options.lastUpdateFieldName, undefined); });
-            console.log("saving", features.map(function (f) { return f.get(_this.options.lastUpdateFieldName); }));
-            var saveTo = function (featureType, geomType) {
-                var toSave = features.filter(function (f) { return f.getGeometry().getType() === geomType; });
-                var toDelete = _this.deletes.filter(function (f) { return !!f.get(_this.options.featureIdFieldName); });
-                if (0 === (toSave.length + toDelete.length)) {
-                    console.info("nothing to save", featureType, geomType);
-                    return;
-                }
-                if (_this.options.sourceSrs && _this.options.sourceSrs !== _this.options.srsName) {
-                    var srsIn_1 = new ol.proj.Projection({ code: _this.options.sourceSrs });
-                    var srsOut_1 = new ol.proj.Projection({ code: _this.options.srsName });
-                    toSave = toSave.map(function (f) { return f.clone(); });
-                    toSave.forEach(function (f) { return f.getGeometry().transform(srsIn_1, srsOut_1); });
-                    throw "should not be necessary, perform on server, cloning will prevent insert key from updating";
-                }
-                var format = _this.options.formatter;
-                var toInsert = toSave.filter(function (f) { return !f.get(_this.options.featureIdFieldName); });
-                var toUpdate = toSave.filter(function (f) { return !!f.get(_this.options.featureIdFieldName); });
-                var requestBody = format.writeTransaction(toInsert, toUpdate, toDelete, {
-                    featureNS: _this.options.featureNS,
-                    featurePrefix: _this.options.featurePrefix,
-                    featureType: featureType,
-                    srsName: _this.options.srsName,
-                    nativeElements: []
-                });
-                $.ajax({
-                    type: "POST",
-                    url: _this.options.wfsUrl,
-                    data: serializer.serializeToString(requestBody),
-                    contentType: "application/xml",
-                    dataType: "xml",
-                    success: function (response) {
-                        var responseInfo = format.readTransactionResponse(response);
-                        if (responseInfo.transactionSummary.totalDeleted) {
-                            console.log("totalDeleted: ", responseInfo.transactionSummary.totalDeleted);
-                        }
-                        if (responseInfo.transactionSummary.totalInserted) {
-                            console.log("totalInserted: ", responseInfo.transactionSummary.totalInserted);
-                        }
-                        if (responseInfo.transactionSummary.totalUpdated) {
-                            console.log("totalUpdated: ", responseInfo.transactionSummary.totalUpdated);
-                        }
-                        console.assert(toInsert.length === responseInfo.transactionSummary.totalInserted, "number inserted should equal number of new keys");
-                        toInsert.forEach(function (f, i) {
-                            var id = responseInfo.insertIds[i];
-                            f.set("gid", id.split(".").pop());
-                            f.setId(id);
-                        });
-                    }
-                });
-            };
-            this.lastSavedTime = Date.now();
-            Object.keys(this.options.targets).forEach(function (k) {
-                saveTo(_this.options.targets[k], k);
-            });
-        };
-        return WfsSync;
-    }());
-    WfsSync.DEFAULT_OPTIONS = {
-        featureIdFieldName: "gid",
-        lastUpdateFieldName: "touched",
-    };
-    exports.WfsSync = WfsSync;
-});
-define("ol3-lab/labs/geoserver/services", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/mapmaker", "bower_components/ol3-symbolizer/index", "bower_components/ol3-popup/index", "bower_components/ol3-draw/index", "bower_components/ol3-draw/ol3-draw/ol3-edit", "bower_components/ol3-draw/ol3-draw/ol3-delete", "bower_components/ol3-draw/ol3-draw/ol3-translate", "bower_components/ol3-draw/ol3-draw/services/wfs-sync"], function (require, exports, $, ol, MapMaker, Symbolizer, ol3_popup_2, ol3_draw_1, ol3_edit_1, ol3_delete_1, ol3_translate_1, wfs_sync_1) {
-    "use strict";
-    var symbolizer = new Symbolizer.StyleConverter();
-    var serializer = new XMLSerializer();
-    function run() {
-        var srsName = "EPSG:3857";
-        var wfsUrl = "http://localhost:8080/geoserver/cite/wfs";
-        var featureNS = "http://www.opengeospatial.net/cite";
-        var featurePrefix = "cite";
-        var targets = {
-            Point: "addresses",
-            MultiLineString: "streets",
-            MultiPolygon: "parcels",
-        };
-        MapMaker.run({
-            srs: srsName,
-            basemap: "bing"
-        }).then(function (map) {
-            var source = new ol.source.Vector();
-            var layer = new ol.layer.Vector({ source: source });
-            layer.setStyle(symbolizer.fromJson({
-                fill: {
-                    color: "rgba(33,33,33,0.5)"
-                },
-                stroke: {
-                    color: "rgba(50,100,50,0.8)",
-                    width: 3
-                },
-                circle: {
-                    fill: {
-                        color: "rgba(99,33,33,1)"
-                    },
-                    stroke: {
-                        color: "rgba(255,255,255,1)"
-                    },
-                    radius: 5,
-                    opacity: 1
-                }
-            }));
-            map.addLayer(layer);
-            {
-                var format_1 = new ol.format.WFS();
-                var requestBody = format_1.writeGetFeature({
-                    featureNS: featureNS,
-                    featurePrefix: featurePrefix,
-                    featureTypes: Object.keys(targets).map(function (k) { return targets[k]; }),
-                    srsName: srsName,
-                    filter: ol.format.filter.equalTo("strname", "29615")
-                });
-                var data = serializer.serializeToString(requestBody);
-                $.ajax({
-                    type: "POST",
-                    url: wfsUrl,
-                    data: data,
-                    contentType: "application/xml",
-                    dataType: "xml",
-                    success: function (response) {
-                        var features = format_1.readFeatures(response);
-                        features = features.filter(function (f) { return !!f.getGeometry(); });
-                        source.addFeatures(features);
-                        var extent = ol.extent.createEmpty();
-                        features.forEach(function (f) { return ol.extent.extend(extent, f.getGeometry().getExtent()); });
-                        map.getView().fit(extent, map.getSize());
-                    }
-                });
-            }
-            {
-                var popup_1 = new ol3_popup_2.Popup({
-                    css: "\n            .ol-popup {\n                background-color: white;\n            }\n            .ol-popup .page {\n                max-height: 200px;\n                overflow-y: auto;\n            }\n            ",
-                    dockContainer: map.getViewport()
-                });
-                map.addOverlay(popup_1);
-                map.on("click", function (event) {
-                    var interactions = map
-                        .getInteractions()
-                        .getArray()
-                        .filter(function (i) { return i instanceof ol.interaction.Draw || i instanceof ol.interaction.Modify || i instanceof ol.interaction.Translate; });
-                    console.log(interactions);
-                    if (interactions.length)
-                        return;
-                    var coord = event.coordinate;
-                    popup_1.hide();
-                    var pageNum = 0;
-                    map.forEachFeatureAtPixel(event.pixel, function (feature, layer) {
-                        var page = document.createElement('p');
-                        var keys = Object.keys(feature.getProperties()).filter(function (key) {
-                            var v = feature.get(key);
-                            if (typeof v === "string")
-                                return true;
-                            if (typeof v === "number")
-                                return true;
-                            return false;
-                        });
-                        page.title = "" + ++pageNum;
-                        page.innerHTML = "<table>" + keys.map(function (k) { return "<tr><td>" + k + "</td><td>" + feature.get(k) + "</td></tr>"; }).join("") + "</table>";
-                        popup_1.pages.add(page, new ol.geom.Point(event.coordinate));
-                    });
-                    popup_1.show(coord, "<label>" + pageNum + " Features Found</label>");
-                    popup_1.pages.goto(0);
-                });
-            }
-            map.addControl(ol3_draw_1.Draw.create({ geometryType: "MultiPolygon", label: "▧", position: "right-4 top", layers: [layer] }));
-            map.addControl(ol3_draw_1.Draw.create({ geometryType: "MultiLineString", label: "▬", position: "right-2 top", layers: [layer] }));
-            map.addControl(ol3_draw_1.Draw.create({ geometryType: "Point", label: "●", position: "right top", layers: [layer] }));
-            map.addControl(ol3_translate_1.Translate.create({ position: "right-4 top-2" }));
-            map.addControl(ol3_edit_1.Modify.create({ label: "Δ", position: "right-2 top-2" }));
-            map.addControl(ol3_delete_1.Delete.create({ label: "X", position: "right top-2" }));
-            wfs_sync_1.WfsSync.create({
-                wfsUrl: wfsUrl,
-                featureNS: featureNS,
-                featurePrefix: featurePrefix,
-                srsName: srsName,
-                source: source,
-                targets: targets
-            });
-        });
-    }
-    exports.run = run;
-});
 define("ol3-lab/labs/google-identity", ["require", "exports", "jquery", "openlayers"], function (require, exports, $, ol) {
     "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
     var client_id = '987911803084-a6cafnu52d7lkr8vfrtl4modrpinr1os.apps.googleusercontent.com';
     var api_key = 'AIzaSyCfuluThuQ0j7tCHg9GRf0lwDRHNUsZs6o';
     requirejs.config({
@@ -4549,6 +3418,7 @@ define("ol3-lab/labs/google-identity", ["require", "exports", "jquery", "openlay
 });
 define("ol3-lab/labs/image-data-viewer", ["require", "exports", "jquery"], function (require, exports, $) {
     "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
     var data = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAAA9CAYAAAAd1W/BAAAFf0lEQVRoBe1ZSW/bRhT+uFMSZcmSAnlpHCcokKZo0QU9t7321n/QnnvqHyjQn9Cf0GuvRU89Feg5AdIGDro5tuPd1mItJKWhyOKNRMRwpFjcZAviAATJ4XDee998b97MGwGAhwUu4gLbzk1PAUgZsOAIpC6w4ARAyoCUAQuOwO1xAQEAXTMu8ozlDcUJQ1sFCRBEASK/Dz95A8AdAJ7rwXNH6/QEF+uzBUAAJBmQNRGyJkDPy1BzCjRDgZqVucG9Th9904HdZuh3HTg9D07f46AksWuZDQAjw5WMCOOOhtJGHssbeeRKOiRF4pcoivA8MtTlF7MddE5N1HZbaOx3YNYZHHsERIy0Ja9LkGBDv1Z0AUsrGqoPiyjfLyJXzkLNqJBUCYIw3vHJBViPWNBD58zE8fMazrfb6NYdDPrxqZwoAIIIqFkB5U0Db31UQWmjCD2fgSgHm3udngO7ZeHk7xoOntZwcWhz1/BiwCExALjxOQGr7xax/sEdLK8XoWRVTBjwa0lNjCAQajtN7D0+QW3H5C4RFYRk5gABINqvPCri7sdVFNcKkHUltPGEDkULfSmDytsSf/bcY9RemHyCvBa9NzRIBABFA8qbOaw+KqGwshTZeF9/AkHLqijdK4CiBbMH3B0GzG8R/B7MGafon2J6rqJh9b0SyvdLkWg/ThxnQj6D6jtlVB7koRnEiHEtp6uL8Ot4AZJKo2+guF6AEpH24yUM3UHL6ag+LKOwRpPqpJbX18cKAB/9sobCmoHscvDZ/np1X7WQNRm5SpbLogVVWBbEDsBSNYOlqsFj/Ct1k3kihhXXCWz19gCQK+vIFHSIUqzYjkVQVmUYlSz0vHI7APA8ClVvXuGNtSRkJU2ISkZGpqBC1WlVGbyjWIeJ2R669X4oRYKrPvyDltIiLamlENYD8aXE7o0sOHjamAn9fcDI1XRDgaLTntqvnf4eCwPI+N8A0L1b62Hvydn0GkRtKQiQJJEz4MZc4AcAmwC+Hxnz7JddMMuJatp0/3seHObCdVyE2RdEZsBnAL4cqfo1AHqnvfy/vx9OZ0DEVoOBC7vTh9Pz00fBOowMAI3+5eK/P/91D2bdvvwpkWfaJbojBoQREAmArwB8eEUqvVM9lT9+fjF6SuZG2SNmMljNHpg9YxcoAPBH+6p5VE/fD5/VcPbfxdXPsb07fQet0y6sFgvl/6RIaAZ8C6A4wRSqp+9UHv/0z+gp5psHMIvh4qADq8l4QjWMhFAAULjzZ/xJQuk7taN5IIkJkfKF7ZMOmodd9DrObAH4cZLVV+p9F6EJMc6wSCHPvrBw8lcdrSMLboSIG5gBFOY+v2LopFcKjzwsWg4IhDiKO/BgXZg42jrnWeK+GW7y83UJDMC0o+8L8NuTG0QNi2Q8JUbPt5s42mqgfdqPNPqkY6CsMK32aLETtBAIOwAqDwr49Jv3g/7OTy4o5JmNLs62G3j55AyNlxZ4LjBiajwQAME1f/2PL777BPqSBoGwv27z4oGfFjGbwawPaX/4Zw2dc4YB+X1E40m7CNm0142bVEOHoIouorieRWO/CaNMSQwdlNaiPT0vPhgjo/gix2Kw2zbap10cb9VR223DbtG6f5Kk4PUzYwDl7GQNyJZUlO4aWN4wkCtleOqMnw9KIh/QARvwjQ2NeufUQm2vjeZ+F3aLjsSIEcGNfNMfMwPAV4ISp5TFpVNizZCh5GS+n/dPh+0OA+Onw5T3d+EycLrTUXkSZeYAXDaCWMH38DQdjOIRN5R8nzZ3MY/2Zdn+840C4Ctxk/fA64CbVDYJ2SkASaA6T32mDJin0UpC15QBSaA6T32mDJin0UpC15QBSaA6T32mDJin0UpC15QBSaA6T30uPAP+B8Xv5/OOW6fPAAAAAElFTkSuQmCC";
     var css = "\n<style>\n    .image-data-viewer .area {\n        padding: 20px;\n    }\n\n    .image-data-viewer img {\n        width: auto;\n        height: auto;\n        border: 1px dashed rgba(0, 0, 0, 0.5);\n        padding: 20px;\n    }\n\n    .image-data-viewer label {\n        display: block;\n    }\n\n    .image-data-viewer textarea {\n        width: 100%;\n        height: 40px;\n        white-space: nowrap;\n    }\n</style>\n";
     var ux = "\n<div class=\"image-data-viewer\">\n    <h3>Tool for viewing image data</h3>\n    <p>Paste an Image into Image Data to view the Image below</p>\n    <div class='area'>\n        <label>Image Data (paste image or text here)</label> \n        <textarea autocomplete=\"off\" spellcheck=\"false\" class='image-data-input'></textarea>\n    </div>\n    <div class='area'>\n        <label>Image</label> \n        <img class='image'/>\n    </div>\n    <div class='area'>\n        <label>Select an Image to update the Image Data and then the Image</label>\n        <input class='image-file' type='file' accept='image/*' />\n    </div>\n</div>\n";
@@ -4593,10 +3463,11 @@ define("ol3-lab/labs/image-data-viewer", ["require", "exports", "jquery"], funct
 });
 define("ol3-lab/labs/index", ["require", "exports"], function (require, exports) {
     "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
     function run() {
         var l = window.location;
         var path = "" + l.origin + l.pathname + "?run=ol3-lab/labs/";
-        var labs = "\n    geoserver/services\n    wfs-map\n    ol-draw\n    ol-grid\n    ol-input    \n    ol-layerswitcher\n    ol-panzoom\n    ol-popup\n    ol-search\n    ol-symbolizer\n\n    ../ux/ags-symbols\n\n    ags-viewer&services=//sampleserver3.arcgisonline.com/ArcGIS/rest/services&serviceName=SanFrancisco/311Incidents&layers=0&debug=1&center=-122.49,37.738\n    \n    style-lab\n\n    style-viewer\n    style-viewer&geom=point&style=icon/png\n    style-viewer&geom=point&style=icon/png,text/text\n    style-viewer&geom=point&style=%5B%7B\"image\":%7B\"imgSize\":%5B45,45%5D,\"rotation\":0,\"stroke\":%7B\"color\":\"rgba(255,25,0,0.8)\",\"width\":3%7D,\"path\":\"M23%202%20L23%2023%20L43%2016.5%20L23%2023%20L35%2040%20L23%2023%20L11%2040%20L23%2023%20L3%2017%20L23%2023%20L23%202%20Z\"%7D%7D%5D\n\n    style-viewer&geom=point&style=%5B%7B\"circle\":%7B\"fill\":%7B\"gradient\":%7B\"type\":\"linear(32,32,96,96)\",\"stops\":\"rgba(0,255,0,0.1)%200%25;rgba(0,255,0,0.8)%20100%25\"%7D%7D,\"opacity\":1,\"stroke\":%7B\"color\":\"rgba(0,255,0,1)\",\"width\":1%7D,\"radius\":64%7D%7D,%7B\"image\":%7B\"anchor\":%5B16,48%5D,\"size\":%5B32,48%5D,\"anchorXUnits\":\"pixels\",\"anchorYUnits\":\"pixels\",\"src\":\"http://openlayers.org/en/v3.20.1/examples/data/icon.png\"%7D%7D,%7B\"text\":%7B\"fill\":%7B\"color\":\"rgba(75,92,85,0.85)\"%7D,\"stroke\":%7B\"color\":\"rgba(255,255,255,1)\",\"width\":5%7D,\"offset-x\":0,\"offset-y\":16,\"text\":\"fantasy%20light\",\"font\":\"18px%20serif\"%7D%7D%5D    \n\n    style-viewer&geom=point&style=%5B%7B\"image\":%7B\"imgSize\":%5B13,21%5D,\"fill\":%7B\"color\":\"rgba(0,0,0,0.5)\"%7D,\"path\":\"M6.3,0C6.3,0,0,0.1,0,7.5c0,3.8,6.3,12.6,6.3,12.6s6.3-8.8,6.3-12.7C12.6,0.1,6.3,0,6.3,0z%20M6.3,8.8%20c-1.4,0-2.5-1.1-2.5-2.5c0-1.4,1.1-2.5,2.5-2.5c1.4,0,2.5,1.1,2.5,2.5C8.8,7.7,7.7,8.8,6.3,8.8z\"%7D%7D%5D\n\n    style-viewer&geom=point&style=%5B%7B\"image\":%7B\"imgSize\":%5B15,15%5D,\"anchor\":%5B0,0.5%5D,\"fill\":%7B\"color\":\"rgba(255,0,0,0.1)\"%7D,\"stroke\":%7B\"color\":\"rgba(255,0,0,1)\",\"width\":0.1%7D,\"scale\":8,\"rotation\":0.7,\"img\":\"lock\"%7D%7D,%7B\"image\":%7B\"imgSize\":%5B15,15%5D,\"anchor\":%5B100,0.5%5D,\"anchorXUnits\":\"pixels\",\"fill\":%7B\"color\":\"rgba(0,255,0,0.4)\"%7D,\"stroke\":%7B\"color\":\"rgba(255,0,0,1)\",\"width\":0.1%7D,\"scale\":1.5,\"rotation\":0.7,\"img\":\"lock\"%7D%7D,%7B\"image\":%7B\"imgSize\":%5B15,15%5D,\"anchor\":%5B-10,0%5D,\"anchorXUnits\":\"pixels\",\"anchorOrigin\":\"top-right\",\"fill\":%7B\"color\":\"rgba(230,230,80,1)\"%7D,\"stroke\":%7B\"color\":\"rgba(0,0,0,1)\",\"width\":0.5%7D,\"scale\":2,\"rotation\":0.8,\"img\":\"lock\"%7D%7D%5D\n\n\n    style-viewer&geom=multipoint&style=icon/png\n\n    style-viewer&geom=polyline&style=stroke/dot\n\n    style-viewer&geom=polygon&style=fill/diagonal\n    style-viewer&geom=polygon&style=fill/horizontal,fill/vertical,stroke/dashdotdot\n    style-viewer&geom=polygon&style=stroke/solid,text/text\n    style-viewer&geom=polygon-with-holes&style=fill/cross,stroke/solid\n\n    style-viewer&geom=multipolygon&style=stroke/solid,fill/horizontal,text/text\n\n    style-to-canvas\n    polyline-encoder\n    image-data-viewer\n\n    mapmaker\n    mapmaker&background=light\n    mapmaker&geom=t`syzE}gm_dAm_@A?r@p@Bp@Hp@Ph@Td@Z`@`@Vb@Nd@xUABmF\n    mapmaker&geom=t`syzE}gm_dAm_@A?r@p@Bp@Hp@Ph@Td@Z`@`@Vb@Nd@xUABmF&color=yellow&background=dark&modify=1\n    \n    geocoder&modify=1\n\n    facebook\n    google-identity\n    index\n    ";
+        var labs = "\n    geoserver/services\n    wfs-map\n    ol-draw\n    ol-grid\n    ol-input    \n    ol-layerswitcher\n    ol-panzoom\n    ol-popup\n    ol-search\n    ol-symbolizer\n    workflow/ol-workflow\n\n    ../ux/ags-symbols\n\n    ags-viewer&services=//sampleserver3.arcgisonline.com/ArcGIS/rest/services&serviceName=SanFrancisco/311Incidents&layers=0&debug=1&center=-122.49,37.738\n    \n    style-lab\n\n    style-viewer\n    style-viewer&geom=point&style=icon/png\n    style-viewer&geom=point&style=icon/png,text/text\n    style-viewer&geom=point&style=%5B%7B\"image\":%7B\"imgSize\":%5B45,45%5D,\"rotation\":0,\"stroke\":%7B\"color\":\"rgba(255,25,0,0.8)\",\"width\":3%7D,\"path\":\"M23%202%20L23%2023%20L43%2016.5%20L23%2023%20L35%2040%20L23%2023%20L11%2040%20L23%2023%20L3%2017%20L23%2023%20L23%202%20Z\"%7D%7D%5D\n\n    style-viewer&geom=point&style=%5B%7B\"circle\":%7B\"fill\":%7B\"gradient\":%7B\"type\":\"linear(32,32,96,96)\",\"stops\":\"rgba(0,255,0,0.1)%200%25;rgba(0,255,0,0.8)%20100%25\"%7D%7D,\"opacity\":1,\"stroke\":%7B\"color\":\"rgba(0,255,0,1)\",\"width\":1%7D,\"radius\":64%7D%7D,%7B\"image\":%7B\"anchor\":%5B16,48%5D,\"size\":%5B32,48%5D,\"anchorXUnits\":\"pixels\",\"anchorYUnits\":\"pixels\",\"src\":\"http://openlayers.org/en/v3.20.1/examples/data/icon.png\"%7D%7D,%7B\"text\":%7B\"fill\":%7B\"color\":\"rgba(75,92,85,0.85)\"%7D,\"stroke\":%7B\"color\":\"rgba(255,255,255,1)\",\"width\":5%7D,\"offset-x\":0,\"offset-y\":16,\"text\":\"fantasy%20light\",\"font\":\"18px%20serif\"%7D%7D%5D    \n\n    style-viewer&geom=point&style=%5B%7B\"image\":%7B\"imgSize\":%5B13,21%5D,\"fill\":%7B\"color\":\"rgba(0,0,0,0.5)\"%7D,\"path\":\"M6.3,0C6.3,0,0,0.1,0,7.5c0,3.8,6.3,12.6,6.3,12.6s6.3-8.8,6.3-12.7C12.6,0.1,6.3,0,6.3,0z%20M6.3,8.8%20c-1.4,0-2.5-1.1-2.5-2.5c0-1.4,1.1-2.5,2.5-2.5c1.4,0,2.5,1.1,2.5,2.5C8.8,7.7,7.7,8.8,6.3,8.8z\"%7D%7D%5D\n\n    style-viewer&geom=point&style=%5B%7B\"image\":%7B\"imgSize\":%5B15,15%5D,\"anchor\":%5B0,0.5%5D,\"fill\":%7B\"color\":\"rgba(255,0,0,0.1)\"%7D,\"stroke\":%7B\"color\":\"rgba(255,0,0,1)\",\"width\":0.1%7D,\"scale\":8,\"rotation\":0.7,\"img\":\"lock\"%7D%7D,%7B\"image\":%7B\"imgSize\":%5B15,15%5D,\"anchor\":%5B100,0.5%5D,\"anchorXUnits\":\"pixels\",\"fill\":%7B\"color\":\"rgba(0,255,0,0.4)\"%7D,\"stroke\":%7B\"color\":\"rgba(255,0,0,1)\",\"width\":0.1%7D,\"scale\":1.5,\"rotation\":0.7,\"img\":\"lock\"%7D%7D,%7B\"image\":%7B\"imgSize\":%5B15,15%5D,\"anchor\":%5B-10,0%5D,\"anchorXUnits\":\"pixels\",\"anchorOrigin\":\"top-right\",\"fill\":%7B\"color\":\"rgba(230,230,80,1)\"%7D,\"stroke\":%7B\"color\":\"rgba(0,0,0,1)\",\"width\":0.5%7D,\"scale\":2,\"rotation\":0.8,\"img\":\"lock\"%7D%7D%5D\n\n\n    style-viewer&geom=multipoint&style=icon/png\n\n    style-viewer&geom=polyline&style=stroke/dot\n\n    style-viewer&geom=polygon&style=fill/diagonal\n    style-viewer&geom=polygon&style=fill/horizontal,fill/vertical,stroke/dashdotdot\n    style-viewer&geom=polygon&style=stroke/solid,text/text\n    style-viewer&geom=polygon-with-holes&style=fill/cross,stroke/solid\n\n    style-viewer&geom=multipolygon&style=stroke/solid,fill/horizontal,text/text\n\n    style-to-canvas\n    polyline-encoder\n    image-data-viewer\n\n    mapmaker\n    mapmaker&background=light\n    mapmaker&geom=t`syzE}gm_dAm_@A?r@p@Bp@Hp@Ph@Td@Z`@`@Vb@Nd@xUABmF\n    mapmaker&geom=t`syzE}gm_dAm_@A?r@p@Bp@Hp@Ph@Td@Z`@`@Vb@Nd@xUABmF&color=yellow&background=dark&modify=1\n    \n    geocoder&modify=1\n\n    facebook\n    google-identity\n    index\n    ";
         var styles = document.createElement("style");
         document.head.appendChild(styles);
         styles.innerText += "\n    #map {\n        display: none;\n    }\n    .test {\n        margin: 20px;\n    }\n    ";
@@ -4615,8 +3486,253 @@ define("ol3-lab/labs/index", ["require", "exports"], function (require, exports)
     exports.run = run;
     ;
 });
-define("ol3-lab/labs/ol-draw", ["require", "exports", "openlayers", "bower_components/ol3-fun/ol3-fun/common", "bower_components/ol3-draw/index", "bower_components/ol3-draw/ol3-draw/ol3-edit"], function (require, exports, ol, common_13, ol3_draw_2, ol3_edit_2) {
+define("bower_components/ol3-draw/ol3-draw/ol3-button", ["require", "exports", "openlayers", "bower_components/ol3-fun/ol3-fun/common", "bower_components/ol3-symbolizer/index"], function (require, exports, ol, common_5, ol3_symbolizer_3) {
     "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    function range(n) {
+        var result = new Array(n);
+        for (var i = 0; i < n; i++)
+            result[i] = i;
+        return result;
+    }
+    function pair(a1, a2) {
+        var result = [];
+        a1.forEach(function (v1) { return a2.forEach(function (v2) { return result.push([v1, v2]); }); });
+        return result;
+    }
+    var Button = (function (_super) {
+        __extends(Button, _super);
+        function Button(options) {
+            var _this = _super.call(this, options) || this;
+            _this.options = options;
+            _this.handlers = [];
+            _this.symbolizer = new ol3_symbolizer_3.StyleConverter();
+            _this.cssin();
+            options.element.className = options.className + " " + options.position;
+            var button = common_5.html("<input type=\"button\" value=\"" + options.label + "\" />");
+            _this.handlers.push(function () { return options.element.remove(); });
+            button.title = options.title;
+            options.element.appendChild(button);
+            _this.set("active", false);
+            button.addEventListener("click", function () {
+                _this.dispatchEvent("click");
+                _this.set("active", !_this.get("active"));
+            });
+            _this.on("change:active", function () {
+                _this.options.element.classList.toggle("active", _this.get("active"));
+                options.map.dispatchEvent({
+                    type: options.eventName,
+                    control: _this
+                });
+            });
+            return _this;
+        }
+        Button.create = function (options) {
+            options = common_5.mixin(common_5.mixin({}, Button.DEFAULT_OPTIONS), options);
+            options.element = options.element || document.createElement("DIV");
+            var button = new (options.buttonType)(options);
+            if (options.map) {
+                options.map.addControl(button);
+            }
+            return button;
+        };
+        Button.prototype.setPosition = function (position) {
+            var _this = this;
+            this.options.position.split(' ')
+                .forEach(function (k) { return _this.options.element.classList.remove(k); });
+            position.split(' ')
+                .forEach(function (k) { return _this.options.element.classList.add(k); });
+            this.options.position = position;
+        };
+        Button.prototype.destroy = function () {
+            this.handlers.forEach(function (h) { return h(); });
+            this.setTarget(null);
+        };
+        Button.prototype.cssin = function () {
+            var className = this.options.className;
+            var positions = pair("top left right bottom".split(" "), range(24))
+                .map(function (pos) { return "." + className + "." + (pos[0] + (-pos[1] || '')) + " { " + pos[0] + ":" + (0.5 + pos[1]) + "em; }"; });
+            this.handlers.push(common_5.cssin(className, "\n            ." + className + " {\n                position: absolute;\n                background-color: rgba(255,255,255,.4);\n            }\n            ." + className + ".active {\n                background-color: white;\n            }\n            ." + className + ":hover {\n                background-color: white;\n            }\n            ." + className + " input[type=\"button\"] {\n                color: rgba(0,60,136,1);\n                background: transparent;\n                border: none;\n                width: 2em;\n                height: 2em;\n            }\n            " + positions.join('\n') + "\n        "));
+        };
+        Button.prototype.setMap = function (map) {
+            var options = this.options;
+            _super.prototype.setMap.call(this, map);
+            options.map = map;
+            if (!map) {
+                this.destroy();
+                return;
+            }
+        };
+        Button.DEFAULT_OPTIONS = {
+            className: "ol-button",
+            position: "top right",
+            label: "Button",
+            title: "Button",
+            eventName: "click:button",
+            buttonType: Button
+        };
+        return Button;
+    }(ol.control.Control));
+    exports.Button = Button;
+});
+define("bower_components/ol3-draw/ol3-draw/ol3-draw", ["require", "exports", "openlayers", "bower_components/ol3-draw/ol3-draw/ol3-button", "bower_components/ol3-fun/ol3-fun/common"], function (require, exports, ol, ol3_button_1, common_6) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    var Draw = (function (_super) {
+        __extends(Draw, _super);
+        function Draw(options) {
+            var _this = _super.call(this, options) || this;
+            _this.interactions = {};
+            _this.handlers.push(function () { return Object.keys(_this.interactions).forEach(function (k) {
+                var interaction = _this.interactions[k];
+                interaction.setActive(false);
+                options.map.removeInteraction(interaction);
+            }); });
+            _this.on("change:active", function () {
+                var active = _this.get("active");
+                var interaction = _this.interactions[options.geometryType];
+                if (active) {
+                    if (!interaction) {
+                        interaction = _this.interactions[options.geometryType] = _this.createInteraction();
+                    }
+                    interaction.setActive(true);
+                }
+                else {
+                    interaction && interaction.setActive(false);
+                }
+            });
+            var style = _this.options.style.map(function (s) { return _this.symbolizer.fromJson(s); });
+            if (!options.layers) {
+                var layer = new ol.layer.Vector({
+                    style: style,
+                    source: new ol.source.Vector()
+                });
+                options.map.addLayer(layer);
+                options.layers = [layer];
+            }
+            return _this;
+        }
+        Draw.create = function (options) {
+            options = common_6.mixin(common_6.mixin({}, Draw.DEFAULT_OPTIONS), options);
+            return ol3_button_1.Button.create(options);
+        };
+        Draw.prototype.createInteraction = function () {
+            var _this = this;
+            var options = this.options;
+            var source = options.layers[0].getSource();
+            var draw = new ol.interaction.Draw({
+                type: options.geometryType,
+                geometryName: options.geometryName,
+                source: source
+            });
+            draw.setActive(false);
+            draw.on("change:active", function () {
+                return _this.options.element.classList.toggle("active", draw.getActive());
+            });
+            options.map.addInteraction(draw);
+            return draw;
+        };
+        Draw.DEFAULT_OPTIONS = {
+            className: "ol-draw",
+            geometryType: "Point",
+            geometryName: "geom",
+            label: "Draw",
+            title: "Draw",
+            buttonType: Draw,
+            eventName: "draw-feature",
+            style: [
+                {
+                    circle: {
+                        radius: 12,
+                        opacity: 1,
+                        fill: {
+                            color: "rgba(0,0,0,0.5)"
+                        },
+                        stroke: {
+                            color: "rgba(255,255,255,1)",
+                            width: 3
+                        }
+                    }
+                },
+                {
+                    fill: {
+                        color: "rgba(0,0,0,0.5)"
+                    },
+                    stroke: {
+                        color: "rgba(255,255,255,1)",
+                        width: 5
+                    }
+                },
+                {
+                    stroke: {
+                        color: "rgba(0,0,0,1)",
+                        width: 1
+                    }
+                }
+            ]
+        };
+        return Draw;
+    }(ol3_button_1.Button));
+    exports.Draw = Draw;
+});
+define("bower_components/ol3-draw/index", ["require", "exports", "bower_components/ol3-draw/ol3-draw/ol3-draw"], function (require, exports, Draw) {
+    "use strict";
+    return Draw;
+});
+define("bower_components/ol3-draw/ol3-draw/ol3-edit", ["require", "exports", "openlayers", "bower_components/ol3-fun/ol3-fun/common", "bower_components/ol3-draw/ol3-draw/ol3-button"], function (require, exports, ol, common_7, ol3_button_2) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    var Modify = (function (_super) {
+        __extends(Modify, _super);
+        function Modify(options) {
+            var _this = _super.call(this, options) || this;
+            var select = new ol.interaction.Select({
+                wrapX: false
+            });
+            var modify = new ol.interaction.Modify({
+                features: select.getFeatures()
+            });
+            select.on("select", function (args) {
+                modify.setActive(true);
+            });
+            _this.once("change:active", function () {
+                [select, modify].forEach(function (i) {
+                    i.setActive(false);
+                    options.map.addInteraction(i);
+                });
+                _this.handlers.push(function () {
+                    [select, modify].forEach(function (i) {
+                        i.setActive(false);
+                        options.map.removeInteraction(i);
+                    });
+                });
+            });
+            _this.on("change:active", function () {
+                var active = _this.get("active");
+                select.setActive(active);
+                if (!active)
+                    select.getFeatures().clear();
+            });
+            return _this;
+        }
+        Modify.create = function (options) {
+            options = common_7.mixin(common_7.mixin({}, Modify.DEFAULT_OPTIONS), options);
+            return ol3_button_2.Button.create(options);
+        };
+        Modify.DEFAULT_OPTIONS = {
+            className: "ol-edit",
+            label: "Edit",
+            title: "Edit",
+            eventName: "modify-feature",
+            buttonType: Modify
+        };
+        return Modify;
+    }(ol3_button_2.Button));
+    exports.Modify = Modify;
+});
+define("ol3-lab/labs/ol-draw", ["require", "exports", "openlayers", "bower_components/ol3-fun/ol3-fun/common", "bower_components/ol3-draw/index", "bower_components/ol3-draw/ol3-draw/ol3-edit"], function (require, exports, ol, common_8, ol3_draw_1, ol3_edit_1) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
     function stopInteraction(map, type) {
         map.getInteractions()
             .getArray()
@@ -4627,9 +3743,9 @@ define("ol3-lab/labs/ol-draw", ["require", "exports", "openlayers", "bower_compo
         function MapMaker() {
         }
         MapMaker.create = function (options) {
-            options = common_13.mixin(common_13.mixin({}, MapMaker.DEFAULT_OPTIONS), options);
+            options = common_8.mixin(common_8.mixin({}, MapMaker.DEFAULT_OPTIONS), options);
             options.target.classList.add("ol-map");
-            common_13.cssin("mapmaker", "\n        .ol-map {\n            top: 0;\n            left: 0;\n            right: 0;\n            bottom:0;\n            position: absolute;\n        }\n        ");
+            common_8.cssin("mapmaker", "\n        .ol-map {\n            top: 0;\n            left: 0;\n            right: 0;\n            bottom:0;\n            position: absolute;\n        }\n        ");
             var map = new ol.Map({
                 target: options.target,
                 keyboardEventTarget: document,
@@ -4650,9 +3766,9 @@ define("ol3-lab/labs/ol-draw", ["require", "exports", "openlayers", "bower_compo
             });
             return map;
         };
+        MapMaker.DEFAULT_OPTIONS = {};
         return MapMaker;
     }());
-    MapMaker.DEFAULT_OPTIONS = {};
     exports.MapMaker = MapMaker;
     function run() {
         var map = MapMaker.create({
@@ -4662,15 +3778,50 @@ define("ol3-lab/labs/ol-draw", ["require", "exports", "openlayers", "bower_compo
             zoom: 15,
             basemap: "osm"
         });
-        map.addControl(ol3_draw_2.Draw.create({ geometryType: "Polygon", label: "▧", className: "ol-draw right-4 top" }));
-        map.addControl(ol3_draw_2.Draw.create({ geometryType: "MultiLineString", label: "▬", className: "ol-draw right-2 top" }));
-        map.addControl(ol3_draw_2.Draw.create({ geometryType: "Point", label: "●" }));
-        map.addControl(ol3_edit_2.Modify.create({ label: "Δ", className: "ol-draw right top-2" }));
+        map.addControl(new ol.control.MousePosition({
+            className: "myMousePos",
+            projection: "EPSG:4326",
+            coordinateFormat: function (c) { return c.map(function (v) { return v.toFixed(4); }).join(" "); }
+        }));
+        var polyLayer = new ol.layer.Vector({ source: new ol.source.Vector() });
+        map.addLayer(polyLayer);
+        ol3_draw_1.Draw.create({ map: map, geometryType: "Polygon", label: "▧", position: "right-4 top", layers: [polyLayer] })
+            .once("activate", function () {
+            debugger;
+        });
+        ol3_draw_1.Draw.create({ map: map, geometryType: "MultiLineString", label: "▬", position: "right-2 top" });
+        ol3_draw_1.Draw.create({ map: map, geometryType: "Point", label: "●" });
+        ol3_edit_1.Modify.create({ map: map, position: "right top-2", label: "Δ" });
+        {
+            var element_1 = document.createElement("div");
+            element_1.className = "gmlOut";
+            common_8.cssin('gmlOut', "\n.myMousePos {\n    position:absolute;\n    top: auto;\n    left: auto;\n    bottom: 0;\n    right: 0;    \n}\n.gmlOut {\n    position: absolute;\n    bottom: 0;\n    left: 20%;\n    width: 60%;\n    height: 200px;\n    border: 1px solid black;\n    overflow-y: auto;\n    overflow-x: auto;\n    font-size: 12px;\n    font-family: monospace;\n    background: rgba(160, 160, 60, 0.5);\n}        \n        ");
+            var esriFormatter_1 = new ol.format.EsriJSON({
+                geometryName: "geom"
+            });
+            var kmlFormatter = new ol.format.KML({});
+            var gmlOut = new ol.control.Control({
+                element: element_1,
+                render: common_8.debounce(function (args) {
+                    console.log(args.map.getView().getCenter());
+                    polyLayer.getSource().forEachFeature(function (f) {
+                        element_1.innerText = esriFormatter_1.writeFeatures([f.clone()], {
+                            dataProjection: "EPSG:4326",
+                            featureProjection: "EPSG:4326",
+                            decimals: 4
+                        });
+                        return true;
+                    });
+                })
+            });
+            map.addControl(gmlOut);
+        }
     }
     exports.run = run;
 });
 define("bower_components/ol3-grid/ol3-grid/ol3-grid", ["require", "exports", "jquery", "openlayers"], function (require, exports, $, ol) {
     "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
     function mixin(a, b) {
         Object.keys(b).forEach(function (k) { return a[k] = b[k]; });
         return a;
@@ -4903,9 +4054,10 @@ define("bower_components/ol3-grid/index", ["require", "exports", "bower_componen
     "use strict";
     return Grid;
 });
-define("ol3-lab/labs/ol-grid", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/common/common", "bower_components/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/star/flower", "bower_components/ol3-popup/index", "bower_components/ol3-grid/index"], function (require, exports, $, ol, common_14, ol3_symbolizer_5, pointStyle, ol3_popup_3, ol3_grid_1) {
+define("ol3-lab/labs/ol-grid", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/common/common", "bower_components/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/star/flower", "bower_components/ol3-popup/index", "bower_components/ol3-grid/index"], function (require, exports, $, ol, common_9, ol3_symbolizer_4, pointStyle, ol3_popup_2, ol3_grid_1) {
     "use strict";
-    var styler = new ol3_symbolizer_5.StyleConverter();
+    Object.defineProperty(exports, "__esModule", { value: true });
+    var styler = new ol3_symbolizer_4.StyleConverter();
     function parse(v, type) {
         if (typeof type === "string")
             return v;
@@ -4940,7 +4092,7 @@ define("ol3-lab/labs/ol-grid", ["require", "exports", "jquery", "openlayers", "o
         {
             var opts_5 = options;
             Object.keys(opts_5).forEach(function (k) {
-                common_14.doif(common_14.getParameterByName(k), function (v) {
+                common_9.doif(common_9.getParameterByName(k), function (v) {
                     var value = parse(v, opts_5[k]);
                     if (value !== undefined)
                         opts_5[k] = value;
@@ -4976,7 +4128,7 @@ define("ol3-lab/labs/ol-grid", ["require", "exports", "jquery", "openlayers", "o
             source: source
         });
         map.addLayer(layer);
-        var popup = new ol3_popup_3.Popup({
+        var popup = new ol3_popup_2.Popup({
             dockContainer: '.popup-container',
             pointerPosition: 100,
             positioning: "bottom-left",
@@ -5045,8 +4197,9 @@ define("ol3-lab/labs/ol-grid", ["require", "exports", "jquery", "openlayers", "o
     }
     exports.run = run;
 });
-define("ol3-lab/labs/ol-input", ["require", "exports", "openlayers", "jquery", "bower_components/ol3-grid/index", "bower_components/ol3-symbolizer/index", "bower_components/ol3-input/index", "bower_components/ol3-input/ol3-input/providers/osm", "bower_components/ol3-fun/ol3-fun/common", "bower_components/ol3-symbolizer/ol3-symbolizer/ags/ags-source"], function (require, exports, ol, $, ol3_grid_2, ol3_symbolizer_6, ol3_input_2, osm_2, common_15, ags_source_2) {
+define("ol3-lab/labs/ol-input", ["require", "exports", "openlayers", "jquery", "bower_components/ol3-grid/index", "bower_components/ol3-symbolizer/index", "bower_components/ol3-input/index", "bower_components/ol3-input/ol3-input/providers/osm", "bower_components/ol3-fun/ol3-fun/common", "bower_components/ol3-symbolizer/ol3-symbolizer/ags/ags-source"], function (require, exports, ol, $, ol3_grid_2, ol3_symbolizer_5, ol3_input_2, osm_2, common_10, ags_source_2) {
     "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
     function zoomToFeature(map, feature) {
         var extent = feature.getGeometry().getExtent();
         map.getView().animate({
@@ -5061,7 +4214,7 @@ define("ol3-lab/labs/ol-input", ["require", "exports", "openlayers", "jquery", "
         });
     }
     function run() {
-        common_15.cssin("examples/ol3-input", "\n.ol-grid .ol-grid-container.ol-hidden {\n}\n\n.ol-grid .ol-grid-container {\n    width: 15em;\n}\n\n.ol-input.top.right > input {\n    width: 18em;\n}\n\n.ol-grid-table {\n    width: 100%;\n}\n\ntable.ol-grid-table {\n    border-collapse: collapse;\n    width: 100%;\n}\n\ntable.ol-grid-table > td {\n    padding: 8px;\n    text-align: left;\n    border-bottom: 1px solid #ddd;\n}\n\n.ol-input input {\n    height: 1.75em !important;\n}\n\n.ol-input.statecode > input {\n    text-transform: uppercase;\n    width: 2em;\n    text-align: center;\n}\n    ");
+        common_10.cssin("examples/ol3-input", "\n.ol-grid .ol-grid-container.ol-hidden {\n}\n\n.ol-grid .ol-grid-container {\n    width: 15em;\n}\n\n.ol-input.top.right > input {\n    width: 18em;\n}\n\n.ol-grid-table {\n    width: 100%;\n}\n\ntable.ol-grid-table {\n    border-collapse: collapse;\n    width: 100%;\n}\n\ntable.ol-grid-table > td {\n    padding: 8px;\n    text-align: left;\n    border-bottom: 1px solid #ddd;\n}\n\n.ol-input input {\n    height: 1.75em !important;\n}\n\n.ol-input.statecode > input {\n    text-transform: uppercase;\n    width: 2em;\n    text-align: center;\n}\n    ");
         var searchProvider = new osm_2.OpenStreet();
         var center = ol.proj.transform([-120, 35], 'EPSG:4326', 'EPSG:3857');
         var mapContainer = document.getElementsByClassName("map")[0];
@@ -5080,7 +4233,7 @@ define("ol3-lab/labs/ol-input", ["require", "exports", "openlayers", "jquery", "
             })
         });
         var source = new ol.source.Vector();
-        var symbolizer = new ol3_symbolizer_6.StyleConverter();
+        var symbolizer = new ol3_symbolizer_5.StyleConverter();
         var vector = new ol.layer.Vector({
             source: source,
             style: function (feature, resolution) {
@@ -5269,6 +4422,7 @@ define("bower_components/ol3-panzoom/ol3-panzoom/zoomslidercontrol", ["require",
 });
 define("bower_components/ol3-panzoom/ol3-panzoom/ol3-panzoom", ["require", "exports", "openlayers", "bower_components/ol3-panzoom/ol3-panzoom/zoomslidercontrol"], function (require, exports, ol, ZoomSlider) {
     "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
     function defaults(a) {
         var b = [];
         for (var _i = 1; _i < arguments.length; _i++) {
@@ -5563,9 +4717,10 @@ define("bower_components/ol3-panzoom/index", ["require", "exports", "bower_compo
     "use strict";
     return Panzoom;
 });
-define("ol3-lab/labs/ol-layerswitcher", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/common/common", "bower_components/ol3-symbolizer/index", "bower_components/ol3-layerswitcher/index", "bower_components/ol3-popup/index", "bower_components/ol3-panzoom/index", "bower_components/ol3-symbolizer/ol3-symbolizer/ags/ags-source"], function (require, exports, $, ol, common_16, ol3_symbolizer_7, ol3_layerswitcher_2, ol3_popup_4, index_1, ags_source_3) {
+define("ol3-lab/labs/ol-layerswitcher", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/common/common", "bower_components/ol3-symbolizer/index", "bower_components/ol3-layerswitcher/index", "bower_components/ol3-popup/index", "bower_components/ol3-panzoom/index", "bower_components/ol3-symbolizer/ol3-symbolizer/ags/ags-source"], function (require, exports, $, ol, common_11, ol3_symbolizer_6, ol3_layerswitcher_2, ol3_popup_3, index_1, ags_source_3) {
     "use strict";
-    var styler = new ol3_symbolizer_7.StyleConverter();
+    Object.defineProperty(exports, "__esModule", { value: true });
+    var styler = new ol3_symbolizer_6.StyleConverter();
     function parse(v, type) {
         if (typeof type === "string")
             return v;
@@ -5597,7 +4752,7 @@ define("ol3-lab/labs/ol-layerswitcher", ["require", "exports", "jquery", "openla
         {
             var opts_6 = options;
             Object.keys(opts_6).forEach(function (k) {
-                common_16.doif(common_16.getParameterByName(k), function (v) {
+                common_11.doif(common_11.getParameterByName(k), function (v) {
                     var value = parse(v, opts_6[k]);
                     if (value !== undefined)
                         opts_6[k] = value;
@@ -5658,7 +4813,7 @@ define("ol3-lab/labs/ol-layerswitcher", ["require", "exports", "jquery", "openla
             });
             var layerSwitcher = new ol3_layerswitcher_2.LayerSwitcher();
             layerSwitcher.setMap(map);
-            var popup = new ol3_popup_4.Popup({
+            var popup = new ol3_popup_3.Popup({
                 css: "\n            .ol-popup {\n                background-color: white;\n            }\n            .ol-popup .page {\n                max-height: 200px;\n                overflow-y: auto;\n            }\n            "
             });
             map.addOverlay(popup);
@@ -5691,6 +4846,7 @@ define("ol3-lab/labs/ol-layerswitcher", ["require", "exports", "jquery", "openla
 });
 define("ol3-lab/labs/ol-panzoom", ["require", "exports", "openlayers", "bower_components/ol3-panzoom/index"], function (require, exports, ol, ol3_panzoom_1) {
     "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
     function run() {
         var panZoom = new ol3_panzoom_1.PanZoom({
             imgPath: "https://raw.githubusercontent.com/ca0v/ol3-panzoom/v3.20.1/ol3-panzoom/resources/ol2img"
@@ -5715,9 +4871,10 @@ define("ol3-lab/labs/ol-panzoom", ["require", "exports", "openlayers", "bower_co
     }
     exports.run = run;
 });
-define("ol3-lab/labs/ol-popup", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/common/common", "bower_components/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/star/flower", "bower_components/ol3-popup/index"], function (require, exports, $, ol, common_17, ol3_symbolizer_8, pointStyle, ol3_popup_5) {
+define("ol3-lab/labs/ol-popup", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/common/common", "bower_components/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/star/flower", "bower_components/ol3-popup/index"], function (require, exports, $, ol, common_12, ol3_symbolizer_7, pointStyle, ol3_popup_4) {
     "use strict";
-    var styler = new ol3_symbolizer_8.StyleConverter();
+    Object.defineProperty(exports, "__esModule", { value: true });
+    var styler = new ol3_symbolizer_7.StyleConverter();
     function parse(v, type) {
         if (typeof type === "string")
             return v;
@@ -5752,7 +4909,7 @@ define("ol3-lab/labs/ol-popup", ["require", "exports", "jquery", "openlayers", "
         {
             var opts_7 = options;
             Object.keys(opts_7).forEach(function (k) {
-                common_17.doif(common_17.getParameterByName(k), function (v) {
+                common_12.doif(common_12.getParameterByName(k), function (v) {
                     var value = parse(v, opts_7[k]);
                     if (value !== undefined)
                         opts_7[k] = value;
@@ -5788,7 +4945,7 @@ define("ol3-lab/labs/ol-popup", ["require", "exports", "jquery", "openlayers", "
             source: source
         });
         map.addLayer(layer);
-        var popup = new ol3_popup_5.Popup({
+        var popup = new ol3_popup_4.Popup({
             dockContainer: '.popup-container',
             pointerPosition: 100,
             positioning: "bottom-left",
@@ -5819,8 +4976,9 @@ define("ol3-lab/labs/ol-popup", ["require", "exports", "jquery", "openlayers", "
     }
     exports.run = run;
 });
-define("bower_components/ol3-search/ol3-search/ol3-search", ["require", "exports", "openlayers", "bower_components/ol3-fun/ol3-fun/common"], function (require, exports, ol, common_18) {
+define("bower_components/ol3-search/ol3-search/ol3-search", ["require", "exports", "openlayers", "bower_components/ol3-fun/ol3-fun/common"], function (require, exports, ol, common_13) {
     "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
     var css = (function (I) { return "\n    ." + I.name + " {\n        position:absolute;\n    }\n    ." + I.name + ".top {\n        top: 0.5em;\n    }\n    ." + I.name + ".top-1 {\n        top: 1.5em;\n    }\n    ." + I.name + ".top-2 {\n        top: 2.5em;\n    }\n    ." + I.name + ".top-3 {\n        top: 3.5em;\n    }\n    ." + I.name + ".top-4 {\n        top: 4.5em;\n    }\n    ." + I.name + ".left {\n        left: 0.5em;\n    }\n    ." + I.name + ".left-1 {\n        left: 1.5em;\n    }\n    ." + I.name + ".left-2 {\n        left: 2.5em;\n    }\n    ." + I.name + ".left-3 {\n        left: 3.5em;\n    }\n    ." + I.name + ".left-4 {\n        left: 4.5em;\n    }\n    ." + I.name + ".bottom {\n        bottom: 0.5em;\n    }\n    ." + I.name + ".bottom-1 {\n        bottom: 1.5em;\n    }\n    ." + I.name + ".bottom-2 {\n        bottom: 2.5em;\n    }\n    ." + I.name + ".bottom-3 {\n        bottom: 3.5em;\n    }\n    ." + I.name + ".bottom-4 {\n        bottom: 4.5em;\n    }\n    ." + I.name + ".right {\n        right: 0.5em;\n    }\n    ." + I.name + ".right-1 {\n        right: 1.5em;\n    }\n    ." + I.name + ".right-2 {\n        right: 2.5em;\n    }\n    ." + I.name + ".right-3 {\n        right: 3.5em;\n    }\n    ." + I.name + ".right-4 {\n        right: 4.5em;\n    }\n    ." + I.name + " button {\n        min-height: 1.375em;\n        min-width: 1.375em;\n        width: auto;\n        display: inline;\n    }\n    ." + I.name + ".left button {\n        float:right;\n    }\n    ." + I.name + ".right button {\n        float:left;\n    }\n    ." + I.name + " form {\n        width: 16em;\n        border: none;\n        padding: 0;\n        margin: 0;\n        margin-left: 2px;\n        margin-top: 2px;\n        vertical-align: top;\n    }\n    ." + I.name + " form.ol-hidden {\n        display: none;\n    }\n"; })({ name: 'ol-search' });
     var olcss = {
         CLASS_CONTROL: 'ol-control',
@@ -5865,7 +5023,7 @@ define("bower_components/ol3-search/ol3-search/ol3-search", ["require", "exports
             if (options.hideButton) {
                 button.style.display = "none";
             }
-            var form = _this.form = common_18.html(("\n        <form>\n            <label class=\"title\">" + options.placeholderText + "</label>\n            <section class=\"header\"></section>\n            <section class=\"body\">\n            <table class=\"fields\">\n                <thead>\n                    <tr><td>Field</td><td>Value</td></tr>\n                </thead>\n                <tbody>\n                    <tr><td>Field</td><td>Value</td></tr>\n                </tbody>\n            </table>\n            </section>\n            <section class=\"footer\"></section>\n        </form>\n        ").trim());
+            var form = _this.form = common_13.html(("\n        <form>\n            <label class=\"title\">" + options.placeholderText + "</label>\n            <section class=\"header\"></section>\n            <section class=\"body\">\n            <table class=\"fields\">\n                <thead>\n                    <tr><td>Field</td><td>Value</td></tr>\n                </thead>\n                <tbody>\n                    <tr><td>Field</td><td>Value</td></tr>\n                </tbody>\n            </table>\n            </section>\n            <section class=\"footer\"></section>\n        </form>\n        ").trim());
             options.element.appendChild(form);
             {
                 var body_1 = form.getElementsByTagName("tbody")[0];
@@ -5879,17 +5037,17 @@ define("bower_components/ol3-search/ol3-search/ol3-search", ["require", "exports
                     var input;
                     switch (field.type) {
                         case "boolean":
-                            input = common_18.html("<input class=\"input\" name=\"" + field.name + "\" type=\"checkbox\" />");
+                            input = common_13.html("<input class=\"input\" name=\"" + field.name + "\" type=\"checkbox\" />");
                             break;
                         case "integer":
-                            input = common_18.html("<input class=\"input\" name=\"" + field.name + "\" type=\"number\" min=\"0\" step=\"1\" />");
+                            input = common_13.html("<input class=\"input\" name=\"" + field.name + "\" type=\"number\" min=\"0\" step=\"1\" />");
                             break;
                         case "number":
-                            input = common_18.html("<input class=\"input\" name=\"" + field.name + "\" type=\"number\" min=\"0\" max=\"" + Array(field.length || 3).join("9") + "\" />");
+                            input = common_13.html("<input class=\"input\" name=\"" + field.name + "\" type=\"number\" min=\"0\" max=\"" + Array(field.length || 3).join("9") + "\" />");
                             break;
                         case "string":
                         default:
-                            input = common_18.html("<input class=\"input\" name=\"" + field.name + "\" type=\"text\" />");
+                            input = common_13.html("<input class=\"input\" name=\"" + field.name + "\" type=\"text\" />");
                             input.maxLength = field.length || 20;
                             break;
                     }
@@ -5903,7 +5061,7 @@ define("bower_components/ol3-search/ol3-search/ol3-search", ["require", "exports
             }
             {
                 var footer = form.getElementsByClassName("footer")[0];
-                var searchButton_1 = common_18.html("<input type=\"button\" class=\"ol-search-button\" value=\"Search\"/>");
+                var searchButton_1 = common_13.html("<input type=\"button\" class=\"ol-search-button\" value=\"Search\"/>");
                 footer.appendChild(searchButton_1);
                 form.addEventListener("keydown", function (args) {
                     if (args.key === "Enter") {
@@ -5931,7 +5089,7 @@ define("bower_components/ol3-search/ol3-search/ol3-search", ["require", "exports
                 });
             }
             if (options.autoChange) {
-                form.addEventListener("keypress", common_18.debounce(function () {
+                form.addEventListener("keypress", common_13.debounce(function () {
                     _this.dispatchEvent({
                         type: "change",
                         value: _this.value
@@ -5942,15 +5100,15 @@ define("bower_components/ol3-search/ol3-search/ol3-search", ["require", "exports
             return _this;
         }
         SearchForm.create = function (options) {
-            common_18.cssin('ol-search', css);
-            options = common_18.mixin({
+            common_13.cssin('ol-search', css);
+            options = common_13.mixin({
                 openedText: options.className && -1 < options.className.indexOf("left") ? expando.left : expando.right,
                 closedText: options.className && -1 < options.className.indexOf("left") ? expando.right : expando.left,
             }, options || {});
-            options = common_18.mixin(common_18.mixin({}, defaults), options);
+            options = common_13.mixin(common_13.mixin({}, defaults), options);
             var element = document.createElement('div');
             element.className = options.className + " " + olcss.CLASS_UNSELECTABLE + " " + olcss.CLASS_CONTROL;
-            var geocoderOptions = common_18.mixin({
+            var geocoderOptions = common_13.mixin({
                 element: element,
                 target: options.target,
                 expanded: false
@@ -6015,8 +5173,9 @@ define("bower_components/ol3-search/index", ["require", "exports", "bower_compon
     "use strict";
     return Input;
 });
-define("bower_components/ol3-search/ol3-search/providers/osm", ["require", "exports", "openlayers", "bower_components/ol3-fun/ol3-fun/common"], function (require, exports, ol, common_19) {
+define("bower_components/ol3-search/ol3-search/providers/osm", ["require", "exports", "openlayers", "bower_components/ol3-fun/ol3-fun/common"], function (require, exports, ol, common_14) {
     "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
     var DEFAULTS = {
         url: '//nominatim.openstreetmap.org/search/',
         params: {
@@ -6036,7 +5195,7 @@ define("bower_components/ol3-search/ol3-search/providers/osm", ["require", "expo
         OpenStreet.prototype.getParameters = function (options, map) {
             var result = {
                 url: DEFAULTS.url,
-                params: common_19.mixin(common_19.mixin({}, DEFAULTS.params), options)
+                params: common_14.mixin(common_14.mixin({}, DEFAULTS.params), options)
             };
             if (!result.params.viewbox && map) {
                 var extent = map.getView().calculateExtent(map.getSize());
@@ -6084,8 +5243,9 @@ define("bower_components/ol3-search/ol3-search/providers/osm", ["require", "expo
     }());
     exports.OpenStreet = OpenStreet;
 });
-define("ol3-lab/labs/ol-search", ["require", "exports", "openlayers", "jquery", "bower_components/ol3-popup/index", "bower_components/ol3-grid/index", "bower_components/ol3-symbolizer/index", "bower_components/ol3-search/index", "bower_components/ol3-search/ol3-search/providers/osm", "bower_components/ol3-fun/ol3-fun/common", "bower_components/ol3-symbolizer/ol3-symbolizer/ags/ags-source"], function (require, exports, ol, $, ol3_popup_6, ol3_grid_3, ol3_symbolizer_9, ol3_search_1, osm_3, common_20, ags_source_4) {
+define("ol3-lab/labs/ol-search", ["require", "exports", "openlayers", "jquery", "bower_components/ol3-popup/index", "bower_components/ol3-grid/index", "bower_components/ol3-symbolizer/index", "bower_components/ol3-search/index", "bower_components/ol3-search/ol3-search/providers/osm", "bower_components/ol3-fun/ol3-fun/common", "bower_components/ol3-symbolizer/ol3-symbolizer/ags/ags-source"], function (require, exports, ol, $, ol3_popup_5, ol3_grid_3, ol3_symbolizer_8, ol3_search_1, osm_3, common_15, ags_source_4) {
     "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
     function zoomToFeature(map, feature) {
         var extent = feature.getGeometry().getExtent();
         map.getView().animate({
@@ -6100,7 +5260,7 @@ define("ol3-lab/labs/ol-search", ["require", "exports", "openlayers", "jquery", 
         });
     }
     function run() {
-        common_20.cssin("examples/ol3-search", "\n\n.map {\n    position: absolute;\n    top: 0;\n    bottom: 0;\n    left: 0;\n    right: 0;\n}\n\n.ol-popup {\n    background-color: white;\n}\n\n.ol-popup .pages {\n    max-height: 10em;\n    min-width: 20em;\n    overflow: auto;\n}\n\n.ol-grid.statecode .ol-grid-container {\n    background-color: white;\n    width: 10em;\n}\n\n.ol-grid .ol-grid-container.ol-hidden {\n}\n\n.ol-grid .ol-grid-container {\n    width: 15em;\n}\n\n.ol-grid .ol-grid-table {\n    width: 100%;\n}\n\n.ol-grid table.ol-grid-table {\n    border-collapse: collapse;\n    width: 100%;\n}\n\n.ol-grid table.ol-grid-table > td {\n    padding: 8px;\n    text-align: left;\n    border-bottom: 1px solid #ddd;\n}\n\n.ol-search.nominatim form {\n    width: 20em;\n}\n\n.ol-search tr.focus {\n    background: white;\n}\n\n.ol-search:hover {\n    background: white;\n}\n\n.ol-search label.ol-search-label {\n    white-space: nowrap;\n}\n\n    ");
+        common_15.cssin("examples/ol3-search", "\n\n.map {\n    position: absolute;\n    top: 0;\n    bottom: 0;\n    left: 0;\n    right: 0;\n}\n\n.ol-popup {\n    background-color: white;\n}\n\n.ol-popup .pages {\n    max-height: 10em;\n    min-width: 20em;\n    overflow: auto;\n}\n\n.ol-grid.statecode .ol-grid-container {\n    background-color: white;\n    width: 10em;\n}\n\n.ol-grid .ol-grid-container.ol-hidden {\n}\n\n.ol-grid .ol-grid-container {\n    width: 15em;\n}\n\n.ol-grid .ol-grid-table {\n    width: 100%;\n}\n\n.ol-grid table.ol-grid-table {\n    border-collapse: collapse;\n    width: 100%;\n}\n\n.ol-grid table.ol-grid-table > td {\n    padding: 8px;\n    text-align: left;\n    border-bottom: 1px solid #ddd;\n}\n\n.ol-search.nominatim form {\n    width: 20em;\n}\n\n.ol-search tr.focus {\n    background: white;\n}\n\n.ol-search:hover {\n    background: white;\n}\n\n.ol-search label.ol-search-label {\n    white-space: nowrap;\n}\n\n    ");
         var searchProvider = new osm_3.OpenStreet();
         var center = ol.proj.transform([-120, 35], 'EPSG:4326', 'EPSG:3857');
         var mapContainer = document.getElementsByClassName("map")[0];
@@ -6118,7 +5278,7 @@ define("ol3-lab/labs/ol-search", ["require", "exports", "openlayers", "jquery", 
                 zoom: 6
             })
         });
-        var popup = new ol3_popup_6.Popup({
+        var popup = new ol3_popup_5.Popup({
             yOffset: 0,
             positioning: "bottom-center"
         });
@@ -6146,7 +5306,7 @@ define("ol3-lab/labs/ol-search", ["require", "exports", "openlayers", "jquery", 
             popup.pages.goto(0);
         });
         var source = new ol.source.Vector();
-        var symbolizer = new ol3_symbolizer_9.StyleConverter();
+        var symbolizer = new ol3_symbolizer_8.StyleConverter();
         var vector = new ol.layer.Vector({
             source: source,
             style: function (feature, resolution) {
@@ -6321,8 +5481,9 @@ define("ol3-lab/labs/ol-search", ["require", "exports", "openlayers", "jquery", 
     }
     exports.run = run;
 });
-define("ol3-lab/labs/ol-symbolizer", ["require", "exports", "openlayers", "bower_components/ol3-popup/index", "bower_components/ol3-symbolizer/ol3-symbolizer/ags/ags-source", "bower_components/ol3-fun/ol3-fun/common"], function (require, exports, ol, ol3_popup_7, ags_source_5, common_21) {
+define("ol3-lab/labs/ol-symbolizer", ["require", "exports", "openlayers", "bower_components/ol3-popup/index", "bower_components/ol3-symbolizer/ol3-symbolizer/ags/ags-source", "bower_components/ol3-fun/ol3-fun/common"], function (require, exports, ol, ol3_popup_6, ags_source_5, common_16) {
     "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
     function parse(v, type) {
         if (typeof type === "string")
             return v;
@@ -6345,8 +5506,8 @@ define("ol3-lab/labs/ol-symbolizer", ["require", "exports", "openlayers", "bower
     };
     function run() {
         var target = document.getElementsByClassName("map")[0];
-        target.appendChild(common_21.html(html));
-        document.head.appendChild(common_21.html(css));
+        target.appendChild(common_16.html(html));
+        document.head.appendChild(common_16.html(css));
         var options = {
             srs: 'EPSG:4326',
             center: center.vegas,
@@ -6360,7 +5521,7 @@ define("ol3-lab/labs/ol-symbolizer", ["require", "exports", "openlayers", "bower
         {
             var opts_8 = options;
             Object.keys(opts_8).forEach(function (k) {
-                common_21.doif(common_21.getParameterByName(k), function (v) {
+                common_16.doif(common_16.getParameterByName(k), function (v) {
                     var value = parse(v, opts_8[k]);
                     if (value !== undefined)
                         opts_8[k] = value;
@@ -6397,7 +5558,7 @@ define("ol3-lab/labs/ol-symbolizer", ["require", "exports", "openlayers", "bower
             layers: options.layers.reverse()
         }).then(function (agsLayers) {
             agsLayers.forEach(function (agsLayer) { return map.addLayer(agsLayer); });
-            var popup = new ol3_popup_7.Popup({
+            var popup = new ol3_popup_6.Popup({
                 css: "\n            .ol-popup {\n                background-color: white;\n            }\n            .ol-popup .page {\n                max-height: 200px;\n                overflow-y: auto;\n            }\n            "
             });
             map.addOverlay(popup);
@@ -6430,6 +5591,7 @@ define("ol3-lab/labs/ol-symbolizer", ["require", "exports", "openlayers", "bower
 });
 define("ol3-lab/labs/polyline-encoder", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/common/ol3-polyline", "ol3-lab/labs/common/google-polyline"], function (require, exports, $, ol, PolylineEncoder, GoogleEncoder) {
     "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
     var PRECISION = 6;
     var css = "\n<style>\n    .polyline-encoder .area {\n        margin: 20px;\n    }\n\n    .polyline-encoder .area p {\n        font-size: smaller;\n    }\n\n    .polyline-encoder .area canvas {\n        vertical-align: top;\n    }\n\n    .polyline-encoder .area label {\n        display: block;\n        margin: 10px;\n        border-bottom: 1px solid black;\n    }\n\n    .polyline-encoder .area textarea {\n        min-width: 400px;\n        min-height: 200px;\n    }\n</style>\n";
     var ux = "\n<div class='polyline-encoder'>\n    <p>\n    Demonstrates simplifying a geometry and then encoding it.  Enter an Input Geometry (e.g. [[1,2],[3,4]]) and watch the magic happen\n    </p>\n\n    <div class='input area'>\n        <label>Input Geometry</label>\n        <p>Enter a geometry here as an array of points in the form [[x1,y1], [x2,y2], ..., [xn, yn]]</p>\n        <textarea></textarea>\n        <canvas></canvas>\n    </div>\n\n    <div class='simplified area'>\n        <label>Simplified Geometry</label>\n        <p>This is a 'simplified' version of the Input Geometry.  \n        You can also enter a geometry here as an array of points in the form [[x1,y1], [x2,y2], ..., [xn, yn]]</p>\n        <textarea></textarea>\n        <canvas></canvas>\n    </div>\n\n    <div class='encoded area'>\n        <label>Encoded Simplified Geometry</label>\n        <p>This is an encoding of the Simplified Geometry.  You can also enter an encoded value here</p>\n        <textarea>[encoding]</textarea>\n        <div>Use google encoder?</div>\n        <input type='checkbox' id='use-google' />\n        <p>Ported to Typescript from https://github.com/DeMoehn/Cloudant-nyctaxi/blob/master/app/js/polyline.js</p>\n    </div>\n\n    <div class='decoded area'>\n        <label>Decoded Simplified Geometry</label>\n        <p>This is the decoding of the Encoded Geometry</p>\n        <textarea>[decoded]</textarea>\n        <canvas></canvas>\n    </div>\n\n</div>\n";
@@ -6515,10 +5677,11 @@ define("ol3-lab/labs/polyline-encoder", ["require", "exports", "jquery", "openla
     }
     exports.run = run;
 });
-define("ol3-lab/labs/route-editor", ["require", "exports", "openlayers", "bower_components/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", "ol3-lab/labs/common/common"], function (require, exports, ol, ol3_symbolizer_10, common_22) {
+define("ol3-lab/labs/route-editor", ["require", "exports", "openlayers", "bower_components/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", "ol3-lab/labs/common/common"], function (require, exports, ol, ol3_symbolizer_9, common_17) {
     "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
     var delta = 16;
-    var formatter = new ol3_symbolizer_10.StyleConverter();
+    var formatter = new ol3_symbolizer_9.StyleConverter();
     function fromJson(styles) {
         return styles.map(function (style) { return formatter.fromJson(style); });
     }
@@ -6540,7 +5703,7 @@ define("ol3-lab/labs/route-editor", ["require", "exports", "openlayers", "bower_
     ]; };
     var Route = (function () {
         function Route(options) {
-            this.options = common_22.defaults(options, {
+            this.options = common_17.defaults(options, {
                 color: "black",
                 delta: delta,
                 stops: [],
@@ -6824,6 +5987,7 @@ define("ol3-lab/labs/route-editor", ["require", "exports", "openlayers", "bower_
 });
 define("ol3-lab/ux/serializers/serializer", ["require", "exports"], function (require, exports) {
     "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
     var geoJsonSimpleStyle = {
         "type": "FeatureCollection",
         "features": [{
@@ -6849,6 +6013,7 @@ define("ol3-lab/ux/serializers/serializer", ["require", "exports"], function (re
 });
 define("ol3-lab/ux/serializers/ags-simplemarkersymbol", ["require", "exports", "bower_components/ol3-symbolizer/ol3-symbolizer/format/ags-symbolizer"], function (require, exports, ags_symbolizer_1) {
     "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
     var converter = new ags_symbolizer_1.StyleConverter();
     var SimpleMarkerConverter = (function () {
         function SimpleMarkerConverter() {
@@ -6863,8 +6028,395 @@ define("ol3-lab/ux/serializers/ags-simplemarkersymbol", ["require", "exports", "
     }());
     exports.SimpleMarkerConverter = SimpleMarkerConverter;
 });
+define("bower_components/ol3-symbolizer/ol3-symbolizer/styles/basic", ["require", "exports"], function (require, exports) {
+    "use strict";
+    var stroke = {
+        color: 'black',
+        width: 2
+    };
+    var fill = {
+        color: 'red'
+    };
+    var radius = 10;
+    var opacity = 0.5;
+    var square = {
+        fill: fill,
+        stroke: stroke,
+        points: 4,
+        radius: radius,
+        angle: Math.PI / 4
+    };
+    var diamond = {
+        fill: fill,
+        stroke: stroke,
+        points: 4,
+        radius: radius,
+        angle: 0
+    };
+    var triangle = {
+        fill: fill,
+        stroke: stroke,
+        points: 3,
+        radius: radius,
+        angle: 0
+    };
+    var star = {
+        fill: fill,
+        stroke: stroke,
+        points: 5,
+        radius: radius,
+        radius2: 4,
+        angle: 0
+    };
+    var cross = {
+        opacity: opacity,
+        fill: fill,
+        stroke: stroke,
+        points: 4,
+        radius: radius,
+        radius2: 0,
+        angle: 0
+    };
+    var x = {
+        fill: fill,
+        stroke: stroke,
+        points: 4,
+        radius: radius,
+        radius2: 0,
+        angle: Math.PI / 4
+    };
+    return {
+        cross: [{ star: cross }],
+        square: [{ star: square }],
+        diamond: [{ star: diamond }],
+        star: [{ star: star }],
+        triangle: [{ star: triangle }],
+        x: [{ star: x }]
+    };
+});
+define("bower_components/ol3-symbolizer/ol3-symbolizer/styles/fill/gradient", ["require", "exports"], function (require, exports) {
+    "use strict";
+    return [
+        {
+            "fill": {
+                "gradient": {
+                    "type": "linear(200,0,201,0)",
+                    "stops": "rgba(255,0,0,.1) 0%;rgba(255,0,0,0.8) 100%"
+                }
+            }
+        },
+        {
+            "fill": {
+                "gradient": {
+                    "type": "linear(0,200,0,201)",
+                    "stops": "rgba(0,255,0,0.1) 0%;rgba(0,255,0,0.8) 100%"
+                }
+            }
+        }
+    ];
+});
+define("ol3-lab/labs/common/style-generator", ["require", "exports", "openlayers", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/basic", "bower_components/ol3-symbolizer/index", "bower_components/ol3-fun/ol3-fun/common"], function (require, exports, ol, basic_styles, ol3_symbolizer_10, common_18) {
+    "use strict";
+    var converter = new ol3_symbolizer_10.StyleConverter();
+    var orientations = "forward,backward,diagonal,horizontal,vertical,cross".split(",");
+    var randint = function (n) { return Math.round(n * Math.random()); };
+    var StyleGenerator = (function () {
+        function StyleGenerator(options) {
+            this.options = options;
+        }
+        StyleGenerator.prototype.asPoints = function () {
+            return 3 + Math.round(10 * Math.random());
+        };
+        StyleGenerator.prototype.asRadius = function () {
+            return 14 + Math.round(10 * Math.random());
+        };
+        StyleGenerator.prototype.asWidth = function () {
+            return 1 + Math.round(20 * Math.random() * Math.random());
+        };
+        StyleGenerator.prototype.asPastel = function () {
+            var _a = [255, 255, 255].map(function (n) { return Math.round((1 - Math.random() * Math.random()) * n); }), r = _a[0], g = _a[1], b = _a[2];
+            return [r, g, b, (10 + randint(50)) / 100];
+        };
+        StyleGenerator.prototype.asRgb = function () {
+            return [255, 255, 255].map(function (n) { return Math.round((Math.random() * Math.random()) * n); });
+        };
+        StyleGenerator.prototype.asRgba = function () {
+            var color = this.asRgb();
+            color.push((10 + randint(90)) / 100);
+            return color;
+        };
+        StyleGenerator.prototype.asFill = function () {
+            var fill = new ol.style.Fill({
+                color: this.asPastel()
+            });
+            return fill;
+        };
+        StyleGenerator.prototype.asStroke = function () {
+            var stroke = new ol.style.Stroke({
+                width: this.asWidth(),
+                color: this.asRgba()
+            });
+            return stroke;
+        };
+        StyleGenerator.prototype.addColorStops = function (gradient) {
+            var stops = [
+                {
+                    stop: 0,
+                    color: "rgba(" + this.asRgba().join(",") + ")"
+                },
+                {
+                    stop: 1,
+                    color: "rgba(" + this.asRgba().join(",") + ")"
+                }
+            ];
+            while (0.5 < Math.random()) {
+                stops.push({
+                    stop: 0.1 + randint(80) / 100,
+                    color: "rgba(" + this.asRgba().join(",") + ")"
+                });
+            }
+            stops = stops.sort(function (a, b) { return a.stop - b.stop; });
+            stops.forEach(function (stop) { return gradient.addColorStop(stop.stop, stop.color); });
+            common_18.mixin(gradient, {
+                stops: stops.map(function (stop) { return stop.color + " " + Math.round(100 * stop.stop) + "%"; }).join(";")
+            });
+        };
+        StyleGenerator.prototype.asRadialGradient = function (context, radius) {
+            var canvas = context.canvas;
+            var _a = [
+                canvas.width / 2, canvas.height / 2, radius,
+                canvas.width / 2, canvas.height / 2, 0
+            ], x0 = _a[0], y0 = _a[1], r0 = _a[2], x1 = _a[3], y1 = _a[4], r1 = _a[5];
+            var gradient = context.createRadialGradient(x0, y0, r0, x1, y1, r1);
+            return common_18.mixin(gradient, {
+                type: "radial(" + [x0, y0, r0, x1, y1, r1].join(",") + ")"
+            });
+        };
+        StyleGenerator.prototype.asLinearGradient = function (context, radius) {
+            var _a = [
+                randint(radius), 0,
+                randint(radius), 2 * radius
+            ], x0 = _a[0], y0 = _a[1], x1 = _a[2], y1 = _a[3];
+            var gradient = context.createLinearGradient(x0, y0, x1, y1);
+            return common_18.mixin(gradient, { type: "linear(" + [x0, y0, x1, y1].join(",") + ")" });
+        };
+        StyleGenerator.prototype.asGradient = function () {
+            var radius = this.asRadius();
+            var stroke = this.asStroke();
+            var canvas = document.createElement('canvas');
+            canvas.width = canvas.height = 2 * (radius + stroke.getWidth());
+            var context = canvas.getContext('2d');
+            var gradient;
+            if (0.5 < Math.random()) {
+                gradient = this.asLinearGradient(context, radius);
+            }
+            else {
+                gradient = this.asRadialGradient(context, radius);
+            }
+            this.addColorStops(gradient);
+            var fill = new ol.style.Fill({
+                color: gradient
+            });
+            var style = new ol.style.Circle({
+                fill: fill,
+                radius: radius,
+                stroke: stroke,
+                snapToPixel: false
+            });
+            return style;
+        };
+        StyleGenerator.prototype.asPattern = function () {
+            var radius = this.asRadius();
+            var spacing = 3 + randint(5);
+            var color = ol.color.asString(this.asRgb());
+            var canvas = document.createElement('canvas');
+            var context = canvas.getContext('2d');
+            var orientation = orientations[Math.round((orientations.length - 1) * Math.random())];
+            var pattern;
+            switch (orientation) {
+                case "horizontal":
+                    canvas.width = 1;
+                    canvas.height = 1 + randint(10);
+                    context.strokeStyle = color;
+                    context.beginPath();
+                    context.lineWidth = 1 + randint(canvas.height);
+                    context.strokeStyle = color;
+                    context.moveTo(0, 0);
+                    context.lineTo(canvas.width, 0);
+                    context.stroke();
+                    context.closePath();
+                    pattern = context.createPattern(canvas, 'repeat');
+                    break;
+                case "vertical":
+                    canvas.width = spacing;
+                    canvas.height = spacing;
+                    context.fillStyle = ol.color.asString(this.asRgba());
+                    for (var i = 0; i < spacing; i++) {
+                        context.fillRect(0, i, 1, 1);
+                    }
+                    pattern = context.createPattern(canvas, 'repeat');
+                    break;
+                case "cross":
+                    canvas.width = spacing;
+                    canvas.height = spacing;
+                    context.fillStyle = color;
+                    for (var i = 0; i < spacing; i++) {
+                        context.fillRect(i, 0, 1, 1);
+                        context.fillRect(0, i, 1, 1);
+                    }
+                    pattern = context.createPattern(canvas, 'repeat');
+                    break;
+                case "forward":
+                    canvas.width = spacing;
+                    canvas.height = spacing;
+                    context.fillStyle = color;
+                    for (var i = 0; i < spacing; i++) {
+                        context.fillRect(i, i, 1, 1);
+                    }
+                    pattern = context.createPattern(canvas, 'repeat');
+                    break;
+                case "backward":
+                    canvas.width = spacing;
+                    canvas.height = spacing;
+                    context.fillStyle = color;
+                    for (var i = 0; i < spacing; i++) {
+                        context.fillRect(spacing - 1 - i, i, 1, 1);
+                    }
+                    pattern = context.createPattern(canvas, 'repeat');
+                    break;
+                case "diagonal":
+                    canvas.width = spacing;
+                    canvas.height = spacing;
+                    context.fillStyle = color;
+                    for (var i = 0; i < spacing; i++) {
+                        context.fillRect(i, i, 1, 1);
+                        context.fillRect(spacing - 1 - i, i, 1, 1);
+                    }
+                    pattern = context.createPattern(canvas, 'repeat');
+                    break;
+                default:
+                    throw "invalid orientation";
+            }
+            common_18.mixin(pattern, {
+                orientation: orientation,
+                color: color,
+                spacing: spacing,
+                repitition: "repeat"
+            });
+            var fill = new ol.style.Fill({
+                color: pattern
+            });
+            var style = new ol.style.Circle({
+                fill: fill,
+                radius: radius,
+                stroke: this.asStroke(),
+                snapToPixel: false
+            });
+            return style;
+        };
+        StyleGenerator.prototype.asBasic = function () {
+            var basic = [basic_styles.cross, basic_styles.x, basic_styles.square, basic_styles.diamond, basic_styles.star, basic_styles.triangle];
+            var config = basic[Math.round((basic.length - 1) * Math.random())];
+            return converter.fromJson(config[0]).getImage();
+        };
+        StyleGenerator.prototype.asCircle = function () {
+            var style = new ol.style.Circle({
+                fill: this.asFill(),
+                radius: this.asRadius(),
+                stroke: this.asStroke(),
+                snapToPixel: false
+            });
+            return style;
+        };
+        StyleGenerator.prototype.asStar = function () {
+            var style = new ol.style.RegularShape({
+                fill: this.asFill(),
+                stroke: this.asStroke(),
+                points: this.asPoints(),
+                radius: this.asRadius(),
+                radius2: this.asRadius()
+            });
+            return style;
+        };
+        StyleGenerator.prototype.asPoly = function () {
+            var style = new ol.style.RegularShape({
+                fill: this.asFill(),
+                stroke: this.asStroke(),
+                points: this.asPoints(),
+                radius: this.asRadius(),
+                radius2: 0
+            });
+            return style;
+        };
+        StyleGenerator.prototype.asText = function () {
+            var style = new ol.style.Text({
+                font: "18px fantasy",
+                text: "Test",
+                fill: this.asFill(),
+                stroke: this.asStroke(),
+                offsetY: 30 - Math.random() * 20
+            });
+            style.getFill().setColor(this.asRgba());
+            style.getStroke().setColor(this.asPastel());
+            return style;
+        };
+        StyleGenerator.prototype.asPoint = function () {
+            var _a = this.options.center, x = _a[0], y = _a[1];
+            x += (Math.random() - 0.5);
+            y += (Math.random() - 0.5);
+            return new ol.geom.Point([x, y]);
+        };
+        StyleGenerator.prototype.asPointFeature = function (styleCount) {
+            var _this = this;
+            if (styleCount === void 0) { styleCount = 1; }
+            var feature = new ol.Feature();
+            var gens = [function () { return _this.asStar(); }, function () { return _this.asCircle(); }, function () { return _this.asPoly(); }, function () { return _this.asBasic(); }, function () { return _this.asGradient(); }, function () { return _this.asPattern(); }];
+            feature.setGeometry(this.asPoint());
+            var styles = common_18.range(styleCount).map(function (x) { return new ol.style.Style({
+                image: gens[Math.round((gens.length - 1) * Math.random())](),
+                text: null && _this.asText()
+            }); });
+            feature.setStyle(styles);
+            return feature;
+        };
+        StyleGenerator.prototype.asLineFeature = function () {
+            var feature = new ol.Feature();
+            var p1 = this.asPoint();
+            var p2 = this.asPoint();
+            p2.setCoordinates([p2.getCoordinates()[0], p1.getCoordinates()[1]]);
+            var polyline = new ol.geom.LineString([p1, p2].map(function (p) { return p.getCoordinates(); }));
+            feature.setGeometry(polyline);
+            feature.setStyle([new ol.style.Style({
+                    stroke: this.asStroke(),
+                    text: this.asText()
+                })]);
+            return feature;
+        };
+        StyleGenerator.prototype.asLineLayer = function () {
+            var _this = this;
+            var layer = new ol.layer.Vector();
+            var source = new ol.source.Vector();
+            layer.setSource(source);
+            var features = common_18.range(10).map(function (i) { return _this.asLineFeature(); });
+            source.addFeatures(features);
+            return layer;
+        };
+        StyleGenerator.prototype.asMarkerLayer = function (args) {
+            var _this = this;
+            var layer = new ol.layer.Vector();
+            var source = new ol.source.Vector();
+            layer.setSource(source);
+            var features = common_18.range(args.markerCount || 100).map(function (i) { return _this.asPointFeature(args.styleCount || 1); });
+            source.addFeatures(features);
+            return layer;
+        };
+        return StyleGenerator;
+    }());
+    return StyleGenerator;
+});
 define("ol3-lab/labs/style-lab", ["require", "exports", "openlayers", "jquery", "bower_components/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", "ol3-lab/labs/common/style-generator"], function (require, exports, ol, $, ol3_symbolizer_11, StyleGenerator) {
     "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
     var center = [-82.4, 34.85];
     var formatter = new ol3_symbolizer_11.StyleConverter();
     var generator = new StyleGenerator({
@@ -6942,6 +6494,60 @@ define("ol3-lab/labs/style-lab", ["require", "exports", "openlayers", "jquery", 
     }
     exports.run = run;
 });
+define("bower_components/ol3-fun/ol3-fun/snapshot", ["require", "exports", "openlayers"], function (require, exports, ol) {
+    "use strict";
+    function getStyle(feature) {
+        var style = feature.getStyle();
+        if (!style) {
+            var styleFn = feature.getStyleFunction();
+            if (styleFn) {
+                style = styleFn(0);
+            }
+        }
+        if (!style) {
+            style = new ol.style.Style({
+                text: new ol.style.Text({
+                    text: "?"
+                })
+            });
+        }
+        if (!Array.isArray(style))
+            style = [style];
+        return style;
+    }
+    var Snapshot = (function () {
+        function Snapshot() {
+        }
+        Snapshot.render = function (canvas, feature) {
+            feature = feature.clone();
+            var geom = feature.getGeometry();
+            var extent = geom.getExtent();
+            var isPoint = extent[0] === extent[2];
+            var _a = ol.extent.getCenter(extent), dx = _a[0], dy = _a[1];
+            var scale = isPoint ? 1 : Math.min(canvas.width / ol.extent.getWidth(extent), canvas.height / ol.extent.getHeight(extent));
+            geom.translate(-dx, -dy);
+            geom.scale(scale, -scale);
+            geom.translate(canvas.width / 2, canvas.height / 2);
+            var vtx = ol.render.toContext(canvas.getContext("2d"));
+            var styles = getStyle(feature);
+            if (!Array.isArray(styles))
+                styles = [styles];
+            styles.forEach(function (style) { return vtx.drawFeature(feature, style); });
+        };
+        Snapshot.snapshot = function (feature) {
+            var canvas = document.createElement("canvas");
+            var geom = feature.getGeometry();
+            this.render(canvas, feature);
+            return canvas.toDataURL();
+        };
+        return Snapshot;
+    }());
+    return Snapshot;
+});
+define("ol3-lab/labs/common/snapshot", ["require", "exports", "bower_components/ol3-fun/ol3-fun/snapshot"], function (require, exports, Snapshot) {
+    "use strict";
+    return Snapshot;
+});
 define("ol3-lab/tests/data/geom/polygon", ["require", "exports", "openlayers"], function (require, exports, ol) {
     "use strict";
     return new ol.geom.Polygon([
@@ -6964,6 +6570,7 @@ define("ol3-lab/tests/data/geom/polygon", ["require", "exports", "openlayers"], 
 });
 define("ol3-lab/labs/style-to-canvas", ["require", "exports", "openlayers", "jquery", "ol3-lab/labs/common/snapshot", "ol3-lab/tests/data/geom/polygon"], function (require, exports, ol, $, Snapshot, parcel) {
     "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
     var html = "\n<div class='style-to-canvas'>\n    <h3>Renders a feature on a canvas</h3>\n    <div class=\"area\">\n        <label>256 x 256 Canvas</label>\n        <canvas id='canvas' width=\"256\" height=\"256\"></canvas>\n    </div>\n</div>\n";
     var css = "\n<style>\n    #map {\n        display: none;\n    }\n\n    .style-to-canvas {\n    }\n\n    .style-to-canvas .area label {\n        display: block;\n        vertical-align: top;\n    }\n\n    .style-to-canvas .area {\n        border: 1px solid black;\n        padding: 20px;\n        margin: 20px;\n    }\n\n    .style-to-canvas #canvas {\n        font-family: sans serif;\n        font-size: 20px;\n        border: none;\n        padding: 0;\n        margin: 0;\n    }\n</style>\n";
     function run() {
@@ -7029,8 +6636,9 @@ define("bower_components/ol3-symbolizer/ol3-symbolizer/styles/icon/png", ["requi
         }
     ];
 });
-define("ol3-lab/labs/style-viewer", ["require", "exports", "openlayers", "jquery", "ol3-lab/labs/common/snapshot", "ol3-lab/labs/common/common", "bower_components/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/icon/png"], function (require, exports, ol, $, Snapshot, common_23, ol3_symbolizer_12, pointStyle) {
+define("ol3-lab/labs/style-viewer", ["require", "exports", "openlayers", "jquery", "ol3-lab/labs/common/snapshot", "ol3-lab/labs/common/common", "bower_components/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/icon/png"], function (require, exports, ol, $, Snapshot, common_19, ol3_symbolizer_12, pointStyle) {
     "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
     var html = "\n<div class='style-to-canvas'>\n    <h3>Renders a feature on a canvas</h3>\n    <div class=\"area\">\n        <label>256 x 256 Canvas</label>\n        <div id='canvas-collection'></div>\n    </div>\n    <div class=\"area\">\n        <label>Style</label>\n        <textarea class='style'></textarea>\n    </div>\n    <div class=\"area\">\n        <label>Potential control for setting linear gradient start/stop locations</label>\n        <div class=\"colorramp\">\n            <input class=\"top\" type=\"range\" min=\"0\" max=\"100\" value=\"20\"/>\n            <input class=\"bottom\" type=\"range\" min=\"0\" max=\"100\" value=\"80\"/>\n        </div>\n    </div>\n</div>\n";
     var css = "\n<style>\n    #map {\n        display: none;\n    }\n\n    .style-to-canvas {\n    }\n\n    .style-to-canvas .area label {\n        display: block;\n        vertical-align: top;\n    }\n\n    .style-to-canvas .area {\n        border: 1px solid black;\n        padding: 20px;\n        margin: 20px;\n    }\n\n    .style-to-canvas .area .style {\n        width: 100%;\n        height: 400px;\n    }\n\n    .style-to-canvas #canvas-collection canvas {\n        font-family: sans serif;\n        font-size: 20px;\n        border: 1px solid black;\n        padding: 20px;\n        margin: 20px;\n        background: linear-gradient(#333, #ccc);\n    }\n\n    div.colorramp {\n        display: inline-block;\n        background: linear-gradient(to right, rgba(250,0,0,0), rgba(250,0,0,1) 60%, rgba(250,100,0,1) 85%, rgb(250,250,0) 95%);\n        width:100%;\n    }\n\n    div.colorramp > input[type=range] {\n        -webkit-appearance: slider-horizontal;\n        display:block;\n        width:100%;\n        background-color:transparent;\n    }\n\n    div.colorramp > label {\n        display: inline-block;\n    }\n\n    div.colorramp > input[type='range'] {\n        box-shadow: 0 0 0 white;\n    }\n\n    div.colorramp > input[type=range]::-webkit-slider-runnable-track {\n        height: 0px;     \n    }\n\n    div.colorramp > input[type='range'].top::-webkit-slider-thumb {\n        margin-top: -10px;\n    }\n\n    div.colorramp > input[type='range'].bottom::-webkit-slider-thumb {\n        margin-top: -12px;\n    }\n    \n</style>\n";
     var svg = "\n<div style='display:none'>\n<svg xmlns=\"http://www.w3.org/2000/svg\">\n<symbol viewBox=\"5 0 20 15\" id=\"lock\">\n    <title>lock</title>\n    <path d=\"M10.9,11.6c-0.3-0.6-0.3-2.3,0-2.8c0.4-0.6,3.4,1.4,3.4,1.4c0.9,0.4,0.9-6.1,0-5.7\n\tc0,0-3.1,2.1-3.4,1.4c-0.3-0.7-0.3-2.1,0-2.8C11.2,2.5,15,2.4,15,2.4C15,1.7,12.1,1,10.9,1S8.4,1.1,6.8,1.8C5.2,2.4,3.9,3.4,2.7,4.6\n\tS0,8.2,0,8.9s1.5,2.8,3.7,3.7s3.3,1.1,4.5,1.3c1.1,0.1,2.6,0,3.9-0.3c1-0.2,2.9-0.7,2.9-1.1C15,12.3,11.2,12.2,10.9,11.6z M4.5,9.3\n\tC3.7,9.3,3,8.6,3,7.8s0.7-1.5,1.5-1.5S6,7,6,7.8S5.3,9.3,4.5,9.3z\"\n    />\n</symbol>\n<symbol viewBox=\"0 0 37 37\" id=\"marker\">\n      <title>marker</title>\n      <path d=\"M19.75 2.75 L32.47792206135786 7.022077938642145 L36.75 19.75 L32.47792206135786 32.47792206135786 L19.75 36.75 L7.022077938642145 32.47792206135786 L2.75 19.750000000000004 L7.022077938642141 7.022077938642145 L19.749999999999996 2.75 Z\" /> </symbol>\n</svg>\n</div>\n";
@@ -7094,8 +6702,8 @@ define("ol3-lab/labs/style-viewer", ["require", "exports", "openlayers", "jquery
         $(html).appendTo("body");
         $(svg).appendTo("body");
         $(css).appendTo("head");
-        var geom = common_23.getParameterByName("geom") || "polygon-with-holes";
-        var style = common_23.getParameterByName("style") || "fill/gradient";
+        var geom = common_19.getParameterByName("geom") || "polygon-with-holes";
+        var style = common_19.getParameterByName("style") || "fill/gradient";
         var save = function () {
             var style = JSON.stringify(JSON.parse($(".style").val()));
             var loc = window.location;
@@ -7125,6 +6733,7 @@ define("ol3-lab/labs/style-viewer", ["require", "exports", "openlayers", "jquery
 });
 define("ol3-lab/labs/svg", ["require", "exports", "jquery"], function (require, exports, $) {
     "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
     var html = "\n<div\n    class=\"clear-margin-mobile space-left4 clearfix mobile-cols\"\n    data-reactid=\".0.1.0.1.0\">\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$airfield\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$airfield.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$airfield.0.0\">airfield</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$airfield.0.1\"></rect>\n            <path\n                fill=\"#e55e5e\"\n                transform=\"translate(0 0)\"\n                d=\"M6.8182,0.6818H4.7727  C4.0909,0.6818,4.0909,0,4.7727,0h5.4545c0.6818,0,0.6818,0.6818,0,0.6818H8.1818c0,0,0.8182,0.5909,0.8182,1.9545V4h6v2L9,8l-0.5,5  l2.5,1.3182V15H4v-0.6818L6.5,13L6,8L0,6V4h6V2.6364C6,1.2727,6.8182,0.6818,6.8182,0.6818z\"\n                data-reactid=\".0.1.0.1.0.$airfield.0.5:$0\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$airport\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$airport.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$airport.0.0\">airport</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$airport.0.1\"></rect>\n            <path\n                fill=\"#56b881\"\n                transform=\"translate(0 0)\"\n                d=\"M15,6.8182L15,8.5l-6.5-1  l-0.3182,4.7727L11,14v1l-3.5-0.6818L4,15v-1l2.8182-1.7273L6.5,7.5L0,8.5V6.8182L6.5,4.5v-3c0,0,0-1.5,1-1.5s1,1.5,1,1.5v2.8182  L15,6.8182z\"\n                data-reactid=\".0.1.0.1.0.$airport.0.5:$0\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$heliport\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$heliport.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$heliport.0.0\">heliport</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$heliport.0.1\"></rect>\n            <path\n                fill=\"#34a9ca\"\n                transform=\"translate(0 0)\"\n                d=\"M4,2C3,2,3,3,4,3h4v1C7.723,4,7.5,4.223,7.5,4.5V5H5H3.9707H3.9316  C3.7041,4.1201,2.9122,3.5011,2,3.5c-1.1046,0-2,0.8954-2,2s0.8954,2,2,2c0.3722-0.001,0.7368-0.1058,1.0527-0.3027L5.5,10.5  C6.5074,11.9505,8.3182,12,9,12h5c0,0,1,0,1-1v-0.9941C15,9.2734,14.874,8.874,14.5,8.5l-3-3c0,0-0.5916-0.5-1.2734-0.5H9.5V4.5  C9.5,4.223,9.277,4,9,4V3h4c1,0,1-1,0-1C13,2,4,2,4,2z M2,4.5c0.5523,0,1,0.4477,1,1s-0.4477,1-1,1s-1-0.4477-1-1  C1,4.9477,1.4477,4.5,2,4.5z M10,6c0.5,0,0.7896,0.3231,1,0.5L13.5,9H10c0,0-1,0-1-1V7C9,7,9,6,10,6z\"\n                data-reactid=\".0.1.0.1.0.$heliport.0.5:$0\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$rocket\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$rocket.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$rocket.0.0\">rocket</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$rocket.0.1\"></rect>\n            <path\n                fill=\"#ff9933\"\n                transform=\"translate(0 0)\"\n                d=\"M12.5547,1c-2.1441,0-5.0211,1.471-6.9531,4H4  C2.8427,5,2.1794,5.8638,1.7227,6.7773L1.1113,8h1.4434H4l1.5,1.5L7,11v1.4453v1.4434l1.2227-0.6113  C9.1362,12.8206,10,12.1573,10,11V9.3984c2.529-1.932,4-4.809,4-6.9531V1H12.5547z M10,4c0.5523,0,1,0.4477,1,1l0,0  c0,0.5523-0.4477,1-1,1l0,0C9.4477,6,9,5.5523,9,5v0C9,4.4477,9.4477,4,10,4L10,4z M3.5,10L3,10.5C2.2778,11.2222,2,13,2,13  s1.698-0.198,2.5-1L5,11.5L3.5,10z\"\n                data-reactid=\".0.1.0.1.0.$rocket.0.5:$0\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$mountain\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$mountain.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$mountain.0.0\">mountain</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$mountain.0.1\"></rect>\n            <path\n                fill=\"#8a8acb\"\n                transform=\"translate(0 0)\"\n                d=\"M7.5,2C7.2,2,7.1,2.2,6.9,2.4  l-5.8,9.5C1,12,1,12.2,1,12.3C1,12.8,1.4,13,1.7,13h11.6c0.4,0,0.7-0.2,0.7-0.7c0-0.2,0-0.2-0.1-0.4L8.2,2.4C8,2.2,7.8,2,7.5,2z   M7.5,3.5L10.8,9H10L8.5,7.5L7.5,9l-1-1.5L5,9H4.1L7.5,3.5z\"\n                data-reactid=\".0.1.0.1.0.$mountain.0.5:$0\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$volcano\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$volcano.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$volcano.0.0\">volcano</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$volcano.0.1\"></rect>\n            <path\n                fill=\"#e55e5e\"\n                transform=\"translate(0 0)\"\n                d=\"M8.4844,1.0002  c-0.1464,0.005-0.2835,0.0731-0.375,0.1875L6.4492,3.2619L4.8438,1.7385C4.4079,1.3374,3.7599,1.893,4.0899,2.385l1.666,2.4004  C5.9472,5.061,6.3503,5.0737,6.5586,4.8108C6.7249,4.6009,7,4.133,7.5,4.133s0.7929,0.4907,0.9414,0.6777  c0.175,0.2204,0.4973,0.2531,0.7129,0.0723l1.668-1.4004c0.4408-0.3741,0.0006-1.0735-0.5273-0.8379L9,3.2268V1.5002  C9.0002,1.2179,8.7666,0.9915,8.4844,1.0002L8.4844,1.0002z M5,6.0002L2.0762,11.924C1.9993,12.0009,2,12.155,2,12.3088  c0,0.5385,0.3837,0.6914,0.6914,0.6914h9.6172c0.3846,0,0.6914-0.153,0.6914-0.6914c0-0.1538,0.0008-0.2309-0.0762-0.3848L10,6.0002  c-0.5,0-1,0.5-1,1v0.5c0,0.277-0.223,0.5-0.5,0.5S8,7.7772,8,7.5002v-0.5c0-0.2761-0.2238-0.5-0.5-0.5S7,6.7241,7,7.0002v2  c0,0.277-0.223,0.5-0.5,0.5S6,9.2772,6,9.0002v-2C6,6.5002,5.5,6.0002,5,6.0002z\"\n                data-reactid=\".0.1.0.1.0.$volcano.0.5:$0\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$bakery\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$bakery.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$bakery.0.0\">bakery</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$bakery.0.1\"></rect>\n            <path\n                fill=\"#56b881\"\n                transform=\"translate(0 0)\"\n                d=\"M5.2941,4.3824L6,9.5  c0,0,0,1,1,1h1c1,0,1-1,1-1l0.7059-5.1176C9.7059,3,7.5,3,7.5,3S5.291,3,5.2941,4.3824z M3.5,5C2,5,2,6,2,6l1,4h1.5  c0.755,0,0.7941-0.7647,0.7941-0.7647L4.5,5H3.5z M1.5,7.5c0,0-0.6176-0.0294-1.0588,0.4118C0,8.3529,0,8.7941,0,8.7941V11h0.8824  C2,11,2,10,2,10L1.5,7.5z\"\n                data-reactid=\".0.1.0.1.0.$bakery.0.5:$0\"></path>\n            <path\n                fill=\"#56b881\"\n                transform=\"translate(0 0)\"\n                d=\"M11.5,5C13,5,13,6,13,6l-1,4h-1.5  c-0.755,0-0.7941-0.7647-0.7941-0.7647L10.5,5H11.5z M13.5,7.5c0,0,0.6176-0.0294,1.0588,0.4118C15,8.3529,15,8.7941,15,8.7941V11  h-0.8824C13,11,13,10,13,10L13.5,7.5z\"\n                data-reactid=\".0.1.0.1.0.$bakery.0.5:$1\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$bar\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$bar.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$bar.0.0\">bar</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$bar.0.1\"></rect>\n            <path\n                fill=\"#34a9ca\"\n                transform=\"translate(0 0)\"\n                d=\"M7.5,1c-2,0-7,0.25-6.5,0.75L7,8v4  c0,1-3,0.5-3,2h7c0-1.5-3-1-3-2V8l6-6.25C14.5,1.25,9.5,1,7.5,1z M7.5,2c2.5,0,4.75,0.25,4.75,0.25L11.5,3h-8L2.75,2.25  C2.75,2.25,5,2,7.5,2z\"\n                data-reactid=\".0.1.0.1.0.$bar.0.5:$0\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$beer\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$beer.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$beer.0.0\">beer</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$beer.0.1\"></rect>\n            <path\n                fill=\"#ff9933\"\n                transform=\"translate(0 0)\"\n                d=\"M12,5V2c0,0-1-1-4.5-1S3,2,3,2v3c0.0288,1.3915,0.3706,2.7586,1,4c0.6255,1.4348,0.6255,3.0652,0,4.5c0,0,0,1,3.5,1  s3.5-1,3.5-1c-0.6255-1.4348-0.6255-3.0652,0-4.5C11.6294,7.7586,11.9712,6.3915,12,5z M7.5,13.5  c-0.7966,0.035-1.5937-0.0596-2.36-0.28c0.203-0.7224,0.304-1.4696,0.3-2.22h4.12c-0.004,0.7504,0.097,1.4976,0.3,2.22  C9.0937,13.4404,8.2966,13.535,7.5,13.5z M7.5,5C6.3136,5.0299,5.1306,4.8609,4,4.5v-2C5.131,2.1411,6.3137,1.9722,7.5,2  C8.6863,1.9722,9.869,2.1411,11,2.5v2C9.8694,4.8609,8.6864,5.0299,7.5,5z\"\n                data-reactid=\".0.1.0.1.0.$beer.0.5:$0\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$cafe\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$cafe.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$cafe.0.0\">cafe</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$cafe.0.1\"></rect>\n            <path\n                fill=\"#8a8acb\"\n                transform=\"translate(0 0)\"\n                d=\"M12,5h-2V3H2v4c0.0133,2.2091,1.8149,3.9891,4.024,3.9758C7.4345,10.9673,8.7362,10.2166,9.45,9H12c1.1046,0,2-0.8954,2-2  S13.1046,5,12,5z M12,8H9.86C9.9487,7.6739,9.9958,7.3379,10,7V6h2c0.5523,0,1,0.4477,1,1S12.5523,8,12,8z M10,12.5  c0,0.2761-0.2239,0.5-0.5,0.5h-7C2.2239,13,2,12.7761,2,12.5S2.2239,12,2.5,12h7C9.7761,12,10,12.2239,10,12.5z\"\n                data-reactid=\".0.1.0.1.0.$cafe.0.5:$0\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$fast-food\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$fast-food.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$fast-food.0.0\">fast-food</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$fast-food.0.1\"></rect>\n            <path\n                fill=\"#e55e5e\"\n                transform=\"translate(0 0)\"\n                d=\"M14,8c0,0.5523-0.4477,1-1,1H2C1.4477,9,1,8.5523,1,8s0.4477-1,1-1h11C13.5523,7,14,7.4477,14,8z M3.5,10H2  c0,1.6569,1.3431,3,3,3h5c1.6569,0,3-1.3431,3-3H3.5z M3,6H2V4c0-1.1046,0.8954-2,2-2h7c1.1046,0,2,0.8954,2,2v2H3z M11,4.5  C11,4.7761,11.2239,5,11.5,5S12,4.7761,12,4.5S11.7761,4,11.5,4S11,4.2239,11,4.5z M9,3.5C9,3.7761,9.2239,4,9.5,4S10,3.7761,10,3.5  S9.7761,3,9.5,3S9,3.2239,9,3.5z M7,4.5C7,4.7761,7.2239,5,7.5,5S8,4.7761,8,4.5S7.7761,4,7.5,4S7,4.2239,7,4.5z M5,3.5  C5,3.7761,5.2239,4,5.5,4S6,3.7761,6,3.5S5.7761,3,5.5,3S5,3.2239,5,3.5z M3,4.5C3,4.7761,3.2239,5,3.5,5S4,4.7761,4,4.5  S3.7761,4,3.5,4S3,4.2239,3,4.5z\"\n                data-reactid=\".0.1.0.1.0.$fast-food.0.5:$0\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$ice-cream\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$ice-cream.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$ice-cream.0.0\">ice-cream</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$ice-cream.0.1\"></rect>\n            <path\n                fill=\"#56b881\"\n                transform=\"translate(0 0)\"\n                d=\"M5.44,8.17c0.7156,0.0006,1.414-0.2194,2-0.63C7.9037,7.8634,8.4391,8.0693,9,8.14h0.44L8,13.7  c-0.1082,0.2541-0.4019,0.3723-0.656,0.264C7.2252,13.9134,7.1306,13.8188,7.08,13.7L5.44,8.17z\"\n                data-reactid=\".0.1.0.1.0.$ice-cream.0.5:$0\"></path>\n            <path\n                fill=\"#56b881\"\n                transform=\"translate(0 0)\"\n                d=\"M11.44,4.67c0,1.1046-0.8954,2-2,2s-2-0.8954-2-2l0,0l0,0l0,0c0,1.1046-0.8954,2-2,2s-2-0.8954-2-2s0.8954-2,2-2h0.12  C5.1756,1.6345,5.7035,0.4834,6.739,0.099s2.1866,0.1435,2.571,1.179c0.1667,0.449,0.1667,0.9429,0,1.3919h0.13  C10.5446,2.67,11.44,3.5654,11.44,4.67z\"\n                data-reactid=\".0.1.0.1.0.$ice-cream.0.5:$1\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$restaurant\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$restaurant.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$restaurant.0.0\">restaurant</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$restaurant.0.1\"></rect>\n            <path\n                fill=\"#34a9ca\"\n                transform=\"translate(0 0)\"\n                d=\"M3.5,0l-1,5.5c-0.1464,0.805,1.7815,1.181,1.75,2L4,14c-0.0384,0.9993,1,1,1,1s1.0384-0.0007,1-1L5.75,7.5  c-0.0314-0.8176,1.7334-1.1808,1.75-2L6.5,0H6l0.25,4L5.5,4.5L5.25,0h-0.5L4.5,4.5L3.75,4L4,0H3.5z M12,0  c-0.7364,0-1.9642,0.6549-2.4551,1.6367C9.1358,2.3731,9,4.0182,9,5v2.5c0,0.8182,1.0909,1,1.5,1L10,14c-0.0905,0.9959,1,1,1,1  s1,0,1-1V0z\"\n                data-reactid=\".0.1.0.1.0.$restaurant.0.5:$0\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$college\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$college.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$college.0.0\">college</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$college.0.1\"></rect>\n            <path\n                fill=\"#ff9933\"\n                transform=\"translate(0 0)\"\n                d=\"M7.5,1L0,4.5l2,0.9v1.7C1.4,7.3,1,7.9,1,8.5s0.4,1.2,1,1.4V10l-0.9,2.1  C0.8,13,1,14,2.5,14s1.7-1,1.4-1.9L3,10c0.6-0.3,1-0.8,1-1.5S3.6,7.3,3,7.1V5.9L7.5,8L15,4.5L7.5,1z M11.9,7.5l-4.5,2L5,8.4v0.1  c0,0.7-0.3,1.3-0.8,1.8l0.6,1.4v0.1C4.9,12.2,5,12.6,4.9,13c0.7,0.3,1.5,0.5,2.5,0.5c3.3,0,4.5-2,4.5-3L11.9,7.5L11.9,7.5z\"\n                data-reactid=\".0.1.0.1.0.$college.0.5:$0\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$school\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$school.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$school.0.0\">school</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$school.0.1\"></rect>\n            <path\n                fill=\"#8a8acb\"\n                transform=\"translate(0 0)\"\n                d=\"M11,13v-1h2v-1H9.5v-1H13V9h-2V8h2V7h-2V6h2V5H9.5V4H13V3h-2V2h2V1H8v13h5v-1H11z M6,11H2V1h4V11z M6,12l-2,2l-2-2H6z\"\n                data-reactid=\".0.1.0.1.0.$school.0.5:$0\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$alcohol-shop\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$alcohol-shop.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$alcohol-shop.0.0\">alcohol-shop</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$alcohol-shop.0.1\"></rect>\n            <path\n                fill=\"#e55e5e\"\n                transform=\"translate(0 0)\"\n                d=\"M14,4h-4v3.44l0,0c0,0,0,0,0,0.06c0.003,0.9096,0.6193,1.7026,1.5,1.93V13H11c-0.2761,0-0.5,0.2239-0.5,0.5  S10.7239,14,11,14h2c0.2761,0,0.5-0.2239,0.5-0.5S13.2761,13,13,13h-0.5V9.43c0.8807-0.2274,1.497-1.0204,1.5-1.93c0,0,0,0,0-0.06  l0,0V4z M13,7.5c0,0.5523-0.4477,1-1,1s-1-0.4477-1-1V5h2V7.5z M5.5,2.5V2C5.7761,2,6,1.7761,6,1.5S5.7761,1,5.5,1V0.5  C5.5,0.2239,5.2761,0,5,0H4C3.7239,0,3.5,0.2239,3.5,0.5V1C3.2239,1,3,1.2239,3,1.5S3.2239,2,3.5,2v0.5C3.5,3.93,1,5.57,1,7v6  c0,0.5523,0.4477,1,1,1h5c0.5318-0.0465,0.9535-0.4682,1-1V7C8,5.65,5.5,3.85,5.5,2.5z M4.5,12C3.1193,12,2,10.8807,2,9.5  S3.1193,7,4.5,7S7,8.1193,7,9.5S5.8807,12,4.5,12z\"\n                data-reactid=\".0.1.0.1.0.$alcohol-shop.0.5:$0\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$amusement-park\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$amusement-park.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$amusement-park.0.0\">amusement-park</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$amusement-park.0.1\"></rect>\n            <path\n                fill=\"#56b881\"\n                transform=\"translate(0 0)\"\n                d=\"M7.5,0C3.919,0,1,2.919,1,6.5c0,2.3161,1.2251,4.3484,3.0566,5.5H4l-1,2h9l-1-2h-0.0566  C12.7749,10.8484,14,8.8161,14,6.5C14,2.919,11.081,0,7.5,0z M7.375,1.5059v3.5c-0.3108,0.026-0.6057,0.1482-0.8438,0.3496  L4.0566,2.8809C4.9243,2.0555,6.0851,1.5376,7.375,1.5059z M7.625,1.5059c1.2899,0.0317,2.4507,0.5496,3.3184,1.375L8.4688,5.3555  c-0.0007-0.0007-0.0013-0.0013-0.002-0.002C8.229,5.1532,7.9348,5.0317,7.625,5.0059V1.5059z M3.8809,3.0566l2.4746,2.4746  c-0.0007,0.0007-0.0013,0.0013-0.002,0.002C6.1532,5.771,6.0317,6.0652,6.0059,6.375h-3.5  C2.5376,5.0851,3.0555,3.9243,3.8809,3.0566z M11.1191,3.0566c0.8254,0.8676,1.3433,2.0285,1.375,3.3184h-3.5  c-0.026-0.3108-0.1482-0.6057-0.3496-0.8438L11.1191,3.0566z M2.5059,6.625h3.5c0.026,0.3108,0.1482,0.6057,0.3496,0.8438  L3.8809,9.9434C3.0555,9.0757,2.5376,7.9149,2.5059,6.625z M8.9941,6.625h3.5c-0.0317,1.2899-0.5496,2.4507-1.375,3.3184  L8.6445,7.4688c0.0007-0.0007,0.0013-0.0013,0.002-0.002C8.8468,7.229,8.9683,6.9348,8.9941,6.625z M6.5312,7.6445  c0.0007,0.0007,0.0013,0.0013,0.002,0.002C6.6716,7.7624,6.8297,7.8524,7,7.9121v3.5625c-1.1403-0.1124-2.1606-0.6108-2.9434-1.3555  L6.5312,7.6445z M8.4688,7.6445l2.4746,2.4746c-0.7828,0.7447-1.803,1.243-2.9434,1.3555V7.9121  C8.1711,7.852,8.33,7.7613,8.4688,7.6445z\"\n                data-reactid=\".0.1.0.1.0.$amusement-park.0.5:$0\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$aquarium\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$aquarium.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$aquarium.0.0\">aquarium</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$aquarium.0.1\"></rect>\n            <path\n                fill=\"#34a9ca\"\n                transform=\"translate(0 0)\"\n                d=\"M10.9,11.6c-0.3-0.6-0.3-2.3,0-2.8c0.4-0.6,3.4,1.4,3.4,1.4c0.9,0.4,0.9-6.1,0-5.7  c0,0-3.1,2.1-3.4,1.4c-0.3-0.7-0.3-2.1,0-2.8C11.2,2.5,15,2.4,15,2.4C15,1.7,12.1,1,10.9,1S8.4,1.1,6.8,1.8C5.2,2.4,3.9,3.4,2.7,4.6  S0,8.2,0,8.9s1.5,2.8,3.7,3.7s3.3,1.1,4.5,1.3c1.1,0.1,2.6,0,3.9-0.3c1-0.2,2.9-0.7,2.9-1.1C15,12.3,11.2,12.2,10.9,11.6z M4.5,9.3  C3.7,9.3,3,8.6,3,7.8s0.7-1.5,1.5-1.5S6,7,6,7.8S5.3,9.3,4.5,9.3z\"\n                data-reactid=\".0.1.0.1.0.$aquarium.0.5:$0\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$art-gallery\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$art-gallery.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$art-gallery.0.0\">art-gallery</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$art-gallery.0.1\"></rect>\n            <path\n                fill=\"#ff9933\"\n                transform=\"translate(0 0)\"\n                d=\"M10.71,4L7.85,1.15C7.6555,0.9539,7.339,0.9526,7.1429,1.1471C7.1419,1.1481,7.141,1.149,7.14,1.15L4.29,4H1.5  C1.2239,4,1,4.2239,1,4.5v9C1,13.7761,1.2239,14,1.5,14h12c0.2761,0,0.5-0.2239,0.5-0.5v-9C14,4.2239,13.7761,4,13.5,4H10.71z   M7.5,2.21L9.29,4H5.71L7.5,2.21z M13,13H2V5h11V13z M5,8C4.4477,8,4,7.5523,4,7s0.4477-1,1-1s1,0.4477,1,1S5.5523,8,5,8z M12,12  H4.5L6,9l1.25,2.5L9.5,7L12,12z\"\n                data-reactid=\".0.1.0.1.0.$art-gallery.0.5:$0\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$attraction\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$attraction.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$attraction.0.0\">attraction</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$attraction.0.1\"></rect>\n            <path\n                fill=\"#8a8acb\"\n                transform=\"translate(0 0)\"\n                d=\"M6,2C5.446,2,5.2478,2.5045,5,3L4.5,4h-2C1.669,4,1,4.669,1,5.5v5C1,11.331,1.669,12,2.5,12h10  c0.831,0,1.5-0.669,1.5-1.5v-5C14,4.669,13.331,4,12.5,4h-2L10,3C9.75,2.5,9.554,2,9,2H6z M2.5,5C2.7761,5,3,5.2239,3,5.5  S2.7761,6,2.5,6S2,5.7761,2,5.5S2.2239,5,2.5,5z M7.5,5c1.6569,0,3,1.3431,3,3s-1.3431,3-3,3s-3-1.3431-3-3S5.8431,5,7.5,5z   M7.5,6.5C6.6716,6.5,6,7.1716,6,8l0,0c0,0.8284,0.6716,1.5,1.5,1.5l0,0C8.3284,9.5,9,8.8284,9,8l0,0C9,7.1716,8.3284,6.5,7.5,6.5  L7.5,6.5z\"\n                data-reactid=\".0.1.0.1.0.$attraction.0.5:$0\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$bank\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$bank.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$bank.0.0\">bank</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$bank.0.1\"></rect>\n            <path\n                fill=\"#e55e5e\"\n                transform=\"translate(0 0)\"\n                d=\"M1,3C0.446,3,0,3.446,0,4v7c0,0.554,0.446,1,1,1h13c0.554,0,1-0.446,1-1V4c0-0.554-0.446-1-1-1H1z M1,4h1.5  C2.7761,4,3,4.2239,3,4.5S2.7761,5,2.5,5S2,4.7761,2,4.5L1.5,5C1.7761,5,2,5.2239,2,5.5S1.7761,6,1.5,6S1,5.7761,1,5.5V4z M7.5,4  C8.8807,4,10,5.567,10,7.5l0,0C10,9.433,8.8807,11,7.5,11S5,9.433,5,7.5S6.1193,4,7.5,4z M12.5,4H14v1.5C14,5.7761,13.7761,6,13.5,6  S13,5.7761,13,5.5S13.2239,5,13.5,5L13,4.5C13,4.7761,12.7761,5,12.5,5S12,4.7761,12,4.5S12.2239,4,12.5,4z M7.5,5.5  c-0.323,0-0.5336,0.1088-0.6816,0.25h1.3633C8.0336,5.6088,7.823,5.5,7.5,5.5z M6.625,6C6.5795,6.091,6.5633,6.1711,6.5449,6.25  h1.9102C8.4367,6.1711,8.4205,6.091,8.375,6H6.625z M6.5,6.5v0.25h2V6.5H6.5z M6.5,7v0.25h2V7H6.5z M6.5,7.5v0.25h2V7.5H6.5z M6.5,8  L6.25,8.25h2L8.5,8H6.5z M6,8.5c0,0,0.0353,0.1024,0.1016,0.25H8.375L8,8.5H6z M1.5,9C1.7761,9,2,9.2239,2,9.5S1.7761,10,1.5,10  L2,10.5C2,10.2239,2.2239,10,2.5,10S3,10.2239,3,10.5S2.7761,11,2.5,11H1V9.5C1,9.2239,1.2239,9,1.5,9z M6.2383,9  C6.2842,9.0856,6.3144,9.159,6.375,9.25h2.2676C8.7092,9.1121,8.75,9,8.75,9H6.2383z M13.5,9C13.7761,9,14,9.2239,14,9.5V11h-1.5  c-0.2761,0-0.5-0.2239-0.5-0.5s0.2239-0.5,0.5-0.5s0.5,0.2239,0.5,0.5l0.5-0.5C13.2239,10,13,9.7761,13,9.5S13.2239,9,13.5,9z   M6.5664,9.5c0.0786,0.0912,0.1647,0.1763,0.2598,0.25h1.4199C8.3462,9.6727,8.4338,9.5883,8.5,9.5H6.5664z\"\n                data-reactid=\".0.1.0.1.0.$bank.0.5:$0\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$bicycle\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$bicycle.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$bicycle.0.0\">bicycle</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$bicycle.0.1\"></rect>\n            <path\n                fill=\"#56b881\"\n                transform=\"translate(0 0)\"\n                d=\"  M7.5,2c-0.6761-0.01-0.6761,1.0096,0,1H9v1.2656l-2.8027,2.334L5.2226,4H5.5c0.6761,0.01,0.6761-1.0096,0-1h-2  c-0.6761-0.01-0.6761,1.0096,0,1h0.6523L5.043,6.375C4.5752,6.1424,4.0559,6,3.5,6C1.5729,6,0,7.5729,0,9.5S1.5729,13,3.5,13  S7,11.4271,7,9.5c0-0.6699-0.2003-1.2911-0.5293-1.8242L9.291,5.3262l0.4629,1.1602C8.7114,7.0937,8,8.2112,8,9.5  c0,1.9271,1.5729,3.5,3.5,3.5S15,11.4271,15,9.5S13.4271,6,11.5,6c-0.2831,0-0.5544,0.0434-0.8184,0.1074L10,4.4023V2.5  c0-0.2761-0.2239-0.5-0.5-0.5H7.5z M3.5,7c0.5923,0,1.1276,0.2119,1.5547,0.5527l-1.875,1.5625  c-0.5109,0.4273,0.1278,1.1945,0.6406,0.7695l1.875-1.5625C5.8835,8.674,6,9.0711,6,9.5C6,10.8866,4.8866,12,3.5,12S1,10.8866,1,9.5  S2.1133,7,3.5,7L3.5,7z M11.5,7C12.8866,7,14,8.1134,14,9.5S12.8866,12,11.5,12S9,10.8866,9,9.5c0-0.877,0.4468-1.6421,1.125-2.0879  l0.9102,2.2734c0.246,0.6231,1.1804,0.2501,0.9297-0.3711l-0.9082-2.2695C11.2009,7.0193,11.3481,7,11.5,7L11.5,7z\"\n                data-reactid=\".0.1.0.1.0.$bicycle.0.5:$0\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$bicycle-share\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$bicycle-share.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$bicycle-share.0.0\">bicycle-share</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$bicycle-share.0.1\"></rect>\n            <path\n                fill=\"#34a9ca\"\n                transform=\"translate(0 0)\"\n                d=\"  M10,1C9.4477,1,9,1.4477,9,2c0,0.5523,0.4477,1,1,1s1-0.4477,1-1C11,1.4477,10.5523,1,10,1z M8.1445,2.9941  c-0.13,0.0005-0.2547,0.0517-0.3477,0.1426l-2.6406,2.5c-0.2256,0.2128-0.2051,0.5775,0.043,0.7637L7,7.75v2.75  c-0.01,0.6762,1.0096,0.6762,1,0v-3c0.0003-0.1574-0.0735-0.3057-0.1992-0.4004L7.0332,6.5234l1.818-1.7212l0.7484,0.9985  C9.6943,5.9265,9.8426,6.0003,10,6h1.5c0.6761,0.01,0.6761-1.0096,0-1h-1.25L9.5,4L8.9004,3.1992  C8.8103,3.0756,8.6685,3,8.5156,2.9941H8.1445z M3,7c-1.6569,0-3,1.3432-3,3s1.3431,3,3,3s3-1.3432,3-3S4.6569,7,3,7z M12,7  c-1.6569,0-3,1.3432-3,3s1.3431,3,3,3s3-1.3432,3-3S13.6569,7,12,7z M3,8c1.1046,0,2,0.8954,2,2s-0.8954,2-2,2s-2-0.8954-2-2  S1.8954,8,3,8z M12,8c1.1046,0,2,0.8954,2,2s-0.8954,2-2,2s-2-0.8954-2-2S10.8954,8,12,8z\"\n                data-reactid=\".0.1.0.1.0.$bicycle-share.0.5:$0\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$car\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$car.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$car.0.0\">car</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$car.0.1\"></rect>\n            <path\n                fill=\"#ff9933\"\n                transform=\"translate(0 0)\"\n                d=\"M14,7c-0.004-0.6904-0.4787-1.2889-1.15-1.45l-1.39-3.24l0,0l0,0l0,0C11.3833,2.1233,11.2019,2.001,11,2H4  C3.8124,2.0034,3.6425,2.1115,3.56,2.28l0,0l0,0l0,0L2.15,5.54C1.475,5.702,0.9994,6.3059,1,7v3.5h1v1c0,0.5523,0.4477,1,1,1  s1-0.4477,1-1v-1h7v1c0,0.5523,0.4477,1,1,1s1-0.4477,1-1v-1h1V7z M4.3,3h6.4l1.05,2.5h-8.5L4.3,3z M3,9C2.4477,9,2,8.5523,2,8  s0.4477-1,1-1s1,0.4477,1,1S3.5523,9,3,9z M12,9c-0.5523,0-1-0.4477-1-1s0.4477-1,1-1s1,0.4477,1,1S12.5523,9,12,9z\"\n                data-reactid=\".0.1.0.1.0.$car.0.5:$0\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$castle\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$castle.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$castle.0.0\">castle</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$castle.0.1\"></rect>\n            <path\n                fill=\"#8a8acb\"\n                transform=\"translate(0 0)\"\n                d=\"M11,4H4C3.4477,4,3,3.5523,3,3V0.5C3,0.2239,3.2239,0,3.5,0S4,0.2239,4,0.5V2h1V1c0-0.5523,0.4477-1,1-1s1,0.4477,1,1v1h1V1  c0-0.5523,0.4477-1,1-1s1,0.4477,1,1v1h1V0.5C11,0.2239,11.2239,0,11.5,0S12,0.2239,12,0.5V3C12,3.5523,11.5523,4,11,4z M14,14.5  c0,0.2761-0.2239,0.5-0.5,0.5h-12C1.2239,15,1,14.7761,1,14.5S1.2239,14,1.5,14H2c0.5523,0,1-0.4477,1-1c0,0,1-6,1-7  c0-0.5523,0.4477-1,1-1h5c0.5523,0,1,0.4477,1,1c0,1,1,7,1,7c0,0.5523,0.4477,1,1,1h0.5c0.2723-0.0001,0.4946,0.2178,0.5,0.49V14.5z   M9,10.5C9,9.6716,8.3284,9,7.5,9S6,9.6716,6,10.5V14h3V10.5z\"\n                data-reactid=\".0.1.0.1.0.$castle.0.5:$0\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$cinema\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$cinema.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$cinema.0.0\">cinema</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$cinema.0.1\"></rect>\n            <path\n                fill=\"#e55e5e\"\n                transform=\"translate(0 0)\"\n                d=\"M14,7.5v2c0,0.2761-0.2239,0.5-0.5,0.5S13,9.7761,13,9.5c0,0,0.06-0.5-1-0.5h-1v2.5c0,0.2761-0.2239,0.5-0.5,0.5h-8  C2.2239,12,2,11.7761,2,11.5v-4C2,7.2239,2.2239,7,2.5,7h8C10.7761,7,11,7.2239,11,7.5V8h1c1.06,0,1-0.5,1-0.5  C13,7.2239,13.2239,7,13.5,7S14,7.2239,14,7.5z M4,3C2.8954,3,2,3.8954,2,5s0.8954,2,2,2s2-0.8954,2-2S5.1046,3,4,3z M4,6  C3.4477,6,3,5.5523,3,5s0.4477-1,1-1s1,0.4477,1,1S4.5523,6,4,6z M8.5,2C7.1193,2,6,3.1193,6,4.5S7.1193,7,8.5,7S11,5.8807,11,4.5  S9.8807,2,8.5,2z M8.5,6C7.6716,6,7,5.3284,7,4.5S7.6716,3,8.5,3S10,3.6716,10,4.5S9.3284,6,8.5,6z\"\n                data-reactid=\".0.1.0.1.0.$cinema.0.5:$0\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$circle\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$circle.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$circle.0.0\">circle</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$circle.0.1\"></rect>\n            <path\n                fill=\"#56b881\"\n                transform=\"translate(0 0)\"\n                d=\"M14,7.5c0,3.5899-2.9101,6.5-6.5,6.5S1,11.0899,1,7.5S3.9101,1,7.5,1S14,3.9101,14,7.5z\"\n                data-reactid=\".0.1.0.1.0.$circle.0.5:$0\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$circle-stroked\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$circle-stroked.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$circle-stroked.0.0\">circle-stroked</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$circle-stroked.0.1\"></rect>\n            <path\n                fill=\"#34a9ca\"\n                transform=\"translate(0 0)\"\n                d=\"M7.5,0C11.6422,0,15,3.3578,15,7.5S11.6422,15,7.5,15  S0,11.6422,0,7.5S3.3578,0,7.5,0z M7.5,1.6666c-3.2217,0-5.8333,2.6117-5.8333,5.8334S4.2783,13.3334,7.5,13.3334  s5.8333-2.6117,5.8333-5.8334S10.7217,1.6666,7.5,1.6666z\"\n                data-reactid=\".0.1.0.1.0.$circle-stroked.0.5:$0\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$clothing-store\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$clothing-store.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$clothing-store.0.0\">clothing-store</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$clothing-store.0.1\"></rect>\n            <path\n                fill=\"#ff9933\"\n                transform=\"translate(0 0)\"\n                d=\"  M3.5,1L0,4v3h2.9L3,14h9V7h3V4l-3.5-3H10L7.5,5L5,1H3.5z\"\n                data-reactid=\".0.1.0.1.0.$clothing-store.0.5:$0\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$drinking-water\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$drinking-water.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$drinking-water.0.0\">drinking-water</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$drinking-water.0.1\"></rect>\n            <path\n                fill=\"#8a8acb\"\n                transform=\"translate(0 0)\"\n                d=\"M5,1h9v3H6.5C6.2239,4,6,4.2239,6,4.5V7H3V3C3,1.8954,3.8954,1,5,1z M5.9,11.94L5.9,11.94L5.9,11.94L5.9,11.94L4.5,9  l-1.39,2.93C3.0535,12.1156,3.0166,12.3067,3,12.5c-0.0021,0.8284,0.6678,1.5017,1.4962,1.5038  C5.3246,14.0059,5.9979,13.3361,6,12.5076c0.0005-0.1946-0.0369-0.3873-0.11-0.5676H5.9z\"\n                data-reactid=\".0.1.0.1.0.$drinking-water.0.5:$0\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$embassy\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$embassy.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$embassy.0.0\">embassy</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$embassy.0.1\"></rect>\n            <path\n                fill=\"#e55e5e\"\n                transform=\"translate(0 0)\"\n                d=\"M6.65,2C5.43,2,4.48,3.38,4.11,3.82C4.0365,3.9102,3.9975,4.0237,4,4.14v4.4C3.9884,8.7827,4.1758,8.9889,4.4185,9.0005  C4.528,9.0057,4.6355,8.9699,4.72,8.9c0.4665-0.6264,1.1589-1.0461,1.93-1.17C8.06,7.73,8.6,9,10.07,9  c0.9948-0.0976,1.9415-0.4756,2.73-1.09c0.1272-0.0934,0.2016-0.2422,0.2-0.4V2.45c0.0275-0.2414-0.1459-0.4595-0.3874-0.487  C12.5332,1.954,12.4527,1.9668,12.38,2c-0.6813,0.5212-1.4706,0.8834-2.31,1.06C8.6,3.08,8.12,2,6.65,2z M2.5,3  c-0.5523,0-1-0.4477-1-1s0.4477-1,1-1s1,0.4477,1,1S3.0523,3,2.5,3z M3,4v9.48c0,0.2761-0.2239,0.5-0.5,0.5S2,13.7561,2,13.48V4  c0-0.2761,0.2239-0.5,0.5-0.5S3,3.7239,3,4z\"\n                data-reactid=\".0.1.0.1.0.$embassy.0.5:$0\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$fire-station\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$fire-station.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$fire-station.0.0\">fire-station</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$fire-station.0.1\"></rect>\n            <path\n                fill=\"#56b881\"\n                transform=\"translate(0 0)\"\n                d=\"M7.5,0.5L5,4.5l-1.5-2  C2.9452,3.4753,0.8036,5.7924,0.8036,8.3036C0.8036,12.002,3.8017,15,7.5,15s6.6964-2.998,6.6964-6.6964  c0-2.5112-2.1416-4.8283-2.6964-5.8036l-1.5,2L7.5,0.5z M7.5,7c0,0,2.5,2.5618,2.5,4.5c0,0.8371-0.8259,2-2.5,2S5,12.3371,5,11.5  C5,9.6283,7.5,7,7.5,7z\"\n                data-reactid=\".0.1.0.1.0.$fire-station.0.5:$0\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$fuel\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$fuel.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$fuel.0.0\">fuel</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$fuel.0.1\"></rect>\n            <path\n                fill=\"#34a9ca\"\n                transform=\"translate(0 0)\"\n                d=\"M13,6L13,6v5.5c0,0.2761-0.2239,0.5-0.5,0.5S12,11.7761,12,11.5v-2C12,8.6716,11.3284,8,10.5,8H9V2c0-0.5523-0.4477-1-1-1H2  C1.4477,1,1,1.4477,1,2v11c0,0.5523,0.4477,1,1,1h6c0.5523,0,1-0.4477,1-1V9h1.5C10.7761,9,11,9.2239,11,9.5v2  c0,0.8284,0.6716,1.5,1.5,1.5s1.5-0.6716,1.5-1.5V5c0-0.5523-0.4477-1-1-1l0,0V2.49C12.9946,2.2178,12.7723,1.9999,12.5,2  c-0.2816,0.0047-0.5062,0.2367-0.5015,0.5184C11.9987,2.5289,11.9992,2.5395,12,2.55V5C12,5.5523,12.4477,6,13,6s1-0.4477,1-1  s-0.4477-1-1-1 M8,6.5C8,6.7761,7.7761,7,7.5,7h-5C2.2239,7,2,6.7761,2,6.5v-3C2,3.2239,2.2239,3,2.5,3h5C7.7761,3,8,3.2239,8,3.5  V6.5z\"\n                data-reactid=\".0.1.0.1.0.$fuel.0.5:$0\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$grocery\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$grocery.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$grocery.0.0\">grocery</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$grocery.0.1\"></rect>\n            <path\n                fill=\"#ff9933\"\n                transform=\"translate(0 0)\"\n                d=\"M 13.199219 1.5 C 13.199219 1.5 11.808806 1.4588 11.253906 2 C 10.720406 2.5202 10.5 2.9177 10.5 4 L 1.1992188 4 L 2.59375 8.8144531 C 2.59725 8.8217531 2.6036219 8.8287375 2.6074219 8.8359375 C 2.8418219 9.4932375 3.4545469 9.9666406 4.1855469 9.9941406 C 4.1885469 9.9954406 4.1992187 10 4.1992188 10 L 10.699219 10 L 10.699219 10.199219 C 10.699219 10.199219 10.7 10.500391 10.5 10.900391 C 10.3 11.300391 10.200391 11.5 9.4003906 11.5 L 2.9003906 11.5 C 1.9003906 11.5 1.9003906 13 2.9003906 13 L 4.0996094 13 L 4.1992188 13 L 9.0996094 13 L 9.1992188 13 L 9.3007812 13 C 10.500781 13 11.399219 12.299609 11.699219 11.599609 C 11.999219 10.899609 12 10.300781 12 10.300781 L 12 10 L 12 4 C 12 3.4764 12.228619 3 12.699219 3 L 13.25 3 C 13.6642 3 14 2.6642 14 2.25 C 14 1.8358 13.6642 1.5 13.25 1.5 L 13.199219 1.5 z M 9.1992188 13 C 8.5992188 13 8.1992188 13.4 8.1992188 14 C 8.1992188 14.6 8.5992187 15 9.1992188 15 C 9.7992187 15 10.199219 14.6 10.199219 14 C 10.199219 13.4 9.7992188 13 9.1992188 13 z M 4.1992188 13 C 3.5992188 13 3.1992188 13.4 3.1992188 14 C 3.1992188 14.6 3.5992187 15 4.1992188 15 C 4.7992188 15 5.1992188 14.6 5.1992188 14 C 5.1992188 13.4 4.7992187 13 4.1992188 13 z \"\n                data-reactid=\".0.1.0.1.0.$grocery.0.5:$0\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$harbor\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$harbor.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$harbor.0.0\">harbor</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$harbor.0.1\"></rect>\n            <path\n                fill=\"#8a8acb\"\n                transform=\"translate(0 0)\"\n                d=\"M7.5,0C5.5,0,4,1.567,4,3.5c0.0024,1.5629,1.0397,2.902,2.5,3.3379v6.0391  c-0.9305-0.1647-1.8755-0.5496-2.6484-1.2695C2.7992,10.6273,2.002,9.0676,2.002,6.498c0.0077-0.5646-0.4531-1.0236-1.0176-1.0137  C0.4329,5.493-0.0076,5.9465,0,6.498c0,3.0029,1.0119,5.1955,2.4902,6.5723C3.9685,14.4471,5.8379,15,7.5,15  c1.6656,0,3.535-0.5596,5.0117-1.9395S14.998,9.4868,14.998,6.498c0.0648-1.3953-2.0628-1.3953-1.998,0  c0,2.553-0.7997,4.1149-1.8535,5.0996C10.3731,12.3203,9.4288,12.7084,8.5,12.875V6.8418C9.9607,6.4058,10.9986,5.0642,11,3.5  C11,1.567,9.5,0,7.5,0z M7.5,2C8.3284,2,9,2.6716,9,3.5S8.3284,5,7.5,5S6,4.3284,6,3.5S6.6716,2,7.5,2z\"\n                data-reactid=\".0.1.0.1.0.$harbor.0.5:$0\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$information\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$information.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$information.0.0\">information</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$information.0.1\"></rect>\n            <path\n                fill=\"#e55e5e\"\n                transform=\"translate(0 0)\"\n                d=\"M7.5,1  C6.7,1,6,1.7,6,2.5S6.7,4,7.5,4S9,3.3,9,2.5S8.3,1,7.5,1z M4,5v1c0,0,2,0,2,2v2c0,2-2,2-2,2v1h7v-1c0,0-2,0-2-2V6c0-0.5-0.5-1-1-1H4  z\"\n                data-reactid=\".0.1.0.1.0.$information.0.5:$0\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$laundry\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$laundry.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$laundry.0.0\">laundry</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$laundry.0.1\"></rect>\n            <path\n                fill=\"#56b881\"\n                transform=\"translate(0 0)\"\n                d=\"M8,1L6,3H3c0,0-1,0-1,1v9c0,1,1,1,1,1h9c0,0,1,0,1-1V2c0-1-1-1-1-1  S8,1,8,1z M8.5,2h2C10.777,2,11,2.223,11,2.5S10.777,3,10.5,3h-2C8.223,3,8,2.777,8,2.5S8.223,2,8.5,2z M7.5,6  c1.6569,0,3,1.3431,3,3s-1.3431,3-3,3s-3-1.3431-3-3S5.8431,6,7.5,6z\"\n                data-reactid=\".0.1.0.1.0.$laundry.0.5:$0\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$library\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$library.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$library.0.0\">library</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$library.0.1\"></rect>\n            <path\n                fill=\"#34a9ca\"\n                transform=\"translate(0 0)\"\n                d=\"M7.47,4.92C7.47,4.92,5.7,3,1,3v8c4.7,0,6.47,2,6.47,2S9.3,11,14,11V3C9.3,3,7.47,4.92,7.47,4.92z M13,10  c-1.9614,0.0492-3.8727,0.6299-5.53,1.68C5.836,10.6273,3.9432,10.0459,2,10V4c3.4,0.26,4.73,1.6,4.75,1.61l0.73,0.74L8.2,5.6  c0,0,1.4-1.34,4.8-1.6V10z M8,10.24l-0.1-0.17c1.3011-0.5931,2.6827-0.9907,4.1-1.18v0.2c-1.3839,0.1953-2.7316,0.5929-4,1.18V10.24  z M8,9.24L7.9,9.07C9.2016,8.4802,10.5832,8.086,12,7.9v0.2c-1.3844,0.1988-2.7321,0.5997-4,1.19V9.24z M8,8.24L7.9,8.07  C9.2015,7.48,10.5831,7.0857,12,6.9v0.2c-1.3845,0.1981-2.7323,0.599-4,1.19V8.24z M8,7.24L7.9,7.07  C9.2013,6.4794,10.583,6.0851,12,5.9v0.2c-1.3844,0.1986-2.7321,0.5996-4,1.19V7.24z M6.9,10.24C5.6639,9.6641,4.3499,9.2733,3,9.08  v-0.2c1.3872,0.2028,2.7358,0.6141,4,1.22L6.9,10.24z M6.9,9.24C5.6629,8.671,4.3488,8.2869,3,8.1V7.9  c1.386,0.2027,2.7341,0.6105,4,1.21L6.9,9.24z M6.9,8.24C5.6631,7.6705,4.3489,7.2863,3,7.1V6.9c1.3868,0.199,2.7354,0.607,4,1.21  L6.9,8.24z M6.9,7.24C5.6629,6.671,4.3488,6.2869,3,6.1V5.9c1.386,0.2024,2.7342,0.6102,4,1.21L6.9,7.24z\"\n                data-reactid=\".0.1.0.1.0.$library.0.5:$0\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$lodging\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$lodging.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$lodging.0.0\">lodging</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$lodging.0.1\"></rect>\n            <path\n                fill=\"#ff9933\"\n                transform=\"translate(0 0)\"\n                d=\"M0.5,2.5C0.2,2.5,0,2.7,0,3v7.5v2C0,12.8,0.2,13,0.5,13S1,12.8,1,12.5V11h13v1.5  c0,0.3,0.2,0.5,0.5,0.5s0.5-0.2,0.5-0.5v-2c0-0.3-0.2-0.5-0.5-0.5H1V3C1,2.7,0.8,2.5,0.5,2.5z M3.5,3C2.7,3,2,3.7,2,4.5l0,0  C2,5.3,2.7,6,3.5,6l0,0C4.3,6,5,5.3,5,4.5l0,0C5,3.7,4.3,3,3.5,3L3.5,3z M7,4C5.5,4,5.5,5.5,5.5,5.5V7h-3C2.2,7,2,7.2,2,7.5v1  C2,8.8,2.2,9,2.5,9H6h9V6.5C15,4,12.5,4,12.5,4H7z\"\n                data-reactid=\".0.1.0.1.0.$lodging.0.5:$0\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$marker\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$marker.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$marker.0.0\">marker</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$marker.0.1\"></rect>\n            <path\n                fill=\"#8a8acb\"\n                transform=\"translate(0 0)\"\n                d=\"M7.5,0C5.0676,0,2.2297,1.4865,2.2297,5.2703  C2.2297,7.8378,6.2838,13.5135,7.5,15c1.0811-1.4865,5.2703-7.027,5.2703-9.7297C12.7703,1.4865,9.9324,0,7.5,0z\"\n                data-reactid=\".0.1.0.1.0.$marker.0.5:$0\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$monument\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$monument.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$monument.0.0\">monument</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$monument.0.1\"></rect>\n            <path\n                fill=\"#e55e5e\"\n                transform=\"translate(0 0)\"\n                d=\"M7.5,0L6,2.5v7h3v-7L7.5,0z M3,11.5  L3,15h9v-3.5L10.5,10h-6L3,11.5z\"\n                data-reactid=\".0.1.0.1.0.$monument.0.5:$0\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$museum\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$museum.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$museum.0.0\">museum</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$museum.0.1\"></rect>\n            <path\n                fill=\"#56b881\"\n                transform=\"translate(0 0)\"\n                d=\"M7.5,0L1,3.4453V4h13V3.4453L7.5,0z M2,5v5l-1,1.5547V13h13v-1.4453L13,10  V5H2z M4.6152,6c0.169-0.0023,0.3318,0.0639,0.4512,0.1836L7.5,8.6172l2.4336-2.4336c0.2445-0.2437,0.6402-0.2432,0.884,0.0013  C10.9341,6.3017,10.9997,6.46,11,6.625v4.2422c0.0049,0.3452-0.271,0.629-0.6162,0.6338c-0.3452,0.0049-0.629-0.271-0.6338-0.6162  c-0.0001-0.0059-0.0001-0.0118,0-0.0177V8.1328L7.9414,9.9414c-0.244,0.2433-0.6388,0.2433-0.8828,0L5.25,8.1328v2.7344  c0.0049,0.3452-0.271,0.629-0.6162,0.6338C4.2887,11.5059,4.0049,11.2301,4,10.8849c-0.0001-0.0059-0.0001-0.0118,0-0.0177V6.625  C4,6.2836,4.2739,6.0054,4.6152,6z\"\n                data-reactid=\".0.1.0.1.0.$museum.0.5:$0\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$music\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$music.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$music.0.0\">music</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$music.0.1\"></rect>\n            <path\n                fill=\"#34a9ca\"\n                transform=\"translate(0 0)\"\n                d=\"M13.5,1c-0.0804,0.0008-0.1594,0.0214-0.23,0.06L4.5,3.5C4.2239,3.5,4,3.7239,4,4v6.28C3.6971,10.1002,3.3522,10.0037,3,10  c-1.1046,0-2,0.8954-2,2s0.8954,2,2,2s2-0.8954,2-2V7.36l8-2.22v3.64c-0.3029-0.1798-0.6478-0.2763-1-0.28c-1.1046,0-2,0.8954-2,2  s0.8954,2,2,2s2-0.8954,2-2v-9C14,1.2239,13.7761,1,13.5,1z M13,4.14L5,6.36v-2l8-2.22C13,2.14,13,4.14,13,4.14z\"\n                data-reactid=\".0.1.0.1.0.$music.0.5:$0\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$place-of-worship\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$place-of-worship.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$place-of-worship.0.0\">place-of-worship</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$place-of-worship.0.1\"></rect>\n            <path\n                fill=\"#ff9933\"\n                transform=\"translate(0 0)\"\n                d=\"M7.5,0l-2,2v2h4V2  L7.5,0z M5.5,4.5L4,6h7L9.5,4.5H5.5z M2,6.5c-0.5523,0-1,0.4477-1,1V13h2V7.5C3,6.9477,2.5523,6.5,2,6.5z M4,6.5V13h7V6.5H4z   M13,6.5c-0.5523,0-1,0.4477-1,1V13h2V7.5C14,6.9477,13.5523,6.5,13,6.5z\"\n                data-reactid=\".0.1.0.1.0.$place-of-worship.0.5:$0\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$police\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$police.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$police.0.0\">police</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$police.0.1\"></rect>\n            <path\n                fill=\"#8a8acb\"\n                transform=\"translate(0 0)\"\n                d=\"M5.5,1L6,2h5l0.5-1H5.5z M6,2.5v1.25c0,0,0,2.75,2.5,2.75S11,3.75,11,3.75V2.5H6z M1.9844,3.9863  C1.4329,3.9949,0.9924,4.4485,1,5v4c-0.0001,0.6398,0.5922,1.1152,1.2168,0.9766L5,9.3574V14l5.8789-6.9297  C10.7391,7.0294,10.5947,7,10.4414,7H6.5L3,7.7539V5C3.0077,4.4362,2.5481,3.9775,1.9844,3.9863z M11.748,7.7109L6.4121,14H12  V8.5586C12,8.2451,11.9061,7.9548,11.748,7.7109z\"\n                data-reactid=\".0.1.0.1.0.$police.0.5:$0\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$post\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$post.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$post.0.0\">post</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$post.0.1\"></rect>\n            <path\n                fill=\"#e55e5e\"\n                transform=\"translate(0 0)\"\n                d=\"M14,6.5V12c0,0.5523-0.4477,1-1,1H2c-0.5523,0-1-0.4477-1-1V6.5C1,6.2239,1.2239,6,1.5,6  c0.0692-0.0152,0.1408-0.0152,0.21,0l0,0l5.79,4l5.8-4l0,0c0.066-0.0138,0.134-0.0138,0.2,0C13.7761,6,14,6.2239,14,6.5z M1.25,3.92  L1.25,3.92L1.33,4L7.5,8l6.19-4l0,0h0.06l0,0c0.1796-0.0981,0.2792-0.2975,0.25-0.5C14,3.2239,13.7761,3,13.5,3h-12  C1.2239,3,1,3.2239,1,3.5C1.0026,3.6745,1.0978,3.8345,1.25,3.92z\"\n                data-reactid=\".0.1.0.1.0.$post.0.5:$0\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$prison\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$prison.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$prison.0.0\">prison</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$prison.0.1\"></rect>\n            <path\n                fill=\"#56b881\"\n                transform=\"translate(0 0)\"\n                d=\"M3.5,1v13H12V1H3.5z M9.5,2H11v3.5H9.5V2z M4.5,2.0547H6V7H4.5V2.0547z M7,2.0547h1.5V7H7V2.0547z M10.25,6.5  C10.6642,6.5,11,6.8358,11,7.25S10.6642,8,10.25,8l0,0C9.8358,8,9.5,7.6642,9.5,7.25l0,0C9.5,6.8358,9.8358,6.5,10.25,6.5z M7,8  h1.4727L8.5,13H7.0273L7,8z M4.5,8.166H6V13H4.5V8.166z M9.5,9H11v4H9.5V9z\"\n                data-reactid=\".0.1.0.1.0.$prison.0.5:$0\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$religious-christian\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$religious-christian.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$religious-christian.0.0\">religious-christian</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$religious-christian.0.1\"></rect>\n            <path\n                fill=\"#34a9ca\"\n                transform=\"translate(0 0)\"\n                d=\"M6,0.9552V4H3v3h3v8h3V7h3V4H9V1  c0-1-0.9776-1-0.9776-1H6.9887C6.9887,0,6,0,6,0.9552z\"\n                data-reactid=\".0.1.0.1.0.$religious-christian.0.5:$0\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$religious-jewish\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$religious-jewish.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$religious-jewish.0.0\">religious-jewish</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$religious-jewish.0.1\"></rect>\n            <path\n                fill=\"#ff9933\"\n                transform=\"translate(0 0)\"\n                d=\"M15,12H9.78L7.5,15l-2.26-3H0l2.7-4L0,4h5.3l2.2-4l2.34,4H15l-2.56,4L15,12z\"\n                data-reactid=\".0.1.0.1.0.$religious-jewish.0.5:$0\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$religious-muslim\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$religious-muslim.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$religious-muslim.0.0\">religious-muslim</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$religious-muslim.0.1\"></rect>\n            <path\n                fill=\"#8a8acb\"\n                transform=\"translate(0 0)\"\n                d=\"M6.7941,0C3,0,0,3,0,6.7941  s3,6.7941,6.7941,6.7941c2.1176,0,4.4118-0.7059,5.6471-2.2941C11.6471,11.8235,10.1471,12.4412,9,12.4412  c-2.9118,0-5.1176-2.9118-5.1176-5.8235S6.0882,1.1471,9,1.1471c1.0588,0,2.5588,0.6176,3.4412,1.1471  C11.2059,0.7059,8.9118,0,6.7941,0z M11,3l-1,2.5H7L9.5,7l-1,3L11,8.5l2.5,1.5l-1-3L15,5.5h-3L11,3z\"\n                data-reactid=\".0.1.0.1.0.$religious-muslim.0.5:$0\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$shop\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$shop.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$shop.0.0\">shop</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$shop.0.1\"></rect>\n            <path\n                fill=\"#e55e5e\"\n                transform=\"translate(0 0)\"\n                d=\"M13.33,6H11.5l-0.39-2.33c-0.1601-0.7182-0.7017-1.2905-1.41-1.49C9.3507,2.0676,8.9869,2.007,8.62,2H6.38  C6.0131,2.007,5.6493,2.0676,5.3,2.18C4.5917,2.3795,4.0501,2.9518,3.89,3.67L3.5,6H1.67C1.3939,5.9983,1.1687,6.2208,1.167,6.497  C1.1667,6.5489,1.1744,6.6005,1.19,6.65l1.88,6.3l0,0C3.2664,13.5746,3.8453,13.9996,4.5,14h6c0.651-0.0047,1.2247-0.4289,1.42-1.05  l0,0l1.88-6.3c0.0829-0.2634-0.0635-0.5441-0.3269-0.627C13.4268,6.0084,13.3786,6.0007,13.33,6z M4.52,6l0.36-2.17  c0.0807-0.3625,0.3736-0.6395,0.74-0.7C5.8663,3.0524,6.1219,3.0087,6.38,3h2.24c0.2614,0.0078,0.5205,0.0515,0.77,0.13  c0.3664,0.0605,0.6593,0.3375,0.74,0.7L10.48,6h-6H4.52z\"\n                data-reactid=\".0.1.0.1.0.$shop.0.5:$0\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$stadium\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$stadium.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$stadium.0.0\">stadium</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$stadium.0.1\"></rect>\n            <path\n                fill=\"#56b881\"\n                transform=\"translate(0 0)\"\n                d=\"M7,1v2v1.5v0.5098C4.1695,5.1037,2.0021,5.9665,2,7v4.5c0,1.1046,2.4624,2,5.5,2s5.5-0.8954,5.5-2V7  c-0.0021-1.0335-2.1695-1.8963-5-1.9902V4.0625L11,2.75L7,1z M3,8.1465c0.5148,0.2671,1.2014,0.4843,2,0.6328v2.9668  C3.7948,11.477,3,11.0199,3,10.5V8.1465z M12,8.1484V10.5c0,0.5199-0.7948,0.977-2,1.2461V8.7812  C10.7986,8.6328,11.4852,8.4155,12,8.1484z M6,8.9219C6.4877,8.973,6.9925,8.9992,7.5,9C8.0073,8.9999,8.5121,8.9743,9,8.9238  v2.9844C8.5287,11.964,8.0288,12,7.5,12S6.4713,11.964,6,11.9082V8.9219z\"\n                data-reactid=\".0.1.0.1.0.$stadium.0.5:$0\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$star\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$star.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$star.0.0\">star</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$star.0.1\"></rect>\n            <path\n                fill=\"#34a9ca\"\n                transform=\"translate(0 0)\"\n                d=\"M7.5,0l-2,5h-5l4,3.5l-2,6l5-3.5  l5,3.5l-2-6l4-3.5h-5L7.5,0z\"\n                data-reactid=\".0.1.0.1.0.$star.0.5:$0\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$suitcase\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$suitcase.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$suitcase.0.0\">suitcase</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$suitcase.0.1\"></rect>\n            <path\n                fill=\"#ff9933\"\n                transform=\"translate(0 0)\"\n                d=\"M11,4V2c0-1-1-1-1-1H5.0497  c0,0-1.1039,0.0015-1.0497,1v2H2c0,0-1,0-1,1v7c0,1,1,1,1,1h11c0,0,1,0,1-1V5c0-1-1-1-1-1H11z M5.5,2.5h4V4h-4V2.5z\"\n                data-reactid=\".0.1.0.1.0.$suitcase.0.5:$0\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$swimming\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$swimming.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$swimming.0.0\">swimming</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$swimming.0.1\"></rect>\n            <path\n                fill=\"#8a8acb\"\n                transform=\"translate(0 0)\"\n                d=\"M10.1113,2C9.9989,2,9.6758,2.1465,9.6758,2.1465L6.3535,3.8262  C5.9111,4.0024,5.7358,4.7081,6.002,5.0605l0.9707,1.4082L3.002,8.498L5,9.998l2.502-1.5l2.5,1.5l1.002-1.002l-3-4l2.5566-1.5293  c0.5286-0.2662,0.4434-0.7045,0.4434-0.9707C10.9999,2.2861,10.6437,2,10.1113,2z M12.252,5C11.2847,5,10.5,5.7827,10.5,6.75  s0.7847,1.752,1.752,1.752s1.75-0.7847,1.75-1.752S13.2192,5,12.252,5z M2.5,10L0,11.5V13l2.5-1.5L5,13l2.502-1.5l2.5,1.5L12,11.5  l3,1.5v-1.5L12,10l-1.998,1.5l-2.5-1.5L5,11.5L2.5,10z\"\n                data-reactid=\".0.1.0.1.0.$swimming.0.5:$0\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$theatre\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$theatre.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$theatre.0.0\">theatre</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$theatre.0.1\"></rect>\n            <path\n                fill=\"#e55e5e\"\n                transform=\"translate(0 0)\"\n                d=\"M2,1c0,0-1,0-1,1v5.1582C1,8.8885,1.354,11,4.5,11H5V8L2.5,9c0,0,0-2.5,2.5-2.5V5  c0-0.7078,0.0868-1.3209,0.5-1.7754C5.8815,2.805,6.5046,1.9674,8.1562,2.7539L9,3.3027V2c0,0,0-1-1-1C7.2922,1,6.0224,2,5,2  S2.7865,1,2,1z M3,3c0.5523,0,1,0.4477,1,1S3.5523,5,3,5S2,4.5523,2,4S2.4477,3,3,3z M7,4c0,0-1,0-1,1v5c0,2,1,4,4,4s4-2,4-4V5  c0-1-1-1-1-1c-0.7078,0-1.9776,1-3,1S7.7865,4,7,4z M8,6c0.5523,0,1,0.4477,1,1S8.5523,8,8,8S7,7.5523,7,7S7.4477,6,8,6z M12,6  c0.5523,0,1,0.4477,1,1s-0.4477,1-1,1s-1-0.4477-1-1S11.4477,6,12,6z M7.5,10H10h2.5c0,0,0,2.5-2.5,2.5S7.5,10,7.5,10z\"\n                data-reactid=\".0.1.0.1.0.$theatre.0.5:$0\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$toilet\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$toilet.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$toilet.0.0\">toilet</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$toilet.0.1\"></rect>\n            <path\n                fill=\"#56b881\"\n                transform=\"translate(0 0)\"\n                d=\"M4.5,3C3.6716,3,3,2.3284,3,1.5S3.6716,0,4.5,0S6,0.6716,6,1.5S5.3284,3,4.5,3z M14,1.5C14,0.6716,13.3284,0,12.5,0  S11,0.6716,11,1.5S11.6716,3,12.5,3S14,2.3284,14,1.5z M8.86,6.64L8.86,6.64L6.38,4.15l0,0C6.2798,4.0492,6.142,3.9949,6,4H3  C2.8697,4.0003,2.7445,4.0503,2.65,4.14l0,0L0.14,6.63c-0.2261,0.177-0.2659,0.5039-0.0889,0.73s0.5039,0.2659,0.73,0.0889  C0.8142,7.423,0.8441,7.3931,0.87,7.36L3,5.2L1,11h2v3.33c-0.0075,0.0497-0.0075,0.1003,0,0.15  c0.0555,0.2761,0.3244,0.455,0.6005,0.3995C3.802,14.839,3.9595,14.6815,4,14.48l0,0V11h1v3.5l0,0  c0.0555,0.2761,0.3244,0.455,0.6005,0.3995C5.802,14.859,5.9595,14.7015,6,14.5c0.0075-0.0497,0.0075-0.1003,0-0.15V11h2L6,5.2  l2.14,2.16l0,0c0.0967,0.1081,0.2349,0.17,0.38,0.17C8.7954,7.5088,9.0061,7.2761,9,7C9.0023,6.8663,8.9521,6.737,8.86,6.64z   M14.5,4h-4C10.2239,4,10,4.2239,10,4.5v5c0,0.2761,0.2239,0.5,0.5,0.5S11,9.7761,11,9.5v5c0,0.2761,0.2239,0.5,0.5,0.5  s0.5-0.2239,0.5-0.5v-5h1v5c0,0.2761,0.2239,0.5,0.5,0.5s0.5-0.2239,0.5-0.5v-5c0,0.2761,0.2239,0.5,0.5,0.5S15,9.7761,15,9.5v-5  C15,4.2239,14.7761,4,14.5,4z\"\n                data-reactid=\".0.1.0.1.0.$toilet.0.5:$0\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$town-hall\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$town-hall.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$town-hall.0.0\">town-hall</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$town-hall.0.1\"></rect>\n            <path\n                fill=\"#34a9ca\"\n                transform=\"translate(0 0)\"\n                d=\"M7.5,0L1,3.4453V4h13V3.4453L7.5,0z M2,5v5l-1,1.5547V13h13v-1.4453L13,10V5H2z M4,6h1v5.5H4V6z M7,6h1v5.5H7  V6z M10,6h1v5.5h-1V6z\"\n                data-reactid=\".0.1.0.1.0.$town-hall.0.5:$0\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$triangle\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$triangle.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$triangle.0.0\">triangle</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$triangle.0.1\"></rect>\n            <path\n                fill=\"#ff9933\"\n                transform=\"translate(0 0)\"\n                d=\"M7.5385,2  C7.2437,2,7.0502,2.1772,6.9231,2.3846l-5.8462,9.5385C1,12,1,12.1538,1,12.3077C1,12.8462,1.3846,13,1.6923,13h11.6154  C13.6923,13,14,12.8462,14,12.3077c0-0.1538,0-0.2308-0.0769-0.3846L8.1538,2.3846C8.028,2.1765,7.7882,2,7.5385,2z\"\n                data-reactid=\".0.1.0.1.0.$triangle.0.5:$0\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$triangle-stroked\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$triangle-stroked.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$triangle-stroked.0.0\">triangle-stroked</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$triangle-stroked.0.1\"></rect>\n            <path\n                fill=\"#8a8acb\"\n                transform=\"translate(0 0)\"\n                d=\"M7.5243,1.5004  C7.2429,1.4913,6.9787,1.6423,6.8336,1.8952l-5.5,9.8692C1.0218,12.3078,1.395,12.9999,2,13h11  c0.605-0.0001,0.9782-0.6922,0.6664-1.2355l-5.5-9.8692C8.0302,1.6579,7.7884,1.5092,7.5243,1.5004z M7.5,3.8993l4.1267,7.4704  H3.3733L7.5,3.8993z\"\n                data-reactid=\".0.1.0.1.0.$triangle-stroked.0.5:$0\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$veterinary\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$veterinary.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$veterinary.0.0\">veterinary</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$veterinary.0.1\"></rect>\n            <path\n                fill=\"#e55e5e\"\n                transform=\"translate(0 0)\"\n                d=\"M7.5,6c-2.5,0-3,2.28-3,3.47l0,0c-0.6097,0.2059-1.1834,0.5062-1.7,0.89  c-0.871,0.6614-1.0492,1.8998-0.4,2.78c0.6799,0.8542,1.9081,1.0297,2.8,0.4c0.6779-0.4601,1.4808-0.701,2.3-0.69  c0.8192-0.011,1.6221,0.2299,2.3,0.69c0.8575,0.6854,2.1072,0.5515,2.8-0.3c0.6888-0.8134,0.5878-2.0313-0.2256-2.7201  c-0.0243-0.0206-0.0491-0.0406-0.0744-0.0599l-0.1-0.1c-0.5333-0.3564-1.1032-0.6548-1.7-0.89l0,0C10.5,8.29,10,6,7.5,6z\"\n                data-reactid=\".0.1.0.1.0.$veterinary.0.5:$0\"></path>\n            <path\n                fill=\"#e55e5e\"\n                transform=\"translate(0 0)\"\n                d=\"M2.08,4.3c-0.7348,0.3676-1.0652,1.2371-0.76,2c0.064,0.8282,0.7809,1.4517,1.61,1.4  c0.7348-0.3676,1.0652-1.2371,0.76-2C3.626,4.8718,2.9091,4.2483,2.08,4.3z\"\n                data-reactid=\".0.1.0.1.0.$veterinary.0.5:$1\"></path>\n            <path\n                fill=\"#e55e5e\"\n                transform=\"translate(0 0)\"\n                d=\"M12.93,4.3c0.7348,0.3676,1.0653,1.2371,0.76,2c-0.064,0.8282-0.7809,1.4517-1.61,1.4  c-0.7348-0.3676-1.0653-1.2371-0.76-2C11.384,4.8718,12.1009,4.2483,12.93,4.3z\"\n                data-reactid=\".0.1.0.1.0.$veterinary.0.5:$2\"></path>\n            <path\n                fill=\"#e55e5e\"\n                transform=\"translate(0 0)\"\n                d=\"M5.08,1.3c-0.68,0.09-1,0.94-0.76,1.87C4.4301,3.9951,5.1003,4.6321,5.93,4.7c0.68-0.09,1-0.94,0.76-1.87  C6.5799,2.0049,5.9097,1.3679,5.08,1.3z\"\n                data-reactid=\".0.1.0.1.0.$veterinary.0.5:$3\"></path>\n            <path\n                fill=\"#e55e5e\"\n                transform=\"translate(0 0)\"\n                d=\"M9.93,1.3c0.68,0.09,1,0.94,0.76,1.87C10.5791,3.9986,9.9036,4.6365,9.07,4.7c-0.68-0.08-1-0.94-0.76-1.87  C8.4209,2.0014,9.0964,1.3634,9.93,1.3z\"\n                data-reactid=\".0.1.0.1.0.$veterinary.0.5:$4\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$dentist\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$dentist.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$dentist.0.0\">dentist</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$dentist.0.1\"></rect>\n            <path\n                fill=\"#56b881\"\n                transform=\"translate(0 0)\"\n                d=\"M4.36,14c-1,0-0.56-2.67-0.86-5c-0.1-0.76-1-1.49-1.12-2.06C2,5,1.39,1.44,3.66,1S6,3,7.54,3s1.57-2.36,3.85-2  s1.59,3.9,1.29,5.9c-0.1,0.45-1.1,1.48-1.18,2.06c-0.33,2.4,0.32,5-0.8,5c-0.93,0-1.32-2.72-2-4.5C8.43,8.63,8.06,8,7.54,8  C6,8,5.75,14,4.36,14z\"\n                data-reactid=\".0.1.0.1.0.$dentist.0.5:$0\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$doctor\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$doctor.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$doctor.0.0\">doctor</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$doctor.0.1\"></rect>\n            <path\n                fill=\"#34a9ca\"\n                transform=\"translate(0 0)\"\n                d=\"M5.5,7C4.1193,7,3,5.8807,3,4.5l0,0v-2C3,2.2239,3.2239,2,3.5,2H4c0.2761,0,0.5-0.2239,0.5-0.5S4.2761,1,4,1H3.5  C2.6716,1,2,1.6716,2,2.5v2c0.0013,1.1466,0.5658,2.2195,1.51,2.87l0,0C4.4131,8.1662,4.9514,9.297,5,10.5C5,12.433,6.567,14,8.5,14  s3.5-1.567,3.5-3.5V9.93c1.0695-0.2761,1.7126-1.367,1.4365-2.4365C13.1603,6.424,12.0695,5.7809,11,6.057  C9.9305,6.3332,9.2874,7.424,9.5635,8.4935C9.7454,9.198,10.2955,9.7481,11,9.93v0.57c0,1.3807-1.1193,2.5-2.5,2.5S6,11.8807,6,10.5  c0.0511-1.2045,0.5932-2.3356,1.5-3.13l0,0C8.4404,6.7172,9.001,5.6448,9,4.5v-2C9,1.6716,8.3284,1,7.5,1H7  C6.7239,1,6.5,1.2239,6.5,1.5S6.7239,2,7,2h0.5C7.7761,2,8,2.2239,8,2.5v2l0,0C8,5.8807,6.8807,7,5.5,7 M11.5,9  c-0.5523,0-1-0.4477-1-1s0.4477-1,1-1s1,0.4477,1,1S12.0523,9,11.5,9z\"\n                data-reactid=\".0.1.0.1.0.$doctor.0.5:$0\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$hospital\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$hospital.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$hospital.0.0\">hospital</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$hospital.0.1\"></rect>\n            <path\n                fill=\"#ff9933\"\n                transform=\"translate(0 0)\"\n                d=\"M7,1C6.4,1,6,1.4,6,2v4H2C1.4,6,1,6.4,1,7v1  c0,0.6,0.4,1,1,1h4v4c0,0.6,0.4,1,1,1h1c0.6,0,1-0.4,1-1V9h4c0.6,0,1-0.4,1-1V7c0-0.6-0.4-1-1-1H9V2c0-0.6-0.4-1-1-1H7z\"\n                data-reactid=\".0.1.0.1.0.$hospital.0.5:$0\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$pharmacy\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$pharmacy.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$pharmacy.0.0\">pharmacy</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$pharmacy.0.1\"></rect>\n            <path\n                fill=\"#8a8acb\"\n                transform=\"translate(0 0)\"\n                d=\"M9.5,4l1.07-1.54c0.0599,0.0046,0.1201,0.0046,0.18,0c0.6904-0.0004,1.2497-0.5603,1.2494-1.2506  C11.999,0.519,11.4391-0.0404,10.7487-0.04C10.0584-0.0396,9.499,0.5203,9.4994,1.2106c0,0.0131,0.0002,0.0262,0.0006,0.0394  c0,0,0,0.07,0,0.1L7,4H9.5z M12,6V5H3v1l1.5,3.5L3,13v1h9v-1l-1-3.5L12,6z M10,10H8v2H7v-2H5V9h2V7h1v2h2V10z\"\n                data-reactid=\".0.1.0.1.0.$pharmacy.0.5:$0\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$campsite\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$campsite.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$campsite.0.0\">campsite</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$campsite.0.1\"></rect>\n            <path\n                fill=\"#e55e5e\"\n                transform=\"translate(0 0)\"\n                d=\"M7,1.5  l-5.5,9H1c-1,0-1,1-1,1v1c0,0,0,1,1,1h13c1,0,1-1,1-1v-1c0,0,0-1-1-1h-0.5L8,1.5C7.8,1.1,7.2,1.1,7,1.5z M7.5,5l3.2,5.5H4.2L7.5,5z\"\n                data-reactid=\".0.1.0.1.0.$campsite.0.5:$0\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$cemetery\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$cemetery.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$cemetery.0.0\">cemetery</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$cemetery.0.1\"></rect>\n            <path\n                fill=\"#56b881\"\n                transform=\"translate(0 0)\"\n                d=\"M11.46,12h-0.68L12,3.55c0.0175-0.2867-0.2008-0.5332-0.4874-0.5507C11.4884,2.9979,11.4641,2.9981,11.44,3h-1.18  c0-0.92-1.23-2-2.75-2S4.77,2.08,4.77,3H3.54C3.253,2.9885,3.0111,3.2117,2.9995,3.4987C2.9988,3.5158,2.999,3.5329,3,3.55L4.2,12  H3.55C3.2609,11.9886,3.0162,12.2112,3,12.5V14h9v-1.51C11.9839,12.2067,11.7435,11.9886,11.46,12z M4.5,5h6v1h-6V5z\"\n                data-reactid=\".0.1.0.1.0.$cemetery.0.5:$0\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$dog-park\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$dog-park.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$dog-park.0.0\">dog-park</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$dog-park.0.1\"></rect>\n            <path\n                fill=\"#34a9ca\"\n                transform=\"translate(0 0)\"\n                d=\"M 10.300781 1.2207031 C 9.9144812 1.2207031 9.6 1.2 9.5 2 L 9.0996094 4.5214844 L 11.5 6.5 L 13.5 6.5 C 14.9 6.5 15 5.5410156 15 5.5410156 L 13.099609 3.3222656 C 12.399609 2.6222656 11.7 2.5 11 2.5 L 11 2 C 11 2 11.067481 1.2206031 10.300781 1.2207031 z M 4.75 1.5 C 4.75 1.5 3.7992187 1.5206031 3.1992188 1.7207031 C 2.5992187 1.9207031 2 2.6210938 2 3.6210938 L 2 7.5214844 C 2 9.2214844 1.3 9.5 1 9.5 C 1 9.5 0 9.5214844 0 10.521484 L 0 12.720703 C 0 12.720703 0.00078125 13.521484 0.80078125 13.521484 L 1 13.521484 L 1.5 13.521484 L 2 13.521484 L 2 13.021484 L 2 12.822266 C 2 12.422266 1.8 12.221094 1.5 12.121094 L 1.5 11.021484 C 2.5 11.021484 2.6 10.820703 3 10.720703 L 3.5507812 12.917969 C 3.6507813 13.217969 3.7507813 13.417578 4.0507812 13.517578 L 5.0507812 13.517578 L 6 13.5 L 6 12.699219 C 6 12.022819 5 12 5 12 L 5 9.5 L 8.5 9.5 L 9.1992188 12.121094 C 9.5992188 13.521094 10.5 13.5 10.5 13.5 L 11 13.5 L 12 13.5 L 12 12.699219 C 12 11.987419 11 12 11 12 L 11.099609 7.921875 L 8 5.5 L 3.5 5.5 L 3.5 3.5 C 3.5 3.1 3.7765 3.0053 4 3 C 4.4941 2.9882 4.75 3 4.75 3 C 5.1642 3 5.5 2.6642 5.5 2.25 C 5.5 1.8358 5.1642 1.5 4.75 1.5 z M 11.75 4 C 11.8881 4 12 4.1119 12 4.25 C 12 4.3881 11.8881 4.5 11.75 4.5 C 11.6119 4.5 11.5 4.3881 11.5 4.25 C 11.5 4.1119 11.6119 4 11.75 4 z \"\n                data-reactid=\".0.1.0.1.0.$dog-park.0.5:$0\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$garden\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$garden.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$garden.0.0\">garden</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$garden.0.1\"></rect>\n            <path\n                fill=\"#ff9933\"\n                transform=\"translate(0 0)\"\n                d=\"M13,8c0,3.31-2.19,6-5.5,6S2,11.31,2,8c2.2643,0.0191,4.2694,1.4667,5,3.61V7H4.5C3.6716,7,3,6.3284,3,5.5v-3  C3,2.2239,3.2239,2,3.5,2c0.1574,0,0.3056,0.0741,0.4,0.2l1.53,2l1.65-3c0.1498-0.232,0.4593-0.2985,0.6913-0.1487  C7.8308,1.0898,7.8815,1.1404,7.92,1.2l1.65,3l1.53-2c0.1657-0.2209,0.4791-0.2657,0.7-0.1C11.9259,2.1944,12,2.3426,12,2.5v3  C12,6.3284,11.3284,7,10.5,7H8v4.61C8.7306,9.4667,10.7357,8.0191,13,8z\"\n                data-reactid=\".0.1.0.1.0.$garden.0.5:$0\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$golf\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$golf.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$golf.0.0\">golf</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$golf.0.1\"></rect>\n            <path\n                fill=\"#8a8acb\"\n                transform=\"translate(0 0)\"\n                d=\"  M3.3999,1.1c0,0.1,0,0.2,0,0.2c0,0.4,0.3,0.7,0.7,0.7c0.3,0,0.5-0.2,0.6-0.5l0,0L4.9,1l5.6,2.3L6.6,6C6.2,6.3,6.2,6.7,6.3,7.1  l0.9,2.1l-1.3,3.9C5.7,13.6,6.1,14,6.5,14c0.3,0,0.5-0.1,0.6-0.5l1.4-4l0.1,0.3v3.5c0,0,0,0.7,0.7,0.7s0.7-0.7,0.7-0.7V10  c0-0.2,0-0.3-0.1-0.5L8.5,6.1l2.7-1.9c0.2-0.2,0.4-0.3,0.4-0.6s-0.2-0.5-0.4-0.6L4,0.1c-0.0878,0-0.118,0.0179-0.2001,0.1  L3.3999,1.1z M5.5,3C4.7,3,4,3.7,4,4.5S4.7,6,5.5,6S7,5.3,7,4.5S6.2999,3,5.5,3z\"\n                data-reactid=\".0.1.0.1.0.$golf.0.5:$0\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$park\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$park.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$park.0.0\">park</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$park.0.1\"></rect>\n            <path\n                fill=\"#e55e5e\"\n                transform=\"translate(0 0)\"\n                d=\"M14,5.75c0.0113-0.6863-0.3798-1.3159-1-1.61C12.9475,3.4906,12.4014,2.9926,11.75,3  c-0.0988,0.0079-0.1962,0.0281-0.29,0.06c-0.0607-0.66-0.6449-1.1458-1.3048-1.0851C9.8965,1.9987,9.6526,2.1058,9.46,2.28l0,0  c0-0.6904-0.5596-1.25-1.25-1.25S6.96,1.5896,6.96,2.28C6.96,2.28,7,2.3,7,2.33C6.4886,1.8913,5.7184,1.9503,5.2797,2.4618  C5.1316,2.6345,5.0347,2.8451,5,3.07C4.8417,3.0195,4.6761,2.9959,4.51,3C3.6816,2.9931,3.0044,3.659,2.9975,4.4874  C2.9958,4.6872,3.0341,4.8852,3.11,5.07C2.3175,5.2915,1.8546,6.1136,2.0761,6.9061C2.2163,7.4078,2.6083,7.7998,3.11,7.94  c0.2533,0.7829,1.0934,1.2123,1.8763,0.959C5.5216,8.7258,5.9137,8.2659,6,7.71C6.183,7.8691,6.4093,7.9701,6.65,8v5L5,14h5l-1.6-1  v-2c0.7381-0.8915,1.6915-1.5799,2.77-2c0.8012,0.1879,1.603-0.3092,1.7909-1.1103C12.9893,7.7686,13.0025,7.6444,13,7.52  c0.0029-0.0533,0.0029-0.1067,0-0.16C13.6202,7.0659,14.0113,6.4363,14,5.75z M8.4,10.26V6.82C8.6703,7.3007,9.1785,7.5987,9.73,7.6  h0.28c0.0156,0.4391,0.2242,0.849,0.57,1.12C9.7643,9.094,9.0251,9.6162,8.4,10.26z\"\n                data-reactid=\".0.1.0.1.0.$park.0.5:$0\"></path>\n        </svg>\n    </div>\n    <div\n        class=\"pad1 col1\"\n        data-reactid=\".0.1.0.1.0.$picnic-site\">\n        <svg\n            viewBox=\"0 0 15 15\"\n            height=\"15\"\n            width=\"15\"\n            data-reactid=\".0.1.0.1.0.$picnic-site.0\">\n            <title\n                data-reactid=\".0.1.0.1.0.$picnic-site.0.0\">picnic-site</title>\n            <rect\n                fill=\"none\"\n                x=\"0\"\n                y=\"0\"\n                width=\"15\"\n                height=\"15\"\n                data-reactid=\".0.1.0.1.0.$picnic-site.0.1\"></rect>\n            <path\n                fill=\"#56b881\"\n                transform=\"translate(0 0)\"\n                d=\"M4,3C3.446,3,3,3.446,3,4s0.446,1,1,1h1.2969  L4.6523,7H2.5c-0.554,0-1,0.446-1,1s0.446,1,1,1h1.5098L3.041,12.0098c-0.1284,0.3939,0.0868,0.8173,0.4807,0.9457  s0.8173-0.0868,0.9457-0.4807c0.0005-0.0013,0.0009-0.0027,0.0013-0.004L5.5859,9h3.8281l1.1172,3.4707  c0.1273,0.3943,0.5501,0.6107,0.9443,0.4834s0.6107-0.5501,0.4834-0.9443l0,0L10.9902,9H12.5c0.554,0,1-0.446,1-1s-0.446-1-1-1  h-2.1523L9.7031,5H11c0.554,0,1-0.446,1-1s-0.446-1-1-1H4z M6.873,5H8.127l0.6445,2h-2.543L6.873,5z\"\n                data-reactid=\".0.1.0.1.0.$picnic-site.0.5:$0\"></path>\n        </svg>\n    </div>\n</div>\n";
     function find(id) {
         var svgNodes = document.getElementsByTagName("div");
@@ -7149,6 +6758,7 @@ define("ol3-lab/labs/svg", ["require", "exports", "jquery"], function (require, 
 });
 define("ol3-lab/labs/wfs-map", ["require", "exports", "openlayers", "ol3-lab/labs/mapmaker"], function (require, exports, ol, MapMaker) {
     "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
     var idealTextColor = function (_a) {
         var a = _a[0], b = _a[1], c = _a[2];
         return (150 < (a * 0.299) + (b * 0.587) + (c * 0.114)) ? "black" : "white";
@@ -7213,8 +6823,601 @@ define("ol3-lab/labs/wfs-map", ["require", "exports", "openlayers", "ol3-lab/lab
     }
     exports.run = run;
 });
+define("ol3-lab/labs/common/ol3-patch", ["require", "exports", "openlayers", "ol3-lab/labs/common/common"], function (require, exports, ol3, common_20) {
+    "use strict";
+    if (!ol3.geom.SimpleGeometry.prototype.scale) {
+        var scale_1 = function (flatCoordinates, offset, end, stride, deltaX, deltaY, opt_dest) {
+            var dest = opt_dest ? opt_dest : [];
+            var i = 0;
+            var j, k;
+            for (j = offset; j < end; j += stride) {
+                dest[i++] = flatCoordinates[j] * deltaX;
+                dest[i++] = flatCoordinates[j + 1] * deltaY;
+                for (k = j + 2; k < j + stride; ++k) {
+                    dest[i++] = flatCoordinates[k];
+                }
+            }
+            if (opt_dest && dest.length != i) {
+                dest.length = i;
+            }
+            return dest;
+        };
+        common_20.mixin(ol3.geom.SimpleGeometry.prototype, {
+            scale: function (deltaX, deltaY) {
+                var it = this;
+                it.applyTransform(function (flatCoordinates, output, stride) {
+                    scale_1(flatCoordinates, 0, flatCoordinates.length, stride, deltaX, deltaY, flatCoordinates);
+                    return flatCoordinates;
+                });
+                it.changed();
+            }
+        });
+    }
+    return ol3;
+});
+define("bower_components/ol3-draw/ol3-draw/ol3-delete", ["require", "exports", "openlayers", "bower_components/ol3-draw/ol3-draw/ol3-button", "bower_components/ol3-fun/ol3-fun/common"], function (require, exports, ol, ol3_button_3, common_21) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    var Delete = (function (_super) {
+        __extends(Delete, _super);
+        function Delete(options) {
+            var _this = _super.call(this, options) || this;
+            var map = options.map;
+            var featureLayers = [];
+            var selection = new ol.interaction.Select({
+                condition: ol.events.condition.click,
+                multi: false,
+                style: function (feature, res) {
+                    var index = selection.getFeatures().getArray().indexOf(feature);
+                    var fillColor = "rgba(0,0,0,0.2)";
+                    var strokeColor = "red";
+                    var textTemplate = {
+                        text: "X" + (index + 1),
+                        fill: {
+                            color: strokeColor
+                        },
+                        stroke: {
+                            color: fillColor,
+                            width: 2
+                        },
+                        scale: 3
+                    };
+                    var style = options.style[feature.getGeometry().getType()]
+                        .map(function (s) { return _this.symbolizer.fromJson(common_21.defaults({ text: textTemplate }, s)); });
+                    return style;
+                }
+            });
+            var boxSelect = new ol.interaction.DragBox({
+                condition: options.boxSelectCondition
+            });
+            boxSelect.on("boxend", function (args) {
+                var extent = boxSelect.getGeometry().getExtent();
+                var features = selection.getFeatures().getArray();
+                options.map.getLayers()
+                    .getArray()
+                    .filter(function (l) { return l instanceof ol.layer.Vector; })
+                    .map(function (l) { return l; })
+                    .forEach(function (l) { return l.getSource().forEachFeatureIntersectingExtent(extent, function (feature) {
+                    if (-1 === features.indexOf(feature)) {
+                        selection.getFeatures().push(feature);
+                        _this.addFeatureLayerAssociation(feature, l);
+                    }
+                    else {
+                        selection.getFeatures().remove(feature);
+                        _this.addFeatureLayerAssociation(feature, null);
+                    }
+                }); });
+            });
+            var doit = function () {
+                selection.getFeatures().forEach(function (f) {
+                    var l = selection.getLayer(f) || _this.featureLayerAssociation_[f.getId()];
+                    l && l.getSource().removeFeature(f);
+                });
+                selection.getFeatures().clear();
+                _this.featureLayerAssociation_ = [];
+            };
+            _this.once("change:active", function () {
+                [selection, boxSelect].forEach(function (i) {
+                    i.setActive(false);
+                    map.addInteraction(i);
+                });
+                _this.handlers.push(function () {
+                    [selection, boxSelect].forEach(function (i) {
+                        i.setActive(false);
+                        map.removeInteraction(i);
+                    });
+                });
+            });
+            _this.on("change:active", function () {
+                var active = _this.get("active");
+                if (!active) {
+                    doit();
+                    selection.getFeatures().clear();
+                }
+                [boxSelect, selection].forEach(function (i) { return i.setActive(active); });
+            });
+            return _this;
+        }
+        Delete.create = function (options) {
+            options = common_21.defaults({}, options, Delete.DEFAULT_OPTIONS);
+            return ol3_button_3.Button.create(options);
+        };
+        Delete.prototype.addFeatureLayerAssociation = function (feature, layer) {
+            if (!this.featureLayerAssociation_)
+                this.featureLayerAssociation_ = [];
+            var key = feature.getId();
+            this.featureLayerAssociation_[key] = layer;
+        };
+        Delete.DEFAULT_OPTIONS = {
+            className: "ol-delete",
+            label: "␡",
+            title: "Delete",
+            buttonType: Delete,
+            eventName: "delete-feature",
+            boxSelectCondition: ol.events.condition.shiftKeyOnly,
+            style: {
+                "Point": [{
+                        circle: {
+                            radius: 20,
+                            fill: {
+                                color: "blue"
+                            },
+                            stroke: {
+                                color: "red",
+                                width: 2
+                            },
+                            opacity: 1
+                        }
+                    }],
+                "MultiLineString": [{
+                        stroke: {
+                            color: "red",
+                            width: 2
+                        }
+                    }],
+                "Circle": [{
+                        fill: {
+                            color: "blue"
+                        },
+                        stroke: {
+                            color: "red",
+                            width: 2
+                        }
+                    }],
+                "Polygon": [{
+                        fill: {
+                            color: "blue"
+                        },
+                        stroke: {
+                            color: "red",
+                            width: 2
+                        }
+                    }],
+                "MultiPolygon": [{
+                        fill: {
+                            color: "blue"
+                        },
+                        stroke: {
+                            color: "red",
+                            width: 2
+                        }
+                    }]
+            }
+        };
+        return Delete;
+    }(ol3_button_3.Button));
+    exports.Delete = Delete;
+});
+define("bower_components/ol3-draw/ol3-draw/ol3-translate", ["require", "exports", "openlayers", "bower_components/ol3-draw/ol3-draw/ol3-button", "bower_components/ol3-fun/ol3-fun/common"], function (require, exports, ol, ol3_button_4, common_22) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    var Translate = (function (_super) {
+        __extends(Translate, _super);
+        function Translate(options) {
+            var _this = _super.call(this, options) || this;
+            var map = options.map;
+            var select = new ol.interaction.Select({
+                wrapX: false
+            });
+            var translate = new ol.interaction.Translate({
+                features: select.getFeatures()
+            });
+            select.on("select", function (args) {
+                translate.setActive(true);
+            });
+            _this.once("change:active", function () {
+                [select, translate].forEach(function (i) {
+                    i.setActive(false);
+                    options.map.addInteraction(i);
+                });
+                _this.handlers.push(function () {
+                    [select, translate].forEach(function (i) {
+                        i.setActive(false);
+                        options.map.removeInteraction(i);
+                    });
+                });
+            });
+            _this.on("change:active", function () {
+                var active = _this.get("active");
+                _this.options.element.classList.toggle("active", active);
+                select.setActive(active);
+                if (!active)
+                    select.getFeatures().clear();
+            });
+            return _this;
+        }
+        Translate.create = function (options) {
+            options = common_22.defaults({}, options, Translate.DEFAULT_OPTIONS);
+            return ol3_button_4.Button.create(options);
+        };
+        Translate.DEFAULT_OPTIONS = {
+            className: "ol-translate",
+            position: "top right",
+            label: "XY",
+            title: "Translate",
+            eventName: "translate-feature",
+            buttonType: Translate
+        };
+        return Translate;
+    }(ol3_button_4.Button));
+    exports.Translate = Translate;
+});
+define("bower_components/ol3-draw/ol3-draw/services/wfs-sync", ["require", "exports", "openlayers", "jquery", "bower_components/ol3-fun/ol3-fun/common"], function (require, exports, ol, $, common_23) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    var serializer = new XMLSerializer();
+    var WfsSync = (function () {
+        function WfsSync(options) {
+            this.options = options;
+            this.lastSavedTime = Date.now();
+            this.deletes = [];
+            this.watch();
+        }
+        WfsSync.create = function (options) {
+            options = common_23.defaults(options || {}, WfsSync.DEFAULT_OPTIONS);
+            if (!options.formatter) {
+                options.formatter = new ol.format.WFS();
+            }
+            if (!options.srsName) {
+                options.srsName = options.source.getProjection().getCode();
+            }
+            var result = new WfsSync(options);
+            return result;
+        };
+        WfsSync.prototype.watch = function () {
+            var _this = this;
+            var save = common_23.debounce(function () { return _this.saveDrawings({
+                features: _this.options.source.getFeatures().filter(function (f) { return !!f.get(_this.options.lastUpdateFieldName); })
+            }); }, 1000);
+            var touch = function (f) {
+                f.set(_this.options.lastUpdateFieldName, Date.now());
+                save();
+            };
+            var watch = function (f) {
+                f.getGeometry().on("change", function () { return touch(f); });
+                f.on("propertychange", function (args) {
+                    if (args.key === _this.options.lastUpdateFieldName)
+                        return;
+                    touch(f);
+                });
+            };
+            var source = this.options.source;
+            source.forEachFeature(function (f) { return watch(f); });
+            source.on("addfeature", function (args) {
+                args.feature.set("strname", "29615");
+                watch(args.feature);
+                touch(args.feature);
+            });
+            source.on("removefeature", function (args) {
+                _this.deletes.push(args.feature);
+                touch(args.feature);
+            });
+        };
+        WfsSync.prototype.saveDrawings = function (args) {
+            var _this = this;
+            var features = args.features.filter(function (f) { return _this.lastSavedTime <= f.get(_this.options.lastUpdateFieldName); });
+            features.forEach(function (f) { return f.set(_this.options.lastUpdateFieldName, undefined); });
+            console.log("saving", features.map(function (f) { return f.get(_this.options.lastUpdateFieldName); }));
+            var saveTo = function (featureType, geomType) {
+                var toSave = features.filter(function (f) { return f.getGeometry().getType() === geomType; });
+                var toDelete = _this.deletes.filter(function (f) { return !!f.get(_this.options.featureIdFieldName); });
+                if (0 === (toSave.length + toDelete.length)) {
+                    console.info("nothing to save", featureType, geomType);
+                    return;
+                }
+                if (_this.options.sourceSrs && _this.options.sourceSrs !== _this.options.srsName) {
+                    var srsIn_1 = new ol.proj.Projection({ code: _this.options.sourceSrs });
+                    var srsOut_1 = new ol.proj.Projection({ code: _this.options.srsName });
+                    toSave = toSave.map(function (f) { return f.clone(); });
+                    toSave.forEach(function (f) { return f.getGeometry().transform(srsIn_1, srsOut_1); });
+                    throw "should not be necessary, perform on server, cloning will prevent insert key from updating";
+                }
+                var format = _this.options.formatter;
+                var toInsert = toSave.filter(function (f) { return !f.get(_this.options.featureIdFieldName); });
+                var toUpdate = toSave.filter(function (f) { return !!f.get(_this.options.featureIdFieldName); });
+                var requestBody = format.writeTransaction(toInsert, toUpdate, toDelete, {
+                    featureNS: _this.options.featureNS,
+                    featurePrefix: _this.options.featurePrefix,
+                    featureType: featureType,
+                    srsName: _this.options.srsName,
+                    nativeElements: []
+                });
+                $.ajax({
+                    type: "POST",
+                    url: _this.options.wfsUrl,
+                    data: serializer.serializeToString(requestBody),
+                    contentType: "application/xml",
+                    dataType: "xml",
+                    success: function (response) {
+                        var responseInfo = format.readTransactionResponse(response);
+                        if (responseInfo.transactionSummary.totalDeleted) {
+                            console.log("totalDeleted: ", responseInfo.transactionSummary.totalDeleted);
+                        }
+                        if (responseInfo.transactionSummary.totalInserted) {
+                            console.log("totalInserted: ", responseInfo.transactionSummary.totalInserted);
+                        }
+                        if (responseInfo.transactionSummary.totalUpdated) {
+                            console.log("totalUpdated: ", responseInfo.transactionSummary.totalUpdated);
+                        }
+                        console.assert(toInsert.length === responseInfo.transactionSummary.totalInserted, "number inserted should equal number of new keys");
+                        toInsert.forEach(function (f, i) {
+                            var id = responseInfo.insertIds[i];
+                            f.set("gid", id.split(".").pop());
+                            f.setId(id);
+                        });
+                    }
+                });
+            };
+            this.lastSavedTime = Date.now();
+            Object.keys(this.options.targets).forEach(function (k) {
+                saveTo(_this.options.targets[k], k);
+            });
+        };
+        WfsSync.DEFAULT_OPTIONS = {
+            featureIdFieldName: "gid",
+            lastUpdateFieldName: "touched",
+        };
+        return WfsSync;
+    }());
+    exports.WfsSync = WfsSync;
+});
+define("ol3-lab/labs/geoserver/services", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/mapmaker", "bower_components/ol3-symbolizer/index", "bower_components/ol3-popup/index", "bower_components/ol3-draw/index", "bower_components/ol3-draw/ol3-draw/ol3-edit", "bower_components/ol3-draw/ol3-draw/ol3-delete", "bower_components/ol3-draw/ol3-draw/ol3-translate", "bower_components/ol3-draw/ol3-draw/services/wfs-sync"], function (require, exports, $, ol, MapMaker, Symbolizer, ol3_popup_7, ol3_draw_2, ol3_edit_2, ol3_delete_1, ol3_translate_1, wfs_sync_1) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    var symbolizer = new Symbolizer.StyleConverter();
+    var serializer = new XMLSerializer();
+    function run() {
+        var srsName = "EPSG:3857";
+        var wfsUrl = "http://localhost:8080/geoserver/cite/wfs";
+        var featureNS = "http://www.opengeospatial.net/cite";
+        var featurePrefix = "cite";
+        var targets = {
+            Point: "addresses",
+            MultiLineString: "streets",
+            MultiPolygon: "parcels",
+        };
+        MapMaker.run({
+            srs: srsName,
+            basemap: "bing"
+        }).then(function (map) {
+            var source = new ol.source.Vector();
+            var layer = new ol.layer.Vector({ source: source });
+            layer.setStyle(symbolizer.fromJson({
+                fill: {
+                    color: "rgba(33,33,33,0.5)"
+                },
+                stroke: {
+                    color: "rgba(50,100,50,0.8)",
+                    width: 3
+                },
+                circle: {
+                    fill: {
+                        color: "rgba(99,33,33,1)"
+                    },
+                    stroke: {
+                        color: "rgba(255,255,255,1)"
+                    },
+                    radius: 5,
+                    opacity: 1
+                }
+            }));
+            map.addLayer(layer);
+            {
+                var format_1 = new ol.format.WFS();
+                var requestBody = format_1.writeGetFeature({
+                    featureNS: featureNS,
+                    featurePrefix: featurePrefix,
+                    featureTypes: Object.keys(targets).map(function (k) { return targets[k]; }),
+                    srsName: srsName,
+                    filter: ol.format.filter.equalTo("strname", "29615")
+                });
+                var data = serializer.serializeToString(requestBody);
+                $.ajax({
+                    type: "POST",
+                    url: wfsUrl,
+                    data: data,
+                    contentType: "application/xml",
+                    dataType: "xml",
+                    success: function (response) {
+                        var features = format_1.readFeatures(response);
+                        features = features.filter(function (f) { return !!f.getGeometry(); });
+                        source.addFeatures(features);
+                        var extent = ol.extent.createEmpty();
+                        features.forEach(function (f) { return ol.extent.extend(extent, f.getGeometry().getExtent()); });
+                        map.getView().fit(extent, map.getSize());
+                    }
+                });
+            }
+            {
+                var popup_1 = new ol3_popup_7.Popup({
+                    css: "\n            .ol-popup {\n                background-color: white;\n            }\n            .ol-popup .page {\n                max-height: 200px;\n                overflow-y: auto;\n            }\n            ",
+                    dockContainer: map.getViewport()
+                });
+                map.addOverlay(popup_1);
+                map.on("click", function (event) {
+                    var interactions = map
+                        .getInteractions()
+                        .getArray()
+                        .filter(function (i) { return i instanceof ol.interaction.Draw || i instanceof ol.interaction.Modify || i instanceof ol.interaction.Translate; });
+                    console.log(interactions);
+                    if (interactions.length)
+                        return;
+                    var coord = event.coordinate;
+                    popup_1.hide();
+                    var pageNum = 0;
+                    map.forEachFeatureAtPixel(event.pixel, function (feature, layer) {
+                        var page = document.createElement('p');
+                        var keys = Object.keys(feature.getProperties()).filter(function (key) {
+                            var v = feature.get(key);
+                            if (typeof v === "string")
+                                return true;
+                            if (typeof v === "number")
+                                return true;
+                            return false;
+                        });
+                        page.title = "" + ++pageNum;
+                        page.innerHTML = "<table>" + keys.map(function (k) { return "<tr><td>" + k + "</td><td>" + feature.get(k) + "</td></tr>"; }).join("") + "</table>";
+                        popup_1.pages.add(page, new ol.geom.Point(event.coordinate));
+                    });
+                    popup_1.show(coord, "<label>" + pageNum + " Features Found</label>");
+                    popup_1.pages.goto(0);
+                });
+            }
+            map.addControl(ol3_draw_2.Draw.create({ geometryType: "MultiPolygon", label: "▧", position: "right-4 top", layers: [layer] }));
+            map.addControl(ol3_draw_2.Draw.create({ geometryType: "MultiLineString", label: "▬", position: "right-2 top", layers: [layer] }));
+            map.addControl(ol3_draw_2.Draw.create({ geometryType: "Point", label: "●", position: "right top", layers: [layer] }));
+            map.addControl(ol3_translate_1.Translate.create({ position: "right-4 top-2" }));
+            map.addControl(ol3_edit_2.Modify.create({ label: "Δ", position: "right-2 top-2" }));
+            map.addControl(ol3_delete_1.Delete.create({ label: "X", position: "right top-2" }));
+            wfs_sync_1.WfsSync.create({
+                wfsUrl: wfsUrl,
+                featureNS: featureNS,
+                featurePrefix: featurePrefix,
+                srsName: srsName,
+                source: source,
+                targets: targets
+            });
+        });
+    }
+    exports.run = run;
+});
+define("ol3-lab/labs/workflow/ol-workflow", ["require", "exports", "openlayers"], function (require, exports, ol) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    var WorkFlow = (function () {
+        function WorkFlow(map, workFlowItem) {
+            if (workFlowItem === void 0) { workFlowItem = []; }
+            this.map = map;
+            this.workFlowItem = workFlowItem;
+        }
+        WorkFlow.prototype.render = function () {
+            if (this.source)
+                this.source.clear();
+            this.source = renderWorkflow(this.map, this);
+        };
+        WorkFlow.prototype.connect = function (item1, item2) {
+            var style = new ol.style.Style({
+                text: new ol.style.Text({
+                    text: "connector " + item1.title + "->" + item2.title
+                }),
+                fill: new ol.style.Fill({
+                    color: 'rgba(255,255,255,0.1)'
+                }),
+                stroke: new ol.style.Stroke({
+                    color: '#ff0',
+                    width: 5
+                })
+            });
+            var f1 = this.source.getFeatureById(item1.id);
+            var f2 = this.source.getFeatureById(item2.id);
+            var p1 = f1.getGeometry().getClosestPoint(ol.extent.getCenter(f2.getGeometry().getExtent()));
+            var p2 = f2.getGeometry().getClosestPoint(ol.extent.getCenter(f1.getGeometry().getExtent()));
+            var feature = new ol.Feature();
+            feature.setGeometry(new ol.geom.LineString([
+                p1, p2
+            ]));
+            feature.setStyle(style);
+            this.source.addFeature(feature);
+        };
+        return WorkFlow;
+    }());
+    var WorkFlowItem = (function () {
+        function WorkFlowItem(title, type) {
+            if (title === void 0) { title = "untitled"; }
+            if (type === void 0) { type = ""; }
+            this.title = title;
+            this.type = type;
+            this.id = "wf_" + Math.random() * Number.MAX_VALUE;
+        }
+        return WorkFlowItem;
+    }());
+    function renderWorkflow(map, workflow) {
+        var source = new ol.source.Vector();
+        var layer = new ol.layer.Vector({
+            map: map,
+            source: source
+        });
+        map.addLayer(layer);
+        workflow.workFlowItem.forEach(function (item, index) {
+            var style = new ol.style.Style({
+                text: new ol.style.Text({
+                    text: item.title
+                }),
+                image: new ol.style.Circle({
+                    fill: new ol.style.Fill({
+                        color: 'rgba(255,255,255,0.1)'
+                    }),
+                    radius: 50,
+                    stroke: new ol.style.Stroke({
+                        color: '#ff0',
+                        width: 5
+                    })
+                })
+            });
+            var feature = new ol.Feature();
+            feature.setId(item.id);
+            feature.set("workflowitem", item);
+            feature.setGeometry(new ol.geom.Point([100 - Math.random() * 200, 100 - Math.random() * 200]));
+            source.addFeature(feature);
+            feature.setStyle(style);
+        });
+        return source;
+    }
+    function run() {
+        var options = {
+            target: document.getElementsByClassName("map")[0],
+            projection: "EPSG:3857",
+            center: [0, 0],
+            zoom: 20
+        };
+        var map = new ol.Map({
+            target: options.target,
+            keyboardEventTarget: document,
+            loadTilesWhileAnimating: true,
+            loadTilesWhileInteracting: true,
+            controls: ol.control.defaults({ attribution: false }),
+            view: new ol.View({
+                projection: options.projection,
+                center: options.center,
+                zoom: options.zoom
+            })
+        });
+        var _a = [
+            new WorkFlowItem("item 1"),
+            new WorkFlowItem("item 2"),
+            new WorkFlowItem("item 3"),
+        ], item1 = _a[0], item2 = _a[1], item3 = _a[2];
+        var workflow = new WorkFlow(map, [item1, item2, item3]);
+        workflow.render();
+        workflow.connect(item1, item3);
+        workflow.connect(item1, item2);
+        workflow.connect(item2, item3);
+    }
+    exports.run = run;
+});
 define("ol3-lab/tests/ags-format", ["require", "exports", "openlayers"], function (require, exports, ol) {
     "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
     function run() {
         var formatter = (new ol.format.EsriJSON());
         var olFeature = new ol.Feature(new ol.geom.Point([0, 0]));
@@ -7278,6 +7481,7 @@ define("ol3-lab/tests/ags-format", ["require", "exports", "openlayers"], functio
 });
 define("ol3-lab/tests/canvas", ["require", "exports"], function (require, exports) {
     "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
     function run() {
         var _a = [600, 600], cw = _a[0], ch = _a[1];
         var canvas = document.createElement("canvas");
@@ -7332,6 +7536,255 @@ define("ol3-lab/tests/canvas", ["require", "exports"], function (require, export
             if (tick < 360)
                 requestAnimationFrame(animate);
         }
+    }
+    exports.run = run;
+});
+define("ol3-lab/tests/drop-vertex-on-marker-detection", ["require", "exports", "openlayers", "ol3-lab/labs/mapmaker", "ol3-lab/labs/route-editor", "bower_components/ol3-fun/ol3-fun/common"], function (require, exports, ol, mapmaker_1, route_editor_1, common_24) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    function midpoint(points) {
+        var p0 = points.reduce(function (sum, p) { return p.map(function (v, i) { return v + sum[i]; }); });
+        return p0.map(function (v) { return v / points.length; });
+    }
+    function run() {
+        var features = new ol.Collection([]);
+        var activeFeature;
+        features.on("add", function (args) {
+            var feature = args.element;
+            feature.on("change", function (args) {
+                activeFeature = feature;
+            });
+            feature.on("change:geometry", function (args) {
+                console.log("feature change:geometry", args);
+            });
+        });
+        var layer = new ol.layer.Vector({
+            source: new ol.source.Vector({
+                features: features
+            })
+        });
+        var colors = ['229966', 'cc6633', 'cc22cc', '331199'].map(function (v) { return '#' + v; });
+        mapmaker_1.run().then(function (map) {
+            map.addLayer(layer);
+            var _a = map.getView().calculateExtent(map.getSize().map(function (v) { return v * 0.25; })), a = _a[0], b = _a[1], c = _a[2], d = _a[3];
+            var routes = [];
+            var shift = [-0.001, -0.005];
+            while (colors.length) {
+                var stops = common_24.range(8).map(function (v) { return [a + (c - a) * Math.random(), b + (d - b) * Math.random()].map(function (v, i) { return v + shift[i]; }); });
+                var startstop = [a + (c - a) * Math.random(), b + (d - b) * Math.random()].map(function (v, i) { return v + shift[i]; });
+                var route = new route_editor_1.Route({
+                    color: colors.pop(),
+                    start: startstop,
+                    finish: startstop,
+                    stops: stops
+                });
+                shift = shift.map(function (v) { return v + 0.005; });
+                routes.push(route);
+            }
+            var redRoute = new route_editor_1.Route({
+                color: "red",
+                showLines: false,
+                modifyRoute: true
+            });
+            routes.push(redRoute);
+            routes.forEach(function (r) {
+                r.refresh(map);
+                r.appendTo(layer);
+            });
+            var editFeatures = new ol.Collection();
+            routes.map(function (route) { return route.allowModify(editFeatures); });
+            var modify = new ol.interaction.Modify({
+                pixelTolerance: 8,
+                condition: function (evt) {
+                    if (!ol.events.condition.noModifierKeys(evt))
+                        return false;
+                    if (routes.some(function (r) { return r.isStartingLocation(map, evt.coordinate); }))
+                        return false;
+                    if (routes.some(function (r) { return r.isEndingLocation(map, evt.coordinate); }))
+                        return false;
+                    return true;
+                },
+                features: editFeatures
+            });
+            map.addInteraction(modify);
+            modify.on("modifyend", function (args) {
+                console.log("modifyend", args);
+                var dropLocation = args.mapBrowserEvent.coordinate;
+                console.log("drop-location", dropLocation);
+                var dropInfo = {
+                    route: null,
+                    stops: null
+                };
+                var targetInfo = {
+                    route: null,
+                    vertexIndex: null
+                };
+                targetInfo.route = routes.filter(function (route) { return route.owns(activeFeature); })[0];
+                console.log("target-route", targetInfo.route);
+                {
+                    var geom = activeFeature.getGeometry();
+                    var coords = geom.getCoordinates();
+                    var vertex = coords.filter(function (p) { return p[0] === dropLocation[0]; })[0];
+                    var vertexIndex = coords.indexOf(vertex);
+                    console.log("vertex", vertexIndex);
+                    targetInfo.vertexIndex = vertexIndex;
+                    if (targetInfo.vertexIndex == 0) {
+                        targetInfo.vertexIndex = targetInfo.route.stops.length;
+                    }
+                }
+                routes.some(function (route) {
+                    var stop = route.findStop(map, dropLocation);
+                    if (stop >= 0) {
+                        console.log("drop", route, stop);
+                        dropInfo.route = route;
+                        dropInfo.stops = [stop];
+                        return true;
+                    }
+                });
+                var isNewVertex = targetInfo.route.isNewVertex();
+                var dropOnStop = dropInfo.route && 0 < dropInfo.stops.length;
+                var isSameRoute = dropOnStop && dropInfo.route === targetInfo.route;
+                var stopIndex = targetInfo.vertexIndex;
+                if (targetInfo.route.startLocation)
+                    stopIndex--;
+                if (stopIndex < 0) {
+                    console.log("moving the starting vertex is not allowed");
+                }
+                else if (stopIndex > targetInfo.route.stops.length) {
+                    console.log("moving the ending vertex is not allowed");
+                }
+                else if (dropOnStop && isNewVertex) {
+                    var stop_1 = dropInfo.route.removeStop(dropInfo.stops[0]);
+                    targetInfo.route.addStop(stop_1, stopIndex);
+                }
+                else if (dropOnStop && !isNewVertex && !isSameRoute) {
+                    var stop_2 = targetInfo.route.removeStop(stopIndex);
+                    redRoute.addStop(stop_2);
+                    stop_2 = dropInfo.route.removeStop(dropInfo.stops[0]);
+                    targetInfo.route.addStop(stop_2, stopIndex);
+                }
+                else if (dropOnStop && !isNewVertex && isSameRoute) {
+                    var count = dropInfo.stops[0] - stopIndex;
+                    if (count > 1)
+                        while (count--) {
+                            var stop_3 = targetInfo.route.removeStop(stopIndex);
+                            redRoute.addStop(stop_3);
+                        }
+                }
+                else if (!dropOnStop && isNewVertex) {
+                    console.log("dropping a new vertex on empty space has not effect");
+                }
+                else if (!dropOnStop && !isNewVertex) {
+                    var stop_4 = targetInfo.route.removeStop(stopIndex);
+                    stop_4 && redRoute.addStop(stop_4);
+                }
+                routes.map(function (r) { return r.refresh(map); });
+            });
+        });
+    }
+    exports.run = run;
+});
+define("ol3-lab/tests/google-polyline", ["require", "exports", "ol3-lab/labs/common/ol3-polyline", "ol3-lab/labs/common/google-polyline"], function (require, exports, OlEncoder, Encoder) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    var polyline = [[38.5, -120.2], [40.7, -120.95], [43.252, -126.453]];
+    var encoding = "_p~iF~ps|U_ulLnnqC_mqNvxq`@";
+    function run() {
+        {
+            var encoder = new Encoder();
+            console.assert(encoder.encode(encoder.decode(encoding)) === encoding);
+            console.assert(encoding === encoder.encode(polyline));
+        }
+        {
+            var olEncoder = new OlEncoder();
+            console.assert(olEncoder.encode(olEncoder.decode(encoding)) === encoding);
+            console.assert(encoding === olEncoder.encode(polyline));
+        }
+    }
+    exports.run = run;
+});
+define("ol3-lab/tests/index", ["require", "exports"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    function run() {
+        var l = window.location;
+        var path = "" + l.origin + l.pathname + "?run=ol3-lab/tests/";
+        var labs = "\n    ags-format\n    google-polyline\n    webmap\n    map-resize-defect\n    drop-vertex-on-marker-detection\n    index\n    ";
+        document.writeln("\n    <p>\n    Watch the console output for failed assertions (blank is good).\n    </p>\n    ");
+        document.writeln(labs
+            .split(/ /)
+            .map(function (v) { return v.trim(); })
+            .filter(function (v) { return !!v; })
+            .sort()
+            .map(function (lab) { return "<a href=" + path + lab + "&debug=1>" + lab + "</a>"; })
+            .join("<br/>"));
+    }
+    exports.run = run;
+    ;
+});
+define("ol3-lab/tests/map-resize-defect", ["require", "exports", "openlayers", "jquery"], function (require, exports, ol, $) {
+    "use strict";
+    var html = "\n<lab class='map-resize-defect'>\n    <div class='outer'>\n        <div id='map' class='map fill'>\n        </div>\n    </div>\n    <button class='event grow'>Update CSS</button>\n    <button class='event resize'>Resize Map</button>\n</lab>\n";
+    var css = "\n<style>\n\n    .outer {\n        padding: 20px;\n        border: 1px solid orange;\n        width: 0;\n        height: 0;\n        overflow:hidden;\n    }\n\n    .map {\n        padding: 20px;\n        border: 1px solid yellow;\n        width: 80%;\n        height: 80%;\n    }\n\n</style>\n";
+    var css2 = "\n<style>\n\n    html, body {\n        width: 100%;\n        height: 100%;\n        margin: 0;\n        padding: 0;\n        border: none;\n    }\n\n    .outer {\n        width: 100%;\n        height: 100%;\n        margin: 0;\n        padding: 0;\n        border: none;\n    }\n\n    .map {\n        border: none;\n    }\n\n</style>\n";
+    var fail = 0;
+    return function run() {
+        $('#map').remove();
+        $(html).appendTo('body');
+        $(css).appendTo('head');
+        var map = new ol.Map({
+            target: "map",
+            view: new ol.View({
+                projection: 'EPSG:4326',
+                center: [-82.4, 34.85],
+                zoom: 15
+            }),
+            layers: [new ol.layer.Tile({ source: new ol.source.OSM() })]
+        });
+        $('#map').resize(function () {
+            throw "this will never happen because jquery only listens for the window size to change";
+        });
+        $('button.event.grow').click(function (evt) {
+            $(css2).appendTo("head");
+            $(evt.target).remove();
+        });
+        $('button.event.resize').click(function (evt) {
+            map.updateSize();
+            $(evt.target).remove();
+        });
+        require(["https://rawgit.com/marcj/css-element-queries/master/src/ResizeSensor.js"], function (ResizeSensor) {
+            var target = map.getTargetElement();
+            new ResizeSensor(target, function () {
+                console.log("ResizeSensor resize detected!");
+                if (!fail)
+                    map.updateSize();
+            });
+        });
+    };
+});
+define("ol3-lab/tests/webmap", ["require", "exports", "jquery"], function (require, exports, $) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    var webmap = "ae85c9d9c5ae409bb1f351617ea0bffc";
+    var portal = "https://www.arcgis.com";
+    var items_endpoint = "http://www.arcgis.com/sharing/rest/content/items";
+    function endpoint() {
+        return items_endpoint + "/" + webmap + "/data?f=json";
+    }
+    function run() {
+        if (1)
+            $.ajax({
+                url: endpoint(),
+                dataType: "json"
+            }).done(function (webmap) {
+                console.assert(webmap.authoringApp === "WebMapViewer", "authoringApp");
+                console.assert(webmap.authoringAppVersion === "4.2");
+                webmap.operationalLayers;
+                webmap.baseMap;
+                console.assert(webmap.spatialReference.latestWkid === 3857);
+                console.assert(webmap.version === "2.5");
+                console.log("done");
+            });
     }
     exports.run = run;
 });
@@ -8003,251 +8456,6 @@ define("ol3-lab/tests/data/geom/polyline", ["require", "exports", "openlayers"],
         ]
     ]);
 });
-define("ol3-lab/tests/drop-vertex-on-marker-detection", ["require", "exports", "openlayers", "ol3-lab/labs/mapmaker", "ol3-lab/labs/route-editor", "bower_components/ol3-fun/ol3-fun/common"], function (require, exports, ol, mapmaker_1, route_editor_1, common_24) {
-    "use strict";
-    function midpoint(points) {
-        var p0 = points.reduce(function (sum, p) { return p.map(function (v, i) { return v + sum[i]; }); });
-        return p0.map(function (v) { return v / points.length; });
-    }
-    function run() {
-        var features = new ol.Collection([]);
-        var activeFeature;
-        features.on("add", function (args) {
-            var feature = args.element;
-            feature.on("change", function (args) {
-                activeFeature = feature;
-            });
-            feature.on("change:geometry", function (args) {
-                console.log("feature change:geometry", args);
-            });
-        });
-        var layer = new ol.layer.Vector({
-            source: new ol.source.Vector({
-                features: features
-            })
-        });
-        var colors = ['229966', 'cc6633', 'cc22cc', '331199'].map(function (v) { return '#' + v; });
-        mapmaker_1.run().then(function (map) {
-            map.addLayer(layer);
-            var _a = map.getView().calculateExtent(map.getSize().map(function (v) { return v * 0.25; })), a = _a[0], b = _a[1], c = _a[2], d = _a[3];
-            var routes = [];
-            var shift = [-0.001, -0.005];
-            while (colors.length) {
-                var stops = common_24.range(8).map(function (v) { return [a + (c - a) * Math.random(), b + (d - b) * Math.random()].map(function (v, i) { return v + shift[i]; }); });
-                var startstop = [a + (c - a) * Math.random(), b + (d - b) * Math.random()].map(function (v, i) { return v + shift[i]; });
-                var route = new route_editor_1.Route({
-                    color: colors.pop(),
-                    start: startstop,
-                    finish: startstop,
-                    stops: stops
-                });
-                shift = shift.map(function (v) { return v + 0.005; });
-                routes.push(route);
-            }
-            var redRoute = new route_editor_1.Route({
-                color: "red",
-                showLines: false,
-                modifyRoute: true
-            });
-            routes.push(redRoute);
-            routes.forEach(function (r) {
-                r.refresh(map);
-                r.appendTo(layer);
-            });
-            var editFeatures = new ol.Collection();
-            routes.map(function (route) { return route.allowModify(editFeatures); });
-            var modify = new ol.interaction.Modify({
-                pixelTolerance: 8,
-                condition: function (evt) {
-                    if (!ol.events.condition.noModifierKeys(evt))
-                        return false;
-                    if (routes.some(function (r) { return r.isStartingLocation(map, evt.coordinate); }))
-                        return false;
-                    if (routes.some(function (r) { return r.isEndingLocation(map, evt.coordinate); }))
-                        return false;
-                    return true;
-                },
-                features: editFeatures
-            });
-            map.addInteraction(modify);
-            modify.on("modifyend", function (args) {
-                console.log("modifyend", args);
-                var dropLocation = args.mapBrowserEvent.coordinate;
-                console.log("drop-location", dropLocation);
-                var dropInfo = {
-                    route: null,
-                    stops: null
-                };
-                var targetInfo = {
-                    route: null,
-                    vertexIndex: null
-                };
-                targetInfo.route = routes.filter(function (route) { return route.owns(activeFeature); })[0];
-                console.log("target-route", targetInfo.route);
-                {
-                    var geom = activeFeature.getGeometry();
-                    var coords = geom.getCoordinates();
-                    var vertex = coords.filter(function (p) { return p[0] === dropLocation[0]; })[0];
-                    var vertexIndex = coords.indexOf(vertex);
-                    console.log("vertex", vertexIndex);
-                    targetInfo.vertexIndex = vertexIndex;
-                    if (targetInfo.vertexIndex == 0) {
-                        targetInfo.vertexIndex = targetInfo.route.stops.length;
-                    }
-                }
-                routes.some(function (route) {
-                    var stop = route.findStop(map, dropLocation);
-                    if (stop >= 0) {
-                        console.log("drop", route, stop);
-                        dropInfo.route = route;
-                        dropInfo.stops = [stop];
-                        return true;
-                    }
-                });
-                var isNewVertex = targetInfo.route.isNewVertex();
-                var dropOnStop = dropInfo.route && 0 < dropInfo.stops.length;
-                var isSameRoute = dropOnStop && dropInfo.route === targetInfo.route;
-                var stopIndex = targetInfo.vertexIndex;
-                if (targetInfo.route.startLocation)
-                    stopIndex--;
-                if (stopIndex < 0) {
-                    console.log("moving the starting vertex is not allowed");
-                }
-                else if (stopIndex > targetInfo.route.stops.length) {
-                    console.log("moving the ending vertex is not allowed");
-                }
-                else if (dropOnStop && isNewVertex) {
-                    var stop = dropInfo.route.removeStop(dropInfo.stops[0]);
-                    targetInfo.route.addStop(stop, stopIndex);
-                }
-                else if (dropOnStop && !isNewVertex && !isSameRoute) {
-                    var stop = targetInfo.route.removeStop(stopIndex);
-                    redRoute.addStop(stop);
-                    stop = dropInfo.route.removeStop(dropInfo.stops[0]);
-                    targetInfo.route.addStop(stop, stopIndex);
-                }
-                else if (dropOnStop && !isNewVertex && isSameRoute) {
-                    var count = dropInfo.stops[0] - stopIndex;
-                    if (count > 1)
-                        while (count--) {
-                            var stop = targetInfo.route.removeStop(stopIndex);
-                            redRoute.addStop(stop);
-                        }
-                }
-                else if (!dropOnStop && isNewVertex) {
-                    console.log("dropping a new vertex on empty space has not effect");
-                }
-                else if (!dropOnStop && !isNewVertex) {
-                    var stop = targetInfo.route.removeStop(stopIndex);
-                    stop && redRoute.addStop(stop);
-                }
-                routes.map(function (r) { return r.refresh(map); });
-            });
-        });
-    }
-    exports.run = run;
-});
-define("ol3-lab/tests/google-polyline", ["require", "exports", "ol3-lab/labs/common/ol3-polyline", "ol3-lab/labs/common/google-polyline"], function (require, exports, OlEncoder, Encoder) {
-    "use strict";
-    var polyline = [[38.5, -120.2], [40.7, -120.95], [43.252, -126.453]];
-    var encoding = "_p~iF~ps|U_ulLnnqC_mqNvxq`@";
-    function run() {
-        {
-            var encoder = new Encoder();
-            console.assert(encoder.encode(encoder.decode(encoding)) === encoding);
-            console.assert(encoding === encoder.encode(polyline));
-        }
-        {
-            var olEncoder = new OlEncoder();
-            console.assert(olEncoder.encode(olEncoder.decode(encoding)) === encoding);
-            console.assert(encoding === olEncoder.encode(polyline));
-        }
-    }
-    exports.run = run;
-});
-define("ol3-lab/tests/index", ["require", "exports"], function (require, exports) {
-    "use strict";
-    function run() {
-        var l = window.location;
-        var path = "" + l.origin + l.pathname + "?run=ol3-lab/tests/";
-        var labs = "\n    ags-format\n    google-polyline\n    webmap\n    map-resize-defect\n    drop-vertex-on-marker-detection\n    index\n    ";
-        document.writeln("\n    <p>\n    Watch the console output for failed assertions (blank is good).\n    </p>\n    ");
-        document.writeln(labs
-            .split(/ /)
-            .map(function (v) { return v.trim(); })
-            .filter(function (v) { return !!v; })
-            .sort()
-            .map(function (lab) { return "<a href=" + path + lab + "&debug=1>" + lab + "</a>"; })
-            .join("<br/>"));
-    }
-    exports.run = run;
-    ;
-});
-define("ol3-lab/tests/map-resize-defect", ["require", "exports", "openlayers", "jquery"], function (require, exports, ol, $) {
-    "use strict";
-    var html = "\n<lab class='map-resize-defect'>\n    <div class='outer'>\n        <div id='map' class='map fill'>\n        </div>\n    </div>\n    <button class='event grow'>Update CSS</button>\n    <button class='event resize'>Resize Map</button>\n</lab>\n";
-    var css = "\n<style>\n\n    .outer {\n        padding: 20px;\n        border: 1px solid orange;\n        width: 0;\n        height: 0;\n        overflow:hidden;\n    }\n\n    .map {\n        padding: 20px;\n        border: 1px solid yellow;\n        width: 80%;\n        height: 80%;\n    }\n\n</style>\n";
-    var css2 = "\n<style>\n\n    html, body {\n        width: 100%;\n        height: 100%;\n        margin: 0;\n        padding: 0;\n        border: none;\n    }\n\n    .outer {\n        width: 100%;\n        height: 100%;\n        margin: 0;\n        padding: 0;\n        border: none;\n    }\n\n    .map {\n        border: none;\n    }\n\n</style>\n";
-    var fail = 0;
-    return function run() {
-        $('#map').remove();
-        $(html).appendTo('body');
-        $(css).appendTo('head');
-        var map = new ol.Map({
-            target: "map",
-            view: new ol.View({
-                projection: 'EPSG:4326',
-                center: [-82.4, 34.85],
-                zoom: 15
-            }),
-            layers: [new ol.layer.Tile({ source: new ol.source.OSM() })]
-        });
-        $('#map').resize(function () {
-            throw "this will never happen because jquery only listens for the window size to change";
-        });
-        $('button.event.grow').click(function (evt) {
-            $(css2).appendTo("head");
-            $(evt.target).remove();
-        });
-        $('button.event.resize').click(function (evt) {
-            map.updateSize();
-            $(evt.target).remove();
-        });
-        require(["https://rawgit.com/marcj/css-element-queries/master/src/ResizeSensor.js"], function (ResizeSensor) {
-            var target = map.getTargetElement();
-            new ResizeSensor(target, function () {
-                console.log("ResizeSensor resize detected!");
-                if (!fail)
-                    map.updateSize();
-            });
-        });
-    };
-});
-define("ol3-lab/tests/webmap", ["require", "exports", "jquery"], function (require, exports, $) {
-    "use strict";
-    var webmap = "ae85c9d9c5ae409bb1f351617ea0bffc";
-    var portal = "https://www.arcgis.com";
-    var items_endpoint = "http://www.arcgis.com/sharing/rest/content/items";
-    function endpoint() {
-        return items_endpoint + "/" + webmap + "/data?f=json";
-    }
-    function run() {
-        if (1)
-            $.ajax({
-                url: endpoint(),
-                dataType: "json"
-            }).done(function (webmap) {
-                console.assert(webmap.authoringApp === "WebMapViewer", "authoringApp");
-                console.assert(webmap.authoringAppVersion === "4.2");
-                webmap.operationalLayers;
-                webmap.baseMap;
-                console.assert(webmap.spatialReference.latestWkid === 3857);
-                console.assert(webmap.version === "2.5");
-                console.log("done");
-            });
-    }
-    exports.run = run;
-});
 define("bower_components/ol3-symbolizer/ol3-symbolizer/styles/ags/simplemarkersymbol-circle", ["require", "exports"], function (require, exports) {
     "use strict";
     var styles = [{
@@ -8458,6 +8666,7 @@ define("bower_components/ol3-symbolizer/ol3-symbolizer/styles/ags/picturemarkers
 });
 define("ol3-lab/ux/ags-symbols", ["require", "exports", "openlayers", "ol3-lab/labs/common/style-generator", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/ags/simplemarkersymbol-circle", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/ags/simplemarkersymbol-cross", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/ags/simplemarkersymbol-square", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/ags/simplemarkersymbol-diamond", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/ags/simplemarkersymbol-path", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/ags/simplemarkersymbol-x", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/ags/picturemarkersymbol", "bower_components/ol3-symbolizer/ol3-symbolizer/styles/ags/picturemarkersymbol-imagedata", "bower_components/ol3-symbolizer/ol3-symbolizer/format/ags-symbolizer"], function (require, exports, ol, StyleGenerator, circleSymbol, crossSymbol, squareSymbol, diamondSymbol, pathSymbol, xSymbol, iconurl, iconimagedata, ags_symbolizer_2) {
     "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
     var center = [-82.4, 34.85];
     function run() {
         var formatter = new ags_symbolizer_2.StyleConverter();
@@ -8500,6 +8709,7 @@ define("ol3-lab/ux/ags-symbols", ["require", "exports", "openlayers", "ol3-lab/l
 });
 define("ol3-lab/ux/download", ["require", "exports", "openlayers", "jquery"], function (require, exports, ol, $) {
     "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
     var proxy = 'http://localhost:94/proxy/proxy.ashx?';
     var center = [-82.4, 34.85];
     var html = "\n<div class='download'>\n    <h3>Print Preview Lab - Capturing Map Canvas</h3>\n    <p>\n    This lab only works locally because it requires a proxy and I'm not aware of a github proxy.\n    (Good luck searching for github+proxy) \n    </p>\n\n    <div class='area'>    \n        <label>Copy Map into toDataURL</label>\n        <div class='map'></div>\n        <button class='download-map'>Download</button>\n    </div>\n\n    <div class='area'>    \n        <label>We want to get the map to render into this canvas so that we can right-click and save the image</label>\n        <canvas class='canvas-preview'></canvas>\n    </div>\n\n    <div class='area'>    \n        <label>We want to get the map into this image so that we can get the image data</label>\n        <img class='image-preview'></img>\n    </div>\n\n    <div class='area'>    \n        <label>toDataURL</label>\n        <input class='data-url' spellcheck='false autocomplete='off' wrap='hard'></input>\n    </div>\n</div>";
@@ -8562,6 +8772,7 @@ define("ol3-lab/ux/download", ["require", "exports", "openlayers", "jquery"], fu
 });
 define("ol3-lab/ux/serializers/ags-simplefillsymbol", ["require", "exports"], function (require, exports) {
     "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
     var SimpleFillConverter = (function () {
         function SimpleFillConverter() {
         }
