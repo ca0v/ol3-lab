@@ -13254,8 +13254,8 @@ define("ol3-lab/labs/workflow/ol-workflow", ["require", "exports", "openlayers",
         textScale: 2,
         controlFillColor: "#ccc",
         controlStrokeColor: "#333",
-        connectorStrokeColor: "#fff",
-        connectorStrokeWidth: 1,
+        connectorStrokeColor: "rgba(255, 255, 255, 0.1)",
+        connectorStrokeWidth: 4,
         connectorTextFillColor: "#ccc",
         connectorTextStrokeColor: "#333",
         connectorTextWidth: 2,
@@ -13275,7 +13275,18 @@ define("ol3-lab/labs/workflow/ol-workflow", ["require", "exports", "openlayers",
         return Math.atan2(dy, dx);
     }
     function computeRoute([x1, y1], [x2, y2]) {
-        return [[x1, y1], [x1, y1 + 20], [x2, y1 + 20], [x2, y2]];
+        let moveRight = (x1 < x2) ? 1 : 0;
+        let moveUp = (y1 < y2) ? 1 : 0;
+        let dx = [-20, 25];
+        let dy = [10, 15];
+        return [
+            [x1, y1],
+            [x1, y1 + dy[moveUp]],
+            [x1 + dx[moveRight], y1 + dy[moveUp]],
+            [x2 + dx[1 - moveRight], y2 + dy[1 - moveUp]],
+            [x2, y2 + dy[1 - moveUp]],
+            [x2, y2]
+        ];
     }
     function createWorkflowItemGeometry(item) {
         const [dx, dy] = [30, 20];
@@ -13297,9 +13308,12 @@ define("ol3-lab/labs/workflow/ol-workflow", ["require", "exports", "openlayers",
             this.workFlowItem.forEach((item1, i) => {
                 item1.column = Math.max(i, item1.column);
                 item1.row = Math.max(0, item1.row);
-                item1.connections.forEach(item2 => {
-                    item2.column = Math.max(item1.column + 1, item2.column);
-                    item2.row = Math.max(item1.row + 1, item2.row);
+                let columnOffset = 1;
+                let rowOffset = 1;
+                item1.connections.forEach((item2) => {
+                    let child = item2.item;
+                    child.column = Math.max(child.column + columnOffset, child.column);
+                    child.row = Math.max(item1.row + rowOffset, child.row);
                 });
             });
             this.source = renderWorkflow(this.map, this);
@@ -13312,30 +13326,45 @@ define("ol3-lab/labs/workflow/ol-workflow", ["require", "exports", "openlayers",
                         })
                     });
                     let f1 = this.source.getFeatureById(item1.id);
-                    let f2 = this.source.getFeatureById(item2.id);
+                    let f2 = this.source.getFeatureById(item2.item.id);
                     let p1 = f1.getGeometry().getClosestPoint(ol.extent.getCenter(f2.getGeometry().getExtent()));
                     let p2 = f2.getGeometry().getClosestPoint(ol.extent.getCenter(f1.getGeometry().getExtent()));
                     let route = computeRoute(p1, p2);
                     let feature = new ol.Feature();
                     feature.setGeometry(new ol.geom.LineString(route));
-                    let downArrow = p1[1] > p2[1];
+                    feature.set("connection", item2);
+                    let downArrow = true;
+                    let titleStyle = new ol.style.Style({
+                        text: new ol.style.Text({
+                            text: item2.purpose,
+                            fill: new ol.style.Fill({
+                                color: "white",
+                            }),
+                            stroke: new ol.style.Stroke({
+                                color: "black",
+                                width: 1,
+                            }),
+                            scale: 2
+                        })
+                    });
                     let arrowStyle = new ol.style.Style({
                         geometry: new ol.geom.Point(p2),
                         text: new ol.style.Text({
                             text: styleInfo.rightArrow,
-                            textAlign: "end",
+                            offsetX: 0,
+                            offsetY: downArrow ? -5 : 105,
                             fill: new ol.style.Fill({
                                 color: styleInfo.connectorStrokeColor,
                             }),
                             stroke: new ol.style.Stroke({
                                 color: styleInfo.connectorStrokeColor,
-                                width: styleInfo.connectorStrokeWidth,
+                                width: 1,
                             }),
-                            scale: 1,
+                            scale: 2,
                             rotation: Math.PI / 2 * (downArrow ? 1 : -1)
                         })
                     });
-                    feature.setStyle([style, arrowStyle]);
+                    feature.setStyle([style, titleStyle, arrowStyle]);
                     this.source.addFeature(feature);
                 });
             });
@@ -13376,12 +13405,15 @@ define("ol3-lab/labs/workflow/ol-workflow", ["require", "exports", "openlayers",
             this.type = type;
             this.id = `wf_${Math.random() * Number.MAX_VALUE}`;
             this.column = this.row = 0;
-            this.connections = [];
+            this.connections = new Map();
         }
         connect(item, title = "") {
             if (this === item)
                 return;
-            this.connections.push(item);
+            this.connections.set(item.id, {
+                purpose: title,
+                item: item
+            });
         }
     }
     function renderWorkflow(map, workflow) {
@@ -13421,6 +13453,65 @@ define("ol3-lab/labs/workflow/ol-workflow", ["require", "exports", "openlayers",
                 zoom: options.zoom
             })
         });
+        let select = new ol.interaction.Select({
+            condition: ol.events.condition.click
+        });
+        let selectStyle = new ol.style.Style({
+            fill: new ol.style.Fill({
+                color: "#fff",
+            }),
+            stroke: new ol.style.Stroke({
+                color: "#fff",
+                width: 3,
+            }),
+        });
+        select.on("select", (args) => {
+            args.selected.forEach(f => {
+                let originalStyle = f.getStyle();
+                f.set("original-style", originalStyle);
+                let geom = f.getGeometry();
+                let arrowStyle = new ol.style.Style({
+                    geometry: new ol.geom.Point(geom.getLastCoordinate()),
+                    text: new ol.style.Text({
+                        text: styleInfo.rightArrow,
+                        offsetY: -5,
+                        fill: new ol.style.Fill({
+                            color: "#fff",
+                        }),
+                        stroke: new ol.style.Stroke({
+                            color: styleInfo.connectorStrokeColor,
+                            width: 1,
+                        }),
+                        scale: 2,
+                        rotation: Math.PI / 2
+                    })
+                });
+                let connector = f.get("connection");
+                if (connector) {
+                    let titleStyle = new ol.style.Style({
+                        text: new ol.style.Text({
+                            text: connector.purpose,
+                            fill: new ol.style.Fill({
+                                color: "white",
+                            }),
+                            stroke: new ol.style.Stroke({
+                                color: "black",
+                                width: 2,
+                            }),
+                            scale: 3
+                        })
+                    });
+                    f.setStyle([selectStyle, arrowStyle, titleStyle]);
+                }
+                else {
+                    f.setStyle([selectStyle, arrowStyle]);
+                }
+            });
+            args.deselected.forEach(f => {
+                f.setStyle(f.get("original-style"));
+            });
+        });
+        map.addInteraction(select);
         let items = [
             new WorkFlowItem("item 1"),
             new WorkFlowItem("item 2"),
@@ -13429,15 +13520,25 @@ define("ol3-lab/labs/workflow/ol-workflow", ["require", "exports", "openlayers",
             new WorkFlowItem("item 5"),
         ];
         let workflow = new WorkFlow(map, items);
-        items[0].connect(items[2], "13");
-        items[0].connect(items[1], "12");
-        items[1].connect(items[2], "23");
-        items[1].connect(items[3], "24");
-        items[4].connect(items[2], "53");
+        items[0].connect(items[2], "1->3");
+        items[0].connect(items[1], "1->2");
+        items[1].connect(items[2], "2->3");
+        items[1].connect(items[3], "2->4");
+        items[4].connect(items[2], "5->3");
         let maplet = maplet_1.maplet.data;
         let eventHash = new Map();
+        importCommands(maplet.Commands.Commands, eventHash);
+        maplet.Map.Layers.Layers.forEach(l => {
+            l.Commands && importCommands(l.Commands.Commands, eventHash);
+        });
+        maplet.Controls.Controls.forEach(l => {
+            l.Commands && importCommands(l.Commands.Commands, eventHash);
+        });
         importEvents(maplet.Events.Events, eventHash);
         maplet.Map.Layers.Layers.forEach(l => {
+            l.Events && importEvents(l.Events.Events, eventHash);
+        });
+        maplet.Controls.Controls.forEach(l => {
             l.Events && importEvents(l.Events.Events, eventHash);
         });
         eventHash.forEach(v => workflow.workFlowItem.push(v));
@@ -13448,7 +13549,7 @@ define("ol3-lab/labs/workflow/ol-workflow", ["require", "exports", "openlayers",
     function importEvents(events, eventHash) {
         events.forEach(event => {
             if (!event.name)
-                return;
+                event.name = event.id;
             event.name.split(",").forEach(eventName => {
                 let workflowItem = eventHash.get(eventName);
                 if (!workflowItem) {
@@ -13457,15 +13558,36 @@ define("ol3-lab/labs/workflow/ol-workflow", ["require", "exports", "openlayers",
                 }
                 let eventOption = (event.Options && event.Options.Values && event.Options.Values.filter(v => v.id === "event")[0]);
                 if (!eventOption)
-                    return;
+                    eventOption = { value: event.id };
                 eventOption.value.split(",").forEach(trigger => {
                     let childItem = eventHash.get(trigger);
                     if (!childItem) {
                         childItem = new WorkFlowItem(trigger);
                         eventHash.set(trigger, childItem);
                     }
-                    workflowItem.connect(childItem);
+                    workflowItem.connect(childItem, event.mid);
                 });
+            });
+        });
+    }
+    function importCommands(events, eventHash) {
+        events.forEach(event => {
+            let eventName = event.id;
+            let workflowItem = eventHash.get(eventName);
+            if (!workflowItem) {
+                workflowItem = new WorkFlowItem(eventName);
+                eventHash.set(eventName, workflowItem);
+            }
+            let eventOption = (event.Options && event.Options.Values && event.Options.Values.filter(v => v.id === "event")[0]);
+            if (!eventOption)
+                return;
+            eventOption.value.split(",").forEach(trigger => {
+                let childItem = eventHash.get(trigger);
+                if (!childItem) {
+                    childItem = new WorkFlowItem(trigger);
+                    eventHash.set(trigger, childItem);
+                }
+                workflowItem.connect(childItem, event.mid);
             });
         });
     }
