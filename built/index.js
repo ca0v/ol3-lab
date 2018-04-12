@@ -7304,40 +7304,101 @@ define("ol3-lab/labs/geoserver/services", ["require", "exports", "jquery", "open
 define("ol3-lab/labs/workflow/ol-workflow", ["require", "exports", "openlayers"], function (require, exports, ol) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
+    var styleInfo = {
+        textScale: 2,
+        connectorStrokeColor: "#fff",
+        connectorStrokeWidth: 1,
+        connectorTextFillColor: "#ccc",
+        connectorTextStrokeColor: "#333",
+        connectorTextWidth: 2,
+        workflowItemRadius: 50,
+        workflowItemStrokeColor: "#ccc",
+        workflowItemStrokeWidth: 2,
+        workflowItemFill: "#333",
+        workflowItemTextFillColor: "#ccc",
+        workflowItemTextStrokeColor: "#333",
+        workflowItemTextWidth: 2,
+    };
+    function rotation(_a, _b) {
+        var x1 = _a[0], y1 = _a[1];
+        var x2 = _b[0], y2 = _b[1];
+        var dx = x2 - x1;
+        var dy = y2 - y1;
+        return Math.atan2(dy, dx);
+    }
+    function computeRoute(_a, _b) {
+        var x1 = _a[0], y1 = _a[1];
+        var x2 = _b[0], y2 = _b[1];
+        return [[x1, y1], [x2, y1], [x2, y2]];
+    }
     var WorkFlow = (function () {
         function WorkFlow(map, workFlowItem) {
             if (workFlowItem === void 0) { workFlowItem = []; }
             this.map = map;
             this.workFlowItem = workFlowItem;
+            workFlowItem.forEach(function (item, i) { return item.column = i; });
         }
         WorkFlow.prototype.render = function () {
+            var _this = this;
             if (this.source)
                 this.source.clear();
-            this.source = renderWorkflow(this.map, this);
-        };
-        WorkFlow.prototype.connect = function (item1, item2) {
-            var style = new ol.style.Style({
-                text: new ol.style.Text({
-                    text: "connector " + item1.title + "->" + item2.title
-                }),
-                fill: new ol.style.Fill({
-                    color: 'rgba(255,255,255,0.1)'
-                }),
-                stroke: new ol.style.Stroke({
-                    color: '#ff0',
-                    width: 5
-                })
+            this.workFlowItem.forEach(function (item1) {
+                item1.connections.forEach(function (item2) {
+                    item2.row = Math.max(item1.row + 1, item2.row);
+                });
             });
-            var f1 = this.source.getFeatureById(item1.id);
-            var f2 = this.source.getFeatureById(item2.id);
-            var p1 = f1.getGeometry().getClosestPoint(ol.extent.getCenter(f2.getGeometry().getExtent()));
-            var p2 = f2.getGeometry().getClosestPoint(ol.extent.getCenter(f1.getGeometry().getExtent()));
-            var feature = new ol.Feature();
-            feature.setGeometry(new ol.geom.LineString([
-                p1, p2
-            ]));
-            feature.setStyle(style);
-            this.source.addFeature(feature);
+            this.source = renderWorkflow(this.map, this);
+            this.workFlowItem.forEach(function (item1) {
+                item1.connections.forEach(function (item2) {
+                    var style = new ol.style.Style({
+                        text: new ol.style.Text({
+                            text: item1.title + "-" + item2.title,
+                            fill: new ol.style.Fill({
+                                color: styleInfo.connectorTextFillColor,
+                            }),
+                            stroke: new ol.style.Stroke({
+                                color: styleInfo.connectorTextStrokeColor,
+                                width: styleInfo.connectorTextWidth,
+                            }),
+                            scale: styleInfo.textScale
+                        }),
+                        stroke: new ol.style.Stroke({
+                            color: styleInfo.connectorStrokeColor,
+                            width: styleInfo.connectorStrokeWidth,
+                        })
+                    });
+                    var f1 = _this.source.getFeatureById(item1.id);
+                    var f2 = _this.source.getFeatureById(item2.id);
+                    var p1 = f1.getGeometry().getClosestPoint(ol.extent.getCenter(f2.getGeometry().getExtent()));
+                    var p2 = f2.getGeometry().getClosestPoint(ol.extent.getCenter(f1.getGeometry().getExtent()));
+                    var route = computeRoute(p1, p2);
+                    var feature = new ol.Feature();
+                    feature.setGeometry(new ol.geom.LineString(route));
+                    var downArrow = p1[1] > p2[1];
+                    var arrowStyle = new ol.style.Style({
+                        geometry: new ol.geom.Point(p2),
+                        text: new ol.style.Text({
+                            text: ">",
+                            fill: new ol.style.Fill({
+                                color: styleInfo.connectorTextFillColor,
+                            }),
+                            stroke: new ol.style.Stroke({
+                                color: styleInfo.connectorTextStrokeColor,
+                                width: styleInfo.connectorTextWidth,
+                            }),
+                            offsetY: styleInfo.workflowItemRadius * (downArrow ? -1 : 1),
+                            scale: styleInfo.textScale,
+                            rotation: Math.PI / 2 * (downArrow ? 1 : -1)
+                        })
+                    });
+                    feature.setStyle([style, arrowStyle]);
+                    _this.source.addFeature(feature);
+                });
+            });
+        };
+        WorkFlow.prototype.connect = function (item1, item2, title) {
+            if (title === void 0) { title = ""; }
+            item1.connect(item2);
         };
         return WorkFlow;
     }());
@@ -7348,7 +7409,12 @@ define("ol3-lab/labs/workflow/ol-workflow", ["require", "exports", "openlayers"]
             this.title = title;
             this.type = type;
             this.id = "wf_" + Math.random() * Number.MAX_VALUE;
+            this.column = this.row = 0;
+            this.connections = [];
         }
+        WorkFlowItem.prototype.connect = function (item) {
+            this.connections.push(item);
+        };
         return WorkFlowItem;
     }());
     function renderWorkflow(map, workflow) {
@@ -7358,28 +7424,40 @@ define("ol3-lab/labs/workflow/ol-workflow", ["require", "exports", "openlayers"]
             source: source
         });
         map.addLayer(layer);
-        workflow.workFlowItem.forEach(function (item, index) {
+        workflow.workFlowItem.forEach(function (item) {
+            var location = [100 * item.column, -100 * item.row];
             var style = new ol.style.Style({
                 text: new ol.style.Text({
-                    text: item.title
-                }),
-                image: new ol.style.Circle({
-                    fill: new ol.style.Fill({
-                        color: 'rgba(255,255,255,0.1)'
-                    }),
-                    radius: 50,
+                    text: "" + item.title,
                     stroke: new ol.style.Stroke({
-                        color: '#ff0',
-                        width: 5
+                        color: styleInfo.workflowItemTextStrokeColor,
+                        width: styleInfo.workflowItemTextWidth,
+                    }),
+                    fill: new ol.style.Fill({
+                        color: styleInfo.workflowItemTextFillColor,
+                    }),
+                    scale: styleInfo.textScale
+                }),
+                image: new ol.style.RegularShape({
+                    points: 4,
+                    angle: 0,
+                    radius: styleInfo.workflowItemRadius,
+                    radius2: styleInfo.workflowItemRadius,
+                    fill: new ol.style.Fill({
+                        color: styleInfo.workflowItemFill,
+                    }),
+                    stroke: new ol.style.Stroke({
+                        color: styleInfo.workflowItemStrokeColor,
+                        width: styleInfo.workflowItemStrokeWidth,
                     })
                 })
             });
             var feature = new ol.Feature();
             feature.setId(item.id);
             feature.set("workflowitem", item);
-            feature.setGeometry(new ol.geom.Point([100 - Math.random() * 200, 100 - Math.random() * 200]));
+            feature.setGeometry(new ol.geom.Point(location));
             source.addFeature(feature);
-            feature.setStyle(style);
+            feature.setStyle([style]);
         });
         return source;
     }
@@ -7406,12 +7484,14 @@ define("ol3-lab/labs/workflow/ol-workflow", ["require", "exports", "openlayers"]
             new WorkFlowItem("item 1"),
             new WorkFlowItem("item 2"),
             new WorkFlowItem("item 3"),
-        ], item1 = _a[0], item2 = _a[1], item3 = _a[2];
-        var workflow = new WorkFlow(map, [item1, item2, item3]);
+            new WorkFlowItem("item 4"),
+        ], item1 = _a[0], item2 = _a[1], item3 = _a[2], item4 = _a[3];
+        var workflow = new WorkFlow(map, [item1, item2, item3, item4]);
+        workflow.connect(item1, item3, "13");
+        workflow.connect(item1, item2, "12");
+        workflow.connect(item2, item3, "23");
+        workflow.connect(item2, item4, "24");
         workflow.render();
-        workflow.connect(item1, item3);
-        workflow.connect(item1, item2);
-        workflow.connect(item2, item3);
     }
     exports.run = run;
 });
