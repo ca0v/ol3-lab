@@ -7306,6 +7306,8 @@ define("ol3-lab/labs/workflow/ol-workflow", ["require", "exports", "openlayers"]
     Object.defineProperty(exports, "__esModule", { value: true });
     var styleInfo = {
         textScale: 2,
+        controlFillColor: "#ccc",
+        controlStrokeColor: "#333",
         connectorStrokeColor: "#fff",
         connectorStrokeWidth: 1,
         connectorTextFillColor: "#ccc",
@@ -7314,10 +7316,11 @@ define("ol3-lab/labs/workflow/ol-workflow", ["require", "exports", "openlayers"]
         workflowItemRadius: 50,
         workflowItemStrokeColor: "#ccc",
         workflowItemStrokeWidth: 2,
-        workflowItemFill: "#333",
+        workflowItemFillColor: "#333",
         workflowItemTextFillColor: "#ccc",
         workflowItemTextStrokeColor: "#333",
         workflowItemTextWidth: 2,
+        rightArrow: "►"
     };
     function rotation(_a, _b) {
         var x1 = _a[0], y1 = _a[1];
@@ -7331,13 +7334,32 @@ define("ol3-lab/labs/workflow/ol-workflow", ["require", "exports", "openlayers"]
         var x2 = _b[0], y2 = _b[1];
         return [[x1, y1], [x2, y1], [x2, y2]];
     }
+    function createWorkflowItemGeometry(item) {
+        var _a = [30, 20], dx = _a[0], dy = _a[1];
+        var _b = [100 * item.column, -100 * item.row], x = _b[0], y = _b[1];
+        return new ol.geom.Polygon([[[x - dx, y - dy], [x + dx, y - dy], [x + dx, y + dy], [x - dx, y + dy], [x - dx, y - dy]]]);
+    }
     var WorkFlow = (function () {
         function WorkFlow(map, workFlowItem) {
             if (workFlowItem === void 0) { workFlowItem = []; }
+            var _this = this;
             this.map = map;
             this.workFlowItem = workFlowItem;
             workFlowItem.forEach(function (item, i) { return item.column = i; });
+            map.on("singleclick", function (e) {
+                map.forEachFeatureAtPixel(e.pixel, function (feature) {
+                    if (true == feature.get("is-control")) {
+                        var event_1 = feature.get("event");
+                        var context = feature.get("context");
+                        _this.execute(context, event_1);
+                        return true;
+                    }
+                });
+            });
         }
+        WorkFlow.prototype.execute = function (context, event) {
+            alert(event + ": " + context.title);
+        };
         WorkFlow.prototype.render = function () {
             var _this = this;
             if (this.source)
@@ -7351,17 +7373,6 @@ define("ol3-lab/labs/workflow/ol-workflow", ["require", "exports", "openlayers"]
             this.workFlowItem.forEach(function (item1) {
                 item1.connections.forEach(function (item2) {
                     var style = new ol.style.Style({
-                        text: new ol.style.Text({
-                            text: item1.title + "-" + item2.title,
-                            fill: new ol.style.Fill({
-                                color: styleInfo.connectorTextFillColor,
-                            }),
-                            stroke: new ol.style.Stroke({
-                                color: styleInfo.connectorTextStrokeColor,
-                                width: styleInfo.connectorTextWidth,
-                            }),
-                            scale: styleInfo.textScale
-                        }),
                         stroke: new ol.style.Stroke({
                             color: styleInfo.connectorStrokeColor,
                             width: styleInfo.connectorStrokeWidth,
@@ -7378,16 +7389,16 @@ define("ol3-lab/labs/workflow/ol-workflow", ["require", "exports", "openlayers"]
                     var arrowStyle = new ol.style.Style({
                         geometry: new ol.geom.Point(p2),
                         text: new ol.style.Text({
-                            text: ">",
+                            text: styleInfo.rightArrow,
+                            textAlign: "end",
                             fill: new ol.style.Fill({
-                                color: styleInfo.connectorTextFillColor,
+                                color: styleInfo.connectorStrokeColor,
                             }),
                             stroke: new ol.style.Stroke({
-                                color: styleInfo.connectorTextStrokeColor,
-                                width: styleInfo.connectorTextWidth,
+                                color: styleInfo.connectorStrokeColor,
+                                width: styleInfo.connectorStrokeWidth,
                             }),
-                            offsetY: styleInfo.workflowItemRadius * (downArrow ? -1 : 1),
-                            scale: styleInfo.textScale,
+                            scale: 1,
                             rotation: Math.PI / 2 * (downArrow ? 1 : -1)
                         })
                     });
@@ -7398,7 +7409,37 @@ define("ol3-lab/labs/workflow/ol-workflow", ["require", "exports", "openlayers"]
         };
         WorkFlow.prototype.connect = function (item1, item2, title) {
             if (title === void 0) { title = ""; }
-            item1.connect(item2);
+            item1.connect(item2, title);
+        };
+        WorkFlow.prototype.addControl = function (item) {
+            var feature = new ol.Feature(new ol.geom.Point([item.column * 100, -20 + item.row * -100]));
+            feature.set("is-control", true);
+            feature.set("event", "add-child");
+            feature.set("context", item);
+            feature.setStyle([new ol.style.Style({
+                    image: new ol.style.RegularShape({
+                        points: 4,
+                        angle: 0,
+                        radius: 8,
+                        radius2: 0,
+                        stroke: new ol.style.Stroke({
+                            color: styleInfo.controlStrokeColor,
+                            width: 8,
+                        }),
+                    })
+                }), new ol.style.Style({
+                    image: new ol.style.RegularShape({
+                        points: 4,
+                        angle: 0,
+                        radius: 8,
+                        radius2: 0,
+                        stroke: new ol.style.Stroke({
+                            color: styleInfo.controlFillColor,
+                            width: 4,
+                        }),
+                    })
+                })]);
+            this.source.addFeature(feature);
         };
         return WorkFlow;
     }());
@@ -7412,7 +7453,8 @@ define("ol3-lab/labs/workflow/ol-workflow", ["require", "exports", "openlayers"]
             this.column = this.row = 0;
             this.connections = [];
         }
-        WorkFlowItem.prototype.connect = function (item) {
+        WorkFlowItem.prototype.connect = function (item, title) {
+            if (title === void 0) { title = ""; }
             this.connections.push(item);
         };
         return WorkFlowItem;
@@ -7425,8 +7467,14 @@ define("ol3-lab/labs/workflow/ol-workflow", ["require", "exports", "openlayers"]
         });
         map.addLayer(layer);
         workflow.workFlowItem.forEach(function (item) {
-            var location = [100 * item.column, -100 * item.row];
             var style = new ol.style.Style({
+                stroke: new ol.style.Stroke({
+                    color: styleInfo.workflowItemTextStrokeColor,
+                    width: styleInfo.workflowItemTextWidth,
+                }),
+                fill: new ol.style.Fill({
+                    color: styleInfo.workflowItemTextFillColor,
+                }),
                 text: new ol.style.Text({
                     text: "" + item.title,
                     stroke: new ol.style.Stroke({
@@ -7437,25 +7485,12 @@ define("ol3-lab/labs/workflow/ol-workflow", ["require", "exports", "openlayers"]
                         color: styleInfo.workflowItemTextFillColor,
                     }),
                     scale: styleInfo.textScale
-                }),
-                image: new ol.style.RegularShape({
-                    points: 4,
-                    angle: 0,
-                    radius: styleInfo.workflowItemRadius,
-                    radius2: styleInfo.workflowItemRadius,
-                    fill: new ol.style.Fill({
-                        color: styleInfo.workflowItemFill,
-                    }),
-                    stroke: new ol.style.Stroke({
-                        color: styleInfo.workflowItemStrokeColor,
-                        width: styleInfo.workflowItemStrokeWidth,
-                    })
                 })
             });
             var feature = new ol.Feature();
             feature.setId(item.id);
             feature.set("workflowitem", item);
-            feature.setGeometry(new ol.geom.Point(location));
+            feature.setGeometry(createWorkflowItemGeometry(item));
             source.addFeature(feature);
             feature.setStyle([style]);
         });
@@ -7466,7 +7501,7 @@ define("ol3-lab/labs/workflow/ol-workflow", ["require", "exports", "openlayers"]
             target: document.getElementsByClassName("map")[0],
             projection: "EPSG:3857",
             center: [0, 0],
-            zoom: 20
+            zoom: 18
         };
         var map = new ol.Map({
             target: options.target,
@@ -7480,18 +7515,21 @@ define("ol3-lab/labs/workflow/ol-workflow", ["require", "exports", "openlayers"]
                 zoom: options.zoom
             })
         });
-        var _a = [
+        var items = [
             new WorkFlowItem("item 1"),
             new WorkFlowItem("item 2"),
             new WorkFlowItem("item 3"),
             new WorkFlowItem("item 4"),
-        ], item1 = _a[0], item2 = _a[1], item3 = _a[2], item4 = _a[3];
-        var workflow = new WorkFlow(map, [item1, item2, item3, item4]);
-        workflow.connect(item1, item3, "13");
-        workflow.connect(item1, item2, "12");
-        workflow.connect(item2, item3, "23");
-        workflow.connect(item2, item4, "24");
+            new WorkFlowItem("item 5"),
+        ];
+        var workflow = new WorkFlow(map, items);
+        items[0].connect(items[2], "13");
+        items[0].connect(items[1], "12");
+        items[1].connect(items[2], "23");
+        items[1].connect(items[3], "24");
+        items[4].connect(items[2], "53");
         workflow.render();
+        items.forEach(function (item) { return workflow.addControl(item); });
     }
     exports.run = run;
 });

@@ -2,6 +2,8 @@ import ol = require("openlayers");
 
 const styleInfo = {
     textScale: 2,
+    controlFillColor: "#ccc",
+    controlStrokeColor: "#333",
     connectorStrokeColor: "#fff",
     connectorStrokeWidth: 1,
     connectorTextFillColor: "#ccc",
@@ -10,10 +12,11 @@ const styleInfo = {
     workflowItemRadius: 50,
     workflowItemStrokeColor: "#ccc",
     workflowItemStrokeWidth: 2,
-    workflowItemFill: "#333",
+    workflowItemFillColor: "#333",
     workflowItemTextFillColor: "#ccc",
     workflowItemTextStrokeColor: "#333",
     workflowItemTextWidth: 2,
+    rightArrow: "►"
 }
 
 function rotation([x1, y1]: [number, number], [x2, y2]: [number, number]) {
@@ -26,6 +29,11 @@ function computeRoute([x1, y1]: [number, number], [x2, y2]: [number, number]) {
     return <Array<[number, number]>>[[x1, y1], [x2, y1], [x2, y2]];
 }
 
+function createWorkflowItemGeometry(item: WorkFlowItem) {
+    const [dx, dy] = [30, 20];
+    let [x, y] = [100 * item.column, - 100 * item.row];
+    return new ol.geom.Polygon([[[x - dx, y - dy], [x + dx, y - dy], [x + dx, y + dy], [x - dx, y + dy], [x - dx, y - dy]]]);
+}
 
 class WorkFlow {
 
@@ -33,6 +41,20 @@ class WorkFlow {
 
     constructor(public map: ol.Map, public workFlowItem: Array<WorkFlowItem> = []) {
         workFlowItem.forEach((item, i) => item.column = i);
+        map.on("singleclick", (e: any) => {
+            map.forEachFeatureAtPixel(e.pixel, feature => {
+                if (true == feature.get("is-control")) {
+                    let event = feature.get("event");
+                    let context = feature.get("context");
+                    this.execute(context, event);
+                    return true;
+                }
+            });
+        });
+    }
+
+    execute(context: WorkFlowItem, event: string) {
+        alert(`${event}: ${context.title}`);
     }
 
     render() {
@@ -51,17 +73,6 @@ class WorkFlow {
 
             item1.connections.forEach(item2 => {
                 let style = new ol.style.Style({
-                    text: new ol.style.Text({
-                        text: `${item1.title}-${item2.title}`,
-                        fill: new ol.style.Fill({
-                            color: styleInfo.connectorTextFillColor,
-                        }),
-                        stroke: new ol.style.Stroke({
-                            color: styleInfo.connectorTextStrokeColor,
-                            width: styleInfo.connectorTextWidth,
-                        }),
-                        scale: styleInfo.textScale
-                    }),
                     stroke: new ol.style.Stroke({
                         color: styleInfo.connectorStrokeColor,
                         width: styleInfo.connectorStrokeWidth,
@@ -84,16 +95,16 @@ class WorkFlow {
                 let arrowStyle = new ol.style.Style({
                     geometry: new ol.geom.Point(p2),
                     text: new ol.style.Text({
-                        text: `>`,
+                        text: styleInfo.rightArrow,
+                        textAlign: "end",
                         fill: new ol.style.Fill({
-                            color: styleInfo.connectorTextFillColor,
+                            color: styleInfo.connectorStrokeColor,
                         }),
                         stroke: new ol.style.Stroke({
-                            color: styleInfo.connectorTextStrokeColor,
-                            width: styleInfo.connectorTextWidth,
+                            color: styleInfo.connectorStrokeColor,
+                            width: styleInfo.connectorStrokeWidth,
                         }),
-                        offsetY: styleInfo.workflowItemRadius * (downArrow ? -1 : 1),
-                        scale: styleInfo.textScale,
+                        scale: 1,
                         rotation: Math.PI / 2 * (downArrow ? 1 : -1)
                     })
                 });
@@ -105,7 +116,38 @@ class WorkFlow {
     }
 
     connect(item1: WorkFlowItem, item2: WorkFlowItem, title = "") {
-        item1.connect(item2);
+        item1.connect(item2, title);
+    }
+
+    addControl(item: WorkFlowItem) {
+        let feature = new ol.Feature(new ol.geom.Point([item.column * 100, -20 + item.row * -100]));
+        feature.set("is-control", true);
+        feature.set("event", "add-child");
+        feature.set("context", item);
+        feature.setStyle([new ol.style.Style({
+            image: new ol.style.RegularShape({
+                points: 4,
+                angle: 0,
+                radius: 8,
+                radius2: 0,
+                stroke: new ol.style.Stroke({
+                    color: styleInfo.controlStrokeColor,
+                    width: 8,
+                }),
+            })
+        }), new ol.style.Style({
+            image: new ol.style.RegularShape({
+                points: 4,
+                angle: 0,
+                radius: 8,
+                radius2: 0,
+                stroke: new ol.style.Stroke({
+                    color: styleInfo.controlFillColor,
+                    width: 4,
+                }),
+            })
+        })]);
+        this.source.addFeature(feature);
     }
 }
 
@@ -122,7 +164,7 @@ class WorkFlowItem {
         this.connections = [];
     }
 
-    connect(item: WorkFlowItem) {
+    connect(item: WorkFlowItem, title = "") {
         this.connections.push(item);
     }
 }
@@ -136,9 +178,14 @@ function renderWorkflow(map: ol.Map, workflow: WorkFlow) {
     map.addLayer(layer);
 
     workflow.workFlowItem.forEach(item => {
-        let location: ol.Coordinate = [100 * item.column, - 100 * item.row];
-
         let style = new ol.style.Style({
+            stroke: new ol.style.Stroke({
+                color: styleInfo.workflowItemTextStrokeColor,
+                width: styleInfo.workflowItemTextWidth,
+            }),
+            fill: new ol.style.Fill({
+                color: styleInfo.workflowItemTextFillColor,
+            }),
             text: new ol.style.Text({
                 text: `${item.title}`,
                 stroke: new ol.style.Stroke({
@@ -149,19 +196,6 @@ function renderWorkflow(map: ol.Map, workflow: WorkFlow) {
                     color: styleInfo.workflowItemTextFillColor,
                 }),
                 scale: styleInfo.textScale
-            }),
-            image: new ol.style.RegularShape({
-                points: 4,
-                angle: 0,
-                radius: styleInfo.workflowItemRadius,
-                radius2: styleInfo.workflowItemRadius,
-                fill: new ol.style.Fill({
-                    color: styleInfo.workflowItemFill,
-                }),
-                stroke: new ol.style.Stroke({
-                    color: styleInfo.workflowItemStrokeColor,
-                    width: styleInfo.workflowItemStrokeWidth,
-                })
             })
         });
 
@@ -169,7 +203,7 @@ function renderWorkflow(map: ol.Map, workflow: WorkFlow) {
         feature.setId(item.id);
         feature.set("workflowitem", item);
 
-        feature.setGeometry(new ol.geom.Point(location));
+        feature.setGeometry(createWorkflowItemGeometry(item));
         source.addFeature(feature);
         feature.setStyle([style]);
     });
@@ -182,7 +216,7 @@ export function run() {
         target: document.getElementsByClassName("map")[0],
         projection: "EPSG:3857",
         center: <[number, number]>[0, 0],
-        zoom: 20
+        zoom: 18
     }
 
     let map = new ol.Map({
@@ -198,18 +232,21 @@ export function run() {
         })
     });
 
-    let [item1, item2, item3, item4] = [
+    let items = [
         new WorkFlowItem("item 1"),
         new WorkFlowItem("item 2"),
         new WorkFlowItem("item 3"),
         new WorkFlowItem("item 4"),
+        new WorkFlowItem("item 5"),
     ];
 
-    let workflow = new WorkFlow(map, [item1, item2, item3, item4]);
-    workflow.connect(item1, item3, "13");
-    workflow.connect(item1, item2, "12");
-    workflow.connect(item2, item3, "23");
-    workflow.connect(item2, item4, "24");
-    workflow.render();
+    let workflow = new WorkFlow(map, items);
+    items[0].connect(items[2], "13");
+    items[0].connect(items[1], "12");
+    items[1].connect(items[2], "23");
+    items[1].connect(items[3], "24");
+    items[4].connect(items[2], "53");
 
+    workflow.render();
+    items.forEach(item => workflow.addControl(item));
 }
