@@ -16,7 +16,8 @@ const styleInfo = {
     workflowItemTextFillColor: "#ccc",
     workflowItemTextStrokeColor: "#333",
     workflowItemTextWidth: 2,
-    rightArrow: "►"
+    rightArrow: "►",
+    plus: "➕"
 }
 
 function rotation([x1, y1]: [number, number], [x2, y2]: [number, number]) {
@@ -32,7 +33,7 @@ function computeRoute([x1, y1]: [number, number], [x2, y2]: [number, number]) {
 function createWorkflowItemGeometry(item: WorkFlowItem) {
     const [dx, dy] = [30, 20];
     let [x, y] = [100 * item.column, - 100 * item.row];
-    return new ol.geom.Polygon([[[x - dx, y - dy], [x + dx, y - dy], [x + dx, y + dy], [x - dx, y + dy], [x - dx, y - dy]]]);
+    return new ol.geom.Point([x, y]);
 }
 
 class WorkFlow {
@@ -41,16 +42,6 @@ class WorkFlow {
 
     constructor(public map: ol.Map, public workFlowItem: Array<WorkFlowItem> = []) {
         workFlowItem.forEach((item, i) => item.column = i);
-        map.on("singleclick", (e: any) => {
-            map.forEachFeatureAtPixel(e.pixel, feature => {
-                if (true == feature.get("is-control")) {
-                    let event = feature.get("event");
-                    let context = feature.get("context");
-                    this.execute(context, event);
-                    return true;
-                }
-            });
-        });
     }
 
     execute(context: WorkFlowItem, event: string) {
@@ -120,34 +111,35 @@ class WorkFlow {
     }
 
     addControl(item: WorkFlowItem) {
-        let feature = new ol.Feature(new ol.geom.Point([item.column * 100, -20 + item.row * -100]));
-        feature.set("is-control", true);
-        feature.set("event", "add-child");
-        feature.set("context", item);
-        feature.setStyle([new ol.style.Style({
-            image: new ol.style.RegularShape({
-                points: 4,
-                angle: 0,
-                radius: 8,
-                radius2: 0,
-                stroke: new ol.style.Stroke({
-                    color: styleInfo.controlStrokeColor,
-                    width: 8,
-                }),
-            })
-        }), new ol.style.Style({
-            image: new ol.style.RegularShape({
-                points: 4,
-                angle: 0,
-                radius: 8,
-                radius2: 0,
-                stroke: new ol.style.Stroke({
-                    color: styleInfo.controlFillColor,
-                    width: 4,
-                }),
-            })
-        })]);
-        this.source.addFeature(feature);
+        let geom = new ol.geom.Point([item.column * 100, item.row * -100]);
+
+        let element = document.createElement("div");
+        element.className = "control";
+
+        {
+            let label = document.createElement("label");
+            label.innerText = item.title;
+            element.appendChild(label);
+        }
+
+        {
+            let input = document.createElement("input");
+            input.className = "control add-child"
+            input.type = "button";
+            input.value = styleInfo.plus;
+            input.addEventListener("click", () => {
+                this.execute(item, "add-child");
+            });
+            element.appendChild(input);
+        }
+
+        let overlay = new ol.Overlay({
+            element: element,
+            offset: [-100, 0]
+        });
+
+        overlay.setPosition(geom.getLastCoordinate());
+        this.map.addOverlay(overlay);
     }
 }
 
@@ -179,24 +171,6 @@ function renderWorkflow(map: ol.Map, workflow: WorkFlow) {
 
     workflow.workFlowItem.forEach(item => {
         let style = new ol.style.Style({
-            stroke: new ol.style.Stroke({
-                color: styleInfo.workflowItemTextStrokeColor,
-                width: styleInfo.workflowItemTextWidth,
-            }),
-            fill: new ol.style.Fill({
-                color: styleInfo.workflowItemTextFillColor,
-            }),
-            text: new ol.style.Text({
-                text: `${item.title}`,
-                stroke: new ol.style.Stroke({
-                    color: styleInfo.workflowItemTextStrokeColor,
-                    width: styleInfo.workflowItemTextWidth,
-                }),
-                fill: new ol.style.Fill({
-                    color: styleInfo.workflowItemTextFillColor,
-                }),
-                scale: styleInfo.textScale
-            })
         });
 
         let feature = new ol.Feature();
@@ -216,7 +190,7 @@ export function run() {
         target: document.getElementsByClassName("map")[0],
         projection: "EPSG:3857",
         center: <[number, number]>[0, 0],
-        zoom: 18
+        zoom: 19
     }
 
     let map = new ol.Map({

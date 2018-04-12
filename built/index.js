@@ -7320,7 +7320,8 @@ define("ol3-lab/labs/workflow/ol-workflow", ["require", "exports", "openlayers"]
         workflowItemTextFillColor: "#ccc",
         workflowItemTextStrokeColor: "#333",
         workflowItemTextWidth: 2,
-        rightArrow: "►"
+        rightArrow: "►",
+        plus: "➕"
     };
     function rotation(_a, _b) {
         var x1 = _a[0], y1 = _a[1];
@@ -7337,25 +7338,14 @@ define("ol3-lab/labs/workflow/ol-workflow", ["require", "exports", "openlayers"]
     function createWorkflowItemGeometry(item) {
         var _a = [30, 20], dx = _a[0], dy = _a[1];
         var _b = [100 * item.column, -100 * item.row], x = _b[0], y = _b[1];
-        return new ol.geom.Polygon([[[x - dx, y - dy], [x + dx, y - dy], [x + dx, y + dy], [x - dx, y + dy], [x - dx, y - dy]]]);
+        return new ol.geom.Point([x, y]);
     }
     var WorkFlow = (function () {
         function WorkFlow(map, workFlowItem) {
             if (workFlowItem === void 0) { workFlowItem = []; }
-            var _this = this;
             this.map = map;
             this.workFlowItem = workFlowItem;
             workFlowItem.forEach(function (item, i) { return item.column = i; });
-            map.on("singleclick", function (e) {
-                map.forEachFeatureAtPixel(e.pixel, function (feature) {
-                    if (true == feature.get("is-control")) {
-                        var event_1 = feature.get("event");
-                        var context = feature.get("context");
-                        _this.execute(context, event_1);
-                        return true;
-                    }
-                });
-            });
         }
         WorkFlow.prototype.execute = function (context, event) {
             alert(event + ": " + context.title);
@@ -7412,34 +7402,31 @@ define("ol3-lab/labs/workflow/ol-workflow", ["require", "exports", "openlayers"]
             item1.connect(item2, title);
         };
         WorkFlow.prototype.addControl = function (item) {
-            var feature = new ol.Feature(new ol.geom.Point([item.column * 100, -20 + item.row * -100]));
-            feature.set("is-control", true);
-            feature.set("event", "add-child");
-            feature.set("context", item);
-            feature.setStyle([new ol.style.Style({
-                    image: new ol.style.RegularShape({
-                        points: 4,
-                        angle: 0,
-                        radius: 8,
-                        radius2: 0,
-                        stroke: new ol.style.Stroke({
-                            color: styleInfo.controlStrokeColor,
-                            width: 8,
-                        }),
-                    })
-                }), new ol.style.Style({
-                    image: new ol.style.RegularShape({
-                        points: 4,
-                        angle: 0,
-                        radius: 8,
-                        radius2: 0,
-                        stroke: new ol.style.Stroke({
-                            color: styleInfo.controlFillColor,
-                            width: 4,
-                        }),
-                    })
-                })]);
-            this.source.addFeature(feature);
+            var _this = this;
+            var geom = new ol.geom.Point([item.column * 100, item.row * -100]);
+            var element = document.createElement("div");
+            element.className = "control";
+            {
+                var label = document.createElement("label");
+                label.innerText = item.title;
+                element.appendChild(label);
+            }
+            {
+                var input = document.createElement("input");
+                input.className = "control add-child";
+                input.type = "button";
+                input.value = styleInfo.plus;
+                input.addEventListener("click", function () {
+                    _this.execute(item, "add-child");
+                });
+                element.appendChild(input);
+            }
+            var overlay = new ol.Overlay({
+                element: element,
+                offset: [-100, 0]
+            });
+            overlay.setPosition(geom.getLastCoordinate());
+            this.map.addOverlay(overlay);
         };
         return WorkFlow;
     }());
@@ -7467,26 +7454,7 @@ define("ol3-lab/labs/workflow/ol-workflow", ["require", "exports", "openlayers"]
         });
         map.addLayer(layer);
         workflow.workFlowItem.forEach(function (item) {
-            var style = new ol.style.Style({
-                stroke: new ol.style.Stroke({
-                    color: styleInfo.workflowItemTextStrokeColor,
-                    width: styleInfo.workflowItemTextWidth,
-                }),
-                fill: new ol.style.Fill({
-                    color: styleInfo.workflowItemTextFillColor,
-                }),
-                text: new ol.style.Text({
-                    text: "" + item.title,
-                    stroke: new ol.style.Stroke({
-                        color: styleInfo.workflowItemTextStrokeColor,
-                        width: styleInfo.workflowItemTextWidth,
-                    }),
-                    fill: new ol.style.Fill({
-                        color: styleInfo.workflowItemTextFillColor,
-                    }),
-                    scale: styleInfo.textScale
-                })
-            });
+            var style = new ol.style.Style({});
             var feature = new ol.Feature();
             feature.setId(item.id);
             feature.set("workflowitem", item);
@@ -7501,7 +7469,7 @@ define("ol3-lab/labs/workflow/ol-workflow", ["require", "exports", "openlayers"]
             target: document.getElementsByClassName("map")[0],
             projection: "EPSG:3857",
             center: [0, 0],
-            zoom: 18
+            zoom: 19
         };
         var map = new ol.Map({
             target: options.target,
