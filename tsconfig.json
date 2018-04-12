@@ -3,13 +3,16 @@
         "removeComments": true,
         "declaration": false,
         "module": "amd",
-        "target": "es5",
+        "target": "es6",
         "noImplicitAny": true,
         "sourceMap": true,
         "outFile": "./built/index.js",
         "moduleResolution": "node",
         "baseUrl": "./bower_components"
     },
+    "lib": [
+        "es2015"
+    ],
     "include": [
         "ol3-lab.ts",
         "ol3-lab",

@@ -1,4 +1,5 @@
 import ol = require("openlayers");
+import { maplet as MapletData } from "../../tests/data/maplet";
 
 const styleInfo = {
     textScale: 2,
@@ -27,7 +28,7 @@ function rotation([x1, y1]: [number, number], [x2, y2]: [number, number]) {
 }
 
 function computeRoute([x1, y1]: [number, number], [x2, y2]: [number, number]) {
-    return <Array<[number, number]>>[[x1, y1], [x2, y1], [x2, y2]];
+    return <Array<[number, number]>>[[x1, y1], [x1, y1 + 20], [x2, y1 + 20], [x2, y2]];
 }
 
 function createWorkflowItemGeometry(item: WorkFlowItem) {
@@ -52,8 +53,11 @@ class WorkFlow {
         if (this.source) this.source.clear();
 
         // render connections
-        this.workFlowItem.forEach(item1 => {
+        this.workFlowItem.forEach((item1, i) => {
+            item1.column = Math.max(i, item1.column);
+            item1.row = Math.max(0, item1.row);
             item1.connections.forEach(item2 => {
+                item2.column = Math.max(item1.column + 1, item2.column);
                 item2.row = Math.max(item1.row + 1, item2.row);
             });
         });
@@ -157,6 +161,7 @@ class WorkFlowItem {
     }
 
     connect(item: WorkFlowItem, title = "") {
+        if (this === item) return;
         this.connections.push(item);
     }
 }
@@ -221,6 +226,46 @@ export function run() {
     items[1].connect(items[3], "24");
     items[4].connect(items[2], "53");
 
+    let maplet = MapletData.data;
+
+    let eventHash = new Map<string, WorkFlowItem>();
+    importEvents(maplet.Events.Events, eventHash);
+    maplet.Map.Layers.Layers.forEach(l => {
+        l.Events && importEvents(l.Events.Events, eventHash);
+    });
+
+    eventHash.forEach(v => workflow.workFlowItem.push(v));
+
     workflow.render();
+
     items.forEach(item => workflow.addControl(item));
+}
+
+function importEvents(events: typeof MapletData.data.Events.Events, eventHash: Map<string, WorkFlowItem>) {
+
+    events.forEach(event => {
+        if (!event.name) return;
+
+        event.name.split(",").forEach(eventName => {
+            let workflowItem = eventHash.get(eventName);
+            if (!workflowItem) {
+                workflowItem = new WorkFlowItem(eventName);
+                eventHash.set(eventName, workflowItem);
+            }
+
+            let eventOption: { value: string } = (event.Options && event.Options.Values && event.Options.Values.filter(v => v.id === "event")[0]);
+            if (!eventOption) return;
+
+            eventOption.value.split(",").forEach(trigger => {
+                let childItem = eventHash.get(trigger);
+                if (!childItem) {
+                    childItem = new WorkFlowItem(trigger);
+                    eventHash.set(trigger, childItem);
+                }
+                workflowItem.connect(childItem);
+            });
+
+        });
+
+    });
 }
