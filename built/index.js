@@ -599,6 +599,12 @@ define("bower_components/ol3-fun/ol3-fun/common", ["require", "exports"], functi
         return b.firstElementChild;
     }
     exports.html = html;
+    function pair(a1, a2) {
+        let result = [];
+        a1.forEach(v1 => a2.forEach(v2 => result.push([v1, v2])));
+        return result;
+    }
+    exports.pair = pair;
     function range(n) {
         var result = new Array(n);
         for (var i = 0; i < n; i++)
@@ -9638,10 +9644,12 @@ define("bower_components/ol3-draw/ol3-draw/ol3-delete", ["require", "exports", "
         constructor(options) {
             super(options);
             let map = options.map;
-            let select = new ol.interaction.Select({
-                wrapX: false,
+            let featureLayers = [];
+            let selection = new ol.interaction.Select({
+                condition: ol.events.condition.click,
+                multi: false,
                 style: (feature, res) => {
-                    let index = select.getFeatures().getArray().indexOf(feature);
+                    let index = selection.getFeatures().getArray().indexOf(feature);
                     let fillColor = "rgba(0,0,0,0.2)";
                     let strokeColor = "red";
                     let textTemplate = {
@@ -9655,75 +9663,70 @@ define("bower_components/ol3-draw/ol3-draw/ol3-delete", ["require", "exports", "
                         },
                         scale: 3
                     };
-                    switch (feature.getGeometry().getType()) {
-                        case "Point":
-                            return this.symbolizer.fromJson({
-                                circle: {
-                                    radius: 20,
-                                    fill: {
-                                        color: fillColor
-                                    },
-                                    stroke: {
-                                        color: strokeColor,
-                                        width: 2
-                                    },
-                                    opacity: 1
-                                },
-                                text: textTemplate
-                            });
-                        case "MultiLineString":
-                            return this.symbolizer.fromJson({
-                                stroke: {
-                                    color: strokeColor,
-                                    width: 2
-                                },
-                                text: textTemplate
-                            });
-                        case "Circle":
-                        case "Polygon":
-                        case "MultiPolygon":
-                            return this.symbolizer.fromJson({
-                                fill: {
-                                    color: fillColor
-                                },
-                                stroke: {
-                                    color: strokeColor,
-                                    width: 2
-                                },
-                                text: textTemplate
-                            });
-                        default:
-                            debugger;
-                    }
+                    let style = options.style[feature.getGeometry().getType()]
+                        .map(s => this.symbolizer.fromJson(common_21.defaults({ text: textTemplate }, s)));
+                    return style;
                 }
             });
+            let boxSelect = new ol.interaction.DragBox({
+                condition: options.boxSelectCondition
+            });
+            boxSelect.on("boxend", args => {
+                let extent = boxSelect.getGeometry().getExtent();
+                let features = selection.getFeatures().getArray();
+                options.map.getLayers()
+                    .getArray()
+                    .filter(l => l instanceof ol.layer.Vector)
+                    .map(l => l)
+                    .forEach(l => l.getSource().forEachFeatureIntersectingExtent(extent, feature => {
+                    if (-1 === features.indexOf(feature)) {
+                        selection.getFeatures().push(feature);
+                        this.addFeatureLayerAssociation(feature, l);
+                    }
+                    else {
+                        selection.getFeatures().remove(feature);
+                        this.addFeatureLayerAssociation(feature, null);
+                    }
+                }));
+            });
             let doit = () => {
-                select.getFeatures().forEach(f => {
-                    let l = select.getLayer(f);
-                    l.getSource().removeFeature(f);
+                selection.getFeatures().forEach(f => {
+                    let l = selection.getLayer(f) || this.featureLayerAssociation_[f.getId()];
+                    l && l.getSource().removeFeature(f);
                 });
-                select.getFeatures().clear();
+                selection.getFeatures().clear();
+                this.featureLayerAssociation_ = [];
             };
             this.once("change:active", () => {
-                select.setActive(false);
-                map.addInteraction(select);
+                [selection, boxSelect].forEach(i => {
+                    i.setActive(false);
+                    map.addInteraction(i);
+                });
                 this.handlers.push(() => {
-                    select.setActive(false);
-                    map.removeInteraction(select);
+                    [selection, boxSelect].forEach(i => {
+                        i.setActive(false);
+                        map.removeInteraction(i);
+                    });
                 });
             });
             this.on("change:active", () => {
                 let active = this.get("active");
                 if (!active) {
                     doit();
-                    select.getFeatures().clear();
+                    selection.getFeatures().clear();
                 }
-                select.setActive(active);
+                [boxSelect, selection].forEach(i => i.setActive(active));
             });
         }
         static create(options) {
-            options = common_21.mixin(common_21.mixin({}, Delete.DEFAULT_OPTIONS), options);
+            options = common_21.defaults({}, options, Delete.DEFAULT_OPTIONS);
             return ol3_button_3.Button.create(options);
+        }
+        addFeatureLayerAssociation(feature, layer) {
+            if (!this.featureLayerAssociation_)
+                this.featureLayerAssociation_ = [];
+            var key = feature.getId();
+            this.featureLayerAssociation_[key] = layer;
         }
     }
     Delete.DEFAULT_OPTIONS = {
@@ -9731,7 +9734,56 @@ define("bower_components/ol3-draw/ol3-draw/ol3-delete", ["require", "exports", "
         label: "␡",
         title: "Delete",
         buttonType: Delete,
-        eventName: "delete-feature"
+        eventName: "delete-feature",
+        boxSelectCondition: ol.events.condition.shiftKeyOnly,
+        style: {
+            "Point": [{
+                    circle: {
+                        radius: 20,
+                        fill: {
+                            color: "blue"
+                        },
+                        stroke: {
+                            color: "red",
+                            width: 2
+                        },
+                        opacity: 1
+                    }
+                }],
+            "MultiLineString": [{
+                    stroke: {
+                        color: "red",
+                        width: 2
+                    }
+                }],
+            "Circle": [{
+                    fill: {
+                        color: "blue"
+                    },
+                    stroke: {
+                        color: "red",
+                        width: 2
+                    }
+                }],
+            "Polygon": [{
+                    fill: {
+                        color: "blue"
+                    },
+                    stroke: {
+                        color: "red",
+                        width: 2
+                    }
+                }],
+            "MultiPolygon": [{
+                    fill: {
+                        color: "blue"
+                    },
+                    stroke: {
+                        color: "red",
+                        width: 2
+                    }
+                }]
+        }
     };
     exports.Delete = Delete;
 });
@@ -9852,26 +9904,41 @@ define("bower_components/ol3-draw/ol3-draw/services/wfs-sync", ["require", "expo
                     let srsOut = new ol.proj.Projection({ code: this.options.srsName });
                     toSave = toSave.map(f => f.clone());
                     toSave.forEach(f => f.getGeometry().transform(srsIn, srsOut));
-                    debugger;
+                    throw "should not be necessary, perform on server, cloning will prevent insert key from updating";
                 }
                 let format = this.options.formatter;
-                let requestBody = format.writeTransaction(toSave.filter(f => !f.get(this.options.featureIdFieldName)), toSave.filter(f => !!f.get(this.options.featureIdFieldName)), toDelete, {
+                let toInsert = toSave.filter(f => !f.get(this.options.featureIdFieldName));
+                let toUpdate = toSave.filter(f => !!f.get(this.options.featureIdFieldName));
+                let requestBody = format.writeTransaction(toInsert, toUpdate, toDelete, {
                     featureNS: this.options.featureNS,
                     featurePrefix: this.options.featurePrefix,
                     featureType: featureType,
                     srsName: this.options.srsName,
                     nativeElements: []
                 });
-                let data = serializer.serializeToString(requestBody);
-                console.log("data", data);
                 $.ajax({
                     type: "POST",
                     url: this.options.wfsUrl,
-                    data: data,
+                    data: serializer.serializeToString(requestBody),
                     contentType: "application/xml",
                     dataType: "xml",
                     success: (response) => {
-                        console.warn("TODO: key assignment", serializer.serializeToString(response));
+                        let responseInfo = format.readTransactionResponse(response);
+                        if (responseInfo.transactionSummary.totalDeleted) {
+                            console.log("totalDeleted: ", responseInfo.transactionSummary.totalDeleted);
+                        }
+                        if (responseInfo.transactionSummary.totalInserted) {
+                            console.log("totalInserted: ", responseInfo.transactionSummary.totalInserted);
+                        }
+                        if (responseInfo.transactionSummary.totalUpdated) {
+                            console.log("totalUpdated: ", responseInfo.transactionSummary.totalUpdated);
+                        }
+                        console.assert(toInsert.length === responseInfo.transactionSummary.totalInserted, "number inserted should equal number of new keys");
+                        toInsert.forEach((f, i) => {
+                            let id = responseInfo.insertIds[i];
+                            f.set("gid", id.split(".").pop());
+                            f.setId(id);
+                        });
                     }
                 });
             };
@@ -13184,14 +13251,16 @@ define("ol3-lab/labs/workflow/ol-workflow", ["require", "exports", "jquery", "op
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     const styleInfo = {
+        sx: 10,
+        sy: 5,
         textScale: 1,
         controlFillColor: "#ccc",
         controlStrokeColor: "#333",
         connectorStrokeColor: "rgba(255, 255, 255, 0.1)",
-        connectorStrokeWidth: 4,
+        connectorStrokeWidth: 5,
         connectorTextFillColor: "#ccc",
         connectorTextStrokeColor: "#333",
-        connectorTextWidth: 2,
+        connectorTextWidth: 4,
         workflowItemRadius: 50,
         workflowItemStrokeColor: "#ccc",
         workflowItemStrokeWidth: 2,
@@ -13213,28 +13282,65 @@ define("ol3-lab/labs/workflow/ol-workflow", ["require", "exports", "jquery", "op
     }
     function computeRoute([x1, y1], [x2, y2]) {
         let moveRight = (x1 < x2) ? 1 : 0;
+        let moveLeft = (x2 < x2) ? 1 : 0;
         let moveUp = (y1 < y2) ? 1 : 0;
-        let dx = [-20, 25];
-        let dy = [10, 15];
+        let dx = [-styleInfo.sx / 8, styleInfo.sx / 8];
+        let dy = [styleInfo.sy / 8, styleInfo.sy / 8];
         return [
             [x1, y1],
             [x1, y1 + dy[moveUp]],
             [x1 + dx[moveRight], y1 + dy[moveUp]],
-            [x2 + dx[1 - moveRight], y2 + dy[1 - moveUp]],
+            [x2 + dx[moveLeft], y2 + dy[1 - moveUp]],
             [x2, y2 + dy[1 - moveUp]],
             [x2, y2]
         ];
     }
     function createWorkflowItemGeometry(item) {
         const [dx, dy] = [30, 20];
-        let [x, y] = [100 * item.column, -100 * item.row];
+        let [x, y] = [styleInfo.sx * item.column, -styleInfo.sy * item.row];
         return new ol.geom.Point([x, y]);
     }
     class WorkFlow {
-        constructor(map, workFlowItem = []) {
+        constructor(map, workflows = []) {
             this.map = map;
-            this.workFlowItem = workFlowItem;
-            workFlowItem.forEach((item, i) => item.column = i);
+            this.workflows = workflows;
+            workflows.forEach((item, i) => item.column = i);
+        }
+        asNetwork() {
+            console.log(this.workflows);
+            let nodeMap = new Map();
+            let asSubNetwork = (workflowItem) => {
+                let node = nodeMap.get(workflowItem.id);
+                if (node) {
+                    console.log("found node for", workflowItem.title);
+                    return node.children;
+                }
+                else {
+                    node = {
+                        item: workflowItem,
+                        children: [],
+                        parents: [],
+                    };
+                    nodeMap.set(workflowItem.id, node);
+                    console.log("created node for", workflowItem.title);
+                }
+                workflowItem.connections.forEach(child => {
+                    let childNode = nodeMap.get(child.item.id);
+                    if (!childNode) {
+                        childNode = {
+                            item: child.item,
+                            children: asSubNetwork(child.item),
+                            parents: []
+                        };
+                        nodeMap.set(child.item.id, childNode);
+                    }
+                    node.children.push(childNode);
+                });
+                return node.children;
+            };
+            let network = new WorkFlowItem();
+            this.workflows.forEach(wfi => network.connect(wfi));
+            return asSubNetwork(network);
         }
         execute(context, event) {
             alert(`${event}: ${context.title}`);
@@ -13242,19 +13348,8 @@ define("ol3-lab/labs/workflow/ol-workflow", ["require", "exports", "jquery", "op
         render() {
             if (this.source)
                 this.source.clear();
-            this.workFlowItem.forEach((item1, i) => {
-                item1.column = i;
-                item1.row = 0;
-                let columnOffset = 0;
-                let rowOffset = 1;
-                item1.connections.forEach((item2, j) => {
-                    let child = item2.item;
-                    child.column = Math.max(child.column, item1.column);
-                    child.row = Math.max(child.row, item1.row + rowOffset++);
-                });
-            });
             this.source = renderWorkflow(this.map, this);
-            this.workFlowItem.forEach(item1 => {
+            this.workflows.forEach(item1 => {
                 item1.connections.forEach(item2 => {
                     let style = new ol.style.Style({
                         stroke: new ol.style.Stroke({
@@ -13275,11 +13370,11 @@ define("ol3-lab/labs/workflow/ol-workflow", ["require", "exports", "jquery", "op
                         text: new ol.style.Text({
                             text: item2.purpose,
                             fill: new ol.style.Fill({
-                                color: "white",
+                                color: styleInfo.connectorTextFillColor,
                             }),
                             stroke: new ol.style.Stroke({
-                                color: "black",
-                                width: 1,
+                                color: styleInfo.connectorTextStrokeColor,
+                                width: styleInfo.connectorTextWidth,
                             }),
                             scale: styleInfo.textScale
                         })
@@ -13310,7 +13405,7 @@ define("ol3-lab/labs/workflow/ol-workflow", ["require", "exports", "jquery", "op
             item1.connect(item2, title);
         }
         addControl(item) {
-            let geom = new ol.geom.Point([item.column * 100, item.row * -100]);
+            let geom = new ol.geom.Point([item.column * styleInfo.sx, item.row * -styleInfo.sy]);
             let element = document.createElement("div");
             element.className = "control";
             {
@@ -13330,7 +13425,7 @@ define("ol3-lab/labs/workflow/ol-workflow", ["require", "exports", "jquery", "op
             }
             let overlay = new ol.Overlay({
                 element: element,
-                offset: [-100, 0]
+                offset: [-styleInfo.sx, 0]
             });
             overlay.setPosition(geom.getLastCoordinate());
             this.map.addOverlay(overlay);
@@ -13340,7 +13435,7 @@ define("ol3-lab/labs/workflow/ol-workflow", ["require", "exports", "jquery", "op
         constructor(title = "untitled", type = "") {
             this.title = title;
             this.type = type;
-            this.id = `wf_${Math.random() * Number.MAX_VALUE}`;
+            this.id = `wf_${Math.floor(Math.random() * 100000000000)}`;
             this.column = this.row = 0;
             this.connections = new Map();
         }
@@ -13360,7 +13455,7 @@ define("ol3-lab/labs/workflow/ol-workflow", ["require", "exports", "jquery", "op
             source: source
         });
         map.addLayer(layer);
-        workflow.workFlowItem.forEach(item => {
+        workflow.workflows.forEach(item => {
             let style = new ol.style.Style({});
             let feature = new ol.Feature();
             feature.setId(item.id);
@@ -13396,7 +13491,7 @@ define("ol3-lab/labs/workflow/ol-workflow", ["require", "exports", "jquery", "op
             })
         });
         let select = new ol.interaction.Select({
-            condition: ol.events.condition.click
+            condition: ol.events.condition.click,
         });
         let selectStyle = new ol.style.Style({
             fill: new ol.style.Fill({
@@ -13455,37 +13550,55 @@ define("ol3-lab/labs/workflow/ol-workflow", ["require", "exports", "jquery", "op
         });
         map.addInteraction(select);
         let items = [
+            new WorkFlowItem("item 0"),
             new WorkFlowItem("item 1"),
             new WorkFlowItem("item 2"),
             new WorkFlowItem("item 3"),
             new WorkFlowItem("item 4"),
-            new WorkFlowItem("item 5"),
         ];
         let workflow = new WorkFlow(map, items);
-        items[0].connect(items[2], "1->3");
-        items[0].connect(items[1], "1->2");
-        items[1].connect(items[2], "2->3");
-        items[1].connect(items[3], "2->4");
-        items[4].connect(items[2], "5->3");
-        let maplet = maplet_1.maplet.data;
-        let eventHash = new Map();
-        importCommands(maplet.Commands.Commands, eventHash);
-        maplet.Map.Layers.Layers.forEach(l => {
-            l.Commands && importCommands(l.Commands.Commands, eventHash);
+        items[0].connect(items[1], "0->1");
+        items[0].connect(items[2], "0->2");
+        items[1].connect(items[3], "1->3");
+        items[2].connect(items[3], "2->3");
+        items[3].connect(items[4], "3->4");
+        if (true) {
+            workflow = new WorkFlow(map);
+            let maplet = maplet_1.maplet.data;
+            let eventHash = new Map();
+            importCommands(maplet.Commands.Commands, eventHash);
+            maplet.Map.Layers.Layers.forEach(l => {
+                l.Commands && importCommands(l.Commands.Commands, eventHash);
+            });
+            maplet.Controls.Controls.forEach(l => {
+                l.Commands && importCommands(l.Commands.Commands, eventHash);
+            });
+            importEvents(maplet.Events.Events, eventHash);
+            maplet.Map.Layers.Layers.forEach(l => {
+                l.Events && importEvents(l.Events.Events, eventHash);
+            });
+            maplet.Controls.Controls.forEach(l => {
+                l.Events && importEvents(l.Events.Events, eventHash);
+            });
+            eventHash.forEach(v => workflow.workflows.push(v));
+        }
+        let network = workflow.asNetwork();
+        let graph = new DrawGraph({ item: null, children: network });
+        graph.position();
+        graph.visit(n => {
+            console.log("visiting", n);
+            n.item.row = n.dy;
+            n.item.column = n.dx;
+            let parentNode = n.parents[0];
+            if (parentNode) {
+                n.item.row += parentNode.item.row;
+                n.item.column += parentNode.item.column;
+            }
+            return false;
         });
-        maplet.Controls.Controls.forEach(l => {
-            l.Commands && importCommands(l.Commands.Commands, eventHash);
-        });
-        importEvents(maplet.Events.Events, eventHash);
-        maplet.Map.Layers.Layers.forEach(l => {
-            l.Events && importEvents(l.Events.Events, eventHash);
-        });
-        maplet.Controls.Controls.forEach(l => {
-            l.Events && importEvents(l.Events.Events, eventHash);
-        });
-        eventHash.forEach(v => workflow.workFlowItem.push(v));
+        console.log(network);
         workflow.render();
-        items.forEach(item => workflow.addControl(item));
+        workflow.workflows.forEach(item => workflow.addControl(item));
     }
     exports.run = run;
     function importEvents(events, eventHash) {
@@ -13507,7 +13620,7 @@ define("ol3-lab/labs/workflow/ol-workflow", ["require", "exports", "jquery", "op
                         childItem = new WorkFlowItem(trigger);
                         eventHash.set(trigger, childItem);
                     }
-                    workflowItem.connect(childItem, event.mid);
+                    workflowItem.connect(childItem, event.id);
                 });
             });
         });
@@ -13534,35 +13647,50 @@ define("ol3-lab/labs/workflow/ol-workflow", ["require", "exports", "jquery", "op
         });
     }
     class DrawGraph {
-        position(node) {
-            let _visited = [];
-            let visited = (n) => 0 <= _visited.indexOf(n);
+        constructor(rootNode) {
+            this.rootNode = rootNode;
+        }
+        visit(cb, nodes = this.rootNode.children.filter(v => !v.parents.length)) {
+            if (nodes.some(n => cb(n)))
+                return true;
+            return nodes.some(n => this.visit(cb, n.children));
+        }
+        position(node = this.rootNode) {
             let visit = (n) => {
-                if (visited(n))
+                if (n.visited)
                     return;
+                n.visited = true;
                 if (n.children) {
-                    let dx = -n.children.length / 2;
+                    let dy = n.dy;
+                    let dx = Math.floor(-n.children.length / 2);
                     n.children.forEach(c => {
                         c.dx = dx++;
-                        if (!c.parents) {
-                            c.parents = [];
-                        }
-                        c.parents.push(n);
+                        c.dy = Math.max(c.dy || 0, 1 + dy);
+                        n.item && c.parents.push(n);
                         visit(c);
                     });
                 }
             };
             node.dx = node.dy = 0;
             visit(node);
-            let assignDy = (n) => {
-                let dy = n.dy;
-                if (n.children) {
-                    n.children.forEach(c => {
-                        c.dy = Math.max(c.dy, 1 + dy);
-                        assignDy(c);
+            {
+                let orderChildren = (nodes, dy = 0) => {
+                    let childCount = 0;
+                    nodes.forEach(n => childCount += Math.max(0, n.children.length - 1));
+                    let dx = -Math.floor(childCount / 2);
+                    nodes.forEach(v => {
+                        let childCount = Math.max(0, v.children.length - 1);
+                        v.dx = dx + Math.floor(childCount / 2);
+                        v.dy = 1;
+                        dx += 1 + childCount;
                     });
-                }
-            };
+                    nodes.forEach(v => {
+                        orderChildren(v.children, v.dy);
+                    });
+                };
+                let nodes = node.children.filter(v => !v.parents.length);
+                orderChildren(nodes, -1);
+            }
         }
     }
 });

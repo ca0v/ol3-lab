@@ -3,14 +3,16 @@ import ol = require("openlayers");
 import { maplet as MapletData } from "../../tests/data/maplet";
 
 const styleInfo = {
+    sx: 10,
+    sy: 5,
     textScale: 1,
     controlFillColor: "#ccc",
     controlStrokeColor: "#333",
     connectorStrokeColor: "rgba(255, 255, 255, 0.1)",
-    connectorStrokeWidth: 4,
+    connectorStrokeWidth: 5,
     connectorTextFillColor: "#ccc",
     connectorTextStrokeColor: "#333",
-    connectorTextWidth: 2,
+    connectorTextWidth: 4,
     workflowItemRadius: 50,
     workflowItemStrokeColor: "#ccc",
     workflowItemStrokeWidth: 2,
@@ -35,15 +37,16 @@ function rotation([x1, y1]: [number, number], [x2, y2]: [number, number]) {
 
 function computeRoute([x1, y1]: [number, number], [x2, y2]: [number, number]) {
     let moveRight = (x1 < x2) ? 1 : 0;
+    let moveLeft = (x2 < x2) ? 1 : 0;
     let moveUp = (y1 < y2) ? 1 : 0;
-    let dx = [-20, 25];
-    let dy = [10, 15];
+    let dx = [-styleInfo.sx / 8, styleInfo.sx / 8];
+    let dy = [styleInfo.sy / 8, styleInfo.sy / 8];
 
     return <Array<[number, number]>>[
         [x1, y1], // start
         [x1, y1 + dy[moveUp]],
         [x1 + dx[moveRight], y1 + dy[moveUp]],
-        [x2 + dx[1 - moveRight], y2 + dy[1 - moveUp]],
+        [x2 + dx[moveLeft], y2 + dy[1 - moveUp]],
         [x2, y2 + dy[1 - moveUp]],
         [x2, y2] // end
     ];
@@ -51,7 +54,7 @@ function computeRoute([x1, y1]: [number, number], [x2, y2]: [number, number]) {
 
 function createWorkflowItemGeometry(item: WorkFlowItem) {
     const [dx, dy] = [30, 20];
-    let [x, y] = [100 * item.column, - 100 * item.row];
+    let [x, y] = [styleInfo.sx * item.column, - styleInfo.sy * item.row];
     return new ol.geom.Point([x, y]);
 }
 
@@ -59,8 +62,54 @@ class WorkFlow {
 
     private source: ol.source.Vector;
 
-    constructor(public map: ol.Map, public workFlowItem: Array<WorkFlowItem> = []) {
-        workFlowItem.forEach((item, i) => item.column = i);
+    constructor(public map: ol.Map, public workflows: Array<WorkFlowItem> = []) {
+        workflows.forEach((item, i) => item.column = i);
+    }
+
+    asNetwork() {
+        console.log(this.workflows);
+        let nodeMap = new Map<string, Node<WorkFlowItem>>();
+
+        let asSubNetwork = (workflowItem: WorkFlowItem) => {
+            // find node and return children
+            let node = nodeMap.get(workflowItem.id);
+            if (node) {
+                console.log("found node for", workflowItem.title);
+                return node.children;
+            }
+            else {
+                // create node
+                node = {
+                    item: workflowItem,
+                    children: [],
+                    parents: [],
+                };
+                nodeMap.set(workflowItem.id, node);
+                console.log("created node for", workflowItem.title);
+            }
+
+            // convert connectors to children
+            workflowItem.connections.forEach(child => {
+                let childNode = nodeMap.get(child.item.id);
+                if (!childNode) {
+                    childNode = {
+                        item: child.item,
+                        children: asSubNetwork(child.item),
+                        parents: []
+                    };
+                    nodeMap.set(child.item.id, childNode);
+                }
+                node.children.push(childNode);
+            });
+
+            // return children
+            return node.children;
+        };
+
+        let network = new WorkFlowItem();
+        this.workflows.forEach(wfi => network.connect(wfi));
+        return asSubNetwork(network);
+
     }
 
     execute(context: WorkFlowItem, event: string) {
@@ -70,22 +119,9 @@ class WorkFlow {
     render() {
         if (this.source) this.source.clear();
 
-        // render connections
-        this.workFlowItem.forEach((item1, i) => {
-            item1.column = i;
-            item1.row = 0;
-            let columnOffset = 0;
-            let rowOffset = 1;
-            item1.connections.forEach((item2, j) => {
-                let child = item2.item;
-                child.column = Math.max(child.column, item1.column);
-                child.row = Math.max(child.row, item1.row + rowOffset++);
-            });
-        });
-
         this.source = renderWorkflow(this.map, this);
         // render connections
-        this.workFlowItem.forEach(item1 => {
+        this.workflows.forEach(item1 => {
 
             item1.connections.forEach(item2 => {
                 let style = new ol.style.Style({
@@ -113,11 +149,11 @@ class WorkFlow {
                     text: new ol.style.Text({
                         text: item2.purpose,
                         fill: new ol.style.Fill({
-                            color: "white",
+                            color: styleInfo.connectorTextFillColor,
                         }),
                         stroke: new ol.style.Stroke({
-                            color: "black",
-                            width: 1,
+                            color: styleInfo.connectorTextStrokeColor,
+                            width: styleInfo.connectorTextWidth,
                         }),
                         scale: styleInfo.textScale
                     })
@@ -152,7 +188,7 @@ class WorkFlow {
     }
 
     addControl(item: WorkFlowItem) {
-        let geom = new ol.geom.Point([item.column * 100, item.row * -100]);
+        let geom = new ol.geom.Point([item.column * styleInfo.sx, item.row * -styleInfo.sy]);
 
         let element = document.createElement("div");
         element.className = "control";
@@ -176,7 +212,7 @@ class WorkFlow {
 
         let overlay = new ol.Overlay({
             element: element,
-            offset: [-100, 0]
+            offset: [-styleInfo.sx, 0]
         });
 
         overlay.setPosition(geom.getLastCoordinate());
@@ -199,7 +235,7 @@ class WorkFlowItem {
     public connections: Connections;
 
     constructor(public title = "untitled", public type = "") {
-        this.id = `wf_${Math.random() * Number.MAX_VALUE}`;
+        this.id = `wf_${Math.floor(Math.random() * 100000000000)}`;
         this.column = this.row = 0;
         this.connections = new Map<string, Connection>();
     }
@@ -221,7 +257,7 @@ function renderWorkflow(map: ol.Map, workflow: WorkFlow) {
     });
     map.addLayer(layer);
 
-    workflow.workFlowItem.forEach(item => {
+    workflow.workflows.forEach(item => {
         let style = new ol.style.Style({
         });
 
@@ -266,7 +302,7 @@ export function run() {
     });
 
     let select = new ol.interaction.Select({
-        condition: ol.events.condition.click
+        condition: ol.events.condition.click,
     });
 
     let selectStyle = new ol.style.Style({
@@ -332,49 +368,73 @@ export function run() {
     map.addInteraction(select);
 
     let items = [
+        new WorkFlowItem("item 0"),
         new WorkFlowItem("item 1"),
         new WorkFlowItem("item 2"),
         new WorkFlowItem("item 3"),
         new WorkFlowItem("item 4"),
-        new WorkFlowItem("item 5"),
     ];
 
     let workflow = new WorkFlow(map, items);
-    items[0].connect(items[2], "1->3");
-    items[0].connect(items[1], "1->2");
-    items[1].connect(items[2], "2->3");
-    items[1].connect(items[3], "2->4");
-    items[4].connect(items[2], "5->3");
+    items[0].connect(items[1], "0->1");
+    items[0].connect(items[2], "0->2");
+    items[1].connect(items[3], "1->3");
+    items[2].connect(items[3], "2->3");
+    items[3].connect(items[4], "3->4");
 
-    let maplet = MapletData.data;
+    if (true) {
+        workflow = new WorkFlow(map);
 
-    let eventHash = new Map<string, WorkFlowItem>();
+        let maplet = MapletData.data;
 
-    importCommands(maplet.Commands.Commands, eventHash);
+        let eventHash = new Map<string, WorkFlowItem>();
 
-    maplet.Map.Layers.Layers.forEach(l => {
-        l.Commands && importCommands(l.Commands.Commands, eventHash);
+        importCommands(maplet.Commands.Commands, eventHash);
+
+        maplet.Map.Layers.Layers.forEach(l => {
+            l.Commands && importCommands(l.Commands.Commands, eventHash);
+        });
+
+        maplet.Controls.Controls.forEach(l => {
+            l.Commands && importCommands(l.Commands.Commands, eventHash);
+        });
+
+        importEvents(maplet.Events.Events, eventHash);
+
+        maplet.Map.Layers.Layers.forEach(l => {
+            l.Events && importEvents(l.Events.Events, eventHash);
+        });
+
+        maplet.Controls.Controls.forEach(l => {
+            l.Events && importEvents(l.Events.Events, eventHash);
+        });
+
+        eventHash.forEach(v => workflow.workflows.push(v));
+    }
+
+
+    let network = workflow.asNetwork();
+    let graph = new DrawGraph<WorkFlowItem>({ item: null, children: network });
+    graph.position();
+
+    graph.visit(n => {
+        console.log("visiting", n);
+        n.item.row = n.dy;
+        n.item.column = n.dx;
+
+        let parentNode = n.parents[0];
+        if (parentNode) {
+            n.item.row += parentNode.item.row;
+            n.item.column += parentNode.item.column;
+        }
+        return false;
     });
 
-    maplet.Controls.Controls.forEach(l => {
-        l.Commands && importCommands(l.Commands.Commands, eventHash);
-    });
-
-    importEvents(maplet.Events.Events, eventHash);
-
-    maplet.Map.Layers.Layers.forEach(l => {
-        l.Events && importEvents(l.Events.Events, eventHash);
-    });
-
-    maplet.Controls.Controls.forEach(l => {
-        l.Events && importEvents(l.Events.Events, eventHash);
-    });
-
-    eventHash.forEach(v => workflow.workFlowItem.push(v));
+    console.log(network);
 
     workflow.render();
 
-    items.forEach(item => workflow.addControl(item));
+    workflow.workflows.forEach(item => workflow.addControl(item));
 }
 
 function importEvents(events: typeof MapletData.data.Events.Events, eventHash: Map<string, WorkFlowItem>) {
@@ -398,7 +458,7 @@ function importEvents(events: typeof MapletData.data.Events.Events, eventHash: M
                     childItem = new WorkFlowItem(trigger);
                     eventHash.set(trigger, childItem);
                 }
-                workflowItem.connect(childItem, event.mid);
+                workflowItem.connect(childItem, event.id);
             });
 
         });
@@ -436,52 +496,74 @@ function importCommands(events: typeof MapletData.data.Commands.Commands, eventH
 
 type Node<T> = {
     item: T;
-    children: NodeList<T>;
-    parents: NodeList<T>;
-    dx: number;
-    dy: number;
+    children?: NodeList<T>;
+    parents?: NodeList<T>;
+    dx?: number;
+    dy?: number;
+    visited?: boolean;
 };
 
 type NodeList<T> = Array<Node<T>>;
 
 class DrawGraph<T> {
 
-    position(node: Node<T>) {
-        let _visited = [] as NodeList<T>;
-        let visited = (n: Node<T>) => 0 <= _visited.indexOf(n);
+    constructor(public rootNode: Node<T>) {
+    }
+
+    visit(cb: (node: Node<T>) => boolean, nodes = this.rootNode.children.filter(v => !v.parents.length)): boolean {
+        if (nodes.some(n => cb(n))) return true;
+        return nodes.some(n => this.visit(cb, n.children));
+    }
+
+    position(node = this.rootNode) {
 
         // assign parents to children, 
         // assign dx to all children (relative to parent position)
         let visit = (n: Node<T>) => {
-            if (visited(n)) return;
+            if (n.visited) return;
+            n.visited = true;
+
             if (n.children) {
-                let dx = -n.children.length / 2;
+                let dy = n.dy;
+                let dx = Math.floor(-n.children.length / 2);
                 n.children.forEach(c => {
+                    // center left-to-right
                     c.dx = dx++;
-                    if (!c.parents) {
-                        c.parents = [];
-                    }
-                    c.parents.push(n);
+                    // below parent(s)
+                    c.dy = Math.max(c.dy || 0, 1 + dy);
+                    // do not consider the top node a parent
+                    n.item && c.parents.push(n);
                     visit(c);
                 });
             }
         };
 
         node.dx = node.dy = 0;
-        // all children have dx and parents
+
+        // assign dx, dy and parents
         visit(node);
 
-        // top-down visitation ensures children are one or more levels below parent
-        let assignDy = (n: Node<T>) => {
-            let dy = n.dy;
-            if (n.children) {
-                n.children.forEach(c => {
-                    c.dy = Math.max(c.dy, 1 + dy);
-                    assignDy(c);
+        // order nodes left-to-right based on child count
+        {
+            let orderChildren = (nodes: Node<T>[], dy = 0) => {
+                let childCount = 0;
+                nodes.forEach(n => childCount += Math.max(0, n.children.length - 1));
+                let dx = -Math.floor(childCount / 2);
+                nodes.forEach(v => {
+                    let childCount = Math.max(0, v.children.length - 1);
+                    v.dx = dx + Math.floor(childCount / 2);
+                    v.dy = 1;
+                    dx += 1 + childCount;
                 });
-            }
-        };
+                nodes.forEach(v => {
+                    orderChildren(v.children, v.dy);
+                });
+            };
 
+            // start with parentless nodes
+            let nodes = node.children.filter(v => !v.parents.length);
+            orderChildren(nodes, -1);
+        }
     }
 
 }
