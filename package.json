@@ -1,6 +1,6 @@
 {
   "name": "ol3-lab",
-  "version": "3.20.1",
+  "version": "4.6.5",
   "description": "OpenLayers Lab",
   "main": "index.js",
   "scripts": {
