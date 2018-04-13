@@ -8,8 +8,8 @@ const styleInfo = {
     textScale: 1,
     controlFillColor: "#ccc",
     controlStrokeColor: "#333",
-    connectorStrokeColor: "rgba(255, 255, 255, 0.1)",
-    connectorStrokeWidth: 5,
+    connectorStrokeColor: "#666",
+    connectorStrokeWidth: 3,
     connectorTextFillColor: "#ccc",
     connectorTextStrokeColor: "#333",
     connectorTextWidth: 4,
@@ -44,9 +44,9 @@ function computeRoute([x1, y1]: [number, number], [x2, y2]: [number, number]) {
 
     return <Array<[number, number]>>[
         [x1, y1], // start
-        [x1, y1 + dy[moveUp]],
-        [x1 + dx[moveRight], y1 + dy[moveUp]],
-        [x2 + dx[moveLeft], y2 + dy[1 - moveUp]],
+        //[x1, y1 + dy[moveUp]],
+        //[x1 + dx[moveRight], y1 + dy[moveUp]],
+        //[x2 + dx[moveLeft], y2 + dy[1 - moveUp]],
         [x2, y2 + dy[1 - moveUp]],
         [x2, y2] // end
     ];
@@ -162,7 +162,7 @@ class WorkFlow {
                 let arrowStyle = new ol.style.Style({
                     geometry: new ol.geom.Point(p2),
                     text: new ol.style.Text({
-                        text: styleInfo.rightArrow,
+                        text: `${styleInfo.rightArrow}`,
                         offsetX: 0,
                         offsetY: downArrow ? -5 : 105,
                         fill: new ol.style.Fill({
@@ -181,6 +181,8 @@ class WorkFlow {
                 this.source.addFeature(feature);
             });
         });
+
+        return this.source;
     }
 
     connect(item1: WorkFlowItem, item2: WorkFlowItem, title = "") {
@@ -212,7 +214,7 @@ class WorkFlow {
 
         let overlay = new ol.Overlay({
             element: element,
-            offset: [-styleInfo.sx, 0]
+            offset: [-40, 0]
         });
 
         overlay.setPosition(geom.getLastCoordinate());
@@ -304,21 +306,26 @@ export function run() {
     let select = new ol.interaction.Select({
         condition: ol.events.condition.click,
     });
+    select.set("hitTolerance", 10);
 
     let selectStyle = new ol.style.Style({
-        fill: new ol.style.Fill({
-            color: "#fff",
-        }),
         stroke: new ol.style.Stroke({
             color: "#fff",
-            width: 3,
+            width: 2 * styleInfo.connectorStrokeWidth,
         }),
     });
+
+    let source: ol.source.Vector;
 
     select.on("select", (args: { selected: ol.Feature[], deselected: ol.Feature[] }) => {
         args.selected.forEach(f => {
             let originalStyle = f.getStyle();
             f.set("original-style", originalStyle);
+
+            // bring to front
+            source.removeFeature(f);
+            source.addFeature(f);
+            f.changed();
 
             let geom = f.getGeometry() as ol.geom.LineString;
 
@@ -332,9 +339,9 @@ export function run() {
                     }),
                     stroke: new ol.style.Stroke({
                         color: styleInfo.connectorStrokeColor,
-                        width: 1,
+                        width: styleInfo.connectorStrokeWidth,
                     }),
-                    scale: styleInfo.textScale,
+                    scale: 1.5 * styleInfo.textScale,
                     rotation: Math.PI / 2
                 })
             });
@@ -345,13 +352,13 @@ export function run() {
                     text: new ol.style.Text({
                         text: connector.purpose,
                         fill: new ol.style.Fill({
-                            color: "white",
+                            color: styleInfo.connectorTextFillColor,
                         }),
                         stroke: new ol.style.Stroke({
-                            color: "black",
-                            width: 2,
+                            color: styleInfo.connectorTextStrokeColor,
+                            width: 1.5 * styleInfo.connectorTextWidth,
                         }),
-                        scale: 1 + styleInfo.textScale
+                        scale: 1.5 * styleInfo.textScale
                     })
                 });
                 f.setStyle([selectStyle, arrowStyle, titleStyle]);
@@ -422,17 +429,30 @@ export function run() {
         n.item.row = n.dy;
         n.item.column = n.dx;
 
-        let parentNode = n.parents[0];
-        if (parentNode) {
-            n.item.row += parentNode.item.row;
-            n.item.column += parentNode.item.column;
+        if (n.parents.length) {
+            let [dx, dy] = [0, 0];
+            n.parents.some(p => {
+                dx = p.item.column;
+                dy = p.item.row;
+                return true;
+            });
+            n.item.column += dx;
+            n.item.row += dy;
+            n.parents.filter(p => p.children.length === 1 && p.parents.length === 0).forEach(p => {
+                p.item.column = n.item.column + 0.5;
+                p.item.row = Math.max(p.item.row, n.item.row - 0.5);
+            });
+            n.parents.filter(p => p.children.length > 1 && p.parents.length === 0).forEach(p => {
+                p.item.column = n.item.column + 0.5;
+                p.item.row--;
+            });
         }
         return false;
     });
 
     console.log(network);
 
-    workflow.render();
+    source = workflow.render();
 
     workflow.workflows.forEach(item => workflow.addControl(item));
 }
