@@ -1,8 +1,9 @@
+import $ = require("jquery");
 import ol = require("openlayers");
 import { maplet as MapletData } from "../../tests/data/maplet";
 
 const styleInfo = {
-    textScale: 2,
+    textScale: 1,
     controlFillColor: "#ccc",
     controlStrokeColor: "#333",
     connectorStrokeColor: "rgba(255, 255, 255, 0.1)",
@@ -19,6 +20,11 @@ const styleInfo = {
     workflowItemTextWidth: 2,
     rightArrow: "►",
     plus: "➕"
+}
+
+function injectCss(css: string) {
+    let style = $(`<style type='text/css'>${css}</style>`);
+    style.appendTo('head');
 }
 
 function rotation([x1, y1]: [number, number], [x2, y2]: [number, number]) {
@@ -66,14 +72,14 @@ class WorkFlow {
 
         // render connections
         this.workFlowItem.forEach((item1, i) => {
-            item1.column = Math.max(i, item1.column);
-            item1.row = Math.max(0, item1.row);
-            let columnOffset = 1;
+            item1.column = i;
+            item1.row = 0;
+            let columnOffset = 0;
             let rowOffset = 1;
-            item1.connections.forEach((item2) => {
+            item1.connections.forEach((item2, j) => {
                 let child = item2.item;
-                child.column = Math.max(child.column + columnOffset, child.column);
-                child.row = Math.max(item1.row + rowOffset, child.row);
+                child.column = Math.max(child.column, item1.column);
+                child.row = Math.max(child.row, item1.row + rowOffset++);
             });
         });
 
@@ -113,7 +119,7 @@ class WorkFlow {
                             color: "black",
                             width: 1,
                         }),
-                        scale: 2
+                        scale: styleInfo.textScale
                     })
                 });
 
@@ -130,7 +136,7 @@ class WorkFlow {
                             color: styleInfo.connectorStrokeColor,
                             width: 1,
                         }),
-                        scale: 2,
+                        scale: styleInfo.textScale,
                         rotation: Math.PI / 2 * (downArrow ? 1 : -1)
                     })
                 });
@@ -232,6 +238,13 @@ function renderWorkflow(map: ol.Map, workflow: WorkFlow) {
 }
 
 export function run() {
+
+    injectCss(`html, body, .map {
+        width: 100%;
+        height: 100%;
+        overflow: none;
+    }`);
+
     let options = {
         target: document.getElementsByClassName("map")[0],
         projection: "EPSG:3857",
@@ -285,7 +298,7 @@ export function run() {
                         color: styleInfo.connectorStrokeColor,
                         width: 1,
                     }),
-                    scale: 2,
+                    scale: styleInfo.textScale,
                     rotation: Math.PI / 2
                 })
             });
@@ -302,7 +315,7 @@ export function run() {
                             color: "black",
                             width: 2,
                         }),
-                        scale: 3
+                        scale: 1 + styleInfo.textScale
                     })
                 });
                 f.setStyle([selectStyle, arrowStyle, titleStyle]);
@@ -420,3 +433,55 @@ function importCommands(events: typeof MapletData.data.Commands.Commands, eventH
 
 }
 
+
+type Node<T> = {
+    item: T;
+    children: NodeList<T>;
+    parents: NodeList<T>;
+    dx: number;
+    dy: number;
+};
+
+type NodeList<T> = Array<Node<T>>;
+
+class DrawGraph<T> {
+
+    position(node: Node<T>) {
+        let _visited = [] as NodeList<T>;
+        let visited = (n: Node<T>) => 0 <= _visited.indexOf(n);
+
+        // assign parents to children, 
+        // assign dx to all children (relative to parent position)
+        let visit = (n: Node<T>) => {
+            if (visited(n)) return;
+            if (n.children) {
+                let dx = -n.children.length / 2;
+                n.children.forEach(c => {
+                    c.dx = dx++;
+                    if (!c.parents) {
+                        c.parents = [];
+                    }
+                    c.parents.push(n);
+                    visit(c);
+                });
+            }
+        };
+
+        node.dx = node.dy = 0;
+        // all children have dx and parents
+        visit(node);
+
+        // top-down visitation ensures children are one or more levels below parent
+        let assignDy = (n: Node<T>) => {
+            let dy = n.dy;
+            if (n.children) {
+                n.children.forEach(c => {
+                    c.dy = Math.max(c.dy, 1 + dy);
+                    assignDy(c);
+                });
+            }
+        };
+
+    }
+
+}

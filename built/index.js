@@ -599,12 +599,6 @@ define("bower_components/ol3-fun/ol3-fun/common", ["require", "exports"], functi
         return b.firstElementChild;
     }
     exports.html = html;
-    function pair(a1, a2) {
-        let result = [];
-        a1.forEach(v1 => a2.forEach(v2 => result.push([v1, v2])));
-        return result;
-    }
-    exports.pair = pair;
     function range(n) {
         var result = new Array(n);
         for (var i = 0; i < n; i++)
@@ -9644,12 +9638,10 @@ define("bower_components/ol3-draw/ol3-draw/ol3-delete", ["require", "exports", "
         constructor(options) {
             super(options);
             let map = options.map;
-            let featureLayers = [];
-            let selection = new ol.interaction.Select({
-                condition: ol.events.condition.click,
-                multi: false,
+            let select = new ol.interaction.Select({
+                wrapX: false,
                 style: (feature, res) => {
-                    let index = selection.getFeatures().getArray().indexOf(feature);
+                    let index = select.getFeatures().getArray().indexOf(feature);
                     let fillColor = "rgba(0,0,0,0.2)";
                     let strokeColor = "red";
                     let textTemplate = {
@@ -9663,70 +9655,75 @@ define("bower_components/ol3-draw/ol3-draw/ol3-delete", ["require", "exports", "
                         },
                         scale: 3
                     };
-                    let style = options.style[feature.getGeometry().getType()]
-                        .map(s => this.symbolizer.fromJson(common_21.defaults({ text: textTemplate }, s)));
-                    return style;
+                    switch (feature.getGeometry().getType()) {
+                        case "Point":
+                            return this.symbolizer.fromJson({
+                                circle: {
+                                    radius: 20,
+                                    fill: {
+                                        color: fillColor
+                                    },
+                                    stroke: {
+                                        color: strokeColor,
+                                        width: 2
+                                    },
+                                    opacity: 1
+                                },
+                                text: textTemplate
+                            });
+                        case "MultiLineString":
+                            return this.symbolizer.fromJson({
+                                stroke: {
+                                    color: strokeColor,
+                                    width: 2
+                                },
+                                text: textTemplate
+                            });
+                        case "Circle":
+                        case "Polygon":
+                        case "MultiPolygon":
+                            return this.symbolizer.fromJson({
+                                fill: {
+                                    color: fillColor
+                                },
+                                stroke: {
+                                    color: strokeColor,
+                                    width: 2
+                                },
+                                text: textTemplate
+                            });
+                        default:
+                            debugger;
+                    }
                 }
             });
-            let boxSelect = new ol.interaction.DragBox({
-                condition: options.boxSelectCondition
-            });
-            boxSelect.on("boxend", args => {
-                let extent = boxSelect.getGeometry().getExtent();
-                let features = selection.getFeatures().getArray();
-                options.map.getLayers()
-                    .getArray()
-                    .filter(l => l instanceof ol.layer.Vector)
-                    .map(l => l)
-                    .forEach(l => l.getSource().forEachFeatureIntersectingExtent(extent, feature => {
-                    if (-1 === features.indexOf(feature)) {
-                        selection.getFeatures().push(feature);
-                        this.addFeatureLayerAssociation(feature, l);
-                    }
-                    else {
-                        selection.getFeatures().remove(feature);
-                        this.addFeatureLayerAssociation(feature, null);
-                    }
-                }));
-            });
             let doit = () => {
-                selection.getFeatures().forEach(f => {
-                    let l = selection.getLayer(f) || this.featureLayerAssociation_[f.getId()];
-                    l && l.getSource().removeFeature(f);
+                select.getFeatures().forEach(f => {
+                    let l = select.getLayer(f);
+                    l.getSource().removeFeature(f);
                 });
-                selection.getFeatures().clear();
-                this.featureLayerAssociation_ = [];
+                select.getFeatures().clear();
             };
             this.once("change:active", () => {
-                [selection, boxSelect].forEach(i => {
-                    i.setActive(false);
-                    map.addInteraction(i);
-                });
+                select.setActive(false);
+                map.addInteraction(select);
                 this.handlers.push(() => {
-                    [selection, boxSelect].forEach(i => {
-                        i.setActive(false);
-                        map.removeInteraction(i);
-                    });
+                    select.setActive(false);
+                    map.removeInteraction(select);
                 });
             });
             this.on("change:active", () => {
                 let active = this.get("active");
                 if (!active) {
                     doit();
-                    selection.getFeatures().clear();
+                    select.getFeatures().clear();
                 }
-                [boxSelect, selection].forEach(i => i.setActive(active));
+                select.setActive(active);
             });
         }
         static create(options) {
-            options = common_21.defaults({}, options, Delete.DEFAULT_OPTIONS);
+            options = common_21.mixin(common_21.mixin({}, Delete.DEFAULT_OPTIONS), options);
             return ol3_button_3.Button.create(options);
-        }
-        addFeatureLayerAssociation(feature, layer) {
-            if (!this.featureLayerAssociation_)
-                this.featureLayerAssociation_ = [];
-            var key = feature.getId();
-            this.featureLayerAssociation_[key] = layer;
         }
     }
     Delete.DEFAULT_OPTIONS = {
@@ -9734,56 +9731,7 @@ define("bower_components/ol3-draw/ol3-draw/ol3-delete", ["require", "exports", "
         label: "␡",
         title: "Delete",
         buttonType: Delete,
-        eventName: "delete-feature",
-        boxSelectCondition: ol.events.condition.shiftKeyOnly,
-        style: {
-            "Point": [{
-                    circle: {
-                        radius: 20,
-                        fill: {
-                            color: "blue"
-                        },
-                        stroke: {
-                            color: "red",
-                            width: 2
-                        },
-                        opacity: 1
-                    }
-                }],
-            "MultiLineString": [{
-                    stroke: {
-                        color: "red",
-                        width: 2
-                    }
-                }],
-            "Circle": [{
-                    fill: {
-                        color: "blue"
-                    },
-                    stroke: {
-                        color: "red",
-                        width: 2
-                    }
-                }],
-            "Polygon": [{
-                    fill: {
-                        color: "blue"
-                    },
-                    stroke: {
-                        color: "red",
-                        width: 2
-                    }
-                }],
-            "MultiPolygon": [{
-                    fill: {
-                        color: "blue"
-                    },
-                    stroke: {
-                        color: "red",
-                        width: 2
-                    }
-                }]
-        }
+        eventName: "delete-feature"
     };
     exports.Delete = Delete;
 });
@@ -9904,41 +9852,26 @@ define("bower_components/ol3-draw/ol3-draw/services/wfs-sync", ["require", "expo
                     let srsOut = new ol.proj.Projection({ code: this.options.srsName });
                     toSave = toSave.map(f => f.clone());
                     toSave.forEach(f => f.getGeometry().transform(srsIn, srsOut));
-                    throw "should not be necessary, perform on server, cloning will prevent insert key from updating";
+                    debugger;
                 }
                 let format = this.options.formatter;
-                let toInsert = toSave.filter(f => !f.get(this.options.featureIdFieldName));
-                let toUpdate = toSave.filter(f => !!f.get(this.options.featureIdFieldName));
-                let requestBody = format.writeTransaction(toInsert, toUpdate, toDelete, {
+                let requestBody = format.writeTransaction(toSave.filter(f => !f.get(this.options.featureIdFieldName)), toSave.filter(f => !!f.get(this.options.featureIdFieldName)), toDelete, {
                     featureNS: this.options.featureNS,
                     featurePrefix: this.options.featurePrefix,
                     featureType: featureType,
                     srsName: this.options.srsName,
                     nativeElements: []
                 });
+                let data = serializer.serializeToString(requestBody);
+                console.log("data", data);
                 $.ajax({
                     type: "POST",
                     url: this.options.wfsUrl,
-                    data: serializer.serializeToString(requestBody),
+                    data: data,
                     contentType: "application/xml",
                     dataType: "xml",
                     success: (response) => {
-                        let responseInfo = format.readTransactionResponse(response);
-                        if (responseInfo.transactionSummary.totalDeleted) {
-                            console.log("totalDeleted: ", responseInfo.transactionSummary.totalDeleted);
-                        }
-                        if (responseInfo.transactionSummary.totalInserted) {
-                            console.log("totalInserted: ", responseInfo.transactionSummary.totalInserted);
-                        }
-                        if (responseInfo.transactionSummary.totalUpdated) {
-                            console.log("totalUpdated: ", responseInfo.transactionSummary.totalUpdated);
-                        }
-                        console.assert(toInsert.length === responseInfo.transactionSummary.totalInserted, "number inserted should equal number of new keys");
-                        toInsert.forEach((f, i) => {
-                            let id = responseInfo.insertIds[i];
-                            f.set("gid", id.split(".").pop());
-                            f.setId(id);
-                        });
+                        console.warn("TODO: key assignment", serializer.serializeToString(response));
                     }
                 });
             };
@@ -13247,11 +13180,11 @@ define("ol3-lab/tests/data/maplet", ["require", "exports"], function (require, e
         "href": "http://localhost/850rs/api/property/agencymaps/rhythm-civics-wizard"
     };
 });
-define("ol3-lab/labs/workflow/ol-workflow", ["require", "exports", "openlayers", "ol3-lab/tests/data/maplet"], function (require, exports, ol, maplet_1) {
+define("ol3-lab/labs/workflow/ol-workflow", ["require", "exports", "jquery", "openlayers", "ol3-lab/tests/data/maplet"], function (require, exports, $, ol, maplet_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     const styleInfo = {
-        textScale: 2,
+        textScale: 1,
         controlFillColor: "#ccc",
         controlStrokeColor: "#333",
         connectorStrokeColor: "rgba(255, 255, 255, 0.1)",
@@ -13269,6 +13202,10 @@ define("ol3-lab/labs/workflow/ol-workflow", ["require", "exports", "openlayers",
         rightArrow: "►",
         plus: "➕"
     };
+    function injectCss(css) {
+        let style = $(`<style type='text/css'>${css}</style>`);
+        style.appendTo('head');
+    }
     function rotation([x1, y1], [x2, y2]) {
         let dx = x2 - x1;
         let dy = y2 - y1;
@@ -13306,14 +13243,14 @@ define("ol3-lab/labs/workflow/ol-workflow", ["require", "exports", "openlayers",
             if (this.source)
                 this.source.clear();
             this.workFlowItem.forEach((item1, i) => {
-                item1.column = Math.max(i, item1.column);
-                item1.row = Math.max(0, item1.row);
-                let columnOffset = 1;
+                item1.column = i;
+                item1.row = 0;
+                let columnOffset = 0;
                 let rowOffset = 1;
-                item1.connections.forEach((item2) => {
+                item1.connections.forEach((item2, j) => {
                     let child = item2.item;
-                    child.column = Math.max(child.column + columnOffset, child.column);
-                    child.row = Math.max(item1.row + rowOffset, child.row);
+                    child.column = Math.max(child.column, item1.column);
+                    child.row = Math.max(child.row, item1.row + rowOffset++);
                 });
             });
             this.source = renderWorkflow(this.map, this);
@@ -13344,7 +13281,7 @@ define("ol3-lab/labs/workflow/ol-workflow", ["require", "exports", "openlayers",
                                 color: "black",
                                 width: 1,
                             }),
-                            scale: 2
+                            scale: styleInfo.textScale
                         })
                     });
                     let arrowStyle = new ol.style.Style({
@@ -13360,7 +13297,7 @@ define("ol3-lab/labs/workflow/ol-workflow", ["require", "exports", "openlayers",
                                 color: styleInfo.connectorStrokeColor,
                                 width: 1,
                             }),
-                            scale: 2,
+                            scale: styleInfo.textScale,
                             rotation: Math.PI / 2 * (downArrow ? 1 : -1)
                         })
                     });
@@ -13435,6 +13372,11 @@ define("ol3-lab/labs/workflow/ol-workflow", ["require", "exports", "openlayers",
         return source;
     }
     function run() {
+        injectCss(`html, body, .map {
+        width: 100%;
+        height: 100%;
+        overflow: none;
+    }`);
         let options = {
             target: document.getElementsByClassName("map")[0],
             projection: "EPSG:3857",
@@ -13482,7 +13424,7 @@ define("ol3-lab/labs/workflow/ol-workflow", ["require", "exports", "openlayers",
                             color: styleInfo.connectorStrokeColor,
                             width: 1,
                         }),
-                        scale: 2,
+                        scale: styleInfo.textScale,
                         rotation: Math.PI / 2
                     })
                 });
@@ -13498,7 +13440,7 @@ define("ol3-lab/labs/workflow/ol-workflow", ["require", "exports", "openlayers",
                                 color: "black",
                                 width: 2,
                             }),
-                            scale: 3
+                            scale: 1 + styleInfo.textScale
                         })
                     });
                     f.setStyle([selectStyle, arrowStyle, titleStyle]);
@@ -13590,6 +13532,38 @@ define("ol3-lab/labs/workflow/ol-workflow", ["require", "exports", "openlayers",
                 workflowItem.connect(childItem, event.mid);
             });
         });
+    }
+    class DrawGraph {
+        position(node) {
+            let _visited = [];
+            let visited = (n) => 0 <= _visited.indexOf(n);
+            let visit = (n) => {
+                if (visited(n))
+                    return;
+                if (n.children) {
+                    let dx = -n.children.length / 2;
+                    n.children.forEach(c => {
+                        c.dx = dx++;
+                        if (!c.parents) {
+                            c.parents = [];
+                        }
+                        c.parents.push(n);
+                        visit(c);
+                    });
+                }
+            };
+            node.dx = node.dy = 0;
+            visit(node);
+            let assignDy = (n) => {
+                let dy = n.dy;
+                if (n.children) {
+                    n.children.forEach(c => {
+                        c.dy = Math.max(c.dy, 1 + dy);
+                        assignDy(c);
+                    });
+                }
+            };
+        }
     }
 });
 define("ol3-lab/tests/ags-format", ["require", "exports", "openlayers"], function (require, exports, ol) {
