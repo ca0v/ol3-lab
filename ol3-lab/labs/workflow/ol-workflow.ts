@@ -148,6 +148,7 @@ class WorkFlow {
                 let titleStyle = new ol.style.Style({
                     text: new ol.style.Text({
                         text: item2.purpose,
+                        placement: "line",
                         fill: new ol.style.Fill({
                             color: styleInfo.connectorTextFillColor,
                         }),
@@ -163,6 +164,8 @@ class WorkFlow {
                     geometry: new ol.geom.Point(p2),
                     text: new ol.style.Text({
                         text: `${styleInfo.rightArrow}`,
+                        placement: "point",
+                        textBaseline: "middle",
                         offsetX: 0,
                         offsetY: downArrow ? -5 : 105,
                         fill: new ol.style.Fill({
