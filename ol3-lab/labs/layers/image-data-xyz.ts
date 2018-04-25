@@ -1,5 +1,28 @@
+import * as $ from "jquery";
 import ol = require("openlayers");
 import * as imageData from "../../tests/data/image-data";
+
+$(`<style name="popup" type="text/css">
+.map {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0
+}
+</style>`).appendTo("head");
+
+function drawImageScaled(img: HTMLImageElement, ctx: CanvasRenderingContext2D) {
+    var canvas = ctx.canvas;
+    var hRatio = canvas.width / img.width;
+    var vRatio = canvas.height / img.height;
+    var ratio = Math.max(hRatio, vRatio);
+    var centerShift_x = (canvas.width - img.width * ratio) / 2;
+    var centerShift_y = (canvas.height - img.height * ratio) / 2;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0, img.width, img.height,
+        centerShift_x, centerShift_y, img.width * ratio, img.height * ratio);
+}
 
 // not sure how to declare TileState outside of the ol.d.ts so duplicating here
 enum TileState {
@@ -23,11 +46,16 @@ declare namespace olx {
 
 class ImageDataTile extends ol.Tile {
 
-    private imageSize = [672,527]; // where to set this?
+    private state: TileState; // does not shadow
+    private changed: Function; // does not shadow
+    private tileSize: [number, number];
     private context: CanvasRenderingContext2D;
 
-    constructor(public tileCoord: [number, number, number], public state = TileState.IDLE) {
-        super(tileCoord, state);
+    constructor(public tileCoord: [number, number, number], options : {
+        tileSize: [number, number]
+    }) {        
+        super(tileCoord, TileState.IDLE);
+        this.tileSize = options.tileSize;
         this.load();
     }
 
@@ -36,15 +64,13 @@ class ImageDataTile extends ol.Tile {
             console.log("load not IDLE");
             return;
         }
-        let [width, height] = this.imageSize;
+        let [width, height] = this.tileSize;
         let context = this.context;
         if (!context) {
             context = this.context = ol.dom.createCanvasContext2D(width, height) as CanvasRenderingContext2D;
             let image = new Image();
             image.onload = () => {
-                context.fillStyle = "silver";
-                context.fillRect(0, 0, width, height);
-                context.drawImage(image, 0, 0);
+                drawImageScaled(image, context);
                 this.state = TileState.LOADED;
                 this.changed();
             }
@@ -83,7 +109,11 @@ class ImageDataSource extends ol.source.Tile {
         let tile: ol.Tile;
 
         if (!this.tileCache.containsKey(tileCoordKey)) {
-            tile = new ImageDataTile([z, x, y]);
+            let tileGrid = this.getTileGrid();
+            let tileSize = ol.size.toSize(tileGrid.getTileSize(z)) as [number, number];
+            tile = new ImageDataTile([z, x, y], {
+                tileSize: tileSize
+            });
             this.tileCache.set(tileCoordKey, tile);
         } else {
             tile = this.tileCache.get(tileCoordKey);
@@ -95,19 +125,29 @@ class ImageDataSource extends ol.source.Tile {
 export function run() {
     console.log("running layers/image-data-xyz");
 
-    let projection = "EPSG:4326";
+    let projection = ol.proj.get("EPSG:4326");
+
+    let tileGrid = ol.tilegrid.createXYZ({
+        extent: projection.getExtent(),
+        minZoom: 0,
+        maxZoom: 20,
+        tileSize: 512,
+    });
 
     let map = new ol.Map({
         target: "map",
         view: new ol.View({
             projection: projection,
             center: [-82.4, 34.85],
-            zoom: 15
+            zoom: 15,
+            minZoom: tileGrid.getMinZoom(),
+            maxZoom: tileGrid.getMaxZoom(),
         }),
         layers: [new ImageDataLayer({
             source: new ImageDataSource({
                 opaque: false,
-                projection: projection
+                projection: projection,
+                tileGrid: tileGrid,
             })
         })]
     });
