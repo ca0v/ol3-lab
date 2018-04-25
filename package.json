@@ -11,6 +11,9 @@
     "dev": "live-server --port=5000 --wait=2000 --ignorePattern=.*\\.ts"
   },
   "devDependencies": {
+    "@types/jquery": "^3.3.1",
+    "@types/openlayers": "^4.6.8",
+    "@types/requirejs": "^2.1.31",
     "live-server": "^1.2.0",
     "typescript": "^2.8.1",
     "uglify-js": "^3.3.20"
