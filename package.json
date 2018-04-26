@@ -1,2 +1,22 @@
 {
+  "name": "ol3-lab",
+  "version": "4.6.5",
+  "description": "OpenLayers Lab",
+  "main": "index.js",
+  "scripts": {
+    "compile": "tsc || echo",
+    "compress": "pushd built && uglifyjs index.js --source-map \"filename='index.js.map' content='index.js.map'\" --output index.js --compress --mangle && popd",
+    "build": "npm run compile && npm run compress",
+    "watch": "tsc -w",
+    "dev": "live-server --port=5000 --wait=2000 --ignorePattern=.*\\.ts"
+  },
+  "devDependencies": {
+    "@types/jquery": "^3.3.1",
+    "@types/openlayers": "^4.6.8",
+    "@types/requirejs": "^2.1.31",
+    "live-server": "^1.2.0",
+    "openlayers": "^4.6.5",
+    "typescript": "^2.8.1",
+    "uglify-js": "^3.3.20"
+  }
 }

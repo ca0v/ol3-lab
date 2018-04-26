@@ -5,3 +5,4 @@ bower_components
 jspm_packages
 typings
 *.log
+package-lock.json

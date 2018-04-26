@@ -6,50 +6,50 @@
     <style>
         @import url('./bower_components/openlayers/ol.css');
         @import url('./bower_components/ol3-layerswitcher/built/css/ol3-layerswitcher.css');
-        @import url('./ol3-lab/app.css');
     </style>
-<script src="bower_components/requirejs/require.js"></script>
+    <link rel="stylesheet" type="text/css" href="./ol3-lab/app.css">
+    <script src="bower_components/requirejs/require.js"></script>
 
-<script>
-    (() => {
+    <script>
+        (() => {
 
-        function getParameterByName(name, url = window.location.href) {
-            name = name.replace(/[\[\]]/g, "\\$&");
-            var regex = new RegExp("[?&]" + name + "(=([^&#]*)|&|#|$)"),
-                results = regex.exec(url);
-            if (!results) return null;
-            if (!results[2]) return '';
-            return decodeURIComponent(results[2].replace(/\+/g, " "));
-        }
-
-        let run = getParameterByName("run") || "ol3-lab/labs/index";
-        let debug = getParameterByName("debug") === "1";
-
-        requirejs.config({
-            packages: [
-                {
-                    name: 'xstyle',
-                    location: 'bower_components/xstyle',
-                    main: 'xstyle'
-                }
-            ],
-            paths: {
-                "resize-sensor": "bower_components/ResizeSensor/index",
-                "openlayers": debug ? "bower_components/openlayers/ol-debug" : "bower_components/openlayers/ol",
-                "jquery": debug ? "bower_components/jquery/dist/jquery.min" : "bower_components/jquery/dist/jquery.min"
-            },
-            deps: [
-                "built/index"
-                ],
-            callback: () => {
-                require([run], test => {
-                    setTimeout(() => test.run ? test.run() : test(), 0);
-                });
+            function getParameterByName(name, url = window.location.href) {
+                name = name.replace(/[\[\]]/g, "\\$&");
+                var regex = new RegExp("[?&]" + name + "(=([^&#]*)|&|#|$)"),
+                    results = regex.exec(url);
+                if (!results) return null;
+                if (!results[2]) return '';
+                return decodeURIComponent(results[2].replace(/\+/g, " "));
             }
-        });
 
-    })();
-</script>
+            let run = getParameterByName("run") || "ol3-lab/labs/index";
+            let debug = getParameterByName("debug") === "1";
+
+            requirejs.config({
+                packages: [
+                    {
+                        name: 'xstyle',
+                        location: 'bower_components/xstyle',
+                        main: 'xstyle'
+                    }
+                ],
+                paths: {
+                    "resize-sensor": "bower_components/ResizeSensor/index",
+                    "openlayers": debug ? "bower_components/openlayers/ol-debug" : "bower_components/openlayers/ol",
+                    "jquery": debug ? "bower_components/jquery/dist/jquery.min" : "bower_components/jquery/dist/jquery.min"
+                },
+                deps: [
+                    "built/index"
+                ],
+                callback: () => {
+                    require([run], test => {
+                        setTimeout(() => test.run ? test.run() : test(), 0);
+                    });
+                }
+            });
+
+        })();
+    </script>
 </head>
 
 <body>

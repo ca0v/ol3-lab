@@ -12,6 +12,7 @@ export function run() {
     ol-popup
     ol-search
     ol-symbolizer
+    workflow/ol-workflow
 
     ../ux/ags-symbols
 

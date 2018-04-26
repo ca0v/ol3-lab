@@ -3,8 +3,7 @@
 
 <head>
     <style>
-        @import url('https://cdnjs.cloudflare.com/ajax/libs/ol3/3.20.1/ol.css');
-        @import url('https://rawgit.com/ca0v/ol3-layerswitcher/v2.0.5/built/css/ol3-layerswitcher.css');
+        @import url('https://cdnjs.cloudflare.com/ajax/libs/openlayers/4.6.5/ol.css');
         @import url('./ol3-lab/app.css');
     </style>
 
@@ -35,8 +34,8 @@
             ],
             paths: {
                 "resize-sensor": "https://rawgit.com/marcj/css-element-queries/master/src/ResizeSensor",
-                "openlayers": "https://cdnjs.cloudflare.com/ajax/libs/ol3/3.20.1/ol" + (debug ? "-debug" : ""),
-                "jquery": "https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.1/jquery" + (!debug ? ".min" : "")
+                "openlayers": debug ? "https://cdnjs.cloudflare.com/ajax/libs/openlayers/4.6.5/ol-debug" : "https://cdnjs.cloudflare.com/ajax/libs/openlayers/4.6.5/ol",
+                "jquery": debug ? "https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.1/jquery" : "https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.1/jquery.min"
             },
             deps: [
                 "built/index"

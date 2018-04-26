@@ -1,7 +1,3 @@
 {
-  "globalDependencies": {
-    "jquery": "registry:dt/jquery#1.10.0+20170123093700",
-    "openlayers": "registry:dt/openlayers#3.20.0+20170107012031",
-    "require": "registry:dt/require#2.1.20+20160919185614"
-  }
+  "globalDependencies": {}
 }

@@ -1,16 +1,11 @@
 import ol = require("openlayers");
 import {run as mapmaker} from "../labs/mapmaker";
 import {Route} from "../labs/route-editor";
+import { range } from "ol3-fun/ol3-fun/common";
 
 function midpoint(points: number[][]) {
     let p0 = points.reduce((sum, p) => p.map((v, i) => v + sum[i]));
     return p0.map(v => v / points.length);
-}
-
-var range = (n: number) => {
-    var r = new Array(n);
-    for (var i = 0; i < n; i++) r[i] = i;
-    return r;
 }
 
 export function run() {
@@ -50,12 +45,14 @@ export function run() {
 
         let shift = [-0.001, -0.005];
         while (colors.length) {
-            let startstop = [a + (c - a) * Math.random(), b + (d - b) * Math.random()].map((v, i) => v + shift[i]);
+            let stops = range(8).map(v => <ol.Coordinate>[a + (c - a) * Math.random(), b + (d - b) * Math.random()].map((v, i) => v + shift[i]));
+            let startstop = <ol.Coordinate>[a + (c - a) * Math.random(), b + (d - b) * Math.random()].map((v, i) => v + shift[i]);
+            
             let route = new Route({
                 color: colors.pop(),
                 start: startstop,
                 finish: startstop,
-                stops: range(8).map(v => [a + (c - a) * Math.random(), b + (d - b) * Math.random()].map((v, i) => v + shift[i]))
+                stops: stops
             });
             shift = shift.map(v => v + 0.005);
             routes.push(route);

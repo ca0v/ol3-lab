@@ -26,6 +26,8 @@ let html = `
         <button class='share'>Share</button>
         <button class='clone'>Add</button>
     </div>
+    <div class='dock-container'>
+    </div>
 </div>
 `;
 
@@ -79,6 +81,16 @@ let css = `
         border: 1px solid black;
         background: white;
     }
+
+    .mapmaker .dock-container {
+        position: relative;
+        background: transparent;
+        left: 10em;
+        top: 1em;
+        width: 12em;
+        height: 15em;
+    }
+
     button.clone {
         display:none;
     }
