@@ -3,7 +3,7 @@
         "removeComments": true,
         "declaration": false,
         "module": "amd",
-        "target": "es6",
+        "target": "es3",
         "noImplicitAny": true,
         "sourceMap": true,
         "outFile": "./built/index.js",

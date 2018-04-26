@@ -34,8 +34,8 @@
             ],
             paths: {
                 "resize-sensor": "https://rawgit.com/marcj/css-element-queries/master/src/ResizeSensor",
-                "openlayers": "https://cdnjs.cloudflare.com/ajax/libs/openlayers/4.6.5/ol" + (debug ? "-debug" : ""),
-                "jquery": "https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.1/jquery" + (!debug ? ".min" : "")
+                "openlayers": debug ? "https://cdnjs.cloudflare.com/ajax/libs/openlayers/4.6.5/ol-debug" : "https://cdnjs.cloudflare.com/ajax/libs/openlayers/4.6.5/ol",
+                "jquery": debug ? "https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.1/jquery" : "https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.1/jquery.min"
             },
             deps: [
                 "built/index"
