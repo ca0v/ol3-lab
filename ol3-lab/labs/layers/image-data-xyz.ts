@@ -12,16 +12,6 @@ $(`<style name="popup" type="text/css">
 }
 </style>`).appendTo("head");
 
-// not sure how to declare TileState outside of the ol.d.ts so duplicating here
-enum TileState {
-    IDLE = 0,
-    LOADING = 1,
-    LOADED = 2,
-    ERROR = 3,
-    EMPTY = 4,
-    ABORT = 5
-}
-
 export function run() {
     console.log("running layers/image-data-xyz");
 

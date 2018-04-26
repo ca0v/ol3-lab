@@ -7310,15 +7310,6 @@ define("ol3-lab/labs/layers/image-data-xyz", ["require", "exports", "jquery", "o
     "use strict";
     exports.__esModule = true;
     $("<style name=\"popup\" type=\"text/css\">\n.map {\n    position: absolute;\n    top: 0;\n    left: 0;\n    right: 0;\n    bottom: 0\n}\n</style>").appendTo("head");
-    var TileState;
-    (function (TileState) {
-        TileState[TileState["IDLE"] = 0] = "IDLE";
-        TileState[TileState["LOADING"] = 1] = "LOADING";
-        TileState[TileState["LOADED"] = 2] = "LOADED";
-        TileState[TileState["ERROR"] = 3] = "ERROR";
-        TileState[TileState["EMPTY"] = 4] = "EMPTY";
-        TileState[TileState["ABORT"] = 5] = "ABORT";
-    })(TileState || (TileState = {}));
     function run() {
         console.log("running layers/image-data-xyz");
         var projection = ol.proj.get("EPSG:4326");
