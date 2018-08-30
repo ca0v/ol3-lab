@@ -5,6 +5,7 @@ aspects of OpenLayers and related spatial libraries
 
 ## All Examples
 
+* [index (v5.1.3)](https://rawgit.com/ca0v/ol3-lab/v5.1.3/rawgit.html?run=ol3-lab/labs/index)
 * [index (v4.6.5)](https://rawgit.com/ca0v/ol3-lab/v4.6.5/rawgit.html?run=ol3-lab/labs/index)
 * [index (master)](https://rawgit.com/ca0v/ol3-lab/master/rawgit.html?run=ol3-lab/labs/index)
 

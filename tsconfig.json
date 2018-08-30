@@ -7,16 +7,15 @@
         "noImplicitAny": true,
         "sourceMap": true,
         "outFile": "./built/index.js",
-        "moduleResolution": "node",
-        "baseUrl": "./bower_components"
+        "moduleResolution": "classic",
+        "baseUrl": "./node_modules"
     },
     "lib": [
         "es2015"
     ],
     "include": [
         "ol3-lab.ts",
-        "ol3-lab",
-        "typings/index.d.ts"
+        "ol3-lab/**/*."
     ],
     "exclude": [
         "ol3-lab/tests/data/routes",

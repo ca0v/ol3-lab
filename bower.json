@@ -17,21 +17,11 @@
     "tests"
   ],
   "dependencies": {
-    "openlayers": "https://github.com/openlayers/openlayers/releases/download/v4.6.5/v4.6.5-dist.zip",
-    "requirejs": "^2.3.2",
-    "jquery": "^3.1.1",
     "ol3-popup": "git://github.com/ca0v/ol3-popup.git#v3.20.1",
     "ResizeSensor": "https://raw.githubusercontent.com/marcj/css-element-queries/master/src/ResizeSensor.js",
-    "ol3-layerswitcher": "git://github.com/ca0v/ol3-layerswitcher#v3.20.1",
-    "ol3-symbolizer": "git://github.com/ca0v/ol3-symbolizer.git#v3.20.1",
     "ol3-panzoom": "git://github.com/ca0v/ol3-panzoom.git#v3.20.1",
-    "ol3-input": "git://github.com/ca0v/ol3-input.git#v3.20.1",
     "ol3-grid": "git://github.com/ca0v/ol3-grid.git#v3.20.1",
-    "ol3-fun": "git://github.com/ca0v/ol3-fun.git#v3.20.1",
     "ol3-draw": "git://github.com/ca0v/ol3-draw.git#v4.0.1",
     "ol3-search": "git://github.com/ca0v/ol3-search.git#v4.0.1"
-  },
-  "resolutions": {
-    "ol3-fun": "v4.0.1"
   }
 }

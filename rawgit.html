@@ -3,52 +3,60 @@
 
 <head>
     <style>
-        @import url('https://cdnjs.cloudflare.com/ajax/libs/openlayers/4.6.5/ol.css');
+        @import url('https://cdn.rawgit.com/openlayers/openlayers.github.io/master/en/v5.1.3/css/ol.css');
         @import url('./ol3-lab/app.css');
     </style>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.2/require.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.2/require.min.js"></script>
 
-<script>
-    (() => {
+    <script>
+        (() => {
 
-        function getParameterByName(name, url = window.location.href) {
-            name = name.replace(/[\[\]]/g, "\\$&");
-            var regex = new RegExp("[?&]" + name + "(=([^&#]*)|&|#|$)"),
-                results = regex.exec(url);
-            if (!results) return null;
-            if (!results[2]) return '';
-            return decodeURIComponent(results[2].replace(/\+/g, " "));
-        }
-
-        let run = getParameterByName("run") || "ol3-lab/labs/index";
-        let debug = getParameterByName("debug") === "1";
-
-        requirejs.config({
-            packages: [
-                {
-                    name: 'xstyle',
-                    location: 'https://cdn.rawgit.com/kriszyp/xstyle/v0.3.2',
-                    main: debug ? 'xstyle' : 'xstyle'
-                }
-            ],
-            paths: {
-                "resize-sensor": "https://rawgit.com/marcj/css-element-queries/master/src/ResizeSensor",
-                "openlayers": debug ? "https://cdnjs.cloudflare.com/ajax/libs/openlayers/4.6.5/ol-debug" : "https://cdnjs.cloudflare.com/ajax/libs/openlayers/4.6.5/ol",
-                "jquery": debug ? "https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.1/jquery" : "https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.1/jquery.min"
-            },
-            deps: [
-                "built/index"
-            ],
-            callback: () => {
-                require([run], test => {
-                    test.run ? test.run() : test();
-                });
+            function getParameterByName(name, url = window.location.href) {
+                name = name.replace(/[\[\]]/g, "\\$&");
+                var regex = new RegExp("[?&]" + name + "(=([^&#]*)|&|#|$)"),
+                    results = regex.exec(url);
+                if (!results) return null;
+                if (!results[2]) return '';
+                return decodeURIComponent(results[2].replace(/\+/g, " "));
             }
-        });
 
-    })();
-</script>
+            let run = getParameterByName("run") || "ol3-lab/ol3-lab/labs/index";
+            let debug = getParameterByName("debug") === "1";
+
+            requirejs.config({
+                shim: {
+                    // no need to wrap ol in a define method when using a shim
+                    // build this using the "npm run build-legacy" (see ol package.json)
+                    "openlayers": {
+                        deps: [], // no dependencies, needs path to indicate where to find "openlayers"
+                        exports: "ol", // tell requirejs which global this library defines
+                    }
+                },
+                packages: [
+                    {
+                        name: 'xstyle',
+                        location: 'https://cdn.rawgit.com/kriszyp/xstyle/v0.3.2',
+                        main: debug ? 'xstyle' : 'xstyle'
+                    }
+                ],
+                paths: {
+                    "resize-sensor": "https://rawgit.com/marcj/css-element-queries/master/src/ResizeSensor",
+                    "openlayers": "https://cdn.rawgit.com/openlayers/openlayers.github.io/master/en/v5.1.3/build/ol",
+                    "jquery": debug ? "https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.1/jquery" : "https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.1/jquery.min"
+                },
+                deps: [
+                    "built/index"
+                ],
+                callback: () => {
+                    require([run], test => {
+                        test.run ? test.run() : test();
+                    });
+                }
+            });
+
+        })();
+    </script>
 </head>
 
 <body>

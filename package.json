@@ -1,22 +1,29 @@
 {
   "name": "ol3-lab",
-  "version": "4.6.5",
+  "version": "5.1.3",
   "description": "OpenLayers Lab",
   "main": "index.js",
   "scripts": {
-    "compile": "tsc || echo",
+    "clean": "rm built/** -rf",
+    "compile": "tsc",
     "compress": "pushd built && uglifyjs index.js --source-map \"filename='index.js.map' content='index.js.map'\" --output index.js --compress --mangle && popd",
-    "build": "npm run compile && npm run compress",
+    "build": "npm run clean && npm run compile && npm run compress",
     "watch": "tsc -w",
-    "dev": "live-server --port=5000 --wait=2000 --ignorePattern=.*\\.ts"
+    "live": "live-server --port=5000 --wait=2000 --watch=./built/*.js open=./rawgit.html",
+    "test": "start npm run live && npm run watch"
   },
   "devDependencies": {
-    "@types/jquery": "^3.3.1",
+    "@types/jquery": "^3.3.6",
     "@types/openlayers": "^4.6.8",
     "@types/requirejs": "^2.1.31",
+    "jquery": "^3.3.1",
     "live-server": "^1.2.0",
-    "openlayers": "^4.6.5",
-    "typescript": "^2.8.1",
+    "ol": "^5.1.3",
+    "ol3-fun": "https://github.com/ca0v/ol3-fun/tarball/v5.1.3",
+    "ol3-input": "https://github.com/ca0v/ol3-input/tarball/v5.1.3",
+    "ol3-symbolizer": "https://github.com/ca0v/ol3-symbolizer/tarball/v5.1.3",
+    "requirejs": "^2.3.6",
+    "typescript": "^3.0.3",
     "uglify-js": "^3.3.20"
   }
 }
