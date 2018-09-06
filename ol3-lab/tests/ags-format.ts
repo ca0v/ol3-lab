@@ -1,4 +1,3 @@
-/// <reference path="../typings/index.d.ts" />
 import Point = require("esri/geometry/Point"); // global typings
 import Polyline = require("esri/geometry/Polyline"); // global typings
 import Polygon = require("esri/geometry/Polygon"); // global typings

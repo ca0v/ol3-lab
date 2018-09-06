@@ -1,135 +1,134 @@
 import ol = require("openlayers");
 import Directions = require("./ol3-lab/ux/mapquest-directions-proxy");
 import Route = require("./ol3-lab/ux/mapquest-optimized-route-proxy");
-import Traffic = require("./ol3-lab/ux/mapquest-traffic-proxy");
-import Geocoding = require("./ol3-lab/ux/mapquest-geocoding-proxy");
-import Search = require("./ol3-lab/ux/mapquest-search-proxy");
-import Osrm = require("./ol3-lab/ux/osrm-proxy");
 import $ = require("jquery");
-import ResizeSensor = require("resize-sensor");
+import ResizeSensor = require("css-element-queries/src/ResizeSensor");
+import { MapQuestDirections } from "./d.ts/mapquest";
 
 class Tests {
+	heatmap() {
+		let map = new ol.Map({
+			target: "map",
+			view: new ol.View({
+				projection: "EPSG:4326",
+				center: [-82.4, 34.85],
+				zoom: 15,
+			}),
+			layers: [
+				new ol.layer.Tile({
+					source: new ol.source.OSM(<any>{
+						layer: "sat",
+					}),
+				}),
+			],
+		});
 
-    heatmap() {
-        let map = new ol.Map({
-            target: "map",
-            view: new ol.View({
-                projection: 'EPSG:4326',
-                center: [-82.4, 34.85],
-                zoom: 15
-            }),
-            layers: [new ol.layer.Tile({
-                source: new ol.source.OSM({
-                    layer: "sat"
-                })
-            })]
-        });
+		return map;
+	}
 
-        return map;
-    }
+	renderRoute(map: ol.Map, result: MapQuestDirections.Response) {
+		let lr = result.route.boundingBox.lr;
+		let ul = result.route.boundingBox.ul;
+		// lon,lat <==> x,y;
+		// ul => max y, min x;
+		// lr => min y, max x
+		map.getView().fit([ul.lng, lr.lat, lr.lng, ul.lat]);
 
-    renderRoute(map: ol.Map, result: MapQuestDirections.Response) {
+		let points = <ol.Coordinate[]>[];
 
-        let lr = result.route.boundingBox.lr;
-        let ul = result.route.boundingBox.ul;
-        // lon,lat <==> x,y;
-        // ul => max y, min x; 
-        // lr => min y, max x
-        map.getView().fit([ul.lng, lr.lat, lr.lng, ul.lat], map.getSize());
+		for (let i = 0; i < result.route.shape.shapePoints.length; i += 2) {
+			let [lat, lon] = [result.route.shape.shapePoints[i], result.route.shape.shapePoints[i + 1]];
+			points.push([lon, lat]);
+		}
 
-        let points = <ol.Coordinate[]>[];
+		console.log("points", points);
 
-        for (let i = 0; i < result.route.shape.shapePoints.length; i += 2) {
-            let [lat, lon] = [result.route.shape.shapePoints[i], result.route.shape.shapePoints[i + 1]];
-            points.push([lon, lat]);
-        }
+		let geom = new ol.geom.LineString(points);
 
-        console.log("points", points);
+		let route = new ol.Feature({
+			geometry: geom,
+		});
 
-        let geom = new ol.geom.LineString(points);
+		route.setStyle(
+			new ol.style.Style({
+				stroke: new ol.style.Stroke({
+					color: "red",
+					width: 5,
+				}),
+			}),
+		);
 
-        let route = new ol.Feature({
-            geometry: geom
-        });
+		let source = new ol.source.Vector({
+			features: [route],
+		});
 
-        route.setStyle(new ol.style.Style({
-            stroke: new ol.style.Stroke({
-                color: "red",
-                width: 5
-            })
-        }));
+		let routeLayer = new ol.layer.Vector({
+			source: source,
+		});
 
-        let source = new ol.source.Vector({
-            features: [route]
-        });
+		result.route.locations.forEach(l => {
+			let location = new ol.Feature({
+				geometry: new ol.geom.Point([l.latLng.lng, l.latLng.lat]),
+			});
+			source.addFeature(location);
+		});
 
-        let routeLayer = new ol.layer.Vector({
-            source: source
-        });
+		map.addLayer(routeLayer);
 
-        result.route.locations.forEach(l => {
-            let location = new ol.Feature({
-                geometry: new ol.geom.Point([l.latLng.lng, l.latLng.lat])
-            });
-            source.addFeature(location);
-        });
+		result.route.legs.forEach(leg => {
+			console.log(leg.destNarrative, leg.maneuvers.map(m => m.narrative).join("\n\t"));
+		});
+	}
 
-        map.addLayer(routeLayer);
+	resize(map: ol.Map) {
+		console.log("map should become portrait in 3 seconds");
+		setTimeout(() => $(".map").addClass("portrait"), 3000);
 
-        result.route.legs.forEach(leg => {
-            console.log(leg.destNarrative, leg.maneuvers.map(m => m.narrative).join("\n\t"));
-        });
+		console.log("map should become landscape in 5 seconds");
+		setTimeout(() => $(".map").removeClass("portrait"), 5000);
 
-    }
+		console.log("map should become resize aware in 7 seconds");
+		setTimeout(() => {
+			//$(".map").resize(() => map.updateSize());
+			new ResizeSensor($(".map")[0], () => map.updateSize());
+		}, 7000);
 
-    resize(map: ol.Map) {
-        console.log("map should become portrait in 3 seconds");
-        setTimeout(() => $(".map").addClass("portrait"), 3000);
-
-        console.log("map should become landscape in 5 seconds");
-        setTimeout(() => $(".map").removeClass("portrait"), 5000);
-
-        console.log("map should become resize aware in 7 seconds");
-        setTimeout(() => {
-            //$(".map").resize(() => map.updateSize());
-            new ResizeSensor($(".map")[0], () => map.updateSize());
-        }, 7000);
-
-        console.log("map should become portrait in 9 seconds");
-        setTimeout(() => $(".map").addClass("portrait"), 9000);
-    }
+		console.log("map should become portrait in 9 seconds");
+		setTimeout(() => $(".map").addClass("portrait"), 9000);
+	}
 }
 
 function run() {
-    console.log("ol3 playground");
-    let tests = new Tests();
-    //tests.polylineEncoder();
-    let map = tests.heatmap();
-    //Osrm.test();
-    //Search.test();
-    //Geocoding.test();
-    //Traffic.test();
-    let l1 = [
-        "550 S Main St 101, Greenville, SC 29601",
-        "207 N Main St, Greenville, SC 29601",
-        "100 S Main St 101, Greenville, SC 29601"];
+	console.log("ol3 playground");
+	let tests = new Tests();
+	//tests.polylineEncoder();
+	let map = tests.heatmap();
+	//Osrm.test();
+	//Search.test();
+	//Geocoding.test();
+	//Traffic.test();
+	let l1 = [
+		"550 S Main St 101, Greenville, SC 29601",
+		"207 N Main St, Greenville, SC 29601",
+		"100 S Main St 101, Greenville, SC 29601",
+	];
 
-    let l2 = [
-        "34.845546,-82.401672",
-        "34.845547,-82.401674"];
+	let l2 = ["34.845546,-82.401672", "34.845547,-82.401674"];
 
-    false && Route.test({
-        from: "50 Datastream Plaza, Greenville, SC",
-        to: "50 Datastream Plaza, Greenville, SC",
-        locations: l2
-    }).then(result => tests.renderRoute(map, result));
+	false &&
+		Route.test({
+			from: "50 Datastream Plaza, Greenville, SC",
+			to: "50 Datastream Plaza, Greenville, SC",
+			locations: l2,
+		}).then(result => tests.renderRoute(map, result));
 
-    false && Directions.test({
-        from: "50 Datastream Plaza, Greenville, SC",
-        to: ["550 S Main St 101, Greenville, SC 29601", "207 N Main St, Greenville, SC 29601"]
-    }).then(result => tests.renderRoute(map, result));
-    
-    tests.resize(map);
+	false &&
+		Directions.test({
+			from: "50 Datastream Plaza, Greenville, SC",
+			to: ["550 S Main St 101, Greenville, SC 29601", "207 N Main St, Greenville, SC 29601"],
+		}).then(result => tests.renderRoute(map, result));
+
+	tests.resize(map);
 }
 
 export = run;

@@ -270,7 +270,9 @@ function createMap(fb: Facebook) {
                 features.push(feature);
             });
             let extent = source.getExtent();
-            map.getView().fit(extent, map.getSize());
+            map.getView().fit(extent, {
+                size: map.getSize()
+            });
         });
     });
 
@@ -307,7 +309,7 @@ export function run() {
             $('.login-button').show();
             $('.logout-button').hide();
             if (map) {
-                map.dispose();
+                map.setTarget(null);
                 map = null;
             }
             $('.fb-pic').remove();

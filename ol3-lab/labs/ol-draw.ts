@@ -1,6 +1,6 @@
 import ol = require("openlayers");
 import { cssin, debounce, mixin } from "ol3-fun/ol3-fun/common";
-import { Draw } from "ol3-draw";
+import { Draw } from "ol3-draw/ol3-draw/ol3-draw";
 import { Modify } from "ol3-draw/ol3-draw/ol3-edit";
 
 function stopInteraction(map: ol.Map, type: any) {

@@ -131,7 +131,7 @@ function loadStyle(name: string) {
     if ('[' === name[0]) {
         d.resolve(JSON.parse(name));
     } else {
-        let mids = name.split(",").map(name => `bower_components/ol3-symbolizer/ol3-symbolizer/styles/${name}`);
+        let mids = name.split(",").map(name => `ol3-lab/node_modules/ol3-symbolizer/ol3-symbolizer/styles/${name}`);
         require(mids, (...styles: T[]) => {
             let style = <T>[];
             styles.forEach(s => style = style.concat(s));
