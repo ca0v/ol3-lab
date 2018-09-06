@@ -3,7 +3,6 @@
 
 <head>
     <style>
-        @import url('https://cdn.rawgit.com/openlayers/openlayers.github.io/master/en/v5.1.3/css/ol.css');
         @import url('./ol3-lab/app.css');
     </style>
 
@@ -11,6 +10,14 @@
 
     <script>
         (() => {
+
+            function loadCss(url) {
+                let link = document.createElement("link");
+                link.type = "text/css";
+                link.rel = "stylesheet";
+                link.href = url;
+                document.getElementsByTagName("head")[0].appendChild(link);
+            }
 
             function getParameterByName(name, url = window.location.href) {
                 name = name.replace(/[\[\]]/g, "\\$&");
@@ -23,6 +30,14 @@
 
             let run = getParameterByName("run") || "ol3-lab/labs/index";
             let debug = getParameterByName("debug") === "1";
+            let localhost = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+
+            loadCss(
+                localhost
+                    ? "../node_modules/ol3-fun/static/ol/v5.1.3/ol.css"
+                    : "https://cdn.rawgit.com/openlayers/openlayers.github.io/master/en/v5.1.3/css/ol.css",
+            );
+
 
             requirejs.config({
                 shim: {

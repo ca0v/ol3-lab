@@ -6,9 +6,12 @@
 		"target": "es3",
 		"noImplicitAny": true,
 		"sourceMap": true,
+		"inlineSourceMap": false,
+		"inlineSources": true,
 		"outFile": "./built/index.js",
 		"moduleResolution": "classic",
-		"baseUrl": "./node_modules"
+		"baseUrl": "./node_modules",
+		"rootDir": "./ol3-lab"
 	},
 	"lib": ["es2015"],
 	"include": ["ol3-lab.ts", "ol3-lab/**/*.ts"],

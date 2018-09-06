@@ -1,24 +1,26 @@
 # OpenLayers Playground
 
-This is Proof of Concept code for learning
-aspects of OpenLayers and related spatial libraries
+Proof of Concept code for learning aspects of OpenLayers and related spatial libraries.
+
+-   [ol3-lab](https://github.com/ca0v/ol3-lab/)
+-   [v5.1.3](https://github.com/ca0v/ol3-lab/tree/v5.1.3/) switches to npm
 
 ## All Examples
 
-* [index (v5.1.3)](https://rawgit.com/ca0v/ol3-lab/v5.1.3/rawgit.html?run=ol3-lab/labs/index)
-* [index (v4.6.5)](https://rawgit.com/ca0v/ol3-lab/v4.6.5/rawgit.html?run=ol3-lab/labs/index)
-* [index (master)](https://rawgit.com/ca0v/ol3-lab/master/rawgit.html?run=ol3-lab/labs/index)
+-   [index (v5.1.3)](https://rawgit.com/ca0v/ol3-lab/v5.1.3/rawgit.html?run=ol3-lab/labs/index)
+-   [index (v4.6.5)](https://rawgit.com/ca0v/ol3-lab/v4.6.5/rawgit.html?run=ol3-lab/labs/index)
+-   [index (master)](https://rawgit.com/ca0v/ol3-lab/master/rawgit.html?run=ol3-lab/labs/index)
 
-## Build using tsd, bower, tsc:
+## Develop
 
-* tsd install
-* bower install
-* tsc -w
+-   `>npm run dev`
 
 ## Style Lab
+
 ![alt text](./ol3-lab/ux/docs/style-lab.png "ux/style-lab")
 
 ![5star](./ol3-lab/ux/docs/5star.png)
+
 ```
 [{
     "star": {
@@ -68,7 +70,6 @@ aspects of OpenLayers and related spatial libraries
 
 ![redheat](./ol3-lab/ux/docs/redheat.png)
 
-
 ```
 [{
     "circle": {
@@ -91,8 +92,8 @@ aspects of OpenLayers and related spatial libraries
 
 ## Polyline Encoder
 
-![before](./ol3-lab/ux/docs/not-simplify.png) 
-![after](./ol3-lab/ux/docs/simplify.png)
+![before](./ol3-lab/ux/docs/not-simplify.png) ![after](./ol3-lab/ux/docs/simplify.png)
+
 ```
 t`syzE}gm_dAm_@A?r@p@Bp@Hp@Ph@Td@Z`@`@Vb@Nd@xUABmF
 ```
