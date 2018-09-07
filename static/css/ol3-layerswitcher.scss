@@ -1,0 +1,82 @@
+//colors
+$color_gallery_approx: #eee;
+$white: white;
+
+.ol-control.layer-switcher {
+    position: absolute;
+    top: 0.5em;
+    right: 0.5em;
+    max-height: calc(100% - 3.5em);
+    overflow-y: auto;
+
+    text-align: left;
+    &.shown {
+        .panel {
+            display: block;
+            min-height: 2em;
+        }
+        button {
+            position: absolute;
+            right: 18px;
+            top: 0.5em;
+            width: 0;
+            height: 0;
+            color: black;
+            &::after {
+                content: "✖";
+            }
+        }
+    }
+    .panel {
+        padding: 0 1em 0 0;
+        margin: 0;
+        background-color: $white;
+        display: none;
+        overflow-y: auto;
+        ul.hide-layer-group {
+            display: none;
+        }
+    }
+    button {
+        &::after {
+            content: "☑";
+        }
+    }
+    ul {
+        margin: 0;
+        padding-left: 1em;
+        padding-top: 2px;
+        padding-bottom: 3px;
+        list-style: none;
+    }
+    li {
+        &.group {
+            > label {
+                font-weight: bold;
+            }
+        }
+        &.layer {
+            display: table;
+            &::after {
+                padding-left: 3px;
+                padding-right: 5px;
+                content: "";
+            }
+            &.loading::after {
+                content: url("./progress-16.gif");
+            }
+            label {
+                display: table-cell;
+                vertical-align: sub;
+            }
+            input {
+                display: table-cell;
+                vertical-align: sub;
+            }
+        }
+    }
+    input {
+        margin: 0;
+        margin-right: 0.5em;
+    }
+}

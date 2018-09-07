@@ -1,0 +1,55 @@
+@charset "UTF-8";
+.ol-control.layer-switcher {
+  position: absolute;
+  top: 0.5em;
+  right: 0.5em;
+  max-height: calc(100% - 3.5em);
+  overflow-y: auto;
+  text-align: left; }
+  .ol-control.layer-switcher.shown .panel {
+    display: block;
+    min-height: 2em; }
+  .ol-control.layer-switcher.shown button {
+    position: absolute;
+    right: 18px;
+    top: 0.5em;
+    width: 0;
+    height: 0;
+    color: black; }
+    .ol-control.layer-switcher.shown button::after {
+      content: "✖"; }
+  .ol-control.layer-switcher .panel {
+    padding: 0 1em 0 0;
+    margin: 0;
+    background-color: white;
+    display: none;
+    overflow-y: auto; }
+    .ol-control.layer-switcher .panel ul.hide-layer-group {
+      display: none; }
+  .ol-control.layer-switcher button::after {
+    content: "☑"; }
+  .ol-control.layer-switcher ul {
+    margin: 0;
+    padding-left: 1em;
+    padding-top: 2px;
+    padding-bottom: 3px;
+    list-style: none; }
+  .ol-control.layer-switcher li.group > label {
+    font-weight: bold; }
+  .ol-control.layer-switcher li.layer {
+    display: table; }
+    .ol-control.layer-switcher li.layer::after {
+      padding-left: 3px;
+      padding-right: 5px;
+      content: ""; }
+    .ol-control.layer-switcher li.layer.loading::after {
+      content: url("./progress-16.gif"); }
+    .ol-control.layer-switcher li.layer label {
+      display: table-cell;
+      vertical-align: sub; }
+    .ol-control.layer-switcher li.layer input {
+      display: table-cell;
+      vertical-align: sub; }
+  .ol-control.layer-switcher input {
+    margin: 0;
+    margin-right: 0.5em; }
