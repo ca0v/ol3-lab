@@ -4,27 +4,25 @@
 import ol = require("openlayers");
 import StyleGenerator = require("../labs/common/style-generator");
 
-import circleSymbol = require("ol3-symbolizer/ol3-symbolizer/styles/ags/simplemarkersymbol-circle");
-import crossSymbol = require("ol3-symbolizer/ol3-symbolizer/styles/ags/simplemarkersymbol-cross");
-import squareSymbol = require("ol3-symbolizer/ol3-symbolizer/styles/ags/simplemarkersymbol-square");
-import diamondSymbol = require("ol3-symbolizer/ol3-symbolizer/styles/ags/simplemarkersymbol-diamond");
-import pathSymbol = require("ol3-symbolizer/ol3-symbolizer/styles/ags/simplemarkersymbol-path");
-import xSymbol = require("ol3-symbolizer/ol3-symbolizer/styles/ags/simplemarkersymbol-x");
-import iconurl = require("ol3-symbolizer/ol3-symbolizer/styles/ags/picturemarkersymbol");
-import iconimagedata = require("ol3-symbolizer/ol3-symbolizer/styles/ags/picturemarkersymbol-imagedata");
-
+import circleSymbol = require("ol3-symbolizer/examples/styles/ags/simplemarkersymbol-circle");
+import crossSymbol = require("ol3-symbolizer/examples/styles/ags/simplemarkersymbol-cross");
+import squareSymbol = require("ol3-symbolizer/examples/styles/ags/simplemarkersymbol-square");
+import diamondSymbol = require("ol3-symbolizer/examples/styles/ags/simplemarkersymbol-diamond");
+import pathSymbol = require("ol3-symbolizer/examples/styles/ags/simplemarkersymbol-path");
+import xSymbol = require("ol3-symbolizer/examples/styles/ags/simplemarkersymbol-x");
+import iconurl = require("ol3-symbolizer/examples/styles/ags/picturemarkersymbol");
+import iconimagedata = require("ol3-symbolizer/examples/styles/ags/picturemarkersymbol-imagedata");
 
 import { StyleConverter } from "ol3-symbolizer/ol3-symbolizer/format/ags-symbolizer";
 
 const center = <[number, number]>[-82.4, 34.85];
 
 export function run() {
-
     let formatter = new StyleConverter();
 
     let generator = new StyleGenerator({
         center: center,
-        fromJson: json => formatter.fromJson(json)
+        fromJson: (json) => formatter.fromJson(json)
     });
 
     let layer = generator.asMarkerLayer({
@@ -35,7 +33,7 @@ export function run() {
     let map = new ol.Map({
         target: "map",
         view: new ol.View({
-            projection: 'EPSG:4326',
+            projection: "EPSG:4326",
             center: center,
             zoom: 10
         }),
@@ -60,5 +58,8 @@ export function run() {
         formatter.fromJson(iconimagedata[0])
     ];
 
-    layer.getSource().getFeatures().forEach((f, i) => f.setStyle([styles[i % styles.length]]));
+    layer
+        .getSource()
+        .getFeatures()
+        .forEach((f, i) => f.setStyle([styles[i % styles.length]]));
 }
