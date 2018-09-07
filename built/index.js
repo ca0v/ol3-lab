@@ -466,144 +466,812 @@ define("ol3-lab/labs/common/common", ["require", "exports", "node_modules/ol3-fu
     "use strict";
     return Common;
 });
-define("node_modules/ol3-symbolizer/ol3-symbolizer/common/ajax", ["require", "exports", "jquery"], function (require, exports, $) {
+define("node_modules/ol3-fun/ol3-fun/navigation", ["require", "exports", "openlayers", "jquery", "node_modules/ol3-fun/ol3-fun/common"], function (require, exports, ol, $, common_1) {
     "use strict";
-    var Ajax = (function () {
-        function Ajax(url) {
-            this.url = url;
-            this.options = {
-                use_json: true,
-                use_cors: true
-            };
-        }
-        Ajax.prototype.jsonp = function (args, url) {
-            if (url === void 0) { url = this.url; }
-            var d = $.Deferred();
-            args["callback"] = "define";
-            var uri = url + "?" + Object.keys(args).map(function (k) { return k + "=" + args[k]; }).join('&');
-            require([uri], function (data) { return d.resolve(data); });
-            return d;
+    exports.__esModule = true;
+    function zoomToFeature(map, feature, options) {
+        var promise = $.Deferred();
+        options = common_1.defaults(options || {}, {
+            duration: 1000,
+            padding: 256,
+            minResolution: 2 * map.getView().getMinResolution()
+        });
+        var view = map.getView();
+        var currentExtent = view.calculateExtent(map.getSize());
+        var targetExtent = feature.getGeometry().getExtent();
+        var doit = function (duration) {
+            view.fit(targetExtent, {
+                size: map.getSize(),
+                padding: [options.padding, options.padding, options.padding, options.padding],
+                minResolution: options.minResolution,
+                duration: duration,
+                callback: function () { return promise.resolve(); }
+            });
         };
-        Ajax.prototype.ajax = function (method, args, url) {
-            if (url === void 0) { url = this.url; }
-            var isData = method === "POST" || method === "PUT";
-            var isJson = this.options.use_json;
-            var isCors = this.options.use_cors;
-            var d = $.Deferred();
-            var client = new XMLHttpRequest();
-            if (isCors)
-                client.withCredentials = true;
-            var uri = url;
-            var data = null;
-            if (args) {
-                if (isData) {
-                    data = JSON.stringify(args);
+        if (ol.extent.containsExtent(currentExtent, targetExtent)) {
+            doit(options.duration);
+        }
+        else if (ol.extent.containsExtent(currentExtent, targetExtent)) {
+            doit(options.duration);
+        }
+        else {
+            var fullExtent = ol.extent.createEmpty();
+            ol.extent.extend(fullExtent, currentExtent);
+            ol.extent.extend(fullExtent, targetExtent);
+            var dscale = ol.extent.getWidth(fullExtent) / ol.extent.getWidth(currentExtent);
+            var duration = 0.5 * options.duration;
+            view.fit(fullExtent, {
+                size: map.getSize(),
+                padding: [options.padding, options.padding, options.padding, options.padding],
+                minResolution: options.minResolution,
+                duration: duration
+            });
+            setTimeout(function () { return doit(0.5 * options.duration); }, duration);
+        }
+        return promise;
+    }
+    exports.zoomToFeature = zoomToFeature;
+});
+define("node_modules/ol3-fun/ol3-fun/parse-dms", ["require", "exports"], function (require, exports) {
+    "use strict";
+    exports.__esModule = true;
+    function decDegFromMatch(m) {
+        var signIndex = {
+            "-": -1,
+            "N": 1,
+            "S": -1,
+            "E": 1,
+            "W": -1
+        };
+        var latLonIndex = {
+            "-": "",
+            "N": "lat",
+            "S": "lat",
+            "E": "lon",
+            "W": "lon"
+        };
+        var degrees, minutes, seconds, sign, latLon;
+        sign = signIndex[m[2]] || signIndex[m[1]] || signIndex[m[6]] || 1;
+        degrees = Number(m[3]);
+        minutes = m[4] ? Number(m[4]) : 0;
+        seconds = m[5] ? Number(m[5]) : 0;
+        latLon = latLonIndex[m[1]] || latLonIndex[m[6]];
+        if (!inRange(degrees, 0, 180))
+            throw 'Degrees out of range';
+        if (!inRange(minutes, 0, 60))
+            throw 'Minutes out of range';
+        if (!inRange(seconds, 0, 60))
+            throw 'Seconds out of range';
+        return {
+            decDeg: sign * (degrees + minutes / 60 + seconds / 3600),
+            latLon: latLon
+        };
+    }
+    function inRange(value, a, b) {
+        return value >= a && value <= b;
+    }
+    function parse(dmsString) {
+        var _a;
+        dmsString = dmsString.trim();
+        var dmsRe = /([NSEW])?(-)?(\d+(?:\.\d+)?)[°º:d\s]?\s?(?:(\d+(?:\.\d+)?)['’‘′:]\s?(?:(\d{1,2}(?:\.\d+)?)(?:"|″|’’|'')?)?)?\s?([NSEW])?/i;
+        var dmsString2;
+        var m1 = dmsString.match(dmsRe);
+        if (!m1)
+            throw 'Could not parse string';
+        if (m1[1]) {
+            m1[6] = undefined;
+            dmsString2 = dmsString.substr(m1[0].length - 1).trim();
+        }
+        else {
+            dmsString2 = dmsString.substr(m1[0].length).trim();
+        }
+        var decDeg1 = decDegFromMatch(m1);
+        var m2 = dmsString2.match(dmsRe);
+        var decDeg2 = m2 && decDegFromMatch(m2);
+        if (typeof decDeg1.latLon === 'undefined') {
+            if (!isNaN(decDeg1.decDeg) && decDeg2 && isNaN(decDeg2.decDeg)) {
+                return decDeg1.decDeg;
+            }
+            else if (!isNaN(decDeg1.decDeg) && decDeg2 && !isNaN(decDeg2.decDeg)) {
+                decDeg1.latLon = 'lat';
+                decDeg2.latLon = 'lon';
+            }
+            else {
+                throw 'Could not parse string';
+            }
+        }
+        if (typeof decDeg2.latLon === 'undefined') {
+            decDeg2.latLon = decDeg1.latLon === 'lat' ? 'lon' : 'lat';
+        }
+        return _a = {},
+            _a[decDeg1.latLon] = decDeg1.decDeg,
+            _a[decDeg2.latLon] = decDeg2.decDeg,
+            _a;
+    }
+    exports.parse = parse;
+});
+define("node_modules/ol3-fun/index", ["require", "exports", "node_modules/ol3-fun/ol3-fun/common", "node_modules/ol3-fun/ol3-fun/navigation", "node_modules/ol3-fun/ol3-fun/parse-dms"], function (require, exports, common, navigation, dms) {
+    "use strict";
+    var index = common.defaults(common, {
+        dms: dms,
+        navigation: navigation
+    });
+    return index;
+});
+define("node_modules/ol3-layerswitcher/ol3-layerswitcher/ol3-layerswitcher", ["require", "exports", "openlayers", "node_modules/ol3-fun/index"], function (require, exports, ol, index_1) {
+    "use strict";
+    exports.__esModule = true;
+    function allLayers(lyr) {
+        var result = [];
+        lyr.getLayers().forEach(function (lyr, idx, a) {
+            result.push(lyr);
+            if ("getLayers" in lyr) {
+                result = result.concat(allLayers(lyr));
+            }
+        });
+        return result;
+    }
+    exports.DEFAULT_OPTIONS = {
+        tipLabel: 'Layers',
+        openOnMouseOver: false,
+        closeOnMouseOut: false,
+        openOnClick: true,
+        closeOnClick: true,
+        className: 'layer-switcher',
+        target: null
+    };
+    var LayerSwitcher = (function (_super) {
+        __extends(LayerSwitcher, _super);
+        function LayerSwitcher(options) {
+            var _this = this;
+            options = index_1.defaults(options || {}, exports.DEFAULT_OPTIONS);
+            _this = _super.call(this, options) || this;
+            _this.options = options;
+            _this.afterCreate();
+            return _this;
+        }
+        LayerSwitcher.prototype.afterCreate = function () {
+            var _this = this;
+            var options = this.options;
+            this.hiddenClassName = "ol-unselectable ol-control " + options.className;
+            this.shownClassName = this.hiddenClassName + ' shown';
+            var element = document.createElement('div');
+            element.className = this.hiddenClassName;
+            var button = this.button = document.createElement('button');
+            button.setAttribute('title', options.tipLabel);
+            element.appendChild(button);
+            this.panel = document.createElement('div');
+            this.panel.className = 'panel';
+            element.appendChild(this.panel);
+            this.unwatch = [];
+            this.element = element;
+            this.setTarget(options.target);
+            if (options.openOnMouseOver) {
+                element.addEventListener("mouseover", function () { return _this.showPanel(); });
+            }
+            if (options.closeOnMouseOut) {
+                element.addEventListener("mouseout", function () { return _this.hidePanel(); });
+            }
+            if (options.openOnClick || options.closeOnClick) {
+                button.addEventListener('click', function (e) {
+                    _this.isVisible() ? options.closeOnClick && _this.hidePanel() : options.openOnClick && _this.showPanel();
+                    e.preventDefault();
+                });
+            }
+        };
+        LayerSwitcher.prototype.isVisible = function () {
+            return this.element.className != this.hiddenClassName;
+        };
+        LayerSwitcher.prototype.showPanel = function () {
+            if (this.element.className != this.shownClassName) {
+                this.element.className = this.shownClassName;
+                this.renderPanel();
+            }
+        };
+        LayerSwitcher.prototype.hidePanel = function () {
+            this.element.className = this.hiddenClassName;
+            this.unwatch.forEach(function (f) { return f(); });
+        };
+        LayerSwitcher.prototype.renderPanel = function () {
+            var _this = this;
+            this.ensureTopVisibleBaseLayerShown();
+            while (this.panel.firstChild) {
+                this.panel.removeChild(this.panel.firstChild);
+            }
+            var ul = document.createElement('ul');
+            this.panel.appendChild(ul);
+            this.state = [];
+            var map = this.getMap();
+            if (!map) {
+                this.options.target.appendChild(this.element);
+                return;
+            }
+            this.renderLayers(map, ul);
+            {
+                var view_1 = map && map.getView();
+                var doit = function () {
+                    var res = view_1.getResolution();
+                    if (typeof res === "undefined")
+                        return;
+                    _this.state.filter(function (s) { return !!s.input; }).forEach(function (s) {
+                        var min = s.layer.getMinResolution();
+                        var max = s.layer.getMaxResolution();
+                        s.input.disabled = !(min <= res && (max === 0 || res < max));
+                    });
+                };
+                var h_1 = view_1.on("change:resolution", doit);
+                doit();
+                this.unwatch.push(function () { return ol.Observable.unByKey(h_1); });
+            }
+        };
+        ;
+        LayerSwitcher.prototype.ensureTopVisibleBaseLayerShown = function () {
+            if (!this.getMap())
+                return;
+            var visibleBaseLyrs = allLayers(this.getMap()).filter(function (l) { return l.get('type') === 'base' && l.getVisible(); });
+            if (visibleBaseLyrs.length)
+                this.setVisible(visibleBaseLyrs.shift(), true);
+        };
+        ;
+        LayerSwitcher.prototype.setVisible = function (lyr, visible) {
+            var _this = this;
+            if (lyr.getVisible() !== visible) {
+                if (visible && lyr.get('type') === 'base') {
+                    allLayers(this.getMap()).filter(function (l) { return l !== lyr && l.get('type') === 'base' && l.getVisible(); }).forEach(function (l) { return _this.setVisible(l, false); });
+                }
+                lyr.setVisible(visible);
+                this.dispatchEvent({
+                    type: visible ? "show-layer" : "hide-layer",
+                    layer: lyr
+                });
+            }
+        };
+        ;
+        LayerSwitcher.prototype.renderLayer = function (lyr, container) {
+            var _this = this;
+            var result;
+            var li = document.createElement('li');
+            container.appendChild(li);
+            var lyrTitle = lyr.get('title');
+            var label = document.createElement('label');
+            label.htmlFor = index_1.uuid();
+            lyr.on('load:start', function () { return li.classList.add("loading"); });
+            lyr.on('load:end', function () { return li.classList.remove("loading"); });
+            index_1.toggle(li, "loading", true === lyr.get("loading"));
+            if ('getLayers' in lyr && !lyr.get('combine')) {
+                if (!lyr.get('label-only')) {
+                    var input_1 = result = document.createElement('input');
+                    input_1.id = label.htmlFor;
+                    input_1.type = 'checkbox';
+                    input_1.checked = lyr.getVisible();
+                    input_1.addEventListener('change', function () {
+                        index_1.toggle(ul_1, 'hide-layer-group', !input_1.checked);
+                        _this.setVisible(lyr, input_1.checked);
+                        var childLayers = lyr.getLayers();
+                        _this.state.filter(function (s) { return s.container === ul_1 && s.input && s.input.checked; }).forEach(function (state) {
+                            _this.setVisible(state.layer, input_1.checked);
+                        });
+                    });
+                    li.appendChild(input_1);
+                }
+                li.classList.add('group');
+                label.innerHTML = lyrTitle;
+                li.appendChild(label);
+                var ul_1 = document.createElement('ul');
+                result && index_1.toggle(ul_1, 'hide-layer-group', !result.checked);
+                li.appendChild(ul_1);
+                this.renderLayers(lyr, ul_1);
+            }
+            else {
+                li.classList.add('layer');
+                var input_2 = result = document.createElement('input');
+                input_2.id = label.htmlFor;
+                if (lyr.get('type') === 'base') {
+                    input_2.classList.add('basemap');
+                    input_2.type = 'radio';
+                    input_2.addEventListener("change", function () {
+                        if (input_2.checked) {
+                            index_1.asArray(_this.panel.getElementsByClassName("basemap")).filter(function (i) { return i.tagName === "INPUT"; }).forEach(function (i) {
+                                if (i.checked && i !== input_2)
+                                    i.checked = false;
+                            });
+                        }
+                        _this.setVisible(lyr, input_2.checked);
+                    });
                 }
                 else {
-                    uri += '?';
-                    var argcount = 0;
-                    for (var key in args) {
-                        if (args.hasOwnProperty(key)) {
-                            if (argcount++) {
-                                uri += '&';
+                    input_2.type = 'checkbox';
+                    input_2.addEventListener("change", function () {
+                        _this.setVisible(lyr, input_2.checked);
+                    });
+                }
+                input_2.checked = lyr.get('visible');
+                li.appendChild(input_2);
+                label.innerHTML = lyrTitle;
+                li.appendChild(label);
+            }
+            this.state.push({
+                container: container,
+                input: result,
+                layer: lyr
+            });
+        };
+        LayerSwitcher.prototype.renderLayers = function (map, elm) {
+            var _this = this;
+            var lyrs = map.getLayers().getArray().slice().reverse();
+            return lyrs.filter(function (l) { return !!l.get('title'); }).forEach(function (l) { return _this.renderLayer(l, elm); });
+        };
+        return LayerSwitcher;
+    }(ol.control.Control));
+    exports.LayerSwitcher = LayerSwitcher;
+});
+define("node_modules/ol3-layerswitcher/index", ["require", "exports", "node_modules/ol3-layerswitcher/ol3-layerswitcher/ol3-layerswitcher"], function (require, exports, ol3_layerswitcher_1) {
+    "use strict";
+    exports.__esModule = true;
+    exports.LayerSwitcher = ol3_layerswitcher_1.LayerSwitcher;
+    exports.DEFAULT_OPTIONS = ol3_layerswitcher_1.DEFAULT_OPTIONS;
+});
+define("node_modules/ol3-popup/ol3-popup/paging/paging", ["require", "exports", "openlayers", "jquery"], function (require, exports, ol, $) {
+    "use strict";
+    exports.__esModule = true;
+    function getInteriorPoint(geom) {
+        if (geom.getInteriorPoint)
+            return geom["getInteriorPoint"]().getCoordinates();
+        return ol.extent.getCenter(geom.getExtent());
+    }
+    var classNames = {
+        pages: "pages",
+        page: "page"
+    };
+    var eventNames = {
+        add: "add",
+        clear: "clear",
+        goto: "goto",
+        remove: "remove"
+    };
+    function getId() {
+        return "_" + Math.random() * 1000000;
+    }
+    var Paging = (function (_super) {
+        __extends(Paging, _super);
+        function Paging(options) {
+            var _this = _super.call(this) || this;
+            _this.options = options;
+            _this._pages = [];
+            _this.domNode = document.createElement("div");
+            _this.domNode.classList.add(classNames.pages);
+            options.popup.domNode.appendChild(_this.domNode);
+            return _this;
+        }
+        Object.defineProperty(Paging.prototype, "activePage", {
+            get: function () {
+                return this._activePage;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(Paging.prototype, "activeIndex", {
+            get: function () {
+                return this._pages.indexOf(this._activePage);
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Object.defineProperty(Paging.prototype, "count", {
+            get: function () {
+                return this._pages.length;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Paging.prototype.on = function (name, listener) {
+            return _super.prototype.on.call(this, name, listener);
+        };
+        Paging.prototype.findPage = function (feature) {
+            return this._pages.filter(function (p) { return p.feature === feature; })[0];
+        };
+        Paging.prototype.removePage = function (page) {
+            var index = this._pages.indexOf(page);
+            if (0 <= index) {
+                this._pages.splice(index, 1);
+                var count = this._pages.length;
+                if (index >= count)
+                    index == count - 1;
+                this.goto(index);
+            }
+        };
+        Paging.prototype.addFeature = function (feature, options) {
+            var page = this.findPage(feature);
+            if (page) {
+                this.goto(this._pages.indexOf(page));
+                return page;
+            }
+            var geom = feature.getGeometry();
+            if (geom.intersectsCoordinate(options.searchCoordinate)) {
+                geom = new ol.geom.Point(options.searchCoordinate);
+            }
+            else {
+                geom = new ol.geom.Point(geom.getClosestPoint(options.searchCoordinate));
+            }
+            page = {
+                element: document.createElement("div"),
+                feature: feature,
+                location: geom,
+                uid: getId()
+            };
+            this._pages.push(page);
+            this.dispatchEvent({
+                type: eventNames.add,
+                element: page.element,
+                feature: page.feature,
+                geom: page.location,
+                pageIndex: page.uid
+            });
+            return page;
+        };
+        Paging.prototype.add = function (source, geom) {
+            var page;
+            var pageDiv = document.createElement("div");
+            if (false) {
+            }
+            else if (typeof source === "string") {
+                pageDiv.innerHTML = source;
+                this._pages.push((page = {
+                    element: pageDiv,
+                    location: geom,
+                    uid: getId()
+                }));
+            }
+            else if (typeof source.appendChild === "function") {
+                pageDiv.appendChild(source);
+                pageDiv.classList.add(classNames.page);
+                this._pages.push((page = {
+                    element: pageDiv,
+                    location: geom,
+                    uid: getId()
+                }));
+            }
+            else if (source["then"]) {
+                var d = source;
+                pageDiv.classList.add(classNames.page);
+                this._pages.push((page = {
+                    element: pageDiv,
+                    location: geom,
+                    uid: getId()
+                }));
+                $.when(d).then(function (v) {
+                    if (typeof v === "string") {
+                        pageDiv.innerHTML = v;
+                    }
+                    else {
+                        pageDiv.appendChild(v);
+                    }
+                });
+            }
+            else if (typeof source === "function") {
+                pageDiv.classList.add("page");
+                this._pages.push((page = {
+                    callback: source,
+                    element: pageDiv,
+                    location: geom,
+                    uid: getId()
+                }));
+            }
+            else {
+                throw "invalid source value: " + source;
+            }
+            this.dispatchEvent({
+                type: eventNames.add,
+                element: pageDiv,
+                feature: null,
+                geom: geom,
+                pageIndex: this._pages.length - 1
+            });
+            return page;
+        };
+        Paging.prototype.clear = function () {
+            this._activePage = null;
+            this._pages = [];
+            this.dispatchEvent(eventNames.clear);
+        };
+        Paging.prototype.goto = function (index) {
+            var _this = this;
+            var page;
+            if (typeof index === "number") {
+                page = this._pages[index];
+            }
+            else {
+                page = this._pages.filter(function (p) { return p.uid === index; })[0];
+            }
+            if (!page)
+                return;
+            var popup = this.options.popup;
+            if (page.feature) {
+                this.options.popup.show(getInteriorPoint(page.location || page.feature.getGeometry()), popup.options.asContent(page.feature));
+                this._activePage = page;
+                this.dispatchEvent(eventNames.goto);
+                return;
+            }
+            var d = $.Deferred();
+            if (page.callback) {
+                var refreshedContent = page.callback();
+                $.when(refreshedContent).then(function (v) {
+                    if (false) {
+                    }
+                    else if (typeof v === "string") {
+                        page.element.innerHTML = v;
+                    }
+                    else if (typeof v["innerHTML"] !== "undefined") {
+                        page.element.innerHTML = "";
+                        page.element.appendChild(v);
+                    }
+                    else {
+                        throw "invalid callback result: " + v;
+                    }
+                    d.resolve();
+                });
+            }
+            else {
+                d.resolve();
+            }
+            d.then(function () {
+                _this._activePage = page;
+                _this.options.popup.show(getInteriorPoint(page.location), page.element);
+                _this.dispatchEvent(eventNames.goto);
+            });
+        };
+        Paging.prototype.next = function () {
+            0 <= this.activeIndex && this.activeIndex < this.count && this.goto(this.activeIndex + 1);
+        };
+        Paging.prototype.prev = function () {
+            0 < this.activeIndex && this.goto(this.activeIndex - 1);
+        };
+        Paging.prototype.indexOf = function (feature) {
+            var result = -1;
+            this._pages.some(function (f, i) {
+                if (f.feature === feature) {
+                    result = i;
+                    return true;
+                }
+                return false;
+            });
+            return result;
+        };
+        return Paging;
+    }(ol.Observable));
+    exports.Paging = Paging;
+});
+define("node_modules/ol3-popup/ol3-popup/paging/page-navigator", ["require", "exports", "openlayers"], function (require, exports, ol) {
+    "use strict";
+    exports.__esModule = true;
+    var classNames = {
+        prev: 'btn-prev',
+        next: 'btn-next',
+        hidden: 'hidden',
+        active: 'active',
+        inactive: 'inactive',
+        pagenum: "page-num"
+    };
+    var eventNames = {
+        show: "show",
+        hide: "hide",
+        prev: "prev",
+        next: "next"
+    };
+    function toggle(e, className, toggle) {
+        if (toggle === void 0) { toggle = false; }
+        !toggle ? e.classList.remove(className) : e.classList.add(className);
+    }
+    var PageNavigator = (function (_super) {
+        __extends(PageNavigator, _super);
+        function PageNavigator(options) {
+            var _this = _super.call(this) || this;
+            _this.options = options;
+            var pages = options.pages;
+            _this.domNode = document.createElement("div");
+            _this.domNode.classList.add("pagination");
+            _this.domNode.innerHTML = _this.template();
+            _this.prevButton = _this.domNode.getElementsByClassName(classNames.prev)[0];
+            _this.nextButton = _this.domNode.getElementsByClassName(classNames.next)[0];
+            _this.pageInfo = _this.domNode.getElementsByClassName(classNames.pagenum)[0];
+            pages.options.popup.domNode.appendChild(_this.domNode);
+            _this.prevButton.addEventListener('click', function () { return _this.dispatchEvent(eventNames.prev); });
+            _this.nextButton.addEventListener('click', function () { return _this.dispatchEvent(eventNames.next); });
+            pages.on("goto", function () { return pages.count > 1 ? _this.show() : _this.hide(); });
+            pages.on("clear", function () { return _this.hide(); });
+            pages.on("goto", function () {
+                var index = pages.activeIndex;
+                var count = pages.count;
+                var canPrev = 0 < index;
+                var canNext = count - 1 > index;
+                toggle(_this.prevButton, classNames.inactive, !canPrev);
+                toggle(_this.prevButton, classNames.active, canPrev);
+                toggle(_this.nextButton, classNames.inactive, !canNext);
+                toggle(_this.nextButton, classNames.active, canNext);
+                _this.prevButton.disabled = !canPrev;
+                _this.nextButton.disabled = !canNext;
+                _this.pageInfo.innerHTML = 1 + index + " of " + count;
+            });
+            return _this;
+        }
+        PageNavigator.prototype.template = function () {
+            return "<button class=\"arrow btn-prev\"></button><span class=\"page-num\">m of n</span><button class=\"arrow btn-next\"></button>";
+        };
+        PageNavigator.prototype.hide = function () {
+            this.domNode.classList.add(classNames.hidden);
+            this.dispatchEvent(eventNames.hide);
+        };
+        PageNavigator.prototype.show = function () {
+            this.domNode.classList.remove(classNames.hidden);
+            this.dispatchEvent(eventNames.show);
+        };
+        return PageNavigator;
+    }(ol.Observable));
+    exports["default"] = PageNavigator;
+});
+define("node_modules/ol3-popup/ol3-popup/interaction", ["require", "exports", "openlayers", "node_modules/ol3-fun/ol3-fun/common"], function (require, exports, ol, common_2) {
+    "use strict";
+    exports.__esModule = true;
+    var dispose = function (handlers) {
+        return handlers.forEach(function (h) { return (h instanceof Function) ? h() : ol.Observable.unByKey(h); });
+    };
+    var SelectInteraction = (function (_super) {
+        __extends(SelectInteraction, _super);
+        function SelectInteraction(options) {
+            var _this = _super.call(this, options) || this;
+            _this.options = options;
+            var popup = options.popup;
+            var map = options.map;
+            var overlay;
+            _this.handlers = [];
+            _this.handlers.push(map.on("click", function (args) {
+                var _a, _b, _c;
+                if (!_this.get("active"))
+                    return;
+                var wasDocked = popup.isDocked();
+                if (!popup.options.multi || !options.addCondition(args)) {
+                    popup.pages.clear();
+                }
+                {
+                    var found_1 = false;
+                    var extent_1 = ol.extent.createEmpty();
+                    extent_1[0] = extent_1[2] = args.pixel[0];
+                    extent_1[1] = extent_1[3] = args.pixel[1];
+                    extent_1 = ol.extent.buffer(extent_1, _this.options.buffer);
+                    _a = [
+                        map.getCoordinateFromPixel([extent_1[0], extent_1[1]]),
+                        map.getCoordinateFromPixel([extent_1[2], extent_1[3]])
+                    ], _b = _a[0], extent_1[0] = _b[0], extent_1[3] = _b[1], _c = _a[1], extent_1[2] = _c[0], extent_1[1] = _c[1];
+                    var layers_1 = popup.options.layers;
+                    if (!layers_1) {
+                        layers_1 = map.getLayers().getArray().filter(function (l) { return l instanceof ol.layer.Vector; });
+                    }
+                    var page_1;
+                    layers_1.forEach(function (layer) {
+                        if (layer === overlay)
+                            return;
+                        layer.getSource().forEachFeatureIntersectingExtent(extent_1, function (feature) {
+                            page_1 = popup.pages.addFeature(feature, {
+                                searchCoordinate: args.coordinate
+                            });
+                            found_1 = true;
+                            return !popup.options.multi;
+                        });
+                    });
+                    if (!found_1) {
+                        map.forEachFeatureAtPixel(args.pixel, function (feature, layer) {
+                            if (!layer || layer === overlay || -1 === layers_1.indexOf(layer)) {
+                                return null;
                             }
-                            uri += encodeURIComponent(key) + '=' + encodeURIComponent(args[key]);
+                            page_1 = popup.pages.addFeature(feature, {
+                                searchCoordinate: args.coordinate
+                            });
+                            found_1 = true;
+                            return !popup.options.multi;
+                        });
+                    }
+                    if (!found_1 && popup.options.showCoordinates) {
+                        page_1 = popup.pages.add(("\n<table>\n<tr><td>lon</td><td>" + args.coordinate[0].toPrecision(6) + "</td></tr>\n<tr><td>lat</td><td>" + args.coordinate[1].toPrecision(6) + "</td></tr>\n</table>")
+                            .trim(), new ol.geom.Point(args.coordinate));
+                        found_1 = true;
+                    }
+                    if (found_1) {
+                        popup.pages.goto(page_1.uid);
+                        if (wasDocked && !popup.isDocked())
+                            popup.dock();
+                    }
+                    else {
+                        if (!popup.options.multi || !options.addCondition(args)) {
+                            popup.hide();
                         }
                     }
                 }
+            }));
+            if (popup.options.pagingStyle) {
+                overlay = _this.setupOverlay();
             }
-            client.open(method, uri, true);
-            if (isData && isJson)
-                client.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
-            client.send(data);
-            client.onload = function () {
-                console.log("content-type", client.getResponseHeader("Content-Type"));
-                if (client.status >= 200 && client.status < 300) {
-                    isJson = isJson || 0 === client.getResponseHeader("Content-Type").indexOf("application/json");
-                    d.resolve(isJson ? JSON.parse(client.response) : client.response);
+            popup.on("dispose", function () { return _this.destroy(); });
+            return _this;
+        }
+        SelectInteraction.create = function (options) {
+            if (!options.popup)
+                throw "popup is a required option";
+            if (!options.map) {
+                options.map = options.popup.options.map;
+                if (!options.map)
+                    "map is a require option";
+            }
+            options = common_2.defaults(options, SelectInteraction.DEFAULT_OPTIONS);
+            options.addCondition = options.addCondition || ol.events.condition.shiftKeyOnly;
+            options.removeCondition = options.removeCondition || ol.events.condition.never;
+            options.toggleCondition = options.addCondition || ol.events.condition.shiftKeyOnly;
+            return new SelectInteraction(options);
+        };
+        SelectInteraction.prototype.setupOverlay = function () {
+            var _this = this;
+            var options = this.options;
+            var popup = options.popup;
+            var source = new ol.source.Vector({
+                useSpatialIndex: false,
+                wrapX: this.options.wrapX
+            });
+            var featureOverlay = new ol.layer.Vector({
+                map: this.options.map,
+                source: source,
+                updateWhileAnimating: true,
+                updateWhileInteracting: true
+            });
+            featureOverlay.setStyle(function (feature, resolution) {
+                var pageIndex = source.getFeatures().indexOf(feature);
+                return popup.options.pagingStyle(feature, resolution, pageIndex);
+            });
+            featureOverlay.setMap(this.options.map);
+            this.handlers.push(function () { return _this.options.map.removeLayer(featureOverlay); });
+            popup.pages.on("clear", function () {
+                source.clear();
+            });
+            this.handlers.push(popup.pages.on("goto", function () { return featureOverlay.getSource().refresh(); }));
+            popup.pages.on("remove", function (args) {
+                source.forEachFeature(function (f) {
+                    if (f.get("page-index") === args.pageIndex) {
+                        source.removeFeature(f);
+                        return true;
+                    }
+                    return false;
+                });
+            });
+            popup.pages.on("add", function (args) {
+                var feature = args.feature;
+                if (feature) {
+                    feature = feature.clone();
+                    feature.setStyle(null);
+                    if (args.geom) {
+                        feature.setGeometry(args.geom);
+                    }
                 }
                 else {
-                    d.reject(client.statusText);
+                    if (args.geom) {
+                        feature = new ol.Feature();
+                        feature.setGeometry(args.geom);
+                    }
                 }
-            };
-            client.onerror = function () { return d.reject(client.statusText); };
-            return d;
+                if (feature) {
+                    feature.set("page-index", args.pageIndex);
+                    source.addFeature(feature);
+                }
+            });
+            return featureOverlay;
         };
-        Ajax.prototype.get = function (args) {
-            return this.ajax('GET', args);
+        SelectInteraction.prototype.destroy = function () {
+            dispose(this.handlers);
         };
-        Ajax.prototype.post = function (args) {
-            return this.ajax('POST', args);
+        SelectInteraction.DEFAULT_OPTIONS = {
+            multi: true,
+            buffer: 8
         };
-        Ajax.prototype.put = function (args) {
-            return this.ajax('PUT', args);
-        };
-        Ajax.prototype["delete"] = function (args) {
-            return this.ajax('DELETE', args);
-        };
-        return Ajax;
-    }());
-    return Ajax;
-});
-define("node_modules/ol3-symbolizer/ol3-symbolizer/common/defaults", ["require", "exports"], function (require, exports) {
-    "use strict";
-    exports.__esModule = true;
-    function defaults(a) {
-        var b = [];
-        for (var _i = 1; _i < arguments.length; _i++) {
-            b[_i - 1] = arguments[_i];
-        }
-        b.filter(function (b) { return !!b; }).forEach(function (b) {
-            Object.keys(b).filter(function (k) { return a[k] === undefined; }).forEach(function (k) { return a[k] = b[k]; });
-        });
-        return a;
-    }
-    exports.defaults = defaults;
-});
-define("node_modules/ol3-symbolizer/ol3-symbolizer/ags/ags-catalog", ["require", "exports", "node_modules/ol3-symbolizer/ol3-symbolizer/common/ajax", "node_modules/ol3-symbolizer/ol3-symbolizer/common/defaults"], function (require, exports, Ajax, defaults_1) {
-    "use strict";
-    exports.__esModule = true;
-    var Catalog = (function () {
-        function Catalog(url) {
-            this.ajax = new Ajax(url);
-        }
-        Catalog.prototype.about = function (data) {
-            var req = defaults_1.defaults({
-                f: "pjson"
-            }, data);
-            return this.ajax.jsonp(req);
-        };
-        Catalog.prototype.aboutFolder = function (folder) {
-            var ajax = new Ajax(this.ajax.url + "/" + folder);
-            var req = {
-                f: "pjson"
-            };
-            return ajax.jsonp(req);
-        };
-        Catalog.prototype.aboutFeatureServer = function (name) {
-            var ajax = new Ajax(this.ajax.url + "/" + name + "/FeatureServer");
-            var req = {
-                f: "pjson"
-            };
-            return defaults_1.defaults(ajax.jsonp(req), { url: ajax.url });
-        };
-        Catalog.prototype.aboutMapServer = function (name) {
-            var ajax = new Ajax(this.ajax.url + "/" + name + "/MapServer");
-            var req = {
-                f: "pjson"
-            };
-            return defaults_1.defaults(ajax.jsonp(req), { url: ajax.url });
-        };
-        Catalog.prototype.aboutLayer = function (layer) {
-            var ajax = new Ajax(this.ajax.url + "/" + layer);
-            var req = {
-                f: "pjson"
-            };
-            return ajax.jsonp(req);
-        };
-        return Catalog;
-    }());
-    exports.Catalog = Catalog;
+        return SelectInteraction;
+    }(ol.interaction.Select));
+    exports.SelectInteraction = SelectInteraction;
 });
 define("node_modules/ol3-symbolizer/ol3-symbolizer/common/assign", ["require", "exports"], function (require, exports) {
     "use strict";
@@ -1375,12 +2043,12 @@ define("node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", ["req
             }
             if (fill.image) {
                 var canvas = document.createElement('canvas');
-                var _b = (_a = fill.image.imgSize, canvas.width = _a[0], canvas.height = _a[1], _a), w_1 = _b[0], h_1 = _b[1];
+                var _b = (_a = fill.image.imgSize, canvas.width = _a[0], canvas.height = _a[1], _a), w_1 = _b[0], h_2 = _b[1];
                 var context_1 = canvas.getContext('2d');
                 var _c = [0, 0], dx = _c[0], dy = _c[1];
                 var image_1 = document.createElement("img");
                 image_1.src = fill.image.imageData;
-                image_1.onload = function () { return context_1.drawImage(image_1, 0, 0, w_1, h_1); };
+                image_1.onload = function () { return context_1.drawImage(image_1, 0, 0, w_1, h_2); };
                 return "rgba(255,255,255,0.1)";
             }
             throw "invalid color configuration";
@@ -1746,187 +2414,605 @@ define("node_modules/ol3-symbolizer/ol3-symbolizer/format/ags-symbolizer", ["req
     }());
     exports.StyleConverter = StyleConverter;
 });
-define("node_modules/ol3-fun/ol3-fun/navigation", ["require", "exports", "openlayers", "jquery", "node_modules/ol3-fun/ol3-fun/common"], function (require, exports, ol, $, common_1) {
+define("node_modules/ol3-symbolizer/index", ["require", "exports", "node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", "node_modules/ol3-symbolizer/ol3-symbolizer/format/ags-symbolizer", "node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer"], function (require, exports, Symbolizer, ags_symbolizer_1, ol3_symbolizer_1) {
     "use strict";
     exports.__esModule = true;
-    function zoomToFeature(map, feature, options) {
-        var promise = $.Deferred();
-        options = common_1.defaults(options || {}, {
-            duration: 1000,
-            padding: 256,
-            minResolution: 2 * map.getView().getMinResolution()
-        });
-        var view = map.getView();
-        var currentExtent = view.calculateExtent(map.getSize());
-        var targetExtent = feature.getGeometry().getExtent();
-        var doit = function (duration) {
-            view.fit(targetExtent, {
-                size: map.getSize(),
-                padding: [options.padding, options.padding, options.padding, options.padding],
-                minResolution: options.minResolution,
-                duration: duration,
-                callback: function () { return promise.resolve(); }
-            });
-        };
-        if (ol.extent.containsExtent(currentExtent, targetExtent)) {
-            doit(options.duration);
-        }
-        else if (ol.extent.containsExtent(currentExtent, targetExtent)) {
-            doit(options.duration);
-        }
-        else {
-            var fullExtent = ol.extent.createEmpty();
-            ol.extent.extend(fullExtent, currentExtent);
-            ol.extent.extend(fullExtent, targetExtent);
-            var dscale = ol.extent.getWidth(fullExtent) / ol.extent.getWidth(currentExtent);
-            var duration = 0.5 * options.duration;
-            view.fit(fullExtent, {
-                size: map.getSize(),
-                padding: [options.padding, options.padding, options.padding, options.padding],
-                minResolution: options.minResolution,
-                duration: duration
-            });
-            setTimeout(function () { return doit(0.5 * options.duration); }, duration);
-        }
-        return promise;
-    }
-    exports.zoomToFeature = zoomToFeature;
+    exports.Symbolizer = Symbolizer;
+    exports.AgsStyleConverter = ags_symbolizer_1.StyleConverter;
+    exports.StyleConverter = ol3_symbolizer_1.StyleConverter;
 });
-define("node_modules/ol3-fun/ol3-fun/parse-dms", ["require", "exports"], function (require, exports) {
+define("node_modules/ol3-popup/ol3-popup/commands/smartpick", ["require", "exports"], function (require, exports) {
     "use strict";
     exports.__esModule = true;
-    function decDegFromMatch(m) {
-        var signIndex = {
-            "-": -1,
-            "N": 1,
-            "S": -1,
-            "E": 1,
-            "W": -1
-        };
-        var latLonIndex = {
-            "-": "",
-            "N": "lat",
-            "S": "lat",
-            "E": "lon",
-            "W": "lon"
-        };
-        var degrees, minutes, seconds, sign, latLon;
-        sign = signIndex[m[2]] || signIndex[m[1]] || signIndex[m[6]] || 1;
-        degrees = Number(m[3]);
-        minutes = m[4] ? Number(m[4]) : 0;
-        seconds = m[5] ? Number(m[5]) : 0;
-        latLon = latLonIndex[m[1]] || latLonIndex[m[6]];
-        if (!inRange(degrees, 0, 180))
-            throw 'Degrees out of range';
-        if (!inRange(minutes, 0, 60))
-            throw 'Minutes out of range';
-        if (!inRange(seconds, 0, 60))
-            throw 'Seconds out of range';
-        return {
-            decDeg: sign * (degrees + minutes / 60 + seconds / 3600),
-            latLon: latLon
-        };
-    }
-    function inRange(value, a, b) {
-        return value >= a && value <= b;
-    }
-    function parse(dmsString) {
-        var _a;
-        dmsString = dmsString.trim();
-        var dmsRe = /([NSEW])?(-)?(\d+(?:\.\d+)?)[°º:d\s]?\s?(?:(\d+(?:\.\d+)?)['’‘′:]\s?(?:(\d{1,2}(?:\.\d+)?)(?:"|″|’’|'')?)?)?\s?([NSEW])?/i;
-        var dmsString2;
-        var m1 = dmsString.match(dmsRe);
-        if (!m1)
-            throw 'Could not parse string';
-        if (m1[1]) {
-            m1[6] = undefined;
-            dmsString2 = dmsString.substr(m1[0].length - 1).trim();
+    function smartpick(popup, targetPosition, threshold) {
+        if (!targetPosition) {
+            targetPosition = popup.getPosition();
+        }
+        var padding = [0, 0];
+        if (typeof threshold !== "number") {
+            threshold = (popup.options.autoPanMargin || 0) + (popup.options.pointerPosition || 0);
+            var content = popup.content;
+            var style = getComputedStyle(content);
+            var _a = [style.width, style.height].map(function (n) { return parseInt(n); }), w = _a[0], h = _a[1];
+            padding = [threshold + w / 2, threshold + h / 2];
         }
         else {
-            dmsString2 = dmsString.substr(m1[0].length).trim();
+            padding = [threshold, threshold];
         }
-        var decDeg1 = decDegFromMatch(m1);
-        var m2 = dmsString2.match(dmsRe);
-        var decDeg2 = m2 && decDegFromMatch(m2);
-        if (typeof decDeg1.latLon === 'undefined') {
-            if (!isNaN(decDeg1.decDeg) && decDeg2 && isNaN(decDeg2.decDeg)) {
-                return decDeg1.decDeg;
+        var _b = popup.getPositioning().split("-", 2), verticalPosition = _b[0], horizontalPosition = _b[1];
+        var _c = popup.options.map.getPixelFromCoordinate(targetPosition), x = _c[0], y = _c[1];
+        var _d = popup.options.map.getSize(), width = _d[0], height = _d[1];
+        var distanceToLeft = x;
+        var distanceToTop = y;
+        var distanceToRight = width - x;
+        var distanceToBottom = height - y;
+        if (distanceToTop < padding[1])
+            verticalPosition = "top";
+        else if (distanceToBottom < padding[1])
+            verticalPosition = "bottom";
+        else
+            verticalPosition = null;
+        if (distanceToLeft < padding[0])
+            horizontalPosition = "left";
+        else if (distanceToRight < padding[0])
+            horizontalPosition = "right";
+        else
+            horizontalPosition = "center";
+        if (!verticalPosition && horizontalPosition !== "center") {
+            verticalPosition = "center";
+        }
+        horizontalPosition = horizontalPosition || "center";
+        verticalPosition = verticalPosition || ((distanceToTop < distanceToBottom) ? "top" : "bottom");
+        return verticalPosition + "-" + horizontalPosition;
+    }
+    exports.smartpick = smartpick;
+    ;
+});
+define("node_modules/ol3-popup/ol3-popup/ol3-popup", ["require", "exports", "jquery", "openlayers", "node_modules/ol3-popup/ol3-popup/paging/paging", "node_modules/ol3-popup/ol3-popup/paging/page-navigator", "node_modules/ol3-fun/ol3-fun/common", "node_modules/ol3-popup/ol3-popup/interaction", "node_modules/ol3-symbolizer/index", "node_modules/ol3-popup/ol3-popup/commands/smartpick", "node_modules/ol3-symbolizer/ol3-symbolizer/common/mixin"], function (require, exports, $, ol, paging_1, page_navigator_1, common_3, interaction_1, Symbolizer, smartpick_1, mixin_2) {
+    "use strict";
+    exports.__esModule = true;
+    var symbolizer = new Symbolizer.Symbolizer.StyleConverter();
+    var css = "\n.ol-popup {\n}\n\n.ol-popup.hidden {\n    display: none;\n}\n\n.ol-popup-element.docked {\n    position:absolute;\n    bottom:0;\n    top:0;\n    left:0;\n    right:0;\n    width:auto;\n    height:auto;\n    pointer-events: all;\n}\n\n.ol-popup-element.docked:after {\n    display:none;\n}\n\n.ol-popup-element.docked .pages {\n    max-height: inherit;\n    overflow: auto;\n    height: calc(100% - 60px);\n}\n\n.ol-popup-element.docked .pagination {\n    position: absolute;\n    bottom: 0;\n}\n\n.ol-popup .pagination .btn-prev::after {\n    content: \"\u21E6\"; \n}\n\n.ol-popup .pagination .btn-next::after {\n    content: \"\u21E8\"; \n}\n\n.ol-popup .pagination.hidden {\n    display: none;\n}\n\n.ol-popup-element .pagination .btn-prev::after {\n    content: \"\u21E6\"; \n}\n\n.ol-popup-element .pagination .btn-next::after {\n    content: \"\u21E8\"; \n}\n\n.ol-popup-element .pagination.hidden {\n    display: none;\n}\n\n.ol-popup-element .ol-popup-closer {\n    border: none;\n    background: transparent;\n    color: inherit;\n    position: absolute;\n    top: 0;\n    right: 0;\n    text-decoration: none;\n}\n    \n.ol-popup-element .ol-popup-closer:after {\n    content:'\u2716';\n}\n\n.ol-popup .ol-popup-docker {\n    border: none;\n    background: transparent;\n    color: inherit;\n    text-decoration: none;\n    position: absolute;\n    top: 0;\n    right: 20px;\n}\n\n.ol-popup .ol-popup-docker:after {\n    content:'\u25A1';\n}\n\n.simple-popup {\n    border: 1px solid black;\n    border-radius: 4px;\n    padding: 10px;\n    background-color: rgba(80, 80, 80, 0.5);\n    color: rgb(250, 250, 250);\n    max-width: 120px;\n}\n\n.simple-popup-down-arrow {\n    color: black;\n    font-size: 20px;\n}\n\n.simple-popup-down-arrow:after {\n    content: \"\u21E9\";\n}\n\n.simple-popup-up-arrow {\n    color: black;\n    font-size: 20px;\n}\n\n.simple-popup-up-arrow:after {\n    content: \"\u21E7\";\n}\n\n.simple-popup-left-arrow {\n    color: black;\n    font-size: 20px;\n}\n\n.simple-popup-left-arrow:after {\n    content: \"\u21E6\";\n}\n\n.simple-popup-right-arrow {\n    color: black;\n    font-size: 20px;\n}\n\n.simple-popup-right-arrow:after {\n    content: \"\u21E8\";\n}\n";
+    var baseStyle = symbolizer.fromJson({
+        circle: {
+            fill: {
+                color: "rgba(255,0,0,1)"
+            },
+            opacity: 1,
+            stroke: {
+                color: "rgba(255,255,255,1)",
+                width: 1
+            },
+            radius: 3
+        }
+    });
+    var classNames = {
+        olPopup: "ol-popup",
+        olPopupDocker: "ol-popup-docker",
+        olPopupCloser: "ol-popup-closer",
+        olPopupContent: "ol-popup-content",
+        olPopupElement: "ol-popup-element",
+        hidden: "hidden",
+        docked: "docked"
+    };
+    var eventNames = {
+        dispose: "dispose",
+        dock: "dock",
+        hide: "hide",
+        show: "show",
+        undock: "undock"
+    };
+    function arrayEqual(a, b) {
+        if (!a || !b)
+            return false;
+        if (a === b)
+            return true;
+        if (a.length !== b.length)
+            return false;
+        return a.every(function (v, i) { return v == b[i]; });
+    }
+    function asContent(feature) {
+        var div = document.createElement("div");
+        var keys = Object.keys(feature.getProperties()).filter(function (key) {
+            var v = feature.get(key);
+            if (typeof v === "string")
+                return true;
+            if (typeof v === "number")
+                return true;
+            return false;
+        });
+        div.title = feature.getGeometryName();
+        div.innerHTML = "<table>" + keys.map(function (k) { return "<tr><td>" + k + "</td><td>" + feature.get(k) + "</td></tr>"; }).join("") + "</table>";
+        return div;
+    }
+    function pagingStyleFactory(popup) {
+        return function (feature, resolution, pageIndex) {
+            var style = [baseStyle];
+            if (popup.options.multi && popup.pages.count > 1) {
+                var isActive = popup.pages.activeIndex === pageIndex;
+                var textStyle = symbolizer.fromJson({
+                    text: {
+                        text: "" + (pageIndex + 1),
+                        fill: {
+                            color: isActive ? "white" : "black"
+                        },
+                        stroke: {
+                            color: isActive ? "black" : "white",
+                            width: isActive ? 4 : 2
+                        },
+                        "offset-y": 20
+                    }
+                });
+                style.push(textStyle);
             }
-            else if (!isNaN(decDeg1.decDeg) && decDeg2 && !isNaN(decDeg2.decDeg)) {
-                decDeg1.latLon = 'lat';
-                decDeg2.latLon = 'lon';
+            return style;
+        };
+    }
+    exports.DEFAULT_OPTIONS = {
+        map: null,
+        asContent: asContent,
+        multi: false,
+        autoPan: true,
+        autoPopup: true,
+        autoPanMargin: 20,
+        autoPositioning: true,
+        className: classNames.olPopup,
+        css: "\n.ol-popup {\n    background-color: white;\n    border: 1px solid black;\n    padding: 4px;\n    padding-top: 24px;\n}\n.ol-popup .ol-popup-content {\n    overflow: auto;\n    min-width: 120px;\n    max-width: 360px;\n    max-height: 240px;\n}\n.ol-popup .pages {\n    overflow: auto;\n    max-width: 360px;\n    max-height: 240px;\n}\n.ol-popup .ol-popup-closer {\n    right: 4px;\n}\n".trim(),
+        insertFirst: true,
+        pointerPosition: 20,
+        offset: [0, -10],
+        positioning: "bottom-center",
+        stopEvent: true,
+        showCoordinates: false
+    };
+    var Popup = (function (_super) {
+        __extends(Popup, _super);
+        function Popup(options) {
+            var _this = _super.call(this, options) || this;
+            if (!options.pagingStyle) {
+                options.pagingStyle = pagingStyleFactory(_this);
+            }
+            _this.options = options;
+            _this.handlers = [];
+            _this.configureDom(options);
+            _this.configureDockerButton(_this.domNode);
+            _this.configureCloserButton(_this.domNode);
+            _this.configureContentContainer();
+            _this.configurePaging();
+            _this.configureAutoPopup();
+            return _this;
+        }
+        Popup.create = function (options) {
+            options = common_3.defaults({}, options || {}, exports.DEFAULT_OPTIONS);
+            var popup = new Popup(options);
+            options.map && options.map.addOverlay(popup);
+            return popup;
+        };
+        Popup.prototype.configureDom = function (options) {
+            common_3.cssin("ol3-popup", css);
+            options.css && this.injectCss("options", options.css);
+            var domNode = (this.domNode = document.createElement("div"));
+            domNode.className = classNames.olPopupElement;
+            this.setElement(domNode);
+            this.handlers.push(function () { return domNode.remove(); });
+        };
+        Popup.prototype.configureContentContainer = function () {
+            var content = (this.content = document.createElement("div"));
+            content.className = classNames.olPopupContent;
+            this.domNode.appendChild(content);
+        };
+        Popup.prototype.configureDockerButton = function (domNode) {
+            var _this = this;
+            if (!this.options.dockContainer)
+                return;
+            var docker = (this.docker = document.createElement("label"));
+            docker.title = "docker";
+            docker.className = classNames.olPopupDocker;
+            domNode.appendChild(docker);
+            docker.addEventListener("click", function (evt) {
+                _this.isDocked() ? _this.undock() : _this.dock();
+                evt.preventDefault();
+            }, false);
+        };
+        Popup.prototype.configureCloserButton = function (domNode) {
+            var _this = this;
+            var closer = (this.closer = document.createElement("label"));
+            closer.title = "closer";
+            closer.className = classNames.olPopupCloser;
+            domNode.appendChild(closer);
+            closer.addEventListener("click", function (evt) {
+                _this.isDocked() ? _this.undock() : _this.hide();
+                evt.preventDefault();
+            }, false);
+        };
+        Popup.prototype.configurePaging = function () {
+            var _this = this;
+            var pages = (this.pages = new paging_1.Paging({ popup: this }));
+            var pageNavigator = new page_navigator_1["default"]({ pages: pages });
+            pageNavigator.hide();
+            pageNavigator.on("prev", function () { return pages.prev(); });
+            pageNavigator.on("next", function () { return pages.next(); });
+            pages.on("goto", function () { return _this.panIntoView(); });
+        };
+        Popup.prototype.configureAutoPopup = function () {
+            var _this = this;
+            if (!this.options.autoPopup)
+                return;
+            if (!this.options.map)
+                throw "autoPopup feature requires map option";
+            var autoPopup = interaction_1.SelectInteraction.create({
+                popup: this,
+                buffer: 4
+            });
+            this.on("change:active", function () {
+                autoPopup.set("active", _this.get("active"));
+            });
+            this.handlers.push(function () { return autoPopup.destroy(); });
+        };
+        Popup.prototype.injectCss = function (id, css) {
+            id = this.getId() + "_" + id;
+            var style = document.getElementById(id);
+            if (style)
+                style.remove();
+            style = common_3.html("<style type='text/css' id='" + id + "'>" + css + "</style>");
+            $(document.head).append(style);
+            this.handlers.push(function () { return style.remove(); });
+        };
+        Popup.prototype.hideIndicator = function () {
+            this.indicator && this.indicator.setPosition(undefined);
+        };
+        Popup.prototype.showIndicator = function () {
+            var indicator = this.indicator;
+            if (!indicator) {
+                indicator = this.indicator = new ol.Overlay({
+                    autoPan: this.options.autoPan,
+                    autoPanMargin: this.options.autoPanMargin,
+                    autoPanAnimation: this.options.autoPanAnimation,
+                    element: common_3.html("<span class=\"simple-popup-down-arrow\"></span>")
+                });
+                this.options.map.addOverlay(indicator);
+            }
+            indicator.setPositioning(this.getPositioning());
+            indicator.setPosition(this.getPosition());
+            return indicator;
+        };
+        Popup.prototype.positionIndicator = function (offset) {
+            if (offset === void 0) { offset = this.options.pointerPosition || 0; }
+            if (!this.getPosition() && this.indicator) {
+                this.hideIndicator();
+                return;
+            }
+            var _a = this.getPositioning().split("-", 2), verticalPosition = _a[0], horizontalPosition = _a[1];
+            var indicator = this.showIndicator();
+            switch (verticalPosition) {
+                case "top":
+                    {
+                        indicator.setElement(common_3.html("<span class=\"simple-popup-up-arrow\"></span>"));
+                        indicator.setOffset([0, 0 + offset]);
+                        indicator.setPositioning("top-center");
+                        var _b = [7, 8 + offset], dx = _b[0], dy = _b[1];
+                        switch (horizontalPosition) {
+                            case "center":
+                                this.setOffset([0, dy]);
+                                break;
+                            case "left":
+                                this.setOffset([-dx, dy]);
+                                break;
+                            case "right":
+                                this.setOffset([dx, dy]);
+                                break;
+                            default:
+                                throw "unknown value: " + horizontalPosition;
+                        }
+                    }
+                    break;
+                case "bottom":
+                    {
+                        indicator.setElement(common_3.html("<span class=\"simple-popup-down-arrow\"></span>"));
+                        indicator.setOffset([0, 0 - offset]);
+                        indicator.setPositioning("bottom-center");
+                        var _c = [7, -(10 + offset)], dx = _c[0], dy = _c[1];
+                        switch (horizontalPosition) {
+                            case "center":
+                                this.setOffset([0, dy]);
+                                break;
+                            case "left":
+                                this.setOffset([-dx, dy]);
+                                break;
+                            case "right":
+                                this.setOffset([dx, dy]);
+                                break;
+                            default:
+                                throw "unknown value: " + horizontalPosition;
+                        }
+                    }
+                    break;
+                case "center":
+                    {
+                        var _d = [5 + offset, 0], dx = _d[0], dy = _d[1];
+                        switch (horizontalPosition) {
+                            case "center":
+                                indicator.setPosition(null);
+                                break;
+                            case "left":
+                                indicator.setElement(common_3.html("<span class=\"simple-popup-left-arrow\"></span>"));
+                                indicator.setOffset([offset, 0]);
+                                indicator.setPositioning("center-left");
+                                this.setOffset([dx, dy]);
+                                break;
+                            case "right":
+                                indicator.setElement(common_3.html("<span class=\"simple-popup-right-arrow\"></span>"));
+                                indicator.setOffset([-offset, 0]);
+                                indicator.setPositioning("center-right");
+                                this.setOffset([-dx, dy]);
+                                break;
+                            default:
+                                throw "unknown value: " + horizontalPosition;
+                        }
+                    }
+                    break;
+                default:
+                    throw "unknown value: " + verticalPosition;
+            }
+        };
+        Popup.prototype.setPosition = function (position) {
+            this.options.position = position;
+            if (!this.isDocked()) {
+                if (!arrayEqual(this.getPosition(), position)) {
+                    _super.prototype.setPosition.call(this, position);
+                }
+                this.positionIndicator(this.options.pointerPosition);
             }
             else {
-                throw 'Could not parse string';
+                var animation = {
+                    center: position
+                };
+                var view = this.options.map.getView();
+                this.options.autoPanAnimation && mixin_2.mixin(animation, this.options.autoPanAnimation.duration);
+                view.animate(animation);
             }
-        }
-        if (typeof decDeg2.latLon === 'undefined') {
-            decDeg2.latLon = decDeg1.latLon === 'lat' ? 'lon' : 'lat';
-        }
-        return _a = {},
-            _a[decDeg1.latLon] = decDeg1.decDeg,
-            _a[decDeg2.latLon] = decDeg2.decDeg,
-            _a;
-    }
-    exports.parse = parse;
+        };
+        Popup.prototype.panIntoView = function () {
+            if (!this.isOpened())
+                return;
+            if (this.isDocked())
+                return;
+            var p = this.getPosition();
+            p && this.setPosition(p.map(function (v) { return v; }));
+        };
+        Popup.prototype.destroy = function () {
+            this.handlers.forEach(function (h) { return h(); });
+            this.handlers = [];
+            this.getMap() && this.getMap().removeOverlay(this);
+            this.dispatchEvent(eventNames.dispose);
+        };
+        Popup.prototype.show = function (coord, html) {
+            if (html === void 0) { html = null; }
+            if (html === null) {
+            }
+            else if (html instanceof HTMLElement) {
+                this.content.innerHTML = "";
+                this.content.appendChild(html);
+            }
+            else if (typeof html === "string") {
+                this.content.innerHTML = html;
+            }
+            else {
+                throw "unexpected html";
+            }
+            if (this.options.autoPositioning) {
+                this.setPositioning(smartpick_1.smartpick(this, coord));
+            }
+            this.setPosition(coord);
+            this.domNode.classList.remove(classNames.hidden);
+            this.dispatchEvent(eventNames.show);
+            return this;
+        };
+        Popup.prototype.on = function (type, listener) {
+            return _super.prototype.on.call(this, type, listener);
+        };
+        Popup.prototype.hide = function () {
+            this.setPosition(undefined);
+            this.indicator && this.indicator.setPosition(undefined);
+            this.pages.clear();
+            this.domNode.classList.add(classNames.hidden);
+            this.dispatchEvent(eventNames.hide);
+            return this;
+        };
+        Popup.prototype.isOpened = function () {
+            return !this.domNode.classList.contains(classNames.hidden);
+        };
+        Popup.prototype.isDocked = function () {
+            return this.domNode.classList.contains(classNames.docked);
+        };
+        Popup.prototype.dock = function () {
+            var map = this.getMap();
+            this.options.map = map;
+            this.options.parentNode = this.domNode.parentElement;
+            map.removeOverlay(this);
+            map.removeOverlay(this.indicator);
+            this.domNode.classList.add(classNames.docked);
+            this.options.dockContainer.appendChild(this.domNode);
+            this.dispatchEvent(eventNames.dock);
+            return this;
+        };
+        Popup.prototype.undock = function () {
+            var map = this.options.map;
+            this.options.parentNode.appendChild(this.domNode);
+            this.domNode.classList.remove(classNames.docked);
+            map.addOverlay(this);
+            map.addOverlay(this.indicator);
+            this.dispatchEvent(eventNames.undock);
+            this.show(this.options.position);
+            return this;
+        };
+        Popup.prototype.applyOffset = function (_a) {
+            var x = _a[0], y = _a[1];
+            switch (this.getPositioning()) {
+                case "bottom-left":
+                    this.setOffset([x, -y]);
+                    break;
+                case "bottom-right":
+                    this.setOffset([-x, -y]);
+                    break;
+                case "top-left":
+                    this.setOffset([x, y]);
+                    break;
+                case "top-right":
+                    this.setOffset([-x, y]);
+                    break;
+            }
+        };
+        return Popup;
+    }(ol.Overlay));
+    exports.Popup = Popup;
 });
-define("node_modules/ol3-fun/ol3-fun/slowloop", ["require", "exports"], function (require, exports) {
+define("node_modules/ol3-popup/index", ["require", "exports", "node_modules/ol3-popup/ol3-popup/ol3-popup"], function (require, exports, ol3_popup_1) {
     "use strict";
     exports.__esModule = true;
-    function slowloop(functions, interval, cycles) {
-        if (interval === void 0) { interval = 1000; }
-        if (cycles === void 0) { cycles = 1; }
-        var d = $.Deferred();
-        var index = 0;
-        if (!functions || 0 >= cycles) {
-            d.resolve();
-            return d;
+    exports.Popup = ol3_popup_1.Popup;
+    exports.DEFAULT_OPTIONS = ol3_popup_1.DEFAULT_OPTIONS;
+});
+define("node_modules/ol3-symbolizer/ol3-symbolizer/common/ajax", ["require", "exports", "jquery"], function (require, exports, $) {
+    "use strict";
+    var Ajax = (function () {
+        function Ajax(url) {
+            this.url = url;
+            this.options = {
+                use_json: true,
+                use_cors: true
+            };
         }
-        var h = setInterval(function () {
-            if (index === functions.length) {
-                index = 0;
-                cycles--;
-                if (cycles <= 0) {
-                    d.resolve();
-                    return;
+        Ajax.prototype.jsonp = function (args, url) {
+            if (url === void 0) { url = this.url; }
+            var d = $.Deferred();
+            args["callback"] = "define";
+            var uri = url + "?" + Object.keys(args).map(function (k) { return k + "=" + args[k]; }).join('&');
+            require([uri], function (data) { return d.resolve(data); });
+            return d;
+        };
+        Ajax.prototype.ajax = function (method, args, url) {
+            if (url === void 0) { url = this.url; }
+            var isData = method === "POST" || method === "PUT";
+            var isJson = this.options.use_json;
+            var isCors = this.options.use_cors;
+            var d = $.Deferred();
+            var client = new XMLHttpRequest();
+            if (isCors)
+                client.withCredentials = true;
+            var uri = url;
+            var data = null;
+            if (args) {
+                if (isData) {
+                    data = JSON.stringify(args);
+                }
+                else {
+                    uri += '?';
+                    var argcount = 0;
+                    for (var key in args) {
+                        if (args.hasOwnProperty(key)) {
+                            if (argcount++) {
+                                uri += '&';
+                            }
+                            uri += encodeURIComponent(key) + '=' + encodeURIComponent(args[key]);
+                        }
+                    }
                 }
             }
-            functions[index++]();
-        }, interval);
-        d.done(function () { return clearInterval(h); });
-        return d;
-    }
-    exports.slowloop = slowloop;
+            client.open(method, uri, true);
+            if (isData && isJson)
+                client.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+            client.send(data);
+            client.onload = function () {
+                console.log("content-type", client.getResponseHeader("Content-Type"));
+                if (client.status >= 200 && client.status < 300) {
+                    isJson = isJson || 0 === client.getResponseHeader("Content-Type").indexOf("application/json");
+                    d.resolve(isJson ? JSON.parse(client.response) : client.response);
+                }
+                else {
+                    d.reject(client.statusText);
+                }
+            };
+            client.onerror = function () { return d.reject(client.statusText); };
+            return d;
+        };
+        Ajax.prototype.get = function (args) {
+            return this.ajax('GET', args);
+        };
+        Ajax.prototype.post = function (args) {
+            return this.ajax('POST', args);
+        };
+        Ajax.prototype.put = function (args) {
+            return this.ajax('PUT', args);
+        };
+        Ajax.prototype["delete"] = function (args) {
+            return this.ajax('DELETE', args);
+        };
+        return Ajax;
+    }());
+    return Ajax;
 });
-define("node_modules/ol3-fun/index", ["require", "exports", "node_modules/ol3-fun/ol3-fun/common", "node_modules/ol3-fun/ol3-fun/navigation", "node_modules/ol3-fun/ol3-fun/parse-dms", "node_modules/ol3-fun/ol3-fun/slowloop"], function (require, exports, common_2, navigation_1, parse_dms_1, slowloop_1) {
+define("node_modules/ol3-symbolizer/ol3-symbolizer/common/defaults", ["require", "exports"], function (require, exports) {
     "use strict";
-    var index = {
-        asArray: common_2.asArray,
-        cssin: common_2.cssin,
-        debounce: common_2.debounce,
-        defaults: common_2.defaults,
-        doif: common_2.doif,
-        getParameterByName: common_2.getParameterByName,
-        getQueryParameters: common_2.getQueryParameters,
-        html: common_2.html,
-        mixin: common_2.mixin,
-        pair: common_2.pair,
-        parse: common_2.parse,
-        range: common_2.range,
-        shuffle: common_2.shuffle,
-        toggle: common_2.toggle,
-        uuid: common_2.uuid,
-        slowloop: slowloop_1.slowloop,
-        dms: {
-            parse: parse_dms_1.parse
-        },
-        navigation: {
-            zoomToFeature: navigation_1.zoomToFeature
+    exports.__esModule = true;
+    function defaults(a) {
+        var b = [];
+        for (var _i = 1; _i < arguments.length; _i++) {
+            b[_i - 1] = arguments[_i];
         }
-    };
-    return index;
+        b.filter(function (b) { return !!b; }).forEach(function (b) {
+            Object.keys(b).filter(function (k) { return a[k] === undefined; }).forEach(function (k) { return a[k] = b[k]; });
+        });
+        return a;
+    }
+    exports.defaults = defaults;
 });
-define("node_modules/ol3-symbolizer/ol3-symbolizer/ags/ags-source", ["require", "exports", "jquery", "openlayers", "node_modules/ol3-symbolizer/ol3-symbolizer/ags/ags-catalog", "node_modules/ol3-symbolizer/ol3-symbolizer/format/ags-symbolizer", "node_modules/ol3-fun/index"], function (require, exports, $, ol, AgsCatalog, Symbolizer, index_1) {
+define("node_modules/ol3-symbolizer/ol3-symbolizer/ags/ags-catalog", ["require", "exports", "node_modules/ol3-symbolizer/ol3-symbolizer/common/ajax", "node_modules/ol3-symbolizer/ol3-symbolizer/common/defaults"], function (require, exports, Ajax, defaults_1) {
+    "use strict";
+    exports.__esModule = true;
+    var Catalog = (function () {
+        function Catalog(url) {
+            this.ajax = new Ajax(url);
+        }
+        Catalog.prototype.about = function (data) {
+            var req = defaults_1.defaults({
+                f: "pjson"
+            }, data);
+            return this.ajax.jsonp(req);
+        };
+        Catalog.prototype.aboutFolder = function (folder) {
+            var ajax = new Ajax(this.ajax.url + "/" + folder);
+            var req = {
+                f: "pjson"
+            };
+            return ajax.jsonp(req);
+        };
+        Catalog.prototype.aboutFeatureServer = function (name) {
+            var ajax = new Ajax(this.ajax.url + "/" + name + "/FeatureServer");
+            var req = {
+                f: "pjson"
+            };
+            return defaults_1.defaults(ajax.jsonp(req), { url: ajax.url });
+        };
+        Catalog.prototype.aboutMapServer = function (name) {
+            var ajax = new Ajax(this.ajax.url + "/" + name + "/MapServer");
+            var req = {
+                f: "pjson"
+            };
+            return defaults_1.defaults(ajax.jsonp(req), { url: ajax.url });
+        };
+        Catalog.prototype.aboutLayer = function (layer) {
+            var ajax = new Ajax(this.ajax.url + "/" + layer);
+            var req = {
+                f: "pjson"
+            };
+            return ajax.jsonp(req);
+        };
+        return Catalog;
+    }());
+    exports.Catalog = Catalog;
+});
+define("node_modules/ol3-symbolizer/ol3-symbolizer/ags/ags-source", ["require", "exports", "jquery", "openlayers", "node_modules/ol3-symbolizer/ol3-symbolizer/ags/ags-catalog", "node_modules/ol3-symbolizer/ol3-symbolizer/format/ags-symbolizer", "node_modules/ol3-fun/index"], function (require, exports, $, ol, AgsCatalog, Symbolizer, index_2) {
     "use strict";
     exports.__esModule = true;
     var esrijsonFormat = new ol.format.EsriJSON();
@@ -1944,7 +3030,7 @@ define("node_modules/ol3-symbolizer/ol3-symbolizer/ags/ags-source", ["require", 
         }
         ArcGisVectorSourceFactory.create = function (options) {
             var d = $.Deferred();
-            options = index_1.defaults(options, DEFAULT_OPTIONS);
+            options = index_2.defaults(options, DEFAULT_OPTIONS);
             var srs = options.map
                 .getView()
                 .getProjection()
@@ -2054,10 +3140,9 @@ define("node_modules/ol3-symbolizer/ol3-symbolizer/ags/ags-source", ["require", 
     }());
     exports.ArcGisVectorSourceFactory = ArcGisVectorSourceFactory;
 });
-define("ol3-lab/labs/ags-viewer", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/common/common", "ol3-symbolizer", "ol3-layerswitcher", "ol3-popup", "node_modules/ol3-symbolizer/ol3-symbolizer/ags/ags-source"], function (require, exports, $, ol, common_3, ol3_symbolizer_1, ol3_layerswitcher_1, ol3_popup_1, ags_source_1) {
+define("ol3-lab/labs/ags-viewer", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/common/common", "node_modules/ol3-layerswitcher/index", "node_modules/ol3-popup/index", "node_modules/ol3-symbolizer/ol3-symbolizer/ags/ags-source"], function (require, exports, $, ol, common_4, index_3, index_4, ags_source_1) {
     "use strict";
     exports.__esModule = true;
-    var styler = new ol3_symbolizer_1.StyleConverter();
     function parse(v, type) {
         if (typeof type === "string")
             return v;
@@ -2066,7 +3151,7 @@ define("ol3-lab/labs/ags-viewer", ["require", "exports", "jquery", "openlayers",
         if (typeof type === "boolean")
             return (v === "1" || v === "true");
         if (Array.isArray(type)) {
-            return (v.split(",").map(function (v) { return parse(v, type[0]); }));
+            return v.split(",").map(function (v) { return parse(v, type[0]); });
         }
         throw "unknown type: " + type;
     }
@@ -2082,7 +3167,7 @@ define("ol3-lab/labs/ags-viewer", ["require", "exports", "jquery", "openlayers",
         $(html).appendTo(".map");
         $(css).appendTo("head");
         var options = {
-            srs: 'EPSG:4326',
+            srs: "EPSG:4326",
             center: center.vegas,
             zoom: 10,
             services: "http://sampleserver3.arcgisonline.com/ArcGIS/rest/services",
@@ -2092,7 +3177,7 @@ define("ol3-lab/labs/ags-viewer", ["require", "exports", "jquery", "openlayers",
         {
             var opts_1 = options;
             Object.keys(opts_1).forEach(function (k) {
-                common_3.doif(common_3.getParameterByName(k), function (v) {
+                common_4.doif(common_4.getParameterByName(k), function (v) {
                     var value = parse(v, opts_1[k]);
                     if (value !== undefined)
                         opts_1[k] = value;
@@ -2113,19 +3198,19 @@ define("ol3-lab/labs/ags-viewer", ["require", "exports", "jquery", "openlayers",
             layers: [
                 new ol.layer.Tile({
                     title: "OSM",
-                    type: 'base',
+                    type: "base",
                     opacity: 0.8,
                     visible: true,
                     source: new ol.source.OSM()
                 }),
                 new ol.layer.Tile({
                     title: "Bing",
-                    type: 'base',
+                    type: "base",
                     opacity: 0.8,
                     visible: false,
                     source: new ol.source.BingMaps({
-                        key: 'AuPHWkNxvxVAL_8Z4G8Pcq_eOKGm5eITH_cJMNAyYoIC1S_29_HhE893YrUUbIGl',
-                        imagerySet: 'Aerial'
+                        key: "AuPHWkNxvxVAL_8Z4G8Pcq_eOKGm5eITH_cJMNAyYoIC1S_29_HhE893YrUUbIGl",
+                        imagerySet: "Aerial"
                     })
                 })
             ]
@@ -2138,9 +3223,9 @@ define("ol3-lab/labs/ags-viewer", ["require", "exports", "jquery", "openlayers",
             layers: options.layers.reverse()
         }).then(function (agsLayers) {
             agsLayers.forEach(function (agsLayer) { return map.addLayer(agsLayer); });
-            var layerSwitcher = new ol3_layerswitcher_1.LayerSwitcher();
+            var layerSwitcher = new index_3.LayerSwitcher();
             layerSwitcher.setMap(map);
-            var popup = new ol3_popup_1.Popup({
+            var popup = new index_4.Popup({
                 css: "\n            .ol-popup {\n                background-color: white;\n            }\n            .ol-popup .page {\n                max-height: 200px;\n                overflow-y: auto;\n            }\n            "
             });
             map.addOverlay(popup);
@@ -2150,7 +3235,7 @@ define("ol3-lab/labs/ags-viewer", ["require", "exports", "jquery", "openlayers",
                 popup.hide();
                 var pageNum = 0;
                 map.forEachFeatureAtPixel(event.pixel, function (feature, layer) {
-                    var page = document.createElement('p');
+                    var page = document.createElement("p");
                     var keys = Object.keys(feature.getProperties()).filter(function (key) {
                         var v = feature.get(key);
                         if (typeof v === "string")
@@ -2160,7 +3245,9 @@ define("ol3-lab/labs/ags-viewer", ["require", "exports", "jquery", "openlayers",
                         return false;
                     });
                     page.title = "" + ++pageNum;
-                    page.innerHTML = "<table>" + keys.map(function (k) { return "<tr><td>" + k + "</td><td>" + feature.get(k) + "</td></tr>"; }).join("") + "</table>";
+                    page.innerHTML = "<table>" + keys
+                        .map(function (k) { return "<tr><td>" + k + "</td><td>" + feature.get(k) + "</td></tr>"; })
+                        .join("") + "</table>";
                     popup.pages.add(page, feature.getGeometry());
                 });
                 popup.show(coord, "<label>" + pageNum + " Features Found</label>");
@@ -2501,7 +3588,7 @@ define("ol3-lab/labs/common/myjson", ["require", "exports", "jquery"], function 
     }());
     exports.MyJson = MyJson;
 });
-define("ol3-lab/labs/mapmaker", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/common/common", "ol3-lab/labs/common/ol3-polyline", "node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", "node_modules/ol3-symbolizer/examples/styles/stroke/dashdotdot", "node_modules/ol3-symbolizer/examples/styles/stroke/solid", "node_modules/ol3-symbolizer/examples/styles/text/text", "ol3-lab/labs/common/myjson"], function (require, exports, $, ol, common_4, reduce, ol3_symbolizer_2, dashdotdot, strokeStyle, textStyle, myjson_1) {
+define("ol3-lab/labs/mapmaker", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/common/common", "ol3-lab/labs/common/ol3-polyline", "node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", "node_modules/ol3-symbolizer/examples/styles/stroke/dashdotdot", "node_modules/ol3-symbolizer/examples/styles/stroke/solid", "node_modules/ol3-symbolizer/examples/styles/text/text", "ol3-lab/labs/common/myjson"], function (require, exports, $, ol, common_5, reduce, ol3_symbolizer_2, dashdotdot, strokeStyle, textStyle, myjson_1) {
     "use strict";
     exports.__esModule = true;
     var styler = new ol3_symbolizer_2.StyleConverter();
@@ -2531,13 +3618,13 @@ define("ol3-lab/labs/mapmaker", ["require", "exports", "jquery", "openlayers", "
         basemap: "osm"
     };
     function run(options) {
-        options = common_4.defaults(options || {}, DEFAULT_OPTIONS);
+        options = common_5.defaults(options || {}, DEFAULT_OPTIONS);
         $(html).appendTo(".map");
         $(css).appendTo("head");
         {
             var opts_2 = options;
             Object.keys(opts_2).forEach(function (k) {
-                common_4.doif(common_4.getParameterByName(k), function (v) {
+                common_5.doif(common_5.getParameterByName(k), function (v) {
                     var value = parse(v, opts_2[k]);
                     if (value !== undefined)
                         opts_2[k] = value;
@@ -2600,7 +3687,7 @@ define("ol3-lab/labs/mapmaker", ["require", "exports", "jquery", "openlayers", "
                     feature.setStyle(style);
                     features.push(feature);
                 });
-                if (!common_4.getParameterByName("center")) {
+                if (!common_5.getParameterByName("center")) {
                     map.getView().fit(layer.getSource().getExtent());
                 }
             }
@@ -2689,17 +3776,17 @@ define("node_modules/ol3-input/ol3-input/providers/osm", ["require", "exports"],
     exports.__esModule = true;
     var OpenStreet = (function () {
         function OpenStreet() {
-            this.dataType = 'json';
-            this.method = 'GET';
+            this.dataType = "json";
+            this.method = "GET";
             this.settings = {
-                url: '//nominatim.openstreetmap.org/search/',
+                url: "//nominatim.openstreetmap.org/search/",
                 params: {
-                    q: '',
-                    format: 'json',
+                    q: "",
+                    format: "json",
                     addressdetails: 1,
                     limit: 10,
-                    countrycodes: '',
-                    'accept-language': 'en-US'
+                    countrycodes: "",
+                    "accept-language": "en-US"
                 }
             };
         }
@@ -2708,39 +3795,282 @@ define("node_modules/ol3-input/ol3-input/providers/osm", ["require", "exports"],
                 url: this.settings.url,
                 params: {
                     q: options.query,
-                    format: 'json',
+                    format: "json",
                     addressdetails: 1,
                     limit: options.limit || this.settings.params.limit,
                     countrycodes: options.countrycodes || this.settings.params.countrycodes,
-                    'accept-language': options.lang || this.settings.params['accept-language']
+                    "accept-language": options.lang || this.settings.params["accept-language"]
                 }
             };
         };
         OpenStreet.prototype.handleResponse = function (args) {
-            return args.sort(function (v) { return v.importance || 1; }).map(function (result) { return ({
-                original: result,
-                lon: parseFloat(result.lon),
-                lat: parseFloat(result.lat),
-                address: {
-                    name: result.address.neighbourhood || '',
-                    road: result.address.road || '',
-                    postcode: result.address.postcode,
-                    city: result.address.city || result.address.town,
-                    state: result.address.state,
-                    country: result.address.country
-                }
-            }); });
+            return args.sort(function (v) { return v.importance || 1; }).map(function (result) {
+                return ({
+                    original: result,
+                    lon: parseFloat(result.lon),
+                    lat: parseFloat(result.lat),
+                    address: {
+                        name: result.address.neighbourhood || "",
+                        road: result.address.road || "",
+                        postcode: result.address.postcode,
+                        city: result.address.city || result.address.town,
+                        state: result.address.state,
+                        country: result.address.country
+                    }
+                });
+            });
         };
         return OpenStreet;
     }());
     exports.OpenStreet = OpenStreet;
 });
-define("ol3-lab/labs/geocoder", ["require", "exports", "ol3-lab/labs/mapmaker", "ol3-input", "node_modules/ol3-input/ol3-input/providers/osm"], function (require, exports, MapMaker, ol3_input_1, osm_1) {
+define("node_modules/ol3-input/ol3-input/ol3-input", ["require", "exports", "openlayers", "jquery", "node_modules/ol3-fun/ol3-fun/common", "node_modules/ol3-fun/ol3-fun/common", "node_modules/ol3-fun/ol3-fun/navigation", "node_modules/ol3-input/ol3-input/providers/osm"], function (require, exports, ol, $, common_6, common_7, navigation_1, osm_1) {
+    "use strict";
+    exports.__esModule = true;
+    var olcss = {
+        CLASS_CONTROL: 'ol-control',
+        CLASS_UNSELECTABLE: 'ol-unselectable',
+        CLASS_UNSUPPORTED: 'ol-unsupported',
+        CLASS_HIDDEN: 'ol-hidden'
+    };
+    function changeHandlerFactor(input) {
+        var options = input.options;
+        var searchProvider = new osm_1.OpenStreet();
+        var changeHandler = function (args) {
+            if (!args.value)
+                return;
+            console.log("search", args.value);
+            var searchArgs = searchProvider.getParameters({
+                query: args.value,
+                limit: 1,
+                countrycodes: 'us',
+                lang: 'en'
+            });
+            $.ajax({
+                url: searchArgs.url,
+                method: searchProvider.method || 'GET',
+                data: searchArgs.params,
+                dataType: searchProvider.dataType || 'json'
+            }).then(function (json) {
+                var results = searchProvider.handleResponse(json);
+                results.some(function (r) {
+                    var _a, _b;
+                    console.log(r);
+                    if (r.original.boundingbox) {
+                        var _c = r.original.boundingbox.map(function (v) { return parseFloat(v); }), lat1 = _c[0], lat2 = _c[1], lon1 = _c[2], lon2 = _c[3];
+                        _a = ol.proj.transform([lon1, lat1], "EPSG:4326", "EPSG:3857"), lon1 = _a[0], lat1 = _a[1];
+                        _b = ol.proj.transform([lon2, lat2], "EPSG:4326", "EPSG:3857"), lon2 = _b[0], lat2 = _b[1];
+                        var extent = [lon1, lat1, lon2, lat2];
+                        var feature = new ol.Feature(new ol.geom.Polygon([[
+                                ol.extent.getBottomLeft(extent),
+                                ol.extent.getTopLeft(extent),
+                                ol.extent.getTopRight(extent),
+                                ol.extent.getBottomRight(extent),
+                                ol.extent.getBottomLeft(extent)
+                            ]]));
+                        feature.set("text", r.original.display_name);
+                        options.source && options.source.addFeature(feature);
+                        navigation_1.zoomToFeature(options.map, feature);
+                    }
+                    else {
+                        var _d = ol.proj.transform([r.lon, r.lat], "EPSG:4326", "EPSG:3857"), lon = _d[0], lat = _d[1];
+                        var feature = new ol.Feature(new ol.geom.Point([lon, lat]));
+                        feature.set("text", r.original.display_name);
+                        options.source && options.source.addFeature(feature);
+                        navigation_1.zoomToFeature(options.map, feature);
+                    }
+                    return true;
+                });
+            }).fail(function () {
+                console.error("geocoder failed");
+            });
+        };
+        return changeHandler;
+    }
+    var expando = {
+        right: '»',
+        left: '«'
+    };
+    var Input = (function (_super) {
+        __extends(Input, _super);
+        function Input(options) {
+            var _this = this;
+            if (options.hideButton) {
+                options.canCollapse = false;
+                options.autoCollapse = false;
+                options.expanded = true;
+            }
+            _this = _super.call(this, {
+                element: options.element,
+                target: options.target
+            }) || this;
+            _this.options = options;
+            _this.handlers = [];
+            _this.cssin();
+            if (options.provider && options.source) {
+                _this.on("change", changeHandlerFactor(_this));
+            }
+            var button = _this.button = document.createElement('button');
+            button.setAttribute('type', 'button');
+            button.title = options.placeholderText;
+            options.element.appendChild(button);
+            if (options.hideButton) {
+                button.style.display = "none";
+            }
+            var input = _this.input = document.createElement('input');
+            input.placeholder = options.placeholderText;
+            options.element.appendChild(input);
+            button.addEventListener("click", function () {
+                options.expanded ? _this.collapse(options) : _this.expand(options);
+            });
+            if (options.autoCollapse) {
+                input.addEventListener("blur", function () {
+                    _this.collapse(options);
+                });
+                input.addEventListener("keydown", function (args) {
+                    if (args.key === "Enter") {
+                        button.focus();
+                        _this.collapse(options);
+                    }
+                });
+            }
+            input.addEventListener("keypress", function (args) {
+                if (args.key === "Enter") {
+                    button.focus();
+                }
+            });
+            if (options.autoChange) {
+                input.addEventListener("keypress", common_6.debounce(function () {
+                    if (options.regex && !options.regex.test(input.value))
+                        return;
+                    var args = {
+                        type: "change",
+                        value: input.value
+                    };
+                    options.autoSelect && _this.input.select();
+                    _this.dispatchEvent(args);
+                }, options.changeDelay));
+            }
+            input.addEventListener("change", function () {
+                if (options.regex && !options.regex.test(input.value))
+                    return;
+                var args = {
+                    type: "change",
+                    value: input.value
+                };
+                options.autoSelect && input.select();
+                if (options.autoClear) {
+                    input.value = "";
+                }
+                _this.dispatchEvent(args);
+            });
+            if (options.autoSelect) {
+                input.addEventListener("focus", function () {
+                    input.select();
+                });
+            }
+            options.expanded ? _this.expand(options) : _this.collapse(options);
+            return _this;
+        }
+        Input.create = function (options) {
+            if (options === void 0) { options = {}; }
+            options = options || {};
+            options = common_6.mixin({
+                openedText: options.position && -1 < options.position.indexOf("left") ? expando.left : expando.right,
+                closedText: options.position && -1 < options.position.indexOf("left") ? expando.right : expando.left
+            }, options);
+            options = common_6.mixin(common_6.mixin({}, Input.DEFAULT_OPTIONS), options);
+            var element = document.createElement('div');
+            element.className = options.className + " " + options.position + " " + olcss.CLASS_UNSELECTABLE + " " + olcss.CLASS_CONTROL;
+            var geocoderOptions = common_6.mixin({
+                element: element,
+                target: options.target,
+                expanded: false
+            }, options);
+            var input = new Input(geocoderOptions);
+            input.handlers.push(function () { return element.remove(); });
+            if (options.map) {
+                options.map.addControl(input);
+            }
+            return input;
+        };
+        Input.prototype.destroy = function () {
+            this.handlers.forEach(function (h) { return h(); });
+            this.setTarget(null);
+        };
+        Input.prototype.getValue = function () {
+            return this.input.value;
+        };
+        Input.prototype.setValue = function (v) {
+            this.input.value = v;
+            this.input.dispatchEvent(new Event("change"));
+        };
+        Input.prototype.setPosition = function (position) {
+            var _this = this;
+            this.options.position.split(' ')
+                .forEach(function (k) { return _this.options.element.classList.remove(k); });
+            position.split(' ')
+                .forEach(function (k) { return _this.options.element.classList.add(k); });
+            this.options.position = position;
+        };
+        Input.prototype.cssin = function () {
+            var className = this.options.className;
+            var positions = common_7.pair("top left right bottom".split(" "), common_7.range(24))
+                .map(function (pos) { return "." + className + "." + (pos[0] + (-pos[1] || '')) + " { " + pos[0] + ":" + (0.5 + pos[1]) + "em; }"; });
+            this.handlers.push(common_6.cssin(className, "\n            ." + className + " {\n                position: absolute;\n                background-color: rgba(255,255,255,.4);\n            }\n            ." + className + ".active {\n                background-color: white;\n            }\n            ." + className + ":hover {\n                background-color: white;\n            }\n            ." + className + " input[type=\"button\"] {\n                color: rgba(0,60,136,1);\n                background: transparent;\n                border: none;\n                width: 2em;\n                height: 2em;\n            }            \n            ." + className + " button {\n                min-height: 1.375em;\n                min-width: 1.375em;\n                width: auto;\n                display: inline;\n            }\n\n            ." + className + ".left button {\n                float:right;\n            }\n\n            ." + className + ".right button {\n                float:left;\n            }\n\n            ." + className + " input {\n                height: 2.175em;\n                width: 16em;\n                border: none;\n                padding: 0;\n                margin: 0;\n                margin-left: 2px;\n                margin-top: 2px;\n                vertical-align: top;\n                transition: width 0.25s;\n            }\n\n            ." + className + " input.ol-hidden {\n                width: 0;\n                margin: 0;\n            }\n            \n            " + positions.join('\n') + "\n        "));
+        };
+        Input.prototype.collapse = function (options) {
+            if (!options.canCollapse)
+                return;
+            options.expanded = false;
+            this.input.classList.add(olcss.CLASS_HIDDEN);
+            this.button.classList.remove(olcss.CLASS_HIDDEN);
+            this.button.innerHTML = options.closedText;
+        };
+        Input.prototype.expand = function (options) {
+            options.expanded = true;
+            this.input.classList.remove(olcss.CLASS_HIDDEN);
+            this.button.classList.add(olcss.CLASS_HIDDEN);
+            this.button.innerHTML = options.openedText;
+            this.input.focus();
+            options.autoSelect && this.input.select();
+        };
+        Input.prototype.on = function (type, cb) {
+            return _super.prototype.on.call(this, type, cb);
+        };
+        Input.DEFAULT_OPTIONS = {
+            className: 'ol-input',
+            position: 'bottom left',
+            expanded: false,
+            autoChange: false,
+            autoClear: false,
+            autoCollapse: true,
+            autoSelect: true,
+            canCollapse: true,
+            changeDelay: 2000,
+            hideButton: false,
+            closedText: expando.right,
+            openedText: expando.left,
+            provider: osm_1.OpenStreet,
+            placeholderText: 'Search',
+            regex: /\S{2,}/
+        };
+        return Input;
+    }(ol.control.Control));
+    exports.Input = Input;
+});
+define("node_modules/ol3-input/index", ["require", "exports", "node_modules/ol3-input/ol3-input/ol3-input", "node_modules/ol3-input/ol3-input/providers/osm"], function (require, exports, ol3_input_1, osm_2) {
+    "use strict";
+    exports.__esModule = true;
+    exports.Input = ol3_input_1.Input;
+    exports.OsmSearchProvider = osm_2.OpenStreet;
+});
+define("ol3-lab/labs/geocoder", ["require", "exports", "ol3-lab/labs/mapmaker", "node_modules/ol3-input/index"], function (require, exports, MapMaker, index_5) {
     "use strict";
     exports.__esModule = true;
     function run() {
         MapMaker.run().then(function (map) {
-            var searchProvider = new osm_1.OpenStreet();
+            var searchProvider = new index_5.OsmSearchProvider();
             var changeHandler = function (args) {
                 if (!args.value)
                     return;
@@ -2748,56 +4078,57 @@ define("ol3-lab/labs/geocoder", ["require", "exports", "ol3-lab/labs/mapmaker", 
                 var searchArgs = searchProvider.getParameters({
                     query: args.value,
                     limit: 1,
-                    countrycodes: 'us',
-                    lang: 'en'
+                    countrycodes: "us",
+                    lang: "en"
                 });
                 $.ajax({
                     url: searchArgs.url,
-                    method: searchProvider.method || 'GET',
+                    method: searchProvider.method || "GET",
                     data: searchArgs.params,
-                    dataType: searchProvider.dataType || 'json'
-                }).then(function (json) {
+                    dataType: searchProvider.dataType || "json"
+                })
+                    .then(function (json) {
                     var results = searchProvider.handleResponse(json);
                     results.some(function (r) {
                         console.log(r);
                         if (r.original.boundingbox) {
                             var _a = r.original.boundingbox.map(function (v) { return parseFloat(v); }), lat1 = _a[0], lat2 = _a[1], lon1 = _a[2], lon2 = _a[3];
-                            map.getView().fit([lon1, lat1, lon2, lat2], map.getSize());
+                            map.getView().fit([lon1, lat1, lon2, lat2]);
                         }
                         else {
                             map.getView().setCenter([r.lon, r.lat]);
                         }
                         return true;
                     });
-                }).fail(function () {
+                })
+                    .fail(function () {
                     console.error("geocoder failed");
                 });
             };
-            var geocoder = ol3_input_1.Input.create({
+            index_5.Input.create({
+                map: map,
                 closedText: "+",
                 openedText: "−",
-                placeholderText: "Bottom Left Search",
-                onChange: changeHandler
-            });
-            map.addControl(geocoder);
-            map.addControl(ol3_input_1.Input.create({
-                className: 'ol-input bottom right',
+                placeholderText: "Bottom Left Search"
+            }).on("change", changeHandler);
+            index_5.Input.create({
+                map: map,
+                position: "bottom right",
                 expanded: true,
-                placeholderText: "Bottom Right Search",
-                onChange: changeHandler
-            }));
-            map.addControl(ol3_input_1.Input.create({
-                className: 'ol-input top right',
+                placeholderText: "Bottom Right Search"
+            }).on("change", changeHandler);
+            index_5.Input.create({
+                map: map,
+                position: "top right",
                 expanded: false,
-                placeholderText: "Top Right",
-                onChange: changeHandler
-            }));
-            map.addControl(ol3_input_1.Input.create({
-                className: 'ol-input top left',
+                placeholderText: "Top Right"
+            }).on("change", changeHandler);
+            index_5.Input.create({
+                map: map,
+                position: "top left",
                 expanded: false,
-                placeholderText: "Top Left Search",
-                onChange: changeHandler
-            }));
+                placeholderText: "Top Left Search"
+            }).on("change", changeHandler);
         });
     }
     exports.run = run;
@@ -2960,7 +4291,7 @@ define("ol3-lab/labs/index", ["require", "exports"], function (require, exports)
     exports.run = run;
     ;
 });
-define("node_modules/ol3-draw/ol3-draw/ol3-button", ["require", "exports", "openlayers", "node_modules/ol3-fun/ol3-fun/common", "node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer"], function (require, exports, ol, common_5, ol3_symbolizer_3) {
+define("node_modules/ol3-draw/ol3-draw/ol3-button", ["require", "exports", "openlayers", "node_modules/ol3-fun/ol3-fun/common", "node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer"], function (require, exports, ol, common_8, ol3_symbolizer_3) {
     "use strict";
     exports.__esModule = true;
     var Button = (function (_super) {
@@ -2972,7 +4303,7 @@ define("node_modules/ol3-draw/ol3-draw/ol3-button", ["require", "exports", "open
             _this.symbolizer = new ol3_symbolizer_3.StyleConverter();
             _this.cssin();
             options.element.className = options.className + " " + options.position;
-            var button = common_5.html("<input type=\"button\" value=\"" + options.label + "\" />");
+            var button = common_8.html("<input type=\"button\" value=\"" + options.label + "\" />");
             _this.handlers.push(function () { return options.element.remove(); });
             button.title = options.title;
             options.element.appendChild(button);
@@ -2991,7 +4322,7 @@ define("node_modules/ol3-draw/ol3-draw/ol3-button", ["require", "exports", "open
             return _this;
         }
         Button.create = function (options) {
-            options = common_5.mixin(common_5.mixin({}, Button.DEFAULT_OPTIONS), options || {});
+            options = common_8.mixin(common_8.mixin({}, Button.DEFAULT_OPTIONS), options || {});
             options.element = options.element || document.createElement("DIV");
             var button = new (options.buttonType)(options);
             if (options.map) {
@@ -3013,9 +4344,9 @@ define("node_modules/ol3-draw/ol3-draw/ol3-button", ["require", "exports", "open
         };
         Button.prototype.cssin = function () {
             var className = this.options.className;
-            var positions = common_5.pair("top left right bottom".split(" "), common_5.range(24))
+            var positions = common_8.pair("top left right bottom".split(" "), common_8.range(24))
                 .map(function (pos) { return "." + className + "." + (pos[0] + (-pos[1] || '')) + " { " + pos[0] + ":" + (0.5 + pos[1]) + "em; }"; });
-            this.handlers.push(common_5.cssin(className, "\n            ." + className + " {\n                position: absolute;\n                background-color: rgba(255,255,255,.4);\n            }\n            ." + className + ".active {\n                background-color: white;\n            }\n            ." + className + ":hover {\n                background-color: white;\n            }\n            ." + className + " input[type=\"button\"] {\n                color: rgba(0,60,136,1);\n                background: transparent;\n                border: none;\n                width: 2em;\n                height: 2em;\n            }\n            " + positions.join('\n') + "\n        "));
+            this.handlers.push(common_8.cssin(className, "\n            ." + className + " {\n                position: absolute;\n                background-color: rgba(255,255,255,.4);\n            }\n            ." + className + ".active {\n                background-color: white;\n            }\n            ." + className + ":hover {\n                background-color: white;\n            }\n            ." + className + " input[type=\"button\"] {\n                color: rgba(0,60,136,1);\n                background: transparent;\n                border: none;\n                width: 2em;\n                height: 2em;\n            }\n            " + positions.join('\n') + "\n        "));
         };
         Button.prototype.setMap = function (map) {
             var options = this.options;
@@ -3038,12 +4369,7 @@ define("node_modules/ol3-draw/ol3-draw/ol3-button", ["require", "exports", "open
     }(ol.control.Control));
     exports.Button = Button;
 });
-define("node_modules/ol3-symbolizer/index", ["require", "exports", "node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer"], function (require, exports, Symbolizer) {
-    "use strict";
-    exports.__esModule = true;
-    exports.Symbolizer = Symbolizer;
-});
-define("node_modules/ol3-draw/ol3-draw/ol3-draw", ["require", "exports", "openlayers", "node_modules/ol3-draw/ol3-draw/ol3-button", "node_modules/ol3-fun/ol3-fun/common"], function (require, exports, ol, ol3_button_1, common_6) {
+define("node_modules/ol3-draw/ol3-draw/ol3-draw", ["require", "exports", "openlayers", "node_modules/ol3-draw/ol3-draw/ol3-button", "node_modules/ol3-fun/ol3-fun/common"], function (require, exports, ol, ol3_button_1, common_9) {
     "use strict";
     exports.__esModule = true;
     var Draw = (function (_super) {
@@ -3081,7 +4407,7 @@ define("node_modules/ol3-draw/ol3-draw/ol3-draw", ["require", "exports", "openla
             return _this;
         }
         Draw.create = function (options) {
-            options = common_6.mixin(common_6.mixin({}, Draw.DEFAULT_OPTIONS), options || {});
+            options = common_9.mixin(common_9.mixin({}, Draw.DEFAULT_OPTIONS), options || {});
             return ol3_button_1.Button.create(options);
         };
         Draw.prototype.createInteraction = function () {
@@ -3149,14 +4475,14 @@ define("node_modules/ol3-draw/ol3-draw/ol3-draw", ["require", "exports", "openla
     }(ol3_button_1.Button));
     exports.Draw = Draw;
 });
-define("node_modules/ol3-draw/ol3-draw/ol3-edit", ["require", "exports", "openlayers", "node_modules/ol3-fun/ol3-fun/common", "node_modules/ol3-draw/ol3-draw/ol3-button"], function (require, exports, ol, common_7, ol3_button_2) {
+define("node_modules/ol3-draw/ol3-draw/ol3-edit", ["require", "exports", "openlayers", "node_modules/ol3-fun/ol3-fun/common", "node_modules/ol3-draw/ol3-draw/ol3-button"], function (require, exports, ol, common_10, ol3_button_2) {
     "use strict";
     exports.__esModule = true;
     var Modify = (function (_super) {
         __extends(Modify, _super);
         function Modify(options) {
             var _this = _super.call(this, options) || this;
-            var styles = common_7.defaults(options.style, Modify.DEFAULT_OPTIONS.style);
+            var styles = common_10.defaults(options.style, Modify.DEFAULT_OPTIONS.style);
             var select = new ol.interaction.Select({
                 style: function (feature, res) {
                     var featureType = feature.getGeometry().getType();
@@ -3230,7 +4556,7 @@ define("node_modules/ol3-draw/ol3-draw/ol3-edit", ["require", "exports", "openla
             return _this;
         }
         Modify.create = function (options) {
-            options = common_7.defaults({}, options, Modify.DEFAULT_OPTIONS);
+            options = common_10.defaults({}, options, Modify.DEFAULT_OPTIONS);
             return ol3_button_2.Button.create(options);
         };
         Modify.DEFAULT_OPTIONS = {
@@ -3301,7 +4627,7 @@ define("node_modules/ol3-draw/ol3-draw/ol3-edit", ["require", "exports", "openla
     }(ol3_button_2.Button));
     exports.Modify = Modify;
 });
-define("ol3-lab/labs/ol-draw", ["require", "exports", "openlayers", "node_modules/ol3-fun/ol3-fun/common", "node_modules/ol3-draw/ol3-draw/ol3-draw", "node_modules/ol3-draw/ol3-draw/ol3-edit"], function (require, exports, ol, common_8, ol3_draw_1, ol3_edit_1) {
+define("ol3-lab/labs/ol-draw", ["require", "exports", "openlayers", "node_modules/ol3-fun/ol3-fun/common", "node_modules/ol3-draw/ol3-draw/ol3-draw", "node_modules/ol3-draw/ol3-draw/ol3-edit"], function (require, exports, ol, common_11, ol3_draw_1, ol3_edit_1) {
     "use strict";
     exports.__esModule = true;
     function stopInteraction(map, type) {
@@ -3314,9 +4640,9 @@ define("ol3-lab/labs/ol-draw", ["require", "exports", "openlayers", "node_module
         function MapMaker() {
         }
         MapMaker.create = function (options) {
-            options = common_8.mixin(common_8.mixin({}, MapMaker.DEFAULT_OPTIONS), options);
+            options = common_11.mixin(common_11.mixin({}, MapMaker.DEFAULT_OPTIONS), options);
             options.target.classList.add("ol-map");
-            common_8.cssin("mapmaker", "\n        .ol-map {\n            top: 0;\n            left: 0;\n            right: 0;\n            bottom:0;\n            position: absolute;\n        }\n        ");
+            common_11.cssin("mapmaker", "\n        .ol-map {\n            top: 0;\n            left: 0;\n            right: 0;\n            bottom:0;\n            position: absolute;\n        }\n        ");
             var map = new ol.Map({
                 target: options.target,
                 keyboardEventTarget: document,
@@ -3365,14 +4691,14 @@ define("ol3-lab/labs/ol-draw", ["require", "exports", "openlayers", "node_module
         {
             var element_1 = document.createElement("div");
             element_1.className = "gmlOut";
-            common_8.cssin("gmlOut", "\n.myMousePos {\n    position:absolute;\n    top: auto;\n    left: auto;\n    bottom: 0;\n    right: 0;    \n}\n.gmlOut {\n    position: absolute;\n    bottom: 0;\n    left: 20%;\n    width: 60%;\n    height: 200px;\n    border: 1px solid black;\n    overflow-y: auto;\n    overflow-x: auto;\n    font-size: 12px;\n    font-family: monospace;\n    background: rgba(160, 160, 60, 0.5);\n}        \n        ");
+            common_11.cssin("gmlOut", "\n.myMousePos {\n    position:absolute;\n    top: auto;\n    left: auto;\n    bottom: 0;\n    right: 0;    \n}\n.gmlOut {\n    position: absolute;\n    bottom: 0;\n    left: 20%;\n    width: 60%;\n    height: 200px;\n    border: 1px solid black;\n    overflow-y: auto;\n    overflow-x: auto;\n    font-size: 12px;\n    font-family: monospace;\n    background: rgba(160, 160, 60, 0.5);\n}        \n        ");
             var esriFormatter_1 = new ol.format.EsriJSON({
                 geometryName: "geom"
             });
             var kmlFormatter = new ol.format.KML({});
             var gmlOut = new ol.control.Control({
                 element: element_1,
-                render: common_8.debounce(function (args) {
+                render: common_11.debounce(function (args) {
                     console.log(args.map.getView().getCenter());
                     polyLayer.getSource().forEachFeature(function (f) {
                         element_1.innerText = esriFormatter_1.writeFeatures([f.clone()], {
@@ -3421,916 +4747,6 @@ define("node_modules/ol3-symbolizer/examples/styles/star/flower", ["require", "e
             }
         }
     ];
-});
-define("node_modules/ol3-popup/ol3-popup/paging/paging", ["require", "exports", "openlayers", "jquery"], function (require, exports, ol, $) {
-    "use strict";
-    exports.__esModule = true;
-    function getInteriorPoint(geom) {
-        if (geom.getInteriorPoint)
-            return (geom["getInteriorPoint"]()).getCoordinates();
-        return ol.extent.getCenter(geom.getExtent());
-    }
-    var classNames = {
-        pages: "pages",
-        page: "page"
-    };
-    var eventNames = {
-        add: "add",
-        clear: "clear",
-        goto: "goto",
-        remove: "remove"
-    };
-    ;
-    function getId() {
-        return "_" + Math.random() * 1000000;
-    }
-    var Paging = (function (_super) {
-        __extends(Paging, _super);
-        function Paging(options) {
-            var _this = _super.call(this) || this;
-            _this.options = options;
-            _this._pages = [];
-            _this.domNode = document.createElement("div");
-            _this.domNode.classList.add(classNames.pages);
-            options.popup.domNode.appendChild(_this.domNode);
-            return _this;
-        }
-        Object.defineProperty(Paging.prototype, "activePage", {
-            get: function () {
-                return this._activePage;
-            },
-            enumerable: true,
-            configurable: true
-        });
-        Object.defineProperty(Paging.prototype, "activeIndex", {
-            get: function () {
-                return this._pages.indexOf(this._activePage);
-            },
-            enumerable: true,
-            configurable: true
-        });
-        Object.defineProperty(Paging.prototype, "count", {
-            get: function () {
-                return this._pages.length;
-            },
-            enumerable: true,
-            configurable: true
-        });
-        Paging.prototype.on = function (name, listener) {
-            return _super.prototype.on.call(this, name, listener);
-        };
-        Paging.prototype.findPage = function (feature) {
-            return this._pages.filter(function (p) { return p.feature === feature; })[0];
-        };
-        Paging.prototype.removePage = function (page) {
-            var index = this._pages.indexOf(page);
-            if (0 <= index) {
-                this._pages.splice(index, 1);
-                var count = this._pages.length;
-                if (index >= count)
-                    index == count - 1;
-                this.goto(index);
-            }
-        };
-        Paging.prototype.addFeature = function (feature, options) {
-            var page = this.findPage(feature);
-            if (page) {
-                this.goto(this._pages.indexOf(page));
-                return page;
-            }
-            var geom = feature.getGeometry();
-            if (geom.intersectsCoordinate(options.searchCoordinate)) {
-                geom = new ol.geom.Point(options.searchCoordinate);
-            }
-            else {
-                geom = new ol.geom.Point(geom.getClosestPoint(options.searchCoordinate));
-            }
-            page = {
-                element: document.createElement("div"),
-                feature: feature,
-                location: geom,
-                uid: getId()
-            };
-            this._pages.push(page);
-            this.dispatchEvent({
-                type: eventNames.add,
-                element: page.element,
-                feature: page.feature,
-                geom: page.location,
-                pageIndex: page.uid
-            });
-            return page;
-        };
-        Paging.prototype.add = function (source, geom) {
-            var page;
-            var pageDiv = document.createElement("div");
-            if (false) {
-            }
-            else if (typeof source === "string") {
-                pageDiv.innerHTML = source;
-                this._pages.push(page = {
-                    element: pageDiv,
-                    location: geom,
-                    uid: getId()
-                });
-            }
-            else if (source.appendChild) {
-                pageDiv.classList.add(classNames.page);
-                this._pages.push(page = {
-                    element: pageDiv,
-                    location: geom,
-                    uid: getId()
-                });
-            }
-            else if (source["then"]) {
-                var d = source;
-                pageDiv.classList.add(classNames.page);
-                this._pages.push(page = {
-                    element: pageDiv,
-                    location: geom,
-                    uid: getId()
-                });
-                $.when(d).then(function (v) {
-                    if (typeof v === "string") {
-                        pageDiv.innerHTML = v;
-                    }
-                    else {
-                        pageDiv.appendChild(v);
-                    }
-                });
-            }
-            else if (typeof source === "function") {
-                pageDiv.classList.add("page");
-                this._pages.push(page = {
-                    callback: source,
-                    element: pageDiv,
-                    location: geom,
-                    uid: getId()
-                });
-            }
-            else {
-                throw "invalid source value: " + source;
-            }
-            this.dispatchEvent({
-                type: eventNames.add,
-                element: pageDiv,
-                feature: null,
-                geom: geom,
-                pageIndex: this._pages.length - 1
-            });
-            return page;
-        };
-        Paging.prototype.clear = function () {
-            this._activePage = null;
-            this._pages = [];
-            this.dispatchEvent(eventNames.clear);
-        };
-        Paging.prototype.goto = function (index) {
-            var _this = this;
-            var page;
-            if (typeof index === "number") {
-                page = this._pages[index];
-            }
-            else {
-                page = this._pages.filter(function (p) { return p.uid === index; })[0];
-            }
-            if (!page)
-                return;
-            var popup = this.options.popup;
-            if (page.feature) {
-                this.options.popup.show(getInteriorPoint(page.location || page.feature.getGeometry()), popup.options.asContent(page.feature));
-                this._activePage = page;
-                this.dispatchEvent(eventNames.goto);
-                return;
-            }
-            var d = $.Deferred();
-            if (page.callback) {
-                var refreshedContent = page.callback();
-                $.when(refreshedContent).then(function (v) {
-                    if (false) {
-                    }
-                    else if (typeof v === "string") {
-                        page.element.innerHTML = v;
-                    }
-                    else if (typeof v["innerHTML"] !== "undefined") {
-                        page.element.innerHTML = "";
-                        page.element.appendChild(v);
-                    }
-                    else {
-                        throw "invalid callback result: " + v;
-                    }
-                    d.resolve();
-                });
-            }
-            else {
-                d.resolve();
-            }
-            d.then(function () {
-                _this._activePage = page;
-                _this.options.popup.show(getInteriorPoint(page.location), page.element);
-                _this.dispatchEvent(eventNames.goto);
-            });
-        };
-        Paging.prototype.next = function () {
-            (0 <= this.activeIndex) && (this.activeIndex < this.count) && this.goto(this.activeIndex + 1);
-        };
-        Paging.prototype.prev = function () {
-            (0 < this.activeIndex) && this.goto(this.activeIndex - 1);
-        };
-        Paging.prototype.indexOf = function (feature) {
-            var result = -1;
-            this._pages.some(function (f, i) {
-                if (f.feature === feature) {
-                    result = i;
-                    return true;
-                }
-                return false;
-            });
-            return result;
-        };
-        return Paging;
-    }(ol.Observable));
-    exports.Paging = Paging;
-});
-define("node_modules/ol3-popup/ol3-popup/paging/page-navigator", ["require", "exports", "openlayers"], function (require, exports, ol) {
-    "use strict";
-    exports.__esModule = true;
-    var classNames = {
-        prev: 'btn-prev',
-        next: 'btn-next',
-        hidden: 'hidden',
-        active: 'active',
-        inactive: 'inactive',
-        pagenum: "page-num"
-    };
-    var eventNames = {
-        show: "show",
-        hide: "hide",
-        prev: "prev",
-        next: "next"
-    };
-    function toggle(e, className, toggle) {
-        if (toggle === void 0) { toggle = false; }
-        !toggle ? e.classList.remove(className) : e.classList.add(className);
-    }
-    var PageNavigator = (function (_super) {
-        __extends(PageNavigator, _super);
-        function PageNavigator(options) {
-            var _this = _super.call(this) || this;
-            _this.options = options;
-            var pages = options.pages;
-            _this.domNode = document.createElement("div");
-            _this.domNode.classList.add("pagination");
-            _this.domNode.innerHTML = _this.template();
-            _this.prevButton = _this.domNode.getElementsByClassName(classNames.prev)[0];
-            _this.nextButton = _this.domNode.getElementsByClassName(classNames.next)[0];
-            _this.pageInfo = _this.domNode.getElementsByClassName(classNames.pagenum)[0];
-            pages.options.popup.domNode.appendChild(_this.domNode);
-            _this.prevButton.addEventListener('click', function () { return _this.dispatchEvent(eventNames.prev); });
-            _this.nextButton.addEventListener('click', function () { return _this.dispatchEvent(eventNames.next); });
-            pages.on("goto", function () { return pages.count > 1 ? _this.show() : _this.hide(); });
-            pages.on("clear", function () { return _this.hide(); });
-            pages.on("goto", function () {
-                var index = pages.activeIndex;
-                var count = pages.count;
-                var canPrev = 0 < index;
-                var canNext = count - 1 > index;
-                toggle(_this.prevButton, classNames.inactive, !canPrev);
-                toggle(_this.prevButton, classNames.active, canPrev);
-                toggle(_this.nextButton, classNames.inactive, !canNext);
-                toggle(_this.nextButton, classNames.active, canNext);
-                _this.prevButton.disabled = !canPrev;
-                _this.nextButton.disabled = !canNext;
-                _this.pageInfo.innerHTML = 1 + index + " of " + count;
-            });
-            return _this;
-        }
-        PageNavigator.prototype.template = function () {
-            return "<button class=\"arrow btn-prev\"></button><span class=\"page-num\">m of n</span><button class=\"arrow btn-next\"></button>";
-        };
-        PageNavigator.prototype.hide = function () {
-            this.domNode.classList.add(classNames.hidden);
-            this.dispatchEvent(eventNames.hide);
-        };
-        PageNavigator.prototype.show = function () {
-            this.domNode.classList.remove(classNames.hidden);
-            this.dispatchEvent(eventNames.show);
-        };
-        return PageNavigator;
-    }(ol.Observable));
-    exports["default"] = PageNavigator;
-});
-define("node_modules/ol3-popup/ol3-popup/interaction", ["require", "exports", "openlayers", "node_modules/ol3-fun/ol3-fun/common"], function (require, exports, ol, common_9) {
-    "use strict";
-    exports.__esModule = true;
-    var dispose = function (handlers) {
-        return handlers.forEach(function (h) { return (h instanceof Function) ? h() : ol.Observable.unByKey(h); });
-    };
-    var SelectInteraction = (function (_super) {
-        __extends(SelectInteraction, _super);
-        function SelectInteraction(options) {
-            var _this = _super.call(this, options) || this;
-            _this.options = options;
-            var popup = options.popup;
-            var map = options.map;
-            var overlay;
-            _this.handlers = [];
-            _this.handlers.push(map.on("click", function (args) {
-                var _a, _b, _c;
-                if (!_this.get("active"))
-                    return;
-                var wasDocked = popup.isDocked();
-                if (!popup.options.multi || !options.addCondition(args)) {
-                    popup.pages.clear();
-                }
-                {
-                    var found_1 = false;
-                    var extent_1 = ol.extent.createEmpty();
-                    extent_1[0] = extent_1[2] = args.pixel[0];
-                    extent_1[1] = extent_1[3] = args.pixel[1];
-                    extent_1 = ol.extent.buffer(extent_1, _this.options.buffer);
-                    _a = [
-                        map.getCoordinateFromPixel([extent_1[0], extent_1[1]]),
-                        map.getCoordinateFromPixel([extent_1[2], extent_1[3]])
-                    ], _b = _a[0], extent_1[0] = _b[0], extent_1[3] = _b[1], _c = _a[1], extent_1[2] = _c[0], extent_1[1] = _c[1];
-                    var layers_1 = popup.options.layers;
-                    if (!layers_1) {
-                        layers_1 = map.getLayers().getArray().filter(function (l) { return l instanceof ol.layer.Vector; });
-                    }
-                    var page_1;
-                    layers_1.forEach(function (layer) {
-                        if (layer === overlay)
-                            return;
-                        layer.getSource().forEachFeatureIntersectingExtent(extent_1, function (feature) {
-                            page_1 = popup.pages.addFeature(feature, {
-                                searchCoordinate: args.coordinate
-                            });
-                            found_1 = true;
-                            return !popup.options.multi;
-                        });
-                    });
-                    if (!found_1) {
-                        map.forEachFeatureAtPixel(args.pixel, function (feature, layer) {
-                            if (!layer || layer === overlay || -1 === layers_1.indexOf(layer)) {
-                                return null;
-                            }
-                            page_1 = popup.pages.addFeature(feature, {
-                                searchCoordinate: args.coordinate
-                            });
-                            found_1 = true;
-                            return !popup.options.multi;
-                        });
-                    }
-                    if (!found_1 && popup.options.showCoordinates) {
-                        page_1 = popup.pages.add(("\n<table>\n<tr><td>lon</td><td>" + args.coordinate[0].toPrecision(6) + "</td></tr>\n<tr><td>lat</td><td>" + args.coordinate[1].toPrecision(6) + "</td></tr>\n</table>")
-                            .trim(), new ol.geom.Point(args.coordinate));
-                        found_1 = true;
-                    }
-                    if (found_1) {
-                        popup.pages.goto(page_1.uid);
-                        if (wasDocked && !popup.isDocked())
-                            popup.dock();
-                    }
-                    else {
-                        if (!popup.options.multi || !options.addCondition(args)) {
-                            popup.hide();
-                        }
-                    }
-                }
-            }));
-            if (popup.options.pagingStyle) {
-                overlay = _this.setupOverlay();
-            }
-            popup.on("dispose", function () { return _this.destroy(); });
-            return _this;
-        }
-        SelectInteraction.create = function (options) {
-            if (!options.popup)
-                throw "popup is a required option";
-            if (!options.map) {
-                options.map = options.popup.options.map;
-                if (!options.map)
-                    "map is a require option";
-            }
-            options = common_9.defaults(options, SelectInteraction.DEFAULT_OPTIONS);
-            options.addCondition = options.addCondition || ol.events.condition.shiftKeyOnly;
-            options.removeCondition = options.removeCondition || ol.events.condition.never;
-            options.toggleCondition = options.addCondition || ol.events.condition.shiftKeyOnly;
-            return new SelectInteraction(options);
-        };
-        SelectInteraction.prototype.setupOverlay = function () {
-            var _this = this;
-            var options = this.options;
-            var popup = options.popup;
-            var source = new ol.source.Vector({
-                useSpatialIndex: false,
-                wrapX: this.options.wrapX
-            });
-            var featureOverlay = new ol.layer.Vector({
-                map: this.options.map,
-                source: source,
-                updateWhileAnimating: true,
-                updateWhileInteracting: true
-            });
-            featureOverlay.setStyle(function (feature, resolution) {
-                var pageIndex = source.getFeatures().indexOf(feature);
-                return popup.options.pagingStyle(feature, resolution, pageIndex);
-            });
-            featureOverlay.setMap(this.options.map);
-            this.handlers.push(function () { return _this.options.map.removeLayer(featureOverlay); });
-            popup.pages.on("clear", function () {
-                source.clear();
-            });
-            this.handlers.push(popup.pages.on("goto", function () { return featureOverlay.getSource().refresh(); }));
-            popup.pages.on("remove", function (args) {
-                source.forEachFeature(function (f) {
-                    if (f.get("page-index") === args.pageIndex) {
-                        source.removeFeature(f);
-                        return true;
-                    }
-                    return false;
-                });
-            });
-            popup.pages.on("add", function (args) {
-                var feature = args.feature;
-                if (feature) {
-                    feature = feature.clone();
-                    feature.setStyle(null);
-                    if (args.geom) {
-                        feature.setGeometry(args.geom);
-                    }
-                }
-                else {
-                    if (args.geom) {
-                        feature = new ol.Feature();
-                        feature.setGeometry(args.geom);
-                    }
-                }
-                if (feature) {
-                    feature.set("page-index", args.pageIndex);
-                    source.addFeature(feature);
-                }
-            });
-            return featureOverlay;
-        };
-        SelectInteraction.prototype.destroy = function () {
-            dispose(this.handlers);
-        };
-        SelectInteraction.DEFAULT_OPTIONS = {
-            multi: true,
-            buffer: 8
-        };
-        return SelectInteraction;
-    }(ol.interaction.Select));
-    exports.SelectInteraction = SelectInteraction;
-});
-define("node_modules/ol3-popup/ol3-popup/commands/smartpick", ["require", "exports"], function (require, exports) {
-    "use strict";
-    exports.__esModule = true;
-    function smartpick(popup, targetPosition, threshold) {
-        if (!targetPosition) {
-            targetPosition = popup.getPosition();
-        }
-        var padding = [0, 0];
-        if (typeof threshold !== "number") {
-            threshold = (popup.options.autoPanMargin || 0) + (popup.options.pointerPosition || 0);
-            var content = popup.content;
-            var style = getComputedStyle(content);
-            var _a = [style.width, style.height].map(function (n) { return parseInt(n); }), w = _a[0], h = _a[1];
-            padding = [threshold + w / 2, threshold + h / 2];
-        }
-        else {
-            padding = [threshold, threshold];
-        }
-        var _b = popup.getPositioning().split("-", 2), verticalPosition = _b[0], horizontalPosition = _b[1];
-        var _c = popup.options.map.getPixelFromCoordinate(targetPosition), x = _c[0], y = _c[1];
-        var _d = popup.options.map.getSize(), width = _d[0], height = _d[1];
-        var distanceToLeft = x;
-        var distanceToTop = y;
-        var distanceToRight = width - x;
-        var distanceToBottom = height - y;
-        if (distanceToTop < padding[1])
-            verticalPosition = "top";
-        else if (distanceToBottom < padding[1])
-            verticalPosition = "bottom";
-        else
-            verticalPosition = null;
-        if (distanceToLeft < padding[0])
-            horizontalPosition = "left";
-        else if (distanceToRight < padding[0])
-            horizontalPosition = "right";
-        else
-            horizontalPosition = "center";
-        if (!verticalPosition && horizontalPosition !== "center") {
-            verticalPosition = "center";
-        }
-        horizontalPosition = horizontalPosition || "center";
-        verticalPosition = verticalPosition || ((distanceToTop < distanceToBottom) ? "top" : "bottom");
-        return verticalPosition + "-" + horizontalPosition;
-    }
-    exports.smartpick = smartpick;
-    ;
-});
-define("node_modules/ol3-popup/ol3-popup/ol3-popup", ["require", "exports", "jquery", "openlayers", "node_modules/ol3-popup/ol3-popup/paging/paging", "node_modules/ol3-popup/ol3-popup/paging/page-navigator", "node_modules/ol3-fun/ol3-fun/common", "node_modules/ol3-popup/ol3-popup/interaction", "node_modules/ol3-symbolizer/index", "node_modules/ol3-popup/ol3-popup/commands/smartpick", "node_modules/ol3-symbolizer/ol3-symbolizer/common/mixin"], function (require, exports, $, ol, paging_1, page_navigator_1, common_10, interaction_1, Symbolizer, smartpick_1, mixin_2) {
-    "use strict";
-    exports.__esModule = true;
-    var symbolizer = new Symbolizer.Symbolizer.StyleConverter();
-    var css = "\n.ol-popup {\n}\n\n.ol-popup.hidden {\n    display: none;\n}\n\n.ol-popup-element.docked {\n    position:absolute;\n    bottom:0;\n    top:0;\n    left:0;\n    right:0;\n    width:auto;\n    height:auto;\n    pointer-events: all;\n}\n\n.ol-popup-element.docked:after {\n    display:none;\n}\n\n.ol-popup-element.docked .pages {\n    max-height: inherit;\n    overflow: auto;\n    height: calc(100% - 60px);\n}\n\n.ol-popup-element.docked .pagination {\n    position: absolute;\n    bottom: 0;\n}\n\n.ol-popup .pagination .btn-prev::after {\n    content: \"\u21E6\"; \n}\n\n.ol-popup .pagination .btn-next::after {\n    content: \"\u21E8\"; \n}\n\n.ol-popup .pagination.hidden {\n    display: none;\n}\n\n.ol-popup-element .pagination .btn-prev::after {\n    content: \"\u21E6\"; \n}\n\n.ol-popup-element .pagination .btn-next::after {\n    content: \"\u21E8\"; \n}\n\n.ol-popup-element .pagination.hidden {\n    display: none;\n}\n\n.ol-popup-element .ol-popup-closer {\n    border: none;\n    background: transparent;\n    color: inherit;\n    position: absolute;\n    top: 0;\n    right: 0;\n    text-decoration: none;\n}\n    \n.ol-popup-element .ol-popup-closer:after {\n    content:'\u2716';\n}\n\n.ol-popup .ol-popup-docker {\n    border: none;\n    background: transparent;\n    color: inherit;\n    text-decoration: none;\n    position: absolute;\n    top: 0;\n    right: 20px;\n}\n\n.ol-popup .ol-popup-docker:after {\n    content:'\u25A1';\n}\n\n.simple-popup {\n    border: 1px solid black;\n    border-radius: 4px;\n    padding: 10px;\n    background-color: rgba(80, 80, 80, 0.5);\n    color: rgb(250, 250, 250);\n    max-width: 120px;\n}\n\n.simple-popup-down-arrow {\n    color: black;\n    font-size: 20px;\n}\n\n.simple-popup-down-arrow:after {\n    content: \"\u21E9\";\n}\n\n.simple-popup-up-arrow {\n    color: black;\n    font-size: 20px;\n}\n\n.simple-popup-up-arrow:after {\n    content: \"\u21E7\";\n}\n\n.simple-popup-left-arrow {\n    color: black;\n    font-size: 20px;\n}\n\n.simple-popup-left-arrow:after {\n    content: \"\u21E6\";\n}\n\n.simple-popup-right-arrow {\n    color: black;\n    font-size: 20px;\n}\n\n.simple-popup-right-arrow:after {\n    content: \"\u21E8\";\n}\n";
-    var baseStyle = symbolizer.fromJson({
-        "circle": {
-            "fill": {
-                "color": "rgba(255,0,0,1)"
-            },
-            "opacity": 1,
-            "stroke": {
-                "color": "rgba(255,255,255,1)",
-                "width": 1
-            },
-            "radius": 3
-        }
-    });
-    var classNames = {
-        olPopup: 'ol-popup',
-        olPopupDocker: 'ol-popup-docker',
-        olPopupCloser: 'ol-popup-closer',
-        olPopupContent: 'ol-popup-content',
-        olPopupElement: 'ol-popup-element',
-        hidden: 'hidden',
-        docked: 'docked'
-    };
-    var eventNames = {
-        dispose: "dispose",
-        dock: "dock",
-        hide: "hide",
-        show: "show",
-        undock: "undock"
-    };
-    function arrayEqual(a, b) {
-        if (!a || !b)
-            return false;
-        if (a === b)
-            return true;
-        if (a.length !== b.length)
-            return false;
-        return a.every(function (v, i) { return v == b[i]; });
-    }
-    function asContent(feature) {
-        var div = document.createElement("div");
-        var keys = Object.keys(feature.getProperties()).filter(function (key) {
-            var v = feature.get(key);
-            if (typeof v === "string")
-                return true;
-            if (typeof v === "number")
-                return true;
-            return false;
-        });
-        div.title = feature.getGeometryName();
-        div.innerHTML = "<table>" + keys.map(function (k) { return "<tr><td>" + k + "</td><td>" + feature.get(k) + "</td></tr>"; }).join("") + "</table>";
-        return div;
-    }
-    function pagingStyleFactory(popup) {
-        return function (feature, resolution, pageIndex) {
-            var style = [baseStyle];
-            if (popup.options.multi && popup.pages.count > 1) {
-                var isActive = popup.pages.activeIndex === pageIndex;
-                var textStyle = symbolizer.fromJson({
-                    text: {
-                        text: "" + (pageIndex + 1),
-                        fill: {
-                            color: isActive ? "white" : "black"
-                        },
-                        stroke: {
-                            color: isActive ? "black" : "white",
-                            width: isActive ? 4 : 2
-                        },
-                        "offset-y": 20
-                    }
-                });
-                style.push(textStyle);
-            }
-            return style;
-        };
-    }
-    var DEFAULT_OPTIONS = {
-        map: null,
-        asContent: asContent,
-        multi: false,
-        autoPan: true,
-        autoPopup: true,
-        autoPanMargin: 20,
-        autoPositioning: true,
-        className: classNames.olPopup,
-        css: "\n.ol-popup {\n    background-color: white;\n    border: 1px solid black;\n    padding: 4px;\n    padding-top: 24px;\n}\n.ol-popup .ol-popup-content {\n    overflow: auto;\n    min-width: 120px;\n    max-width: 360px;\n    max-height: 240px;\n}\n.ol-popup .pages {\n    overflow: auto;\n    max-width: 360px;\n    max-height: 240px;\n}\n.ol-popup .ol-popup-closer {\n    right: 4px;\n}\n".trim(),
-        insertFirst: true,
-        pointerPosition: 20,
-        offset: [0, -10],
-        positioning: "bottom-center",
-        stopEvent: true,
-        showCoordinates: false
-    };
-    var Popup = (function (_super) {
-        __extends(Popup, _super);
-        function Popup(options) {
-            var _this = _super.call(this, options) || this;
-            if (!options.pagingStyle) {
-                options.pagingStyle = pagingStyleFactory(_this);
-            }
-            _this.options = options;
-            _this.handlers = [];
-            _this.configureDom(options);
-            _this.configureDockerButton(_this.domNode);
-            _this.configureCloserButton(_this.domNode);
-            _this.configureContentContainer();
-            _this.configurePaging();
-            _this.configureAutoPopup();
-            return _this;
-        }
-        Popup.create = function (options) {
-            options = common_10.defaults({}, options, DEFAULT_OPTIONS);
-            var popup = new Popup(options);
-            options.map && options.map.addOverlay(popup);
-            return popup;
-        };
-        Popup.prototype.configureDom = function (options) {
-            common_10.cssin("ol3-popup", css);
-            options.css && this.injectCss("options", options.css);
-            var domNode = this.domNode = document.createElement('div');
-            domNode.className = classNames.olPopupElement;
-            this.setElement(domNode);
-            this.handlers.push(function () { return domNode.remove(); });
-        };
-        Popup.prototype.configureContentContainer = function () {
-            var content = this.content = document.createElement('div');
-            content.className = classNames.olPopupContent;
-            this.domNode.appendChild(content);
-        };
-        Popup.prototype.configureDockerButton = function (domNode) {
-            var _this = this;
-            if (!this.options.dockContainer)
-                return;
-            var docker = this.docker = document.createElement('label');
-            docker.title = "docker";
-            docker.className = classNames.olPopupDocker;
-            domNode.appendChild(docker);
-            docker.addEventListener('click', function (evt) {
-                _this.isDocked() ? _this.undock() : _this.dock();
-                evt.preventDefault();
-            }, false);
-        };
-        Popup.prototype.configureCloserButton = function (domNode) {
-            var _this = this;
-            var closer = this.closer = document.createElement('label');
-            closer.title = "closer";
-            closer.className = classNames.olPopupCloser;
-            domNode.appendChild(closer);
-            closer.addEventListener('click', function (evt) {
-                _this.isDocked() ? _this.undock() : _this.hide();
-                evt.preventDefault();
-            }, false);
-        };
-        Popup.prototype.configurePaging = function () {
-            var _this = this;
-            var pages = this.pages = new paging_1.Paging({ popup: this });
-            var pageNavigator = new page_navigator_1["default"]({ pages: pages });
-            pageNavigator.hide();
-            pageNavigator.on("prev", function () { return pages.prev(); });
-            pageNavigator.on("next", function () { return pages.next(); });
-            pages.on("goto", function () { return _this.panIntoView(); });
-        };
-        Popup.prototype.configureAutoPopup = function () {
-            var _this = this;
-            if (!this.options.autoPopup)
-                return;
-            var autoPopup = interaction_1.SelectInteraction.create({
-                popup: this,
-                buffer: 4
-            });
-            this.on("change:active", function () {
-                autoPopup.set("active", _this.get("active"));
-            });
-            this.handlers.push(function () { return autoPopup.destroy(); });
-        };
-        Popup.prototype.injectCss = function (id, css) {
-            id = this.getId() + "_" + id;
-            var style = document.getElementById(id);
-            if (style)
-                style.remove();
-            style = common_10.html("<style type='text/css' id='" + id + "'>" + css + "</style>");
-            $(document.head).append(style);
-            this.handlers.push(function () { return style.remove(); });
-        };
-        Popup.prototype.hideIndicator = function () {
-            this.indicator && this.indicator.setPosition(undefined);
-        };
-        Popup.prototype.showIndicator = function () {
-            var indicator = this.indicator;
-            if (!indicator) {
-                indicator = this.indicator = new ol.Overlay({
-                    autoPan: this.options.autoPan,
-                    autoPanMargin: this.options.autoPanMargin,
-                    autoPanAnimation: this.options.autoPanAnimation,
-                    element: common_10.html("<span class=\"simple-popup-down-arrow\"></span>")
-                });
-                this.options.map.addOverlay(indicator);
-            }
-            indicator.setPositioning(this.getPositioning());
-            indicator.setPosition(this.getPosition());
-            return indicator;
-        };
-        Popup.prototype.positionIndicator = function (offset) {
-            if (offset === void 0) { offset = this.options.pointerPosition || 0; }
-            if (!this.getPosition() && this.indicator) {
-                this.hideIndicator();
-                return;
-            }
-            var _a = this.getPositioning().split("-", 2), verticalPosition = _a[0], horizontalPosition = _a[1];
-            var indicator = this.showIndicator();
-            switch (verticalPosition) {
-                case "top":
-                    {
-                        indicator.setElement(common_10.html("<span class=\"simple-popup-up-arrow\"></span>"));
-                        indicator.setOffset([0, 0 + offset]);
-                        indicator.setPositioning("top-center");
-                        var _b = [7, 8 + offset], dx = _b[0], dy = _b[1];
-                        switch (horizontalPosition) {
-                            case "center":
-                                this.setOffset([0, dy]);
-                                break;
-                            case "left":
-                                this.setOffset([-dx, dy]);
-                                break;
-                            case "right":
-                                this.setOffset([dx, dy]);
-                                break;
-                            default:
-                                throw "unknown value: " + horizontalPosition;
-                        }
-                    }
-                    break;
-                case "bottom":
-                    {
-                        indicator.setElement(common_10.html("<span class=\"simple-popup-down-arrow\"></span>"));
-                        indicator.setOffset([0, 0 - offset]);
-                        indicator.setPositioning("bottom-center");
-                        var _c = [7, -(10 + offset)], dx = _c[0], dy = _c[1];
-                        switch (horizontalPosition) {
-                            case "center":
-                                this.setOffset([0, dy]);
-                                break;
-                            case "left":
-                                this.setOffset([-dx, dy]);
-                                break;
-                            case "right":
-                                this.setOffset([dx, dy]);
-                                break;
-                            default:
-                                throw "unknown value: " + horizontalPosition;
-                        }
-                    }
-                    break;
-                case "center":
-                    {
-                        var _d = [5 + offset, 0], dx = _d[0], dy = _d[1];
-                        switch (horizontalPosition) {
-                            case "center":
-                                indicator.setPosition(null);
-                                break;
-                            case "left":
-                                indicator.setElement(common_10.html("<span class=\"simple-popup-left-arrow\"></span>"));
-                                indicator.setOffset([offset, 0]);
-                                indicator.setPositioning("center-left");
-                                this.setOffset([dx, dy]);
-                                break;
-                            case "right":
-                                indicator.setElement(common_10.html("<span class=\"simple-popup-right-arrow\"></span>"));
-                                indicator.setOffset([-offset, 0]);
-                                indicator.setPositioning("center-right");
-                                this.setOffset([-dx, dy]);
-                                break;
-                            default:
-                                throw "unknown value: " + horizontalPosition;
-                        }
-                    }
-                    break;
-                default:
-                    throw "unknown value: " + verticalPosition;
-            }
-        };
-        Popup.prototype.setPosition = function (position) {
-            this.options.position = position;
-            if (!this.isDocked()) {
-                if (!arrayEqual(this.getPosition(), position)) {
-                    _super.prototype.setPosition.call(this, position);
-                }
-                this.positionIndicator(this.options.pointerPosition);
-            }
-            else {
-                var animation = {
-                    center: position
-                };
-                var view = this.options.map.getView();
-                this.options.autoPanAnimation && mixin_2.mixin(animation, this.options.autoPanAnimation.duration);
-                view.animate(animation);
-            }
-        };
-        Popup.prototype.panIntoView = function () {
-            if (!this.isOpened())
-                return;
-            if (this.isDocked())
-                return;
-            var p = this.getPosition();
-            p && this.setPosition(p.map(function (v) { return v; }));
-        };
-        Popup.prototype.destroy = function () {
-            this.handlers.forEach(function (h) { return h(); });
-            this.handlers = [];
-            this.getMap() && this.getMap().removeOverlay(this);
-            this.dispatchEvent(eventNames.dispose);
-        };
-        Popup.prototype.show = function (coord, html) {
-            if (html === void 0) { html = null; }
-            if (html === null) {
-            }
-            else if (html instanceof HTMLElement) {
-                this.content.innerHTML = "";
-                this.content.appendChild(html);
-            }
-            else if (typeof html === "string") {
-                this.content.innerHTML = html;
-            }
-            else {
-                throw "unexpected html";
-            }
-            if (this.options.autoPositioning) {
-                this.setPositioning(smartpick_1.smartpick(this, coord));
-            }
-            this.setPosition(coord);
-            this.domNode.classList.remove(classNames.hidden);
-            this.dispatchEvent(eventNames.show);
-            return this;
-        };
-        Popup.prototype.on = function (type, listener) {
-            return _super.prototype.on.call(this, type, listener);
-        };
-        Popup.prototype.hide = function () {
-            this.setPosition(undefined);
-            this.indicator && this.indicator.setPosition(undefined);
-            this.pages.clear();
-            this.domNode.classList.add(classNames.hidden);
-            this.dispatchEvent(eventNames.hide);
-            return this;
-        };
-        Popup.prototype.isOpened = function () {
-            return !this.domNode.classList.contains(classNames.hidden);
-        };
-        Popup.prototype.isDocked = function () {
-            return this.domNode.classList.contains(classNames.docked);
-        };
-        Popup.prototype.dock = function () {
-            var map = this.getMap();
-            this.options.map = map;
-            this.options.parentNode = this.domNode.parentElement;
-            map.removeOverlay(this);
-            map.removeOverlay(this.indicator);
-            this.domNode.classList.add(classNames.docked);
-            this.options.dockContainer.appendChild(this.domNode);
-            this.dispatchEvent(eventNames.dock);
-            return this;
-        };
-        Popup.prototype.undock = function () {
-            var map = this.options.map;
-            this.options.parentNode.appendChild(this.domNode);
-            this.domNode.classList.remove(classNames.docked);
-            map.addOverlay(this);
-            map.addOverlay(this.indicator);
-            this.dispatchEvent(eventNames.undock);
-            this.show(this.options.position);
-            return this;
-        };
-        Popup.prototype.applyOffset = function (_a) {
-            var x = _a[0], y = _a[1];
-            switch (this.getPositioning()) {
-                case "bottom-left":
-                    this.setOffset([x, -y]);
-                    break;
-                case "bottom-right":
-                    this.setOffset([-x, -y]);
-                    break;
-                case "top-left":
-                    this.setOffset([x, y]);
-                    break;
-                case "top-right":
-                    this.setOffset([-x, y]);
-                    break;
-            }
-        };
-        return Popup;
-    }(ol.Overlay));
-    exports.Popup = Popup;
-});
-define("node_modules/ol3-popup/index", ["require", "exports", "node_modules/ol3-popup/ol3-popup/ol3-popup"], function (require, exports, Popup) {
-    "use strict";
-    return Popup;
 });
 define("node_modules/ol3-fun/ol3-fun/snapshot", ["require", "exports", "openlayers"], function (require, exports, ol) {
     "use strict";
@@ -4386,7 +4802,7 @@ define("node_modules/ol3-fun/ol3-fun/snapshot", ["require", "exports", "openlaye
     }());
     return Snapshot;
 });
-define("node_modules/ol3-grid/ol3-grid/ol3-grid", ["require", "exports", "openlayers", "node_modules/ol3-fun/index", "node_modules/ol3-fun/ol3-fun/snapshot", "node_modules/ol3-fun/ol3-fun/navigation"], function (require, exports, ol, index_2, Snapshot, navigation_2) {
+define("node_modules/ol3-grid/ol3-grid/ol3-grid", ["require", "exports", "openlayers", "node_modules/ol3-fun/index", "node_modules/ol3-fun/ol3-fun/snapshot", "node_modules/ol3-fun/ol3-fun/navigation"], function (require, exports, ol, index_6, Snapshot, navigation_2) {
     "use strict";
     exports.__esModule = true;
     var grid_html = "\n<div class='ol-grid-container'>\n    <table class='ol-grid-table'>\n        <tbody><tr><td/></tr></tbody>\n    </table>\n</div>\n";
@@ -4425,7 +4841,7 @@ define("node_modules/ol3-grid/ol3-grid/ol3-grid", ["require", "exports", "openla
             if (options.hideButton) {
                 button.style.display = "none";
             }
-            var grid = index_2.html(grid_html.trim());
+            var grid = index_6.html(grid_html.trim());
             _this.grid = grid.getElementsByClassName("ol-grid-table")[0];
             options.element.appendChild(grid);
             if (_this.options.autoCollapse) {
@@ -4443,11 +4859,11 @@ define("node_modules/ol3-grid/ol3-grid/ol3-grid", ["require", "exports", "openla
                 options.expanded ? _this.collapse() : _this.expand();
             });
             options.expanded ? _this.expand() : _this.collapse();
-            _this.features.on(["addfeature", "addfeatures"], index_2.debounce(function () { return _this.redraw(); }));
+            _this.features.on(["addfeature", "addfeatures"], index_6.debounce(function () { return _this.redraw(); }));
             if (_this.options.currentExtent) {
                 if (!_this.options.map)
                     throw "must provide a map when currentExtent is true";
-                _this.options.map.getView().on(["change:center", "change:resolution"], index_2.debounce(function () { return _this.redraw(); }));
+                _this.options.map.getView().on(["change:center", "change:resolution"], index_6.debounce(function () { return _this.redraw(); }));
             }
             if (_this.options.layers) {
                 _this.options.layers.forEach(function (l) {
@@ -4463,13 +4879,13 @@ define("node_modules/ol3-grid/ol3-grid/ol3-grid", ["require", "exports", "openla
             return _this;
         }
         Grid.create = function (options) {
-            options = index_2.defaults(index_2.mixin({
+            options = index_6.defaults(index_6.mixin({
                 openedText: (options && options.position && -1 < options.position.indexOf("left")) ? expando.left : expando.right,
                 closedText: (options && options.position && -1 < options.position.indexOf("left")) ? expando.right : expando.left
             }, options || {}), Grid.DEFAULT_OPTIONS);
             var element = document.createElement('div');
             element.className = options.className + " " + options.position + " " + olcss.CLASS_UNSELECTABLE + " " + olcss.CLASS_CONTROL;
-            var gridOptions = index_2.mixin({
+            var gridOptions = index_6.mixin({
                 map: options.map,
                 element: element,
                 expanded: false
@@ -4495,9 +4911,9 @@ define("node_modules/ol3-grid/ol3-grid/ol3-grid", ["require", "exports", "openla
         };
         Grid.prototype.cssin = function () {
             var className = this.options.className;
-            var positions = index_2.pair("top left right bottom".split(" "), index_2.range(24))
+            var positions = index_6.pair("top left right bottom".split(" "), index_6.range(24))
                 .map(function (pos) { return "." + className + "." + (pos[0] + (-pos[1] || '')) + " { " + pos[0] + ":" + (0.5 + pos[1]) + "em; }"; });
-            this.handlers.push(index_2.cssin(className, "\n." + className + " {\n    position: absolute;\n}\n." + className + " ." + className + "-container {\n    max-height: 16em;\n    overflow-y: auto;\n}\n." + className + " ." + className + "-container.ol-hidden {\n    display: none;\n}\n." + className + " .feature-row {\n    cursor: pointer;\n}\n." + className + " .feature-row:hover {\n    background: black;\n    color: white;\n}\n." + className + " .feature-row:focus {\n    background: #ccc;\n    color: black;\n}\n" + positions.join('\n') + "\n"));
+            this.handlers.push(index_6.cssin(className, "\n." + className + " {\n    position: absolute;\n}\n." + className + " ." + className + "-container {\n    max-height: 16em;\n    overflow-y: auto;\n}\n." + className + " ." + className + "-container.ol-hidden {\n    display: none;\n}\n." + className + " .feature-row {\n    cursor: pointer;\n}\n." + className + " .feature-row:hover {\n    background: black;\n    color: white;\n}\n." + className + " .feature-row:focus {\n    background: #ccc;\n    color: black;\n}\n" + positions.join('\n') + "\n"));
         };
         Grid.prototype.redraw = function () {
             var _this = this;
@@ -4532,7 +4948,7 @@ define("node_modules/ol3-grid/ol3-grid/ol3-grid", ["require", "exports", "openla
                 }
                 if (_this.options.labelAttributeName) {
                     var td = document.createElement("td");
-                    var label = index_2.html("<label class=\"label\">" + feature.get(_this.options.labelAttributeName) + "</label>");
+                    var label = index_6.html("<label class=\"label\">" + feature.get(_this.options.labelAttributeName) + "</label>");
                     td.appendChild(label);
                     tr.appendChild(td);
                 }
@@ -4566,7 +4982,7 @@ define("node_modules/ol3-grid/ol3-grid/ol3-grid", ["require", "exports", "openla
                 var originalFeature_1 = feature;
                 feature = originalFeature_1.clone();
                 feature.setStyle(style);
-                originalFeature_1.on("change", index_2.debounce(function () {
+                originalFeature_1.on("change", index_6.debounce(function () {
                     feature.setGeometry(originalFeature_1.getGeometry());
                     _this.redraw();
                 }));
@@ -4628,7 +5044,7 @@ define("node_modules/ol3-grid/index", ["require", "exports", "node_modules/ol3-g
     "use strict";
     return Grid;
 });
-define("ol3-lab/labs/ol-grid", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/common/common", "node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", "node_modules/ol3-symbolizer/examples/styles/star/flower", "node_modules/ol3-popup/index", "node_modules/ol3-grid/index"], function (require, exports, $, ol, common_11, ol3_symbolizer_4, pointStyle, index_3, index_4) {
+define("ol3-lab/labs/ol-grid", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/common/common", "node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", "node_modules/ol3-symbolizer/examples/styles/star/flower", "node_modules/ol3-popup/index", "node_modules/ol3-grid/index"], function (require, exports, $, ol, common_12, ol3_symbolizer_4, pointStyle, index_7, index_8) {
     "use strict";
     exports.__esModule = true;
     var styler = new ol3_symbolizer_4.StyleConverter();
@@ -4666,7 +5082,7 @@ define("ol3-lab/labs/ol-grid", ["require", "exports", "jquery", "openlayers", "o
         {
             var opts_5 = options;
             Object.keys(opts_5).forEach(function (k) {
-                common_11.doif(common_11.getParameterByName(k), function (v) {
+                common_12.doif(common_12.getParameterByName(k), function (v) {
                     var value = parse(v, opts_5[k]);
                     if (value !== undefined)
                         opts_5[k] = value;
@@ -4704,7 +5120,7 @@ define("ol3-lab/labs/ol-grid", ["require", "exports", "jquery", "openlayers", "o
             source: source
         });
         map.addLayer(layer);
-        var popup = index_3.Popup.create({
+        var popup = index_7.Popup.create({
             map: map,
             dockContainer: $(".popup-container")[0],
             pointerPosition: 10,
@@ -4731,13 +5147,13 @@ define("ol3-lab/labs/ol-grid", ["require", "exports", "jquery", "openlayers", "o
             source.addFeature(feature);
             setTimeout(function () { return popup.show(event.coordinate, "<div>You clicked on " + location + "</div>"); }, 50);
         });
-        var grid = index_4.Grid.create({
+        var grid = index_8.Grid.create({
             currentExtent: false,
             labelAttributeName: "text",
             map: map,
             layers: [layer]
         });
-        index_4.Grid.create({
+        index_8.Grid.create({
             map: map,
             className: "ol-grid",
             position: "top left-2",
@@ -4747,7 +5163,7 @@ define("ol3-lab/labs/ol-grid", ["require", "exports", "jquery", "openlayers", "o
             showIcon: true,
             layers: [layer]
         });
-        index_4.Grid.create({
+        index_8.Grid.create({
             map: map,
             className: "ol-grid",
             position: "bottom left",
@@ -4761,7 +5177,7 @@ define("ol3-lab/labs/ol-grid", ["require", "exports", "jquery", "openlayers", "o
             labelAttributeName: "",
             layers: [layer]
         });
-        index_4.Grid.create({
+        index_8.Grid.create({
             map: map,
             className: "ol-grid",
             position: "bottom right",
@@ -4772,7 +5188,7 @@ define("ol3-lab/labs/ol-grid", ["require", "exports", "jquery", "openlayers", "o
         });
         map.getControls()
             .getArray()
-            .filter(function (c) { return c instanceof index_4.Grid; })
+            .filter(function (c) { return c instanceof index_8.Grid; })
             .forEach(function (grid) {
             return grid.on("feature-click", function (args) {
                 var center = args.feature.getGeometry().getClosestPoint(map.getView().getCenter());
@@ -4786,242 +5202,7 @@ define("ol3-lab/labs/ol-grid", ["require", "exports", "jquery", "openlayers", "o
     }
     exports.run = run;
 });
-define("node_modules/ol3-input/ol3-input/ol3-input", ["require", "exports", "openlayers", "jquery", "node_modules/ol3-fun/ol3-fun/common", "node_modules/ol3-fun/ol3-fun/common", "node_modules/ol3-fun/ol3-fun/navigation", "node_modules/ol3-input/ol3-input/providers/osm"], function (require, exports, ol, $, common_12, common_13, navigation_3, osm_2) {
-    "use strict";
-    exports.__esModule = true;
-    var olcss = {
-        CLASS_CONTROL: 'ol-control',
-        CLASS_UNSELECTABLE: 'ol-unselectable',
-        CLASS_UNSUPPORTED: 'ol-unsupported',
-        CLASS_HIDDEN: 'ol-hidden'
-    };
-    function changeHandlerFactor(input) {
-        var options = input.options;
-        var searchProvider = new osm_2.OpenStreet();
-        var changeHandler = function (args) {
-            if (!args.value)
-                return;
-            console.log("search", args.value);
-            var searchArgs = searchProvider.getParameters({
-                query: args.value,
-                limit: 1,
-                countrycodes: 'us',
-                lang: 'en'
-            });
-            $.ajax({
-                url: searchArgs.url,
-                method: searchProvider.method || 'GET',
-                data: searchArgs.params,
-                dataType: searchProvider.dataType || 'json'
-            }).then(function (json) {
-                var results = searchProvider.handleResponse(json);
-                results.some(function (r) {
-                    var _a, _b;
-                    console.log(r);
-                    if (r.original.boundingbox) {
-                        var _c = r.original.boundingbox.map(function (v) { return parseFloat(v); }), lat1 = _c[0], lat2 = _c[1], lon1 = _c[2], lon2 = _c[3];
-                        _a = ol.proj.transform([lon1, lat1], "EPSG:4326", "EPSG:3857"), lon1 = _a[0], lat1 = _a[1];
-                        _b = ol.proj.transform([lon2, lat2], "EPSG:4326", "EPSG:3857"), lon2 = _b[0], lat2 = _b[1];
-                        var extent = [lon1, lat1, lon2, lat2];
-                        var feature = new ol.Feature(new ol.geom.Polygon([[
-                                ol.extent.getBottomLeft(extent),
-                                ol.extent.getTopLeft(extent),
-                                ol.extent.getTopRight(extent),
-                                ol.extent.getBottomRight(extent),
-                                ol.extent.getBottomLeft(extent)
-                            ]]));
-                        feature.set("text", r.original.display_name);
-                        options.source && options.source.addFeature(feature);
-                        navigation_3.zoomToFeature(options.map, feature);
-                    }
-                    else {
-                        var _d = ol.proj.transform([r.lon, r.lat], "EPSG:4326", "EPSG:3857"), lon = _d[0], lat = _d[1];
-                        var feature = new ol.Feature(new ol.geom.Point([lon, lat]));
-                        feature.set("text", r.original.display_name);
-                        options.source && options.source.addFeature(feature);
-                        navigation_3.zoomToFeature(options.map, feature);
-                    }
-                    return true;
-                });
-            }).fail(function () {
-                console.error("geocoder failed");
-            });
-        };
-        return changeHandler;
-    }
-    var expando = {
-        right: '»',
-        left: '«'
-    };
-    var Input = (function (_super) {
-        __extends(Input, _super);
-        function Input(options) {
-            var _this = this;
-            if (options.hideButton) {
-                options.canCollapse = false;
-                options.autoCollapse = false;
-                options.expanded = true;
-            }
-            _this = _super.call(this, {
-                element: options.element,
-                target: options.target
-            }) || this;
-            _this.options = options;
-            _this.handlers = [];
-            _this.cssin();
-            if (options.provider && options.source) {
-                _this.on("change", changeHandlerFactor(_this));
-            }
-            var button = _this.button = document.createElement('button');
-            button.setAttribute('type', 'button');
-            button.title = options.placeholderText;
-            options.element.appendChild(button);
-            if (options.hideButton) {
-                button.style.display = "none";
-            }
-            var input = _this.input = document.createElement('input');
-            input.placeholder = options.placeholderText;
-            options.element.appendChild(input);
-            button.addEventListener("click", function () {
-                options.expanded ? _this.collapse(options) : _this.expand(options);
-            });
-            if (options.autoCollapse) {
-                input.addEventListener("blur", function () {
-                    _this.collapse(options);
-                });
-                input.addEventListener("keydown", function (args) {
-                    if (args.key === "Enter") {
-                        button.focus();
-                        _this.collapse(options);
-                    }
-                });
-            }
-            input.addEventListener("keypress", function (args) {
-                if (args.key === "Enter") {
-                    button.focus();
-                }
-            });
-            if (options.autoChange) {
-                input.addEventListener("keypress", common_12.debounce(function () {
-                    if (options.regex && !options.regex.test(input.value))
-                        return;
-                    var args = {
-                        type: "change",
-                        value: input.value
-                    };
-                    options.autoSelect && _this.input.select();
-                    _this.dispatchEvent(args);
-                }, options.changeDelay));
-            }
-            input.addEventListener("change", function () {
-                if (options.regex && !options.regex.test(input.value))
-                    return;
-                var args = {
-                    type: "change",
-                    value: input.value
-                };
-                options.autoSelect && input.select();
-                if (options.autoClear) {
-                    input.value = "";
-                }
-                _this.dispatchEvent(args);
-            });
-            if (options.autoSelect) {
-                input.addEventListener("focus", function () {
-                    input.select();
-                });
-            }
-            options.expanded ? _this.expand(options) : _this.collapse(options);
-            return _this;
-        }
-        Input.create = function (options) {
-            if (options === void 0) { options = {}; }
-            options = options || {};
-            options = common_12.mixin({
-                openedText: options.position && -1 < options.position.indexOf("left") ? expando.left : expando.right,
-                closedText: options.position && -1 < options.position.indexOf("left") ? expando.right : expando.left
-            }, options);
-            options = common_12.mixin(common_12.mixin({}, Input.DEFAULT_OPTIONS), options);
-            var element = document.createElement('div');
-            element.className = options.className + " " + options.position + " " + olcss.CLASS_UNSELECTABLE + " " + olcss.CLASS_CONTROL;
-            var geocoderOptions = common_12.mixin({
-                element: element,
-                target: options.target,
-                expanded: false
-            }, options);
-            var input = new Input(geocoderOptions);
-            input.handlers.push(function () { return element.remove(); });
-            if (options.map) {
-                options.map.addControl(input);
-            }
-            return input;
-        };
-        Input.prototype.destroy = function () {
-            this.handlers.forEach(function (h) { return h(); });
-            this.setTarget(null);
-        };
-        Input.prototype.getValue = function () {
-            return this.input.value;
-        };
-        Input.prototype.setValue = function (v) {
-            this.input.value = v;
-            this.input.dispatchEvent(new Event("change"));
-        };
-        Input.prototype.setPosition = function (position) {
-            var _this = this;
-            this.options.position.split(' ')
-                .forEach(function (k) { return _this.options.element.classList.remove(k); });
-            position.split(' ')
-                .forEach(function (k) { return _this.options.element.classList.add(k); });
-            this.options.position = position;
-        };
-        Input.prototype.cssin = function () {
-            var className = this.options.className;
-            var positions = common_13.pair("top left right bottom".split(" "), common_13.range(24))
-                .map(function (pos) { return "." + className + "." + (pos[0] + (-pos[1] || '')) + " { " + pos[0] + ":" + (0.5 + pos[1]) + "em; }"; });
-            this.handlers.push(common_12.cssin(className, "\n            ." + className + " {\n                position: absolute;\n                background-color: rgba(255,255,255,.4);\n            }\n            ." + className + ".active {\n                background-color: white;\n            }\n            ." + className + ":hover {\n                background-color: white;\n            }\n            ." + className + " input[type=\"button\"] {\n                color: rgba(0,60,136,1);\n                background: transparent;\n                border: none;\n                width: 2em;\n                height: 2em;\n            }            \n            ." + className + " button {\n                min-height: 1.375em;\n                min-width: 1.375em;\n                width: auto;\n                display: inline;\n            }\n\n            ." + className + ".left button {\n                float:right;\n            }\n\n            ." + className + ".right button {\n                float:left;\n            }\n\n            ." + className + " input {\n                height: 2.175em;\n                width: 16em;\n                border: none;\n                padding: 0;\n                margin: 0;\n                margin-left: 2px;\n                margin-top: 2px;\n                vertical-align: top;\n                transition: width 0.25s;\n            }\n\n            ." + className + " input.ol-hidden {\n                width: 0;\n                margin: 0;\n            }\n            \n            " + positions.join('\n') + "\n        "));
-        };
-        Input.prototype.collapse = function (options) {
-            if (!options.canCollapse)
-                return;
-            options.expanded = false;
-            this.input.classList.add(olcss.CLASS_HIDDEN);
-            this.button.classList.remove(olcss.CLASS_HIDDEN);
-            this.button.innerHTML = options.closedText;
-        };
-        Input.prototype.expand = function (options) {
-            options.expanded = true;
-            this.input.classList.remove(olcss.CLASS_HIDDEN);
-            this.button.classList.add(olcss.CLASS_HIDDEN);
-            this.button.innerHTML = options.openedText;
-            this.input.focus();
-            options.autoSelect && this.input.select();
-        };
-        Input.prototype.on = function (type, cb) {
-            return _super.prototype.on.call(this, type, cb);
-        };
-        Input.DEFAULT_OPTIONS = {
-            className: 'ol-input',
-            position: 'bottom left',
-            expanded: false,
-            autoChange: false,
-            autoClear: false,
-            autoCollapse: true,
-            autoSelect: true,
-            canCollapse: true,
-            changeDelay: 2000,
-            hideButton: false,
-            closedText: expando.right,
-            openedText: expando.left,
-            provider: osm_2.OpenStreet,
-            placeholderText: 'Search',
-            regex: /\S{2,}/
-        };
-        return Input;
-    }(ol.control.Control));
-    exports.Input = Input;
-});
-define("ol3-lab/labs/ol-input", ["require", "exports", "openlayers", "jquery", "node_modules/ol3-input/ol3-input/ol3-input", "node_modules/ol3-input/ol3-input/providers/osm", "node_modules/ol3-fun/index", "node_modules/ol3-symbolizer/ol3-symbolizer/ags/ags-source"], function (require, exports, ol, $, ol3_input_2, osm_3, index_5, ags_source_2) {
+define("ol3-lab/labs/ol-input", ["require", "exports", "openlayers", "jquery", "node_modules/ol3-input/ol3-input/ol3-input", "node_modules/ol3-input/ol3-input/providers/osm", "node_modules/ol3-fun/index", "node_modules/ol3-symbolizer/ol3-symbolizer/ags/ags-source"], function (require, exports, ol, $, ol3_input_2, osm_3, index_9, ags_source_2) {
     "use strict";
     exports.__esModule = true;
     var css = "\nhtml,body,.map {\n    position: absolute;\n    top: 0;\n    bottom: 0;\n    left: 0;\n    right: 0;\n}\n\n.ol-input input {\n    height: 1.75em !important;\n}\n\n.ol-input.statecode > input {\n    text-transform: uppercase;\n    width: 2em;\n    text-align: center;\n}\n";
@@ -5040,7 +5221,7 @@ define("ol3-lab/labs/ol-input", ["require", "exports", "openlayers", "jquery", "
         })
     });
     function run() {
-        index_5.cssin("examples/ol3-input", css);
+        index_9.cssin("examples/ol3-input", css);
         var searchProvider = new osm_3.OpenStreet();
         var center = ol.proj.transform([-85, 35], "EPSG:4326", "EPSG:3857");
         var mapContainer = document.getElementsByClassName("map")[0];
@@ -5090,7 +5271,7 @@ define("ol3-lab/labs/ol-input", ["require", "exports", "openlayers", "jquery", "
                         }
                     });
                     if (feature) {
-                        index_5.navigation.zoomToFeature(map, feature);
+                        index_9.navigation.zoomToFeature(map, feature);
                     }
                     else {
                         changeHandler({ value: value });
@@ -5210,7 +5391,7 @@ define("node_modules/ol3-panzoom/ol3-panzoom/zoomslidercontrol", ["require", "ex
     }(ol.control.ZoomSlider));
     return ZoomSlider;
 });
-define("node_modules/ol3-panzoom/ol3-panzoom/ol3-panzoom", ["require", "exports", "openlayers", "node_modules/ol3-panzoom/ol3-panzoom/zoomslidercontrol", "node_modules/ol3-fun/index"], function (require, exports, ol, ZoomSlider, index_6) {
+define("node_modules/ol3-panzoom/ol3-panzoom/ol3-panzoom", ["require", "exports", "openlayers", "node_modules/ol3-panzoom/ol3-panzoom/zoomslidercontrol", "node_modules/ol3-fun/index"], function (require, exports, ol, ZoomSlider, index_10) {
     "use strict";
     exports.__esModule = true;
     function on(element, event, listener) {
@@ -5233,10 +5414,10 @@ define("node_modules/ol3-panzoom/ol3-panzoom/ol3-panzoom", ["require", "exports"
         function PanZoom(options) {
             if (options === void 0) { options = DEFAULT_OPTIONS; }
             var _this = this;
-            options = index_6.defaults({}, options, DEFAULT_OPTIONS);
+            options = index_10.defaults({}, options, DEFAULT_OPTIONS);
             _this = _super.call(this, options) || this;
             _this.options = options;
-            index_6.cssin("ol3-panzoom", css);
+            index_10.cssin("ol3-panzoom", css);
             _this.imgPath_ = options.imgPath || "./ol3-panzoom/resources/ol2img";
             var element = (_this.element = _this.element_ = _this.createEl_());
             _this.setTarget(options.target);
@@ -5495,10 +5676,16 @@ define("node_modules/ol3-panzoom/index", ["require", "exports", "node_modules/ol
     "use strict";
     return Panzoom;
 });
-define("ol3-lab/labs/ol-layerswitcher", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/common/common", "ol3-symbolizer", "ol3-layerswitcher", "ol3-popup", "node_modules/ol3-panzoom/index", "node_modules/ol3-symbolizer/ol3-symbolizer/ags/ags-source"], function (require, exports, $, ol, common_14, ol3_symbolizer_5, ol3_layerswitcher_2, ol3_popup_2, index_7, ags_source_3) {
+define("ol3-lab/labs/ol-layerswitcher", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/common/common", "node_modules/ol3-layerswitcher/index", "node_modules/ol3-popup/index", "node_modules/ol3-panzoom/index", "node_modules/ol3-symbolizer/ol3-symbolizer/ags/ags-source"], function (require, exports, $, ol, common_13, index_11, index_12, index_13, ags_source_3) {
     "use strict";
     exports.__esModule = true;
-    var styler = new ol3_symbolizer_5.StyleConverter();
+    function loadCss(url) {
+        var link = document.createElement("link");
+        link.type = "text/css";
+        link.rel = "stylesheet";
+        link.href = url;
+        document.getElementsByTagName("head")[0].appendChild(link);
+    }
     function parse(v, type) {
         if (typeof type === "string")
             return v;
@@ -5507,13 +5694,12 @@ define("ol3-lab/labs/ol-layerswitcher", ["require", "exports", "jquery", "openla
         if (typeof type === "boolean")
             return (v === "1" || v === "true");
         if (Array.isArray(type)) {
-            return (v.split(",").map(function (v) { return parse(v, type[0]); }));
+            return v.split(",").map(function (v) { return parse(v, type[0]); });
         }
         throw "unknown type: " + type;
     }
     var html = "\n<div class='popup'>\n    <div class='popup-container'>\n    </div>\n</div>\n";
     var css = "\n<style name=\"popup\" type=\"text/css\">\n    html, body, .map {\n        width: 100%;\n        height: 100%;\n        padding: 0;\n        overflow: hidden;\n        margin: 0;    \n    }\n</style>\n";
-    var css_popup = "\n.popup-container {\n    position: absolute;\n    top: 1em;\n    right: 0.5em;\n    width: 10em;\n    bottom: 1em;\n    z-index: 1;\n    pointer-events: none;\n}\n\n.ol-popup {\n    color: white;\n    background-color: rgba(77,77,77,0.7);\n    min-width: 200px;\n}\n\n.ol-popup:after {\n    border-top-color: rgba(77,77,77,0.7);\n}\n\n";
     var center = {
         fire: [-117.754430386, 34.2606862490001],
         wichita: [-97.4, 37.8],
@@ -5522,15 +5708,17 @@ define("ol3-lab/labs/ol-layerswitcher", ["require", "exports", "jquery", "openla
     function run() {
         $(html).appendTo(".map");
         $(css).appendTo("head");
+        loadCss("../static/css/ol3-layerswitcher.css");
+        loadCss("../static/css/ol3-popup.css");
         var options = {
-            srs: 'EPSG:4326',
+            srs: "EPSG:4326",
             center: center.vegas,
             zoom: 10
         };
         {
             var opts_6 = options;
             Object.keys(opts_6).forEach(function (k) {
-                common_14.doif(common_14.getParameterByName(k), function (v) {
+                common_13.doif(common_13.getParameterByName(k), function (v) {
                     var value = parse(v, opts_6[k]);
                     if (value !== undefined)
                         opts_6[k] = value;
@@ -5542,15 +5730,19 @@ define("ol3-lab/labs/ol-layerswitcher", ["require", "exports", "jquery", "openla
             keyboardEventTarget: document,
             loadTilesWhileAnimating: true,
             loadTilesWhileInteracting: true,
-            controls: ol.control.defaults({
+            controls: ol.control
+                .defaults({
                 attribution: false,
                 zoom: false
-            }).extend([new index_7.PanZoom({
+            })
+                .extend([
+                new index_13.PanZoom({
                     minZoom: 5,
                     maxZoom: 21,
                     imgPath: "https://raw.githubusercontent.com/ca0v/ol3-panzoom/master/ol3-panzoom/resources/zoombar_black",
                     slider: true
-                })]),
+                })
+            ]),
             view: new ol.View({
                 projection: options.srs,
                 center: options.center,
@@ -5561,19 +5753,19 @@ define("ol3-lab/labs/ol-layerswitcher", ["require", "exports", "jquery", "openla
             layers: [
                 new ol.layer.Tile({
                     title: "OSM",
-                    type: 'base',
+                    type: "base",
                     opacity: 0.8,
                     visible: true,
                     source: new ol.source.OSM()
                 }),
                 new ol.layer.Tile({
                     title: "Bing",
-                    type: 'base',
+                    type: "base",
                     opacity: 0.8,
                     visible: false,
                     source: new ol.source.BingMaps({
-                        key: 'AuPHWkNxvxVAL_8Z4G8Pcq_eOKGm5eITH_cJMNAyYoIC1S_29_HhE893YrUUbIGl',
-                        imagerySet: 'Aerial'
+                        key: "AuPHWkNxvxVAL_8Z4G8Pcq_eOKGm5eITH_cJMNAyYoIC1S_29_HhE893YrUUbIGl",
+                        imagerySet: "Aerial"
                     })
                 })
             ]
@@ -5583,25 +5775,26 @@ define("ol3-lab/labs/ol-layerswitcher", ["require", "exports", "jquery", "openla
             map: map,
             services: "https://services7.arcgis.com/k0UprFPHKieFB9UY/arcgis/rest/services",
             serviceName: "GoldServer860",
+            serviceType: "FeatureServer",
             layers: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20].reverse()
         }).then(function (agsLayers) {
             agsLayers.forEach(function (agsLayer) {
                 agsLayer.setVisible(false);
                 map.addLayer(agsLayer);
             });
-            var layerSwitcher = new ol3_layerswitcher_2.LayerSwitcher();
+            var layerSwitcher = new index_11.LayerSwitcher({});
             layerSwitcher.setMap(map);
-            var popup = new ol3_popup_2.Popup({
+            var popup = index_12.Popup.create({
+                map: map,
                 css: "\n            .ol-popup {\n                background-color: white;\n            }\n            .ol-popup .page {\n                max-height: 200px;\n                overflow-y: auto;\n            }\n            "
             });
-            map.addOverlay(popup);
             map.on("click", function (event) {
                 console.log("click");
                 var coord = event.coordinate;
                 popup.hide();
                 var pageNum = 0;
                 map.forEachFeatureAtPixel(event.pixel, function (feature, layer) {
-                    var page = document.createElement('p');
+                    var page = document.createElement("p");
                     var keys = Object.keys(feature.getProperties()).filter(function (key) {
                         var v = feature.get(key);
                         if (typeof v === "string")
@@ -5611,7 +5804,10 @@ define("ol3-lab/labs/ol-layerswitcher", ["require", "exports", "jquery", "openla
                         return false;
                     });
                     page.title = "" + ++pageNum;
-                    page.innerHTML = "<table>" + keys.map(function (k) { return "<tr><td>" + k + "</td><td>" + feature.get(k) + "</td></tr>"; }).join("") + "</table>";
+                    page.innerHTML = "<table>" + keys
+                        .map(function (k) { return "<tr><td>" + k + "</td><td>" + feature.get(k) + "</td></tr>"; })
+                        .join("") + "</table>";
+                    throw "here i am..page doesn't get added because its HTMLElement";
                     popup.pages.add(page, feature.getGeometry());
                 });
                 popup.show(coord, "<label>" + pageNum + " Features Found</label>");
@@ -5622,37 +5818,37 @@ define("ol3-lab/labs/ol-layerswitcher", ["require", "exports", "jquery", "openla
     }
     exports.run = run;
 });
-define("ol3-lab/labs/ol-panzoom", ["require", "exports", "openlayers", "ol3-panzoom"], function (require, exports, ol, ol3_panzoom_1) {
+define("ol3-lab/labs/ol-panzoom", ["require", "exports", "openlayers", "node_modules/ol3-panzoom/index"], function (require, exports, ol, index_14) {
     "use strict";
     exports.__esModule = true;
     function run() {
-        var panZoom = new ol3_panzoom_1.PanZoom({
-            imgPath: "https://raw.githubusercontent.com/ca0v/ol3-panzoom/v3.20.1/ol3-panzoom/resources/ol2img"
+        var panZoom = new index_14.PanZoom({
+            imgPath: "../static/css/ol2img"
         });
         var map = new ol.Map({
-            controls: ol.control.defaults({
+            controls: ol.control
+                .defaults({
                 zoom: false
-            }).extend([
-                panZoom
-            ]),
+            })
+                .extend([panZoom]),
             layers: [
                 new ol.layer.Tile({
                     source: new ol.source.OSM()
                 })
             ],
-            target: 'map',
+            target: "map",
             view: new ol.View({
-                center: ol.proj.transform([-70, 50], 'EPSG:4326', 'EPSG:3857'),
+                center: ol.proj.transform([-70, 50], "EPSG:4326", "EPSG:3857"),
                 zoom: 5
             })
         });
     }
     exports.run = run;
 });
-define("ol3-lab/labs/ol-popup", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/common/common", "node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", "ol3-symbolizer/ol3-symbolizer/styles/star/flower", "ol3-popup"], function (require, exports, $, ol, common_15, ol3_symbolizer_6, pointStyle, ol3_popup_3) {
+define("ol3-lab/labs/ol-popup", ["require", "exports", "openlayers", "ol3-lab/labs/common/common", "node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", "node_modules/ol3-symbolizer/examples/styles/star/flower", "node_modules/ol3-popup/index"], function (require, exports, ol, common_14, ol3_symbolizer_5, pointStyle, index_15) {
     "use strict";
     exports.__esModule = true;
-    var styler = new ol3_symbolizer_6.StyleConverter();
+    var styler = new ol3_symbolizer_5.StyleConverter();
     function parse(v, type) {
         if (typeof type === "string")
             return v;
@@ -5661,7 +5857,7 @@ define("ol3-lab/labs/ol-popup", ["require", "exports", "jquery", "openlayers", "
         if (typeof type === "boolean")
             return (v === "1" || v === "true");
         if (Array.isArray(type)) {
-            return (v.split(",").map(function (v) { return parse(v, type[0]); }));
+            return v.split(",").map(function (v) { return parse(v, type[0]); });
         }
         throw "unknown type: " + type;
     }
@@ -5673,13 +5869,14 @@ define("ol3-lab/labs/ol-popup", ["require", "exports", "jquery", "openlayers", "
         return (adverb + " " + noun).toLocaleUpperCase();
     }
     var html = "\n<div class='popup'>\n    <div class='popup-container'>\n    </div>\n</div>\n";
-    var css = "\n<style name=\"popup\" type=\"text/css\">\n    html, body, .map {\n        width: 100%;\n        height: 100%;\n        padding: 0;\n        overflow: hidden;\n        margin: 0;    \n    }\n    .popup-container {\n        position: absolute;\n        top: 1em;\n        right: 0.5em;\n        width: 10em;\n        bottom: 1em;\n        z-index: 1;\n        pointer-events: none;\n    }\n    .popup-container .ol-popup.docked {\n        min-width: auto;\n    }\n    \n</style>\n";
-    var css_popup = "\n.ol-popup {\n    color: white;\n    background-color: rgba(77,77,77,0.7);\n    border: 1px solid white;\n    min-width: 200px;\n    padding: 12px;\n}\n\n.ol-popup:after {\n    border-top-color: white;\n}\n";
+    var css = "\n    html, body, .map {\n        width: 100%;\n        height: 100%;\n        padding: 0;\n        overflow: hidden;\n        margin: 0;    \n    }\n    .popup-container {\n        position: absolute;\n        top: 1em;\n        right: 0.5em;\n        width: 10em;\n        height: 5em;\n        z-index: 1;\n        pointer-events: none;\n    }\n    .popup-container .ol-popup-element.docked {\n        min-width: auto;\n        background-color: rgba(77,77,77,0.7);\n        color: white;\n        padding: 0.5em;\n    }\n";
+    var css_popup = "\n.ol-popup {\n    color: white;\n    background-color: rgba(77,77,77,1);\n    border: 1px solid white;\n    min-width: 200px;\n    padding: 12px;\n}\n\n.ol-popup:after {\n    border-top-color: white;\n}\n\n.simple-popup-down-arrow {\n    color: rgba(77,77,77,1);\n}\n\n.simple-popup-up-arrow {\n    color: white;\n}\n";
     function run() {
-        $(html).appendTo(".map");
-        $(css).appendTo("head");
+        var mapDom = document.getElementById("map");
+        mapDom.appendChild(common_14.html(html));
+        common_14.cssin("ol-popup", css);
         var options = {
-            srs: 'EPSG:4326',
+            srs: "EPSG:4326",
             center: [-82.4, 34.85],
             zoom: 15,
             basemap: "bing"
@@ -5687,7 +5884,7 @@ define("ol3-lab/labs/ol-popup", ["require", "exports", "jquery", "openlayers", "
         {
             var opts_7 = options;
             Object.keys(opts_7).forEach(function (k) {
-                common_15.doif(common_15.getParameterByName(k), function (v) {
+                common_14.doif(common_14.getParameterByName(k), function (v) {
                     var value = parse(v, opts_7[k]);
                     if (value !== undefined)
                         opts_7[k] = value;
@@ -5708,10 +5905,12 @@ define("ol3-lab/labs/ol-popup", ["require", "exports", "jquery", "openlayers", "
             layers: [
                 new ol.layer.Tile({
                     opacity: 0.8,
-                    source: options.basemap !== "bing" ? new ol.source.OSM() : new ol.source.BingMaps({
-                        key: 'AuPHWkNxvxVAL_8Z4G8Pcq_eOKGm5eITH_cJMNAyYoIC1S_29_HhE893YrUUbIGl',
-                        imagerySet: 'Aerial'
-                    })
+                    source: options.basemap !== "bing"
+                        ? new ol.source.OSM()
+                        : new ol.source.BingMaps({
+                            key: "AuPHWkNxvxVAL_8Z4G8Pcq_eOKGm5eITH_cJMNAyYoIC1S_29_HhE893YrUUbIGl",
+                            imagerySet: "Aerial"
+                        })
                 })
             ]
         });
@@ -5723,12 +5922,12 @@ define("ol3-lab/labs/ol-popup", ["require", "exports", "jquery", "openlayers", "
             source: source
         });
         map.addLayer(layer);
-        var popup = new ol3_popup_3.Popup({
-            dockContainer: '.popup-container',
-            pointerPosition: 100,
-            positioning: "bottom-left",
-            yOffset: 20,
-            css: css_popup
+        var popup = index_15.Popup.create({
+            dockContainer: document.getElementsByClassName("popup-container").item(0),
+            autoPositioning: true,
+            pointerPosition: 20,
+            css: css_popup,
+            map: map
         });
         popup.setMap(map);
         map.on("click", function (event) {
@@ -5738,12 +5937,12 @@ define("ol3-lab/labs/ol-popup", ["require", "exports", "jquery", "openlayers", "
             var feature = new ol.Feature(point);
             feature.set("text", randomName());
             var textStyle = pointStyle.filter(function (p) { return p.text; })[0];
-            ;
             if (textStyle && textStyle.text) {
-                textStyle.text["offset-y"] = -24;
+                textStyle.text.font = "25pt fantasy";
+                textStyle.text["offset-y"] = -40;
                 textStyle.text.text = feature.get("text");
             }
-            pointStyle[0].star.points = 3 + (Math.random() * 12) | 0;
+            pointStyle[0].star.points = (3 + Math.random() * 12) | 0;
             pointStyle[0].star.stroke.width = 1 + Math.random() * 5;
             var style = pointStyle.map(function (s) { return styler.fromJson(s); });
             feature.setStyle(function (resolution) { return style; });
@@ -5754,12 +5953,266 @@ define("ol3-lab/labs/ol-popup", ["require", "exports", "jquery", "openlayers", "
     }
     exports.run = run;
 });
-define("node_modules/ol3-search/ol3-search/providers/osm", ["require", "exports", "jquery", "openlayers", "node_modules/ol3-fun/index"], function (require, exports, $, ol, index_8) {
+define("node_modules/ol3-search/ol3-search/ol3-search", ["require", "exports", "openlayers", "node_modules/ol3-fun/index"], function (require, exports, ol, index_16) {
+    "use strict";
+    exports.__esModule = true;
+    var olcss = {
+        CLASS_CONTROL: 'ol-control',
+        CLASS_UNSELECTABLE: 'ol-unselectable',
+        CLASS_UNSUPPORTED: 'ol-unsupported',
+        CLASS_HIDDEN: 'ol-hidden'
+    };
+    var expando = {
+        right: '»',
+        left: '«'
+    };
+    var defaults = {
+        className: 'ol-search',
+        position: 'bottom left',
+        expanded: false,
+        autoChange: false,
+        autoClear: false,
+        autoCollapse: true,
+        canCollapse: true,
+        hideButton: false,
+        closedText: expando.right,
+        openedText: expando.left,
+        title: 'Search',
+        showLabels: false
+    };
+    var SearchForm = (function (_super) {
+        __extends(SearchForm, _super);
+        function SearchForm(options) {
+            var _this = this;
+            if (options.hideButton) {
+                options.canCollapse = false;
+                options.autoCollapse = false;
+                options.expanded = true;
+            }
+            _this = _super.call(this, {
+                element: options.element,
+                target: options.target
+            }) || this;
+            _this.options = options;
+            _this.handlers = [];
+            _this.cssin();
+            var button = _this.button = document.createElement('button');
+            button.setAttribute('type', 'button');
+            button.title = options.title;
+            options.element.appendChild(button);
+            if (options.hideButton) {
+                button.style.display = "none";
+            }
+            var form = _this.form = index_16.html(("\n        <form>\n            " + (options.title ? "<label class=\"title\">" + options.title + "</label>" : "") + "\n            <section class=\"header\"></section>\n            <section class=\"body\">\n            <table class=\"fields\">\n            " + (options.showLabels ? "<thead><tr><td>Field</td><td>Value</td></tr></thead>" : "") + "\n                <tbody>\n                    <tr><td>Field</td><td>Value</td></tr>\n                </tbody>\n            </table>\n            </section>\n            <section class=\"footer\"></section>\n        </form>\n        ").trim());
+            options.element.appendChild(form);
+            {
+                var body_1 = form.getElementsByTagName("tbody")[0];
+                body_1.innerHTML = "";
+                options.fields.forEach(function (field) {
+                    field.alias = field.alias || field.name;
+                    field.name = field.name || field.alias;
+                    var tr = document.createElement("tr");
+                    var value = document.createElement("td");
+                    if (!field.type && typeof field["default"] !== "undefined") {
+                        field.type = typeof field["default"];
+                    }
+                    field.type = field.type || "string";
+                    if (options.showLabels) {
+                        var label = document.createElement("td");
+                        label.innerHTML = "<label for=\"" + field.name + "\" class=\"ol-search-label\">" + field.alias + "</label>";
+                        tr.appendChild(label);
+                    }
+                    tr.appendChild(value);
+                    var input;
+                    if (field.domain) {
+                        var select_1 = document.createElement("select");
+                        select_1.name = field.name;
+                        select_1.className = "input " + field.name;
+                        field.domain.codedValues.forEach(function (cv) {
+                            var option = document.createElement("option");
+                            select_1.appendChild(option);
+                            option.text = cv.name + " (" + cv.code + ")";
+                            option.value = cv.code;
+                        });
+                        input = select_1;
+                    }
+                    else {
+                        switch (field.type) {
+                            case "boolean":
+                                input = index_16.html("<input class=\"input " + field.name + "\" name=\"" + field.name + "\" type=\"checkbox\" " + (field["default"] ? "checked" : "") + " />");
+                                break;
+                            case "integer":
+                                input = index_16.html("<input class=\"input " + field.name + "\" name=\"" + field.name + "\" type=\"number\" min=\"0\" step=\"1\" " + (field["default"] ? "value=\"" + field["default"] + "\"" : "") + " />");
+                                break;
+                            case "number":
+                                input = index_16.html("<input class=\"input " + field.name + "\" name=\"" + field.name + "\" type=\"number\" min=\"0\" max=\"" + Array(field.length || 3).join("9") + "\" />");
+                                break;
+                            case "string":
+                            default:
+                                input = index_16.html("<input class=\"input " + field.name + "\" name=\"" + field.name + "\" type=\"text\" " + (field["default"] ? "value=\"" + field["default"] + "\"" : "") + " />");
+                                input.maxLength = field.length || 20;
+                                break;
+                        }
+                    }
+                    input.title = field.alias;
+                    input.placeholder = field.placeholder || field.alias;
+                    input.addEventListener("focus", function () { return tr.classList.add("focus"); });
+                    input.addEventListener("blur", function () { return tr.classList.remove("focus"); });
+                    value.appendChild(input);
+                    body_1.appendChild(tr);
+                });
+            }
+            {
+                var footer = form.getElementsByClassName("footer")[0];
+                if (!_this.options.searchButton) {
+                    var searchButton_1 = index_16.html("<input type=\"button\" class=\"ol-search-button\" value=\"Search\"/>");
+                    footer.appendChild(searchButton_1);
+                    _this.options.searchButton = searchButton_1;
+                    form.addEventListener("keydown", function (args) {
+                        if (args.key === "Enter") {
+                            if (args.srcElement !== searchButton_1) {
+                                searchButton_1.focus();
+                            }
+                            else {
+                                options.autoCollapse && button.focus();
+                            }
+                        }
+                    });
+                    searchButton_1.addEventListener("click", function () {
+                        _this.dispatchEvent({
+                            type: "change",
+                            value: _this.value
+                        });
+                        if (_this.options.autoCollapse && _this.options.canCollapse) {
+                            _this.collapse();
+                        }
+                        if (_this.options.autoClear) {
+                            _this.options.fields.forEach(function (f) {
+                                form[f.name].value = f["default"] === undefined ? "" : f["default"];
+                            });
+                        }
+                    });
+                }
+            }
+            button.addEventListener("click", function () {
+                options.expanded ? _this.collapse(options) : _this.expand(options);
+            });
+            if (options.autoCollapse) {
+                form.addEventListener("blur", function () {
+                    _this.collapse(options);
+                });
+            }
+            if (options.autoChange) {
+                form.addEventListener("keypress", index_16.debounce(function () {
+                    _this.dispatchEvent({
+                        type: "change",
+                        value: _this.value
+                    });
+                }, 500));
+            }
+            options.expanded ? _this.expand(options) : _this.collapse(options);
+            return _this;
+        }
+        SearchForm.create = function (options) {
+            options = index_16.mixin({
+                openedText: options.className && -1 < options.className.indexOf("left") ? expando.left : expando.right,
+                closedText: options.className && -1 < options.className.indexOf("left") ? expando.right : expando.left
+            }, options || {});
+            options = index_16.mixin(index_16.mixin({}, defaults), options);
+            var element = document.createElement('div');
+            element.className = options.className + " " + options.position + " " + olcss.CLASS_UNSELECTABLE + " " + olcss.CLASS_CONTROL;
+            var geocoderOptions = index_16.mixin({
+                element: element,
+                target: options.target,
+                expanded: false
+            }, options);
+            return new SearchForm(geocoderOptions);
+        };
+        SearchForm.prototype.destroy = function () {
+            this.handlers.forEach(function (h) { return h(); });
+            this.setTarget(null);
+        };
+        SearchForm.prototype.setPosition = function (position) {
+            var _this = this;
+            this.options.position.split(' ')
+                .forEach(function (k) { return _this.options.element.classList.remove(k); });
+            position.split(' ')
+                .forEach(function (k) { return _this.options.element.classList.add(k); });
+            this.options.position = position;
+        };
+        SearchForm.prototype.cssin = function () {
+            var className = this.options.className;
+            var positions = index_16.pair("top left right bottom".split(" "), index_16.range(24))
+                .map(function (pos) { return "." + className + "." + (pos[0] + (-pos[1] || '')) + " { " + pos[0] + ":" + (0.5 + pos[1]) + "em; }"; });
+            this.handlers.push(index_16.cssin(className, "\n." + className + " {\n    position: absolute;\n}\n\n." + className + " button {\n    min-height: 1.375em;\n    min-width: 1.375em;\n    width: auto;\n    display: inline;\n}\n\n." + className + ".left button {\n    float:right;\n}\n\n." + className + ".right button {\n    float:left;\n}\n\n." + className + " form {\n    width: 16em;\n    border: none;\n    padding: 0;\n    margin: 0;\n    margin-left: 2px;\n    margin-top: 2px;\n    vertical-align: top;\n}\n." + className + " form.ol-hidden {\n    display: none;\n}\n" + positions.join('\n')));
+        };
+        SearchForm.prototype.collapse = function (options) {
+            if (options === void 0) { options = this.options; }
+            if (!options.canCollapse)
+                return;
+            options.expanded = false;
+            this.form.classList.add(olcss.CLASS_HIDDEN);
+            this.button.classList.remove(olcss.CLASS_HIDDEN);
+            this.button.innerHTML = options.closedText;
+        };
+        SearchForm.prototype.expand = function (options) {
+            if (options === void 0) { options = this.options; }
+            options.expanded = true;
+            this.form.classList.remove(olcss.CLASS_HIDDEN);
+            this.button.classList.add(olcss.CLASS_HIDDEN);
+            this.button.innerHTML = options.openedText;
+            this.form.focus();
+        };
+        SearchForm.prototype.on = function (type, cb) {
+            return _super.prototype.on.call(this, type, cb);
+        };
+        Object.defineProperty(SearchForm.prototype, "value", {
+            get: function () {
+                var _this = this;
+                var result = {};
+                this.options.fields.forEach(function (field) {
+                    var input = _this.form.querySelector("[name=\"" + field.name + "\"]");
+                    var value = input.value;
+                    switch (field.type) {
+                        case "integer":
+                            value = parseInt(value, 10);
+                            value = isNaN(value) ? null : value;
+                            break;
+                        case "number":
+                            value = parseFloat(value);
+                            value = isNaN(value) ? null : value;
+                            break;
+                        case "boolean":
+                            value = input.checked;
+                            break;
+                        case "string":
+                            value = value || null;
+                            break;
+                    }
+                    if (undefined !== value && null !== value) {
+                        result[input.name] = value;
+                    }
+                });
+                return result;
+            },
+            enumerable: true,
+            configurable: true
+        });
+        SearchForm.DEFAULT_OPTIONS = defaults;
+        return SearchForm;
+    }(ol.control.Control));
+    exports.SearchForm = SearchForm;
+});
+define("node_modules/ol3-search/index", ["require", "exports", "node_modules/ol3-search/ol3-search/ol3-search"], function (require, exports, Input) {
+    "use strict";
+    return Input;
+});
+define("node_modules/ol3-search/ol3-search/providers/osm", ["require", "exports", "jquery", "openlayers", "node_modules/ol3-fun/index"], function (require, exports, $, ol, index_17) {
     "use strict";
     exports.__esModule = true;
     var OpenStreetGeocode = (function () {
         function OpenStreetGeocode(options) {
-            this.options = index_8.defaults(options || {}, OpenStreetGeocode.DEFAULT_OPTIONS);
+            this.options = index_17.defaults(options || {}, OpenStreetGeocode.DEFAULT_OPTIONS);
         }
         Object.defineProperty(OpenStreetGeocode.prototype, "fields", {
             get: function () {
@@ -5799,8 +6252,8 @@ define("node_modules/ol3-search/ol3-search/providers/osm", ["require", "exports"
         };
         OpenStreetGeocode.prototype.getParameters = function (options, map) {
             var _a, _b;
-            index_8.defaults(options, this.options);
-            index_8.defaults(options.params, {
+            index_17.defaults(options, this.options);
+            index_17.defaults(options.params, {
                 q: options.params.query,
                 limit: options.count
             }, this.options.params);
@@ -5867,7 +6320,7 @@ define("node_modules/ol3-search/ol3-search/providers/osm", ["require", "exports"
     }());
     exports.OpenStreetGeocode = OpenStreetGeocode;
 });
-define("ol3-lab/labs/ol-search", ["require", "exports", "openlayers", "jquery", "ol3-popup", "ol3-grid", "ol3-symbolizer", "ol3-search", "node_modules/ol3-search/ol3-search/providers/osm", "node_modules/ol3-fun/ol3-fun/common", "node_modules/ol3-symbolizer/ol3-symbolizer/ags/ags-source"], function (require, exports, ol, $, ol3_popup_4, ol3_grid_1, ol3_symbolizer_7, ol3_search_1, osm_4, common_16, ags_source_4) {
+define("ol3-lab/labs/ol-search", ["require", "exports", "openlayers", "node_modules/ol3-popup/index", "node_modules/ol3-grid/index", "node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", "node_modules/ol3-search/index", "node_modules/ol3-search/ol3-search/providers/osm", "node_modules/ol3-fun/ol3-fun/common", "node_modules/ol3-symbolizer/ol3-symbolizer/ags/ags-source"], function (require, exports, ol, index_18, index_19, ol3_symbolizer_6, index_20, osm_4, common_15, ags_source_4) {
     "use strict";
     exports.__esModule = true;
     function zoomToFeature(map, feature) {
@@ -5884,9 +6337,8 @@ define("ol3-lab/labs/ol-search", ["require", "exports", "openlayers", "jquery", 
         });
     }
     function run() {
-        common_16.cssin("examples/ol3-search", "\n\n.map {\n    position: absolute;\n    top: 0;\n    bottom: 0;\n    left: 0;\n    right: 0;\n}\n\n.ol-popup {\n    background-color: white;\n}\n\n.ol-popup .pages {\n    max-height: 10em;\n    min-width: 20em;\n    overflow: auto;\n}\n\n.ol-grid.statecode .ol-grid-container {\n    background-color: white;\n    width: 10em;\n}\n\n.ol-grid .ol-grid-container.ol-hidden {\n}\n\n.ol-grid .ol-grid-container {\n    width: 15em;\n}\n\n.ol-grid .ol-grid-table {\n    width: 100%;\n}\n\n.ol-grid table.ol-grid-table {\n    border-collapse: collapse;\n    width: 100%;\n}\n\n.ol-grid table.ol-grid-table > td {\n    padding: 8px;\n    text-align: left;\n    border-bottom: 1px solid #ddd;\n}\n\n.ol-search.nominatim form {\n    width: 20em;\n}\n\n.ol-search tr.focus {\n    background: white;\n}\n\n.ol-search:hover {\n    background: white;\n}\n\n.ol-search label.ol-search-label {\n    white-space: nowrap;\n}\n\n    ");
-        var searchProvider = new osm_4.OpenStreet();
-        var center = ol.proj.transform([-120, 35], 'EPSG:4326', 'EPSG:3857');
+        common_15.cssin("examples/ol3-search", "\n\n.map {\n    position: absolute;\n    top: 0;\n    bottom: 0;\n    left: 0;\n    right: 0;\n}\n\n.ol-popup {\n    background-color: white;\n}\n\n.ol-popup .pages {\n    max-height: 10em;\n    min-width: 20em;\n    overflow: auto;\n}\n\n.ol-grid.statecode .ol-grid-container {\n    background-color: white;\n    width: 10em;\n}\n\n.ol-grid .ol-grid-container.ol-hidden {\n}\n\n.ol-grid .ol-grid-container {\n    width: 15em;\n}\n\n.ol-grid .ol-grid-table {\n    width: 100%;\n}\n\n.ol-grid table.ol-grid-table {\n    border-collapse: collapse;\n    width: 100%;\n}\n\n.ol-grid table.ol-grid-table > td {\n    padding: 8px;\n    text-align: left;\n    border-bottom: 1px solid #ddd;\n}\n\n.ol-search.nominatim form {\n    width: 20em;\n}\n\n.ol-search tr.focus {\n    background: white;\n}\n\n.ol-search:hover {\n    background: white;\n}\n\n.ol-search label.ol-search-label {\n    white-space: nowrap;\n}\n\n    ");
+        var center = ol.proj.transform([-120, 35], "EPSG:4326", "EPSG:3857");
         var mapContainer = document.getElementsByClassName("map")[0];
         var map = new ol.Map({
             loadTilesWhileAnimating: true,
@@ -5898,22 +6350,21 @@ define("ol3-lab/labs/ol-search", ["require", "exports", "openlayers", "jquery", 
             ],
             view: new ol.View({
                 center: center,
-                projection: 'EPSG:3857',
+                projection: "EPSG:3857",
                 zoom: 6
             })
         });
-        var popup = new ol3_popup_4.Popup({
-            yOffset: 0,
+        var popup = index_18.Popup.create({
+            map: map,
             positioning: "bottom-center"
         });
-        popup.setMap(map);
         map.on("click", function (event) {
             console.log("click");
             var coord = event.coordinate;
             popup.hide();
             var pageNum = 0;
             map.forEachFeatureAtPixel(event.pixel, function (feature, layer) {
-                var page = document.createElement('p');
+                var page = document.createElement("p");
                 var keys = Object.keys(feature.getProperties()).filter(function (key) {
                     var v = feature.get(key);
                     if (typeof v === "string")
@@ -5923,14 +6374,16 @@ define("ol3-lab/labs/ol-search", ["require", "exports", "openlayers", "jquery", 
                     return false;
                 });
                 page.title = "" + ++pageNum;
-                page.innerHTML = "<table>" + keys.map(function (k) { return "<tr><td>" + k + "</td><td>" + feature.get(k) + "</td></tr>"; }).join("") + "</table>";
+                page.innerHTML = "<table>" + keys
+                    .map(function (k) { return "<tr><td>" + k + "</td><td>" + feature.get(k) + "</td></tr>"; })
+                    .join("") + "</table>";
                 popup.pages.add(page, feature.getGeometry());
             });
             popup.show(coord, "<label>" + pageNum + " Features Found</label>");
             popup.pages.goto(0);
         });
         var source = new ol.source.Vector();
-        var symbolizer = new ol3_symbolizer_7.StyleConverter();
+        var symbolizer = new ol3_symbolizer_6.StyleConverter();
         var vector = new ol.layer.Vector({
             source: source,
             style: function (feature, resolution) {
@@ -5962,10 +6415,12 @@ define("ol3-lab/labs/ol-search", ["require", "exports", "openlayers", "jquery", 
         });
         ags_source_4.ArcGisVectorSourceFactory.create({
             map: map,
-            services: 'https://services.arcgis.com/P3ePLMYs2RVChkJx/ArcGIS/rest/services',
-            serviceName: 'USA_States_Generalized',
+            services: "https://services.arcgis.com/P3ePLMYs2RVChkJx/ArcGIS/rest/services",
+            serviceName: "USA_States_Generalized",
+            serviceType: "FeatureServer",
             layers: [0]
-        }).then(function (layers) {
+        })
+            .then(function (layers) {
             layers.forEach(function (layer) {
                 layer.getSource().on("addfeature", function (args) {
                     var feature = args.feature;
@@ -5984,7 +6439,7 @@ define("ol3-lab/labs/ol-search", ["require", "exports", "openlayers", "jquery", 
                     feature.setStyle(style);
                 });
                 map.addLayer(layer);
-                var grid = ol3_grid_1.Grid.create({
+                var grid = index_19.Grid.create({
                     className: "ol-grid statecode top left-2",
                     expanded: true,
                     currentExtent: true,
@@ -5997,16 +6452,18 @@ define("ol3-lab/labs/ol-search", ["require", "exports", "openlayers", "jquery", 
                 grid.on("feature-click", function (args) {
                     zoomToFeature(map, args.feature);
                 });
-                grid.on("feature-hover", function (args) {
+                grid.on("feature-hover", function () {
                 });
             });
-        }).then(function () {
+        })
+            .then(function () {
             map.addLayer(vector);
         });
-        var form = ol3_search_1.SearchForm.create({
-            className: 'ol-search nominatim top right',
+        var form = index_20.SearchForm.create({
+            className: "nominatim",
+            position: "top right",
             expanded: true,
-            placeholderText: "Nominatim Search Form",
+            title: "Nominatim Search Form",
             fields: [
                 {
                     name: "q",
@@ -6042,7 +6499,8 @@ define("ol3-lab/labs/ol-search", ["require", "exports", "openlayers", "jquery", 
                         name: "",
                         codedValues: [
                             {
-                                name: "us", code: "us"
+                                name: "us",
+                                code: "us"
                             }
                         ]
                     }
@@ -6057,15 +6515,13 @@ define("ol3-lab/labs/ol-search", ["require", "exports", "openlayers", "jquery", 
         form.on("change", function (args) {
             if (!args.value)
                 return;
-            console.log("search", args.value);
-            var searchArgs = searchProvider.getParameters(args.value, map);
-            $.ajax({
-                url: searchArgs.url,
-                method: searchProvider.method || 'GET',
-                data: searchArgs.params,
-                dataType: searchProvider.dataType || 'json'
-            }).then(function (json) {
-                var results = searchProvider.handleResponse(json);
+            var searchProvider = new osm_4.OpenStreetGeocode({
+                map: map,
+                params: common_15.defaults({ limit: 1 }, osm_4.OpenStreetGeocode.DEFAULT_OPTIONS.params)
+            });
+            searchProvider
+                .execute({ params: args.value })
+                .then(function (results) {
                 results.some(function (r) {
                     var _a, _b;
                     console.log(r);
@@ -6074,13 +6530,15 @@ define("ol3-lab/labs/ol-search", ["require", "exports", "openlayers", "jquery", 
                         _a = ol.proj.transform([lon1, lat1], "EPSG:4326", "EPSG:3857"), lon1 = _a[0], lat1 = _a[1];
                         _b = ol.proj.transform([lon2, lat2], "EPSG:4326", "EPSG:3857"), lon2 = _b[0], lat2 = _b[1];
                         var extent = [lon1, lat1, lon2, lat2];
-                        var feature_1 = new ol.Feature(new ol.geom.Polygon([[
+                        var feature_1 = new ol.Feature(new ol.geom.Polygon([
+                            [
                                 ol.extent.getBottomLeft(extent),
                                 ol.extent.getTopLeft(extent),
                                 ol.extent.getTopRight(extent),
                                 ol.extent.getBottomRight(extent),
                                 ol.extent.getBottomLeft(extent)
-                            ]]));
+                            ]
+                        ]));
                         feature_1.set("text", r.original.display_name);
                         Object.keys(r.original).forEach(function (k) {
                             feature_1.set(k, r.original[k]);
@@ -6097,7 +6555,8 @@ define("ol3-lab/labs/ol-search", ["require", "exports", "openlayers", "jquery", 
                     }
                     return true;
                 });
-            }).fail(function () {
+            })
+                .fail(function () {
                 console.error("geocoder failed");
             });
         });
@@ -6105,7 +6564,7 @@ define("ol3-lab/labs/ol-search", ["require", "exports", "openlayers", "jquery", 
     }
     exports.run = run;
 });
-define("ol3-lab/labs/ol-symbolizer", ["require", "exports", "openlayers", "ol3-popup", "node_modules/ol3-symbolizer/ol3-symbolizer/ags/ags-source", "node_modules/ol3-fun/ol3-fun/common"], function (require, exports, ol, ol3_popup_5, ags_source_5, common_17) {
+define("ol3-lab/labs/ol-symbolizer", ["require", "exports", "openlayers", "node_modules/ol3-popup/index", "node_modules/ol3-symbolizer/ol3-symbolizer/ags/ags-source", "node_modules/ol3-fun/ol3-fun/common"], function (require, exports, ol, index_21, ags_source_5, common_16) {
     "use strict";
     exports.__esModule = true;
     function parse(v, type) {
@@ -6116,13 +6575,12 @@ define("ol3-lab/labs/ol-symbolizer", ["require", "exports", "openlayers", "ol3-p
         if (typeof type === "boolean")
             return (v === "1" || v === "true");
         if (Array.isArray(type)) {
-            return (v.split(",").map(function (v) { return parse(v, type[0]); }));
+            return v.split(",").map(function (v) { return parse(v, type[0]); });
         }
         throw "unknown type: " + type;
     }
     var html = "\n<div class='popup'>\n    <div class='popup-container'>\n    </div>\n</div>\n";
-    var css = "\n<style name=\"popup\" type=\"text/css\">\n    html, body, .map {\n        width: 100%;\n        height: 100%;\n        padding: 0;\n        overflow: hidden;\n        margin: 0;    \n    }\n</style>\n";
-    var css_popup = "\n.popup-container {\n    position: absolute;\n    top: 1em;\n    right: 0.5em;\n    width: 10em;\n    bottom: 1em;\n    z-index: 1;\n    pointer-events: none;\n}\n\n.ol-popup {\n    color: white;\n    background-color: rgba(77,77,77,0.7);\n    min-width: 200px;\n}\n\n.ol-popup:after {\n    border-top-color: rgba(77,77,77,0.7);\n}\n\n";
+    var css = "\n<style name=\"ol-symbolizer\" type=\"text/css\">\n    html, body, .map {\n        width: 100%;\n        height: 100%;\n        padding: 0;\n        overflow: hidden;\n        margin: 0;    \n    }\n</style>\n";
     var center = {
         fire: [-117.754430386, 34.2606862490001],
         wichita: [-97.4, 37.8],
@@ -6130,10 +6588,10 @@ define("ol3-lab/labs/ol-symbolizer", ["require", "exports", "openlayers", "ol3-p
     };
     function run() {
         var target = document.getElementsByClassName("map")[0];
-        target.appendChild(common_17.html(html));
-        document.head.appendChild(common_17.html(css));
+        target.appendChild(common_16.html(html));
+        document.head.appendChild(common_16.html(css));
         var options = {
-            srs: 'EPSG:4326',
+            srs: "EPSG:4326",
             center: center.vegas,
             zoom: 10,
             services: "//sampleserver3.arcgisonline.com/ArcGIS/rest/services",
@@ -6145,7 +6603,7 @@ define("ol3-lab/labs/ol-symbolizer", ["require", "exports", "openlayers", "ol3-p
         {
             var opts_8 = options;
             Object.keys(opts_8).forEach(function (k) {
-                common_17.doif(common_17.getParameterByName(k), function (v) {
+                common_16.doif(common_16.getParameterByName(k), function (v) {
                     var value = parse(v, opts_8[k]);
                     if (value !== undefined)
                         opts_8[k] = value;
@@ -6166,7 +6624,7 @@ define("ol3-lab/labs/ol-symbolizer", ["require", "exports", "openlayers", "ol3-p
             layers: [
                 new ol.layer.Tile({
                     title: "OSM",
-                    type: 'base',
+                    type: "base",
                     opacity: 0.8,
                     visible: true,
                     source: new ol.source.OSM()
@@ -6178,21 +6636,23 @@ define("ol3-lab/labs/ol-symbolizer", ["require", "exports", "openlayers", "ol3-p
             map: map,
             services: options.services,
             serviceName: options.serviceName,
+            serviceType: "FeatureServer",
             where: options.where,
             layers: options.layers.reverse()
         }).then(function (agsLayers) {
             agsLayers.forEach(function (agsLayer) { return map.addLayer(agsLayer); });
-            var popup = new ol3_popup_5.Popup({
-                css: "\n            .ol-popup {\n                background-color: white;\n            }\n            .ol-popup .page {\n                max-height: 200px;\n                overflow-y: auto;\n            }\n            "
+            var popup = index_21.Popup.create({
+                map: map,
+                pointerPosition: 0,
+                css: "\n            .ol-popup-element {\n                height: 6em;\n                width: 12em;\n                margin: 1em;\n                padding: 1em;\n                background-color: white;\n            }\n            .ol-popup .page {\n                overflow-y: auto;\n            }\n            "
             });
-            map.addOverlay(popup);
             map.on("click", function (event) {
                 console.log("click");
                 var coord = event.coordinate;
                 popup.hide();
                 var pageNum = 0;
                 map.forEachFeatureAtPixel(event.pixel, function (feature, layer) {
-                    var page = document.createElement('p');
+                    var page = document.createElement("p");
                     var keys = Object.keys(feature.getProperties()).filter(function (key) {
                         var v = feature.get(key);
                         if (typeof v === "string")
@@ -6202,7 +6662,9 @@ define("ol3-lab/labs/ol-symbolizer", ["require", "exports", "openlayers", "ol3-p
                         return false;
                     });
                     page.title = "" + ++pageNum;
-                    page.innerHTML = "<table>" + keys.map(function (k) { return "<tr><td>" + k + "</td><td>" + feature.get(k) + "</td></tr>"; }).join("") + "</table>";
+                    page.innerHTML = "<table>" + keys
+                        .map(function (k) { return "<tr><td>" + k + "</td><td>" + feature.get(k) + "</td></tr>"; })
+                        .join("") + "</table>";
                     popup.pages.add(page, feature.getGeometry());
                 });
                 popup.show(coord, "<label>" + pageNum + " Features Found</label>");
@@ -6362,11 +6824,11 @@ define("ol3-lab/labs/polyline-encoder", ["require", "exports", "jquery", "openla
     }
     exports.run = run;
 });
-define("ol3-lab/labs/route-editor", ["require", "exports", "openlayers", "node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", "ol3-lab/labs/common/common"], function (require, exports, ol, ol3_symbolizer_8, common_18) {
+define("ol3-lab/labs/route-editor", ["require", "exports", "openlayers", "node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", "ol3-lab/labs/common/common"], function (require, exports, ol, ol3_symbolizer_7, common_17) {
     "use strict";
     exports.__esModule = true;
     var delta = 16;
-    var formatter = new ol3_symbolizer_8.StyleConverter();
+    var formatter = new ol3_symbolizer_7.StyleConverter();
     function fromJson(styles) {
         return styles.map(function (style) { return formatter.fromJson(style); });
     }
@@ -6388,7 +6850,7 @@ define("ol3-lab/labs/route-editor", ["require", "exports", "openlayers", "node_m
     ]; };
     var Route = (function () {
         function Route(options) {
-            this.options = common_18.defaults(options, {
+            this.options = common_17.defaults(options, {
                 color: "black",
                 delta: delta,
                 stops: [],
@@ -6696,10 +7158,10 @@ define("ol3-lab/ux/serializers/serializer", ["require", "exports"], function (re
             }]
     };
 });
-define("ol3-lab/ux/serializers/ags-simplemarkersymbol", ["require", "exports", "node_modules/ol3-symbolizer/ol3-symbolizer/format/ags-symbolizer"], function (require, exports, ags_symbolizer_1) {
+define("ol3-lab/ux/serializers/ags-simplemarkersymbol", ["require", "exports", "node_modules/ol3-symbolizer/ol3-symbolizer/format/ags-symbolizer"], function (require, exports, ags_symbolizer_2) {
     "use strict";
     exports.__esModule = true;
-    var converter = new ags_symbolizer_1.StyleConverter();
+    var converter = new ags_symbolizer_2.StyleConverter();
     var SimpleMarkerConverter = (function () {
         function SimpleMarkerConverter() {
         }
@@ -6713,9 +7175,75 @@ define("ol3-lab/ux/serializers/ags-simplemarkersymbol", ["require", "exports", "
     }());
     exports.SimpleMarkerConverter = SimpleMarkerConverter;
 });
-define("ol3-lab/labs/common/style-generator", ["require", "exports", "openlayers", "ol3-symbolizer/ol3-symbolizer/styles/basic", "ol3-symbolizer", "node_modules/ol3-fun/ol3-fun/common"], function (require, exports, ol, basic_styles, ol3_symbolizer_9, common_19) {
+define("node_modules/ol3-symbolizer/examples/styles/basic", ["require", "exports"], function (require, exports) {
     "use strict";
-    var converter = new ol3_symbolizer_9.StyleConverter();
+    var stroke = {
+        color: 'black',
+        width: 2
+    };
+    var fill = {
+        color: 'red'
+    };
+    var radius = 10;
+    var opacity = 0.5;
+    var square = {
+        fill: fill,
+        stroke: stroke,
+        points: 4,
+        radius: radius,
+        angle: Math.PI / 4
+    };
+    var diamond = {
+        fill: fill,
+        stroke: stroke,
+        points: 4,
+        radius: radius,
+        angle: 0
+    };
+    var triangle = {
+        fill: fill,
+        stroke: stroke,
+        points: 3,
+        radius: radius,
+        angle: 0
+    };
+    var star = {
+        fill: fill,
+        stroke: stroke,
+        points: 5,
+        radius: radius,
+        radius2: 4,
+        angle: 0
+    };
+    var cross = {
+        opacity: opacity,
+        fill: fill,
+        stroke: stroke,
+        points: 4,
+        radius: radius,
+        radius2: 0,
+        angle: 0
+    };
+    var x = {
+        fill: fill,
+        stroke: stroke,
+        points: 4,
+        radius: radius,
+        radius2: 0,
+        angle: Math.PI / 4
+    };
+    return {
+        cross: [{ star: cross }],
+        square: [{ star: square }],
+        diamond: [{ star: diamond }],
+        star: [{ star: star }],
+        triangle: [{ star: triangle }],
+        x: [{ star: x }]
+    };
+});
+define("ol3-lab/labs/common/style-generator", ["require", "exports", "openlayers", "node_modules/ol3-symbolizer/examples/styles/basic", "node_modules/ol3-symbolizer/index", "node_modules/ol3-fun/ol3-fun/common"], function (require, exports, ol, basic_styles, index_22, common_18) {
+    "use strict";
+    var converter = new index_22.StyleConverter();
     var orientations = "forward,backward,diagonal,horizontal,vertical,cross".split(",");
     var randint = function (n) { return Math.round(n * Math.random()); };
     var StyleGenerator = (function () {
@@ -6736,7 +7264,7 @@ define("ol3-lab/labs/common/style-generator", ["require", "exports", "openlayers
             return [r, g, b, (10 + randint(50)) / 100];
         };
         StyleGenerator.prototype.asRgb = function () {
-            return [255, 255, 255].map(function (n) { return Math.round((Math.random() * Math.random()) * n); });
+            return [255, 255, 255].map(function (n) { return Math.round(Math.random() * Math.random() * n); });
         };
         StyleGenerator.prototype.asRgba = function () {
             var color = this.asRgb();
@@ -6775,35 +7303,41 @@ define("ol3-lab/labs/common/style-generator", ["require", "exports", "openlayers
             }
             stops = stops.sort(function (a, b) { return a.stop - b.stop; });
             stops.forEach(function (stop) { return gradient.addColorStop(stop.stop, stop.color); });
-            common_19.mixin(gradient, {
+            common_18.mixin(gradient, {
                 stops: stops.map(function (stop) { return stop.color + " " + Math.round(100 * stop.stop) + "%"; }).join(";")
             });
         };
         StyleGenerator.prototype.asRadialGradient = function (context, radius) {
             var canvas = context.canvas;
             var _a = [
-                canvas.width / 2, canvas.height / 2, radius,
-                canvas.width / 2, canvas.height / 2, 0
+                canvas.width / 2,
+                canvas.height / 2,
+                radius,
+                canvas.width / 2,
+                canvas.height / 2,
+                0
             ], x0 = _a[0], y0 = _a[1], r0 = _a[2], x1 = _a[3], y1 = _a[4], r1 = _a[5];
             var gradient = context.createRadialGradient(x0, y0, r0, x1, y1, r1);
-            return common_19.mixin(gradient, {
+            return common_18.mixin(gradient, {
                 type: "radial(" + [x0, y0, r0, x1, y1, r1].join(",") + ")"
             });
         };
         StyleGenerator.prototype.asLinearGradient = function (context, radius) {
             var _a = [
-                randint(radius), 0,
-                randint(radius), 2 * radius
+                randint(radius),
+                0,
+                randint(radius),
+                2 * radius
             ], x0 = _a[0], y0 = _a[1], x1 = _a[2], y1 = _a[3];
             var gradient = context.createLinearGradient(x0, y0, x1, y1);
-            return common_19.mixin(gradient, { type: "linear(" + [x0, y0, x1, y1].join(",") + ")" });
+            return common_18.mixin(gradient, { type: "linear(" + [x0, y0, x1, y1].join(",") + ")" });
         };
         StyleGenerator.prototype.asGradient = function () {
             var radius = this.asRadius();
             var stroke = this.asStroke();
-            var canvas = document.createElement('canvas');
+            var canvas = document.createElement("canvas");
             canvas.width = canvas.height = 2 * (radius + stroke.getWidth());
-            var context = canvas.getContext('2d');
+            var context = canvas.getContext("2d");
             var gradient;
             if (0.5 < Math.random()) {
                 gradient = this.asLinearGradient(context, radius);
@@ -6827,8 +7361,8 @@ define("ol3-lab/labs/common/style-generator", ["require", "exports", "openlayers
             var radius = this.asRadius();
             var spacing = 3 + randint(5);
             var color = ol.color.asString(this.asRgb());
-            var canvas = document.createElement('canvas');
-            var context = canvas.getContext('2d');
+            var canvas = document.createElement("canvas");
+            var context = canvas.getContext("2d");
             var orientation = orientations[Math.round((orientations.length - 1) * Math.random())];
             var pattern;
             switch (orientation) {
@@ -6843,7 +7377,7 @@ define("ol3-lab/labs/common/style-generator", ["require", "exports", "openlayers
                     context.lineTo(canvas.width, 0);
                     context.stroke();
                     context.closePath();
-                    pattern = context.createPattern(canvas, 'repeat');
+                    pattern = context.createPattern(canvas, "repeat");
                     break;
                 case "vertical":
                     canvas.width = spacing;
@@ -6852,7 +7386,7 @@ define("ol3-lab/labs/common/style-generator", ["require", "exports", "openlayers
                     for (var i = 0; i < spacing; i++) {
                         context.fillRect(0, i, 1, 1);
                     }
-                    pattern = context.createPattern(canvas, 'repeat');
+                    pattern = context.createPattern(canvas, "repeat");
                     break;
                 case "cross":
                     canvas.width = spacing;
@@ -6862,7 +7396,7 @@ define("ol3-lab/labs/common/style-generator", ["require", "exports", "openlayers
                         context.fillRect(i, 0, 1, 1);
                         context.fillRect(0, i, 1, 1);
                     }
-                    pattern = context.createPattern(canvas, 'repeat');
+                    pattern = context.createPattern(canvas, "repeat");
                     break;
                 case "forward":
                     canvas.width = spacing;
@@ -6871,7 +7405,7 @@ define("ol3-lab/labs/common/style-generator", ["require", "exports", "openlayers
                     for (var i = 0; i < spacing; i++) {
                         context.fillRect(i, i, 1, 1);
                     }
-                    pattern = context.createPattern(canvas, 'repeat');
+                    pattern = context.createPattern(canvas, "repeat");
                     break;
                 case "backward":
                     canvas.width = spacing;
@@ -6880,7 +7414,7 @@ define("ol3-lab/labs/common/style-generator", ["require", "exports", "openlayers
                     for (var i = 0; i < spacing; i++) {
                         context.fillRect(spacing - 1 - i, i, 1, 1);
                     }
-                    pattern = context.createPattern(canvas, 'repeat');
+                    pattern = context.createPattern(canvas, "repeat");
                     break;
                 case "diagonal":
                     canvas.width = spacing;
@@ -6890,12 +7424,12 @@ define("ol3-lab/labs/common/style-generator", ["require", "exports", "openlayers
                         context.fillRect(i, i, 1, 1);
                         context.fillRect(spacing - 1 - i, i, 1, 1);
                     }
-                    pattern = context.createPattern(canvas, 'repeat');
+                    pattern = context.createPattern(canvas, "repeat");
                     break;
                 default:
                     throw "invalid orientation";
             }
-            common_19.mixin(pattern, {
+            common_18.mixin(pattern, {
                 orientation: orientation,
                 color: color,
                 spacing: spacing,
@@ -6913,7 +7447,14 @@ define("ol3-lab/labs/common/style-generator", ["require", "exports", "openlayers
             return style;
         };
         StyleGenerator.prototype.asBasic = function () {
-            var basic = [basic_styles.cross, basic_styles.x, basic_styles.square, basic_styles.diamond, basic_styles.star, basic_styles.triangle];
+            var basic = [
+                basic_styles.cross,
+                basic_styles.x,
+                basic_styles.square,
+                basic_styles.diamond,
+                basic_styles.star,
+                basic_styles.triangle
+            ];
             var config = basic[Math.round((basic.length - 1) * Math.random())];
             return converter.fromJson(config[0]).getImage();
         };
@@ -6960,20 +7501,29 @@ define("ol3-lab/labs/common/style-generator", ["require", "exports", "openlayers
         };
         StyleGenerator.prototype.asPoint = function () {
             var _a = this.options.center, x = _a[0], y = _a[1];
-            x += (Math.random() - 0.5);
-            y += (Math.random() - 0.5);
+            x += Math.random() - 0.5;
+            y += Math.random() - 0.5;
             return new ol.geom.Point([x, y]);
         };
         StyleGenerator.prototype.asPointFeature = function (styleCount) {
             var _this = this;
             if (styleCount === void 0) { styleCount = 1; }
             var feature = new ol.Feature();
-            var gens = [function () { return _this.asStar(); }, function () { return _this.asCircle(); }, function () { return _this.asPoly(); }, function () { return _this.asBasic(); }, function () { return _this.asGradient(); }, function () { return _this.asPattern(); }];
+            var gens = [
+                function () { return _this.asStar(); },
+                function () { return _this.asCircle(); },
+                function () { return _this.asPoly(); },
+                function () { return _this.asBasic(); },
+                function () { return _this.asGradient(); },
+                function () { return _this.asPattern(); }
+            ];
             feature.setGeometry(this.asPoint());
-            var styles = common_19.range(styleCount).map(function (x) { return new ol.style.Style({
-                image: gens[Math.round((gens.length - 1) * Math.random())](),
-                text: null && _this.asText()
-            }); });
+            var styles = common_18.range(styleCount).map(function (x) {
+                return new ol.style.Style({
+                    image: gens[Math.round((gens.length - 1) * Math.random())](),
+                    text: null && _this.asText()
+                });
+            });
             feature.setStyle(styles);
             return feature;
         };
@@ -6984,10 +7534,12 @@ define("ol3-lab/labs/common/style-generator", ["require", "exports", "openlayers
             p2.setCoordinates([p2.getCoordinates()[0], p1.getCoordinates()[1]]);
             var polyline = new ol.geom.LineString([p1, p2].map(function (p) { return p.getCoordinates(); }));
             feature.setGeometry(polyline);
-            feature.setStyle([new ol.style.Style({
+            feature.setStyle([
+                new ol.style.Style({
                     stroke: this.asStroke(),
                     text: this.asText()
-                })]);
+                })
+            ]);
             return feature;
         };
         StyleGenerator.prototype.asLineLayer = function () {
@@ -6995,7 +7547,7 @@ define("ol3-lab/labs/common/style-generator", ["require", "exports", "openlayers
             var layer = new ol.layer.Vector();
             var source = new ol.source.Vector();
             layer.setSource(source);
-            var features = common_19.range(10).map(function (i) { return _this.asLineFeature(); });
+            var features = common_18.range(10).map(function (i) { return _this.asLineFeature(); });
             source.addFeatures(features);
             return layer;
         };
@@ -7004,7 +7556,7 @@ define("ol3-lab/labs/common/style-generator", ["require", "exports", "openlayers
             var layer = new ol.layer.Vector();
             var source = new ol.source.Vector();
             layer.setSource(source);
-            var features = common_19.range(args.markerCount || 100).map(function (i) { return _this.asPointFeature(args.styleCount || 1); });
+            var features = common_18.range(args.markerCount || 100).map(function (i) { return _this.asPointFeature(args.styleCount || 1); });
             source.addFeatures(features);
             return layer;
         };
@@ -7012,11 +7564,11 @@ define("ol3-lab/labs/common/style-generator", ["require", "exports", "openlayers
     }());
     return StyleGenerator;
 });
-define("ol3-lab/labs/style-lab", ["require", "exports", "openlayers", "jquery", "node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", "ol3-lab/labs/common/style-generator"], function (require, exports, ol, $, ol3_symbolizer_10, StyleGenerator) {
+define("ol3-lab/labs/style-lab", ["require", "exports", "openlayers", "jquery", "node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", "ol3-lab/labs/common/style-generator"], function (require, exports, ol, $, ol3_symbolizer_8, StyleGenerator) {
     "use strict";
     exports.__esModule = true;
     var center = [-82.4, 34.85];
-    var formatter = new ol3_symbolizer_10.StyleConverter();
+    var formatter = new ol3_symbolizer_8.StyleConverter();
     var generator = new StyleGenerator({
         center: center,
         fromJson: function (json) { return formatter.fromJson(json); }
@@ -7026,7 +7578,7 @@ define("ol3-lab/labs/style-lab", ["require", "exports", "openlayers", "jquery", 
     function run() {
         $(ux).appendTo(".map");
         $(css).appendTo("head");
-        var formatter = new ol3_symbolizer_10.StyleConverter();
+        var formatter = new ol3_symbolizer_8.StyleConverter();
         var map = new ol.Map({
             target: "map",
             view: new ol.View({
@@ -7154,7 +7706,58 @@ define("ol3-lab/labs/style-to-canvas", ["require", "exports", "openlayers", "jqu
     }
     exports.run = run;
 });
-define("ol3-lab/labs/style-viewer", ["require", "exports", "openlayers", "jquery", "ol3-lab/labs/common/snapshot", "ol3-lab/labs/common/common", "node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", "ol3-symbolizer/ol3-symbolizer/styles/icon/png"], function (require, exports, ol, $, Snapshot, common_20, ol3_symbolizer_11, pointStyle) {
+define("node_modules/ol3-symbolizer/examples/styles/icon/png", ["require", "exports"], function (require, exports) {
+    "use strict";
+    return [
+        {
+            "circle": {
+                "fill": {
+                    "gradient": {
+                        "type": "linear(32,32,96,96)",
+                        "stops": "rgba(0,255,0,0.1) 0%;rgba(0,255,0,0.8) 100%"
+                    }
+                },
+                "opacity": 1,
+                "stroke": {
+                    "color": "rgba(0,255,0,1)",
+                    "width": 1
+                },
+                "radius": 64
+            }
+        },
+        {
+            "image": {
+                "anchor": [16, 48],
+                "imgSize": [32, 48],
+                "anchorXUnits": "pixels",
+                "anchorYUnits": "pixels",
+                "src": "http://openlayers.org/en/v3.20.1/examples/data/icon.png"
+            }
+        }
+    ];
+});
+define("node_modules/ol3-symbolizer/examples/styles/fill/gradient", ["require", "exports"], function (require, exports) {
+    "use strict";
+    return [
+        {
+            "fill": {
+                "gradient": {
+                    "type": "linear(200,0,201,0)",
+                    "stops": "rgba(255,0,0,.1) 0%;rgba(255,0,0,0.8) 100%"
+                }
+            }
+        },
+        {
+            "fill": {
+                "gradient": {
+                    "type": "linear(0,200,0,201)",
+                    "stops": "rgba(0,255,0,0.1) 0%;rgba(0,255,0,0.8) 100%"
+                }
+            }
+        }
+    ];
+});
+define("ol3-lab/labs/style-viewer", ["require", "exports", "openlayers", "jquery", "ol3-lab/labs/common/snapshot", "ol3-lab/labs/common/common", "node_modules/ol3-symbolizer/index", "node_modules/ol3-symbolizer/examples/styles/icon/png"], function (require, exports, ol, $, Snapshot, common_19, index_23, pointStyle) {
     "use strict";
     exports.__esModule = true;
     var html = "\n<div class='style-to-canvas'>\n    <h3>Renders a feature on a canvas</h3>\n    <div class=\"area\">\n        <label>256 x 256 Canvas</label>\n        <div id='canvas-collection'></div>\n    </div>\n    <div class=\"area\">\n        <label>Style</label>\n        <textarea class='style'></textarea>\n    </div>\n    <div class=\"area\">\n        <label>Potential control for setting linear gradient start/stop locations</label>\n        <div class=\"colorramp\">\n            <input class=\"top\" type=\"range\" min=\"0\" max=\"100\" value=\"20\"/>\n            <input class=\"bottom\" type=\"range\" min=\"0\" max=\"100\" value=\"80\"/>\n        </div>\n    </div>\n</div>\n";
@@ -7162,18 +7765,18 @@ define("ol3-lab/labs/style-viewer", ["require", "exports", "openlayers", "jquery
     var svg = "\n<div style='display:none'>\n<svg xmlns=\"http://www.w3.org/2000/svg\">\n<symbol viewBox=\"5 0 20 15\" id=\"lock\">\n    <title>lock</title>\n    <path d=\"M10.9,11.6c-0.3-0.6-0.3-2.3,0-2.8c0.4-0.6,3.4,1.4,3.4,1.4c0.9,0.4,0.9-6.1,0-5.7\n\tc0,0-3.1,2.1-3.4,1.4c-0.3-0.7-0.3-2.1,0-2.8C11.2,2.5,15,2.4,15,2.4C15,1.7,12.1,1,10.9,1S8.4,1.1,6.8,1.8C5.2,2.4,3.9,3.4,2.7,4.6\n\tS0,8.2,0,8.9s1.5,2.8,3.7,3.7s3.3,1.1,4.5,1.3c1.1,0.1,2.6,0,3.9-0.3c1-0.2,2.9-0.7,2.9-1.1C15,12.3,11.2,12.2,10.9,11.6z M4.5,9.3\n\tC3.7,9.3,3,8.6,3,7.8s0.7-1.5,1.5-1.5S6,7,6,7.8S5.3,9.3,4.5,9.3z\"\n    />\n</symbol>\n<symbol viewBox=\"0 0 37 37\" id=\"marker\">\n      <title>marker</title>\n      <path d=\"M19.75 2.75 L32.47792206135786 7.022077938642145 L36.75 19.75 L32.47792206135786 32.47792206135786 L19.75 36.75 L7.022077938642145 32.47792206135786 L2.75 19.750000000000004 L7.022077938642141 7.022077938642145 L19.749999999999996 2.75 Z\" /> </symbol>\n</svg>\n</div>\n";
     function loadStyle(name) {
         var d = $.Deferred();
-        if ('[' === name[0]) {
+        if ("[" === name[0]) {
             d.resolve(JSON.parse(name));
         }
         else {
-            var mids = name.split(",").map(function (name) { return "ol3-lab/node_modules/ol3-symbolizer/ol3-symbolizer/styles/" + name; });
+            var mids = name.split(",").map(function (name) { return "node_modules/ol3-symbolizer/examples/styles/" + name; });
             require(mids, function () {
                 var styles = [];
                 for (var _i = 0; _i < arguments.length; _i++) {
                     styles[_i] = arguments[_i];
                 }
                 var style = [];
-                styles.forEach(function (s) { return style = style.concat(s); });
+                styles.forEach(function (s) { return (style = style.concat(s)); });
                 d.resolve(style);
             });
         }
@@ -7194,7 +7797,7 @@ define("ol3-lab/labs/style-viewer", ["require", "exports", "openlayers", "jquery
     var styles = {
         point: pointStyle
     };
-    var serializer = new ol3_symbolizer_11.StyleConverter();
+    var serializer = new index_23.StyleConverter();
     var Renderer = (function () {
         function Renderer(geom) {
             this.feature = new ol.Feature(geom);
@@ -7220,10 +7823,10 @@ define("ol3-lab/labs/style-viewer", ["require", "exports", "openlayers", "jquery
         $(html).appendTo("body");
         $(svg).appendTo("body");
         $(css).appendTo("head");
-        var geom = common_20.getParameterByName("geom") || "polygon-with-holes";
-        var style = common_20.getParameterByName("style") || "fill/gradient";
+        var geom = common_19.getParameterByName("geom") || "polygon-with-holes";
+        var style = common_19.getParameterByName("style") || "fill/gradient";
         var save = function () {
-            var style = JSON.stringify(JSON.parse($(".style").val()));
+            var style = JSON.stringify(JSON.parse($(".style").val() + ""));
             var loc = window.location;
             var url = "" + loc.origin + loc.pathname + "?run=ol3-lab/labs/style-viewer&geom=" + geom + "&style=" + encodeURI(style);
             history.replaceState({}, "Changes", url);
@@ -7231,13 +7834,13 @@ define("ol3-lab/labs/style-viewer", ["require", "exports", "openlayers", "jquery
         };
         loadStyle(style).then(function (styles) {
             loadGeom(geom).then(function (geoms) {
-                var style = JSON.stringify(styles, null, ' ');
+                var style = JSON.stringify(styles, null, " ");
                 $(".style").val(style);
                 var renderers = geoms.map(function (g) { return new Renderer(g); });
                 renderers.forEach(function (r) { return $(r.canvas).appendTo("#canvas-collection"); });
                 setInterval(function () {
                     try {
-                        var style_1 = JSON.parse($(".style").val());
+                        var style_1 = JSON.parse($(".style").val() + "");
                         renderers.forEach(function (r) { return r.draw(style_1); });
                         save();
                     }
@@ -7341,7 +7944,7 @@ define("ol3-lab/labs/wfs-map", ["require", "exports", "openlayers", "ol3-lab/lab
     }
     exports.run = run;
 });
-define("ol3-lab/labs/common/ol3-patch", ["require", "exports", "openlayers", "ol3-lab/labs/common/common"], function (require, exports, ol3, common_21) {
+define("ol3-lab/labs/common/ol3-patch", ["require", "exports", "openlayers", "ol3-lab/labs/common/common"], function (require, exports, ol3, common_20) {
     "use strict";
     if (!ol3.geom.SimpleGeometry.prototype.scale) {
         var scale_1 = function (flatCoordinates, offset, end, stride, deltaX, deltaY, opt_dest) {
@@ -7360,7 +7963,7 @@ define("ol3-lab/labs/common/ol3-patch", ["require", "exports", "openlayers", "ol
             }
             return dest;
         };
-        common_21.mixin(ol3.geom.SimpleGeometry.prototype, {
+        common_20.mixin(ol3.geom.SimpleGeometry.prototype, {
             scale: function (deltaX, deltaY) {
                 var it = this;
                 it.applyTransform(function (flatCoordinates, output, stride) {
@@ -7373,7 +7976,7 @@ define("ol3-lab/labs/common/ol3-patch", ["require", "exports", "openlayers", "ol
     }
     return ol3;
 });
-define("node_modules/ol3-draw/ol3-draw/ol3-delete", ["require", "exports", "openlayers", "node_modules/ol3-draw/ol3-draw/ol3-button", "node_modules/ol3-fun/ol3-fun/common"], function (require, exports, ol, ol3_button_3, common_22) {
+define("node_modules/ol3-draw/ol3-draw/ol3-delete", ["require", "exports", "openlayers", "node_modules/ol3-draw/ol3-draw/ol3-button", "node_modules/ol3-fun/ol3-fun/common"], function (require, exports, ol, ol3_button_3, common_21) {
     "use strict";
     exports.__esModule = true;
     var Delete = (function (_super) {
@@ -7401,7 +8004,7 @@ define("node_modules/ol3-draw/ol3-draw/ol3-delete", ["require", "exports", "open
                         scale: 3
                     };
                     var style = options.style[feature.getGeometry().getType()]
-                        .map(function (s) { return _this.symbolizer.fromJson(common_22.defaults({ text: textTemplate }, s)); });
+                        .map(function (s) { return _this.symbolizer.fromJson(common_21.defaults({ text: textTemplate }, s)); });
                     return style;
                 }
             });
@@ -7445,7 +8048,7 @@ define("node_modules/ol3-draw/ol3-draw/ol3-delete", ["require", "exports", "open
             return _this;
         }
         Delete.create = function (options) {
-            options = common_22.defaults({}, options, Delete.DEFAULT_OPTIONS);
+            options = common_21.defaults({}, options, Delete.DEFAULT_OPTIONS);
             return ol3_button_3.Button.create(options);
         };
         Delete.prototype.addFeatureLayerAssociation = function (feature, layer) {
@@ -7529,7 +8132,7 @@ define("node_modules/ol3-draw/ol3-draw/ol3-delete", ["require", "exports", "open
     }(ol3_button_3.Button));
     exports.Delete = Delete;
 });
-define("node_modules/ol3-draw/ol3-draw/ol3-translate", ["require", "exports", "openlayers", "node_modules/ol3-draw/ol3-draw/ol3-button", "node_modules/ol3-fun/ol3-fun/common"], function (require, exports, ol, ol3_button_4, common_23) {
+define("node_modules/ol3-draw/ol3-draw/ol3-translate", ["require", "exports", "openlayers", "node_modules/ol3-draw/ol3-draw/ol3-button", "node_modules/ol3-fun/ol3-fun/common"], function (require, exports, ol, ol3_button_4, common_22) {
     "use strict";
     exports.__esModule = true;
     var Translate = (function (_super) {
@@ -7572,7 +8175,7 @@ define("node_modules/ol3-draw/ol3-draw/ol3-translate", ["require", "exports", "o
             return _this;
         }
         Translate.create = function (options) {
-            options = common_23.defaults({}, options, Translate.DEFAULT_OPTIONS);
+            options = common_22.defaults({}, options, Translate.DEFAULT_OPTIONS);
             return ol3_button_4.Button.create(options);
         };
         Translate.DEFAULT_OPTIONS = {
@@ -7635,7 +8238,7 @@ define("node_modules/ol3-draw/ol3-draw/ol3-translate", ["require", "exports", "o
     }(ol3_button_4.Button));
     exports.Translate = Translate;
 });
-define("node_modules/ol3-draw/ol3-draw/services/wfs-sync", ["require", "exports", "openlayers", "jquery", "node_modules/ol3-fun/index"], function (require, exports, ol, $, index_9) {
+define("node_modules/ol3-draw/ol3-draw/services/wfs-sync", ["require", "exports", "openlayers", "jquery", "node_modules/ol3-fun/index"], function (require, exports, ol, $, index_24) {
     "use strict";
     exports.__esModule = true;
     var serializer = new XMLSerializer();
@@ -7647,7 +8250,7 @@ define("node_modules/ol3-draw/ol3-draw/services/wfs-sync", ["require", "exports"
             this.watch();
         }
         WfsSync.create = function (options) {
-            options = index_9.defaults(options || {}, WfsSync.DEFAULT_OPTIONS);
+            options = index_24.defaults(options || {}, WfsSync.DEFAULT_OPTIONS);
             if (!options.formatter) {
                 options.formatter = new ol.format.WFS();
             }
@@ -7673,7 +8276,7 @@ define("node_modules/ol3-draw/ol3-draw/services/wfs-sync", ["require", "exports"
         };
         WfsSync.prototype.watch = function () {
             var _this = this;
-            var save = index_9.debounce(function () {
+            var save = index_24.debounce(function () {
                 try {
                     _this.trigger("before-save");
                     _this.saveDrawings({
@@ -7789,7 +8392,7 @@ define("node_modules/ol3-draw/ol3-draw/services/wfs-sync", ["require", "exports"
     }());
     exports.WfsSync = WfsSync;
 });
-define("ol3-lab/labs/geoserver/services", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/mapmaker", "ol3-symbolizer", "ol3-popup", "ol3-draw", "node_modules/ol3-draw/ol3-draw/ol3-edit", "node_modules/ol3-draw/ol3-draw/ol3-delete", "node_modules/ol3-draw/ol3-draw/ol3-translate", "node_modules/ol3-draw/ol3-draw/services/wfs-sync"], function (require, exports, $, ol, MapMaker, Symbolizer, ol3_popup_6, ol3_draw_2, ol3_edit_2, ol3_delete_1, ol3_translate_1, wfs_sync_1) {
+define("ol3-lab/labs/geoserver/services", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/mapmaker", "ol3-symbolizer", "ol3-popup", "ol3-draw", "node_modules/ol3-draw/ol3-draw/ol3-edit", "node_modules/ol3-draw/ol3-draw/ol3-delete", "node_modules/ol3-draw/ol3-draw/ol3-translate", "node_modules/ol3-draw/ol3-draw/services/wfs-sync"], function (require, exports, $, ol, MapMaker, Symbolizer, ol3_popup_2, ol3_draw_2, ol3_edit_2, ol3_delete_1, ol3_translate_1, wfs_sync_1) {
     "use strict";
     exports.__esModule = true;
     var symbolizer = new Symbolizer.StyleConverter();
@@ -7857,7 +8460,7 @@ define("ol3-lab/labs/geoserver/services", ["require", "exports", "jquery", "open
                 });
             }
             {
-                var popup_1 = new ol3_popup_6.Popup({
+                var popup_1 = new ol3_popup_2.Popup({
                     css: "\n            .ol-popup {\n                background-color: white;\n            }\n            .ol-popup .page {\n                max-height: 200px;\n                overflow-y: auto;\n            }\n            ",
                     dockContainer: map.getViewport()
                 });
@@ -11715,7 +12318,7 @@ define("ol3-lab/tests/canvas", ["require", "exports"], function (require, export
     }
     exports.run = run;
 });
-define("ol3-lab/tests/drop-vertex-on-marker-detection", ["require", "exports", "openlayers", "ol3-lab/labs/mapmaker", "ol3-lab/labs/route-editor", "node_modules/ol3-fun/ol3-fun/common"], function (require, exports, ol, mapmaker_1, route_editor_1, common_24) {
+define("ol3-lab/tests/drop-vertex-on-marker-detection", ["require", "exports", "openlayers", "ol3-lab/labs/mapmaker", "ol3-lab/labs/route-editor", "node_modules/ol3-fun/ol3-fun/common"], function (require, exports, ol, mapmaker_1, route_editor_1, common_23) {
     "use strict";
     exports.__esModule = true;
     function midpoint(points) {
@@ -11746,7 +12349,7 @@ define("ol3-lab/tests/drop-vertex-on-marker-detection", ["require", "exports", "
             var routes = [];
             var shift = [-0.001, -0.005];
             while (colors.length) {
-                var stops = common_24.range(8).map(function (v) {
+                var stops = common_23.range(8).map(function (v) {
                     return ([a + (c - a) * Math.random(), b + (d - b) * Math.random()].map(function (v, i) { return v + shift[i]; }));
                 });
                 var startstop = ([a + (c - a) * Math.random(), b + (d - b) * Math.random()].map(function (v, i) { return v + shift[i]; }));
@@ -12634,12 +13237,220 @@ define("ol3-lab/tests/data/geom/polyline", ["require", "exports", "openlayers"],
         ]
     ]);
 });
-define("ol3-lab/ux/ags-symbols", ["require", "exports", "openlayers", "ol3-lab/labs/common/style-generator", "ol3-symbolizer/ol3-symbolizer/styles/ags/simplemarkersymbol-circle", "ol3-symbolizer/ol3-symbolizer/styles/ags/simplemarkersymbol-cross", "ol3-symbolizer/ol3-symbolizer/styles/ags/simplemarkersymbol-square", "ol3-symbolizer/ol3-symbolizer/styles/ags/simplemarkersymbol-diamond", "ol3-symbolizer/ol3-symbolizer/styles/ags/simplemarkersymbol-path", "ol3-symbolizer/ol3-symbolizer/styles/ags/simplemarkersymbol-x", "ol3-symbolizer/ol3-symbolizer/styles/ags/picturemarkersymbol", "ol3-symbolizer/ol3-symbolizer/styles/ags/picturemarkersymbol-imagedata", "node_modules/ol3-symbolizer/ol3-symbolizer/format/ags-symbolizer"], function (require, exports, ol, StyleGenerator, circleSymbol, crossSymbol, squareSymbol, diamondSymbol, pathSymbol, xSymbol, iconurl, iconimagedata, ags_symbolizer_2) {
+define("node_modules/ol3-symbolizer/examples/styles/ags/simplemarkersymbol-circle", ["require", "exports"], function (require, exports) {
+    "use strict";
+    var styles = [{
+            "color": [
+                255,
+                255,
+                255,
+                64
+            ],
+            "size": 12,
+            "angle": 0,
+            "xoffset": 0,
+            "yoffset": 0,
+            "type": "esriSMS",
+            "style": "esriSMSCircle",
+            "outline": {
+                "color": [
+                    0,
+                    0,
+                    0,
+                    255
+                ],
+                "width": 1,
+                "type": "esriSLS",
+                "style": "esriSLSSolid"
+            }
+        }];
+    return styles;
+});
+define("node_modules/ol3-symbolizer/examples/styles/ags/simplemarkersymbol-cross", ["require", "exports"], function (require, exports) {
+    "use strict";
+    return [
+        {
+            "color": [
+                255,
+                255,
+                255,
+                64
+            ],
+            "size": 12,
+            "angle": 0,
+            "xoffset": 0,
+            "yoffset": 0,
+            "type": "esriSMS",
+            "style": "esriSMSCross",
+            "outline": {
+                "color": [
+                    0,
+                    0,
+                    0,
+                    255
+                ],
+                "width": 1,
+                "type": "esriSLS",
+                "style": "esriSLSSolid"
+            }
+        }
+    ];
+});
+define("node_modules/ol3-symbolizer/examples/styles/ags/simplemarkersymbol-square", ["require", "exports"], function (require, exports) {
+    "use strict";
+    return [
+        {
+            "color": [
+                255,
+                255,
+                255,
+                64
+            ],
+            "size": 12,
+            "angle": 0,
+            "xoffset": 0,
+            "yoffset": 0,
+            "type": "esriSMS",
+            "style": "esriSMSSquare",
+            "outline": {
+                "color": [
+                    0,
+                    0,
+                    0,
+                    255
+                ],
+                "width": 1,
+                "type": "esriSLS",
+                "style": "esriSLSSolid"
+            }
+        }
+    ];
+});
+define("node_modules/ol3-symbolizer/examples/styles/ags/simplemarkersymbol-diamond", ["require", "exports"], function (require, exports) {
+    "use strict";
+    return [
+        {
+            "color": [
+                255,
+                255,
+                255,
+                64
+            ],
+            "size": 12,
+            "angle": 0,
+            "xoffset": 0,
+            "yoffset": 0,
+            "type": "esriSMS",
+            "style": "esriSMSDiamond",
+            "outline": {
+                "color": [
+                    0,
+                    0,
+                    0,
+                    255
+                ],
+                "width": 1,
+                "type": "esriSLS",
+                "style": "esriSLSSolid"
+            }
+        }
+    ];
+});
+define("node_modules/ol3-symbolizer/examples/styles/ags/simplemarkersymbol-path", ["require", "exports"], function (require, exports) {
+    "use strict";
+    return [
+        {
+            "color": [
+                255,
+                255,
+                255,
+                64
+            ],
+            "size": 12,
+            "angle": 0,
+            "xoffset": 0,
+            "yoffset": 0,
+            "type": "esriSMS",
+            "style": "esriSMSPath",
+            "outline": {
+                "color": [
+                    0,
+                    0,
+                    0,
+                    255
+                ],
+                "width": 1,
+                "type": "esriSLS",
+                "style": "esriSLSSolid"
+            },
+            "path": "M16,3.5c-4.142,0-7.5,3.358-7.5,7.5c0,4.143,7.5,18.121,7.5,18.121S23.5,15.143,23.5,11C23.5,6.858,20.143,3.5,16,3.5z M16,14.584c-1.979,0-3.584-1.604-3.584-3.584S14.021,7.416,16,7.416S19.584,9.021,19.584,11S17.979,14.584,16,14.584z"
+        }
+    ];
+});
+define("node_modules/ol3-symbolizer/examples/styles/ags/simplemarkersymbol-x", ["require", "exports"], function (require, exports) {
+    "use strict";
+    return [{
+            "color": [
+                255,
+                255,
+                255,
+                64
+            ],
+            "size": 12,
+            "angle": 0,
+            "xoffset": 0,
+            "yoffset": 0,
+            "type": "esriSMS",
+            "style": "esriSMSX",
+            "outline": {
+                "color": [
+                    0,
+                    0,
+                    0,
+                    255
+                ],
+                "width": 1,
+                "type": "esriSLS",
+                "style": "esriSLSSolid"
+            }
+        }];
+});
+define("node_modules/ol3-symbolizer/examples/styles/ags/picturemarkersymbol", ["require", "exports"], function (require, exports) {
+    "use strict";
+    return [
+        {
+            "angle": 0,
+            "xoffset": 0,
+            "yoffset": 0,
+            "type": "esriPMS",
+            "url": "https://rawgit.com/mapbox/maki/master/icons/aerialway-11.svg",
+            "width": 30,
+            "height": 30
+        }
+    ];
+});
+define("node_modules/ol3-symbolizer/examples/styles/ags/picturemarkersymbol-imagedata", ["require", "exports"], function (require, exports) {
+    "use strict";
+    var style = [{
+            "type": "esriPMS",
+            "url": "4A138C60",
+            "imageData": "iVBORw0KGgoAAAANSUhEUgAAACMAAAAjCAYAAAAe2bNZAAAAAXNSR0IB2cksfwAAAAlwSFlzAAAOxAAADsQBlSsOGwAAAy1JREFUWIXtl0tIG1EUhv84Ymp0AhqsJhUqmmAUtRSlPjbW4mOhaSlushANNiCBiG7GgEZCQGiD4qYSXFiQlkAXBRdWECx2o4JiwE0Jtq60ICKBKsaYSeLtolY7nRmdiYKl5N/de85/7jfnDPNIxT+k1NsG+FNJGDElYcSUhBHTjcAEg0Gi0WgUtw4TDAaJTqfDxMQEsdvt1wK6NszY2BhKnpXAbreDZVmSlpaWMNC1YNrb28kGtQHLWwsOPYeg82isrq6S6urqhIAShvH5fKTX1QvGyyAWj0F1V4U2ZxucTmeiJROHGRwchOmVCYo7CsRiMQBAlaUKkx8m4fF4iMPhkN2dhGD6+vrI/NY8DI0GxNgYJ9bibIHjuQPhcJikp6fLApINs7m5SSoqKmBdtIJlWV4870EeKs2VsNlsckvLhxkYGEBtXy3U99SIRqOCOTX2Gky1TGFhYYE0NTVJ7o5cGAITUPqoFAeHB+JZSqB7sRudLzplFZcFo2/VI+dhDtgodzxH34+QmZ/Jy6/pr4Gv3UdUKpWk7kiGWVtbI55tD6In/NGsT62jvKMc6nw1Z19dqIbVapV6hHSY4eFhZDmyEIlEOPvBL0FszW4hFAqh3lnP8818nsHc3BxpbW29sjuSYMbHx8mIdwQNbANn/xSn8E/6MTo6CoZhsP1kG9oqLSenrKsMQ0NDUo65GubseYG6l3W8e2Xn0w4MmQYwDKOYnp4mPa4eNBobkaJMOc/R1eqwPL8Ml8tF3G73pd25EsZms0HbogVtoMFGLmCiR1EE3gUw+34Wzc3NsFgsCpPJRAIfAyhqK+LUMHYY4R5yY29vj+Tm5ooCCcIo7ytJRlYGQuEQllRL0HfocRw+Po+zP1h8e/MNGTkZMPeakV2cTQBg+esyQvEQQAHaxxfjonIp1L2uQ8nTEiiLlQQAIpsRHpQgTEFXATSFmvN1PB7nxCmagrHfKHaBgh6kAUbbhWfFssLzCMLsr+7jZPvk14KInHbZ9MU8Zz6h14gojLnIDL/fD4qiQFGUoJF35X9JyPfbQ9M0drErDcbr9V77ezYR/X9/BzelJIyYkjBi+gkX4w++7OoZ3gAAAABJRU5ErkJggg==",
+            "contentType": "image/png",
+            "color": null,
+            "width": 26,
+            "height": 26,
+            "angle": 0,
+            "xoffset": 0,
+            "yoffset": 0
+        }];
+    return style;
+});
+define("ol3-lab/ux/ags-symbols", ["require", "exports", "openlayers", "ol3-lab/labs/common/style-generator", "node_modules/ol3-symbolizer/examples/styles/ags/simplemarkersymbol-circle", "node_modules/ol3-symbolizer/examples/styles/ags/simplemarkersymbol-cross", "node_modules/ol3-symbolizer/examples/styles/ags/simplemarkersymbol-square", "node_modules/ol3-symbolizer/examples/styles/ags/simplemarkersymbol-diamond", "node_modules/ol3-symbolizer/examples/styles/ags/simplemarkersymbol-path", "node_modules/ol3-symbolizer/examples/styles/ags/simplemarkersymbol-x", "node_modules/ol3-symbolizer/examples/styles/ags/picturemarkersymbol", "node_modules/ol3-symbolizer/examples/styles/ags/picturemarkersymbol-imagedata", "node_modules/ol3-symbolizer/ol3-symbolizer/format/ags-symbolizer"], function (require, exports, ol, StyleGenerator, circleSymbol, crossSymbol, squareSymbol, diamondSymbol, pathSymbol, xSymbol, iconurl, iconimagedata, ags_symbolizer_3) {
     "use strict";
     exports.__esModule = true;
     var center = [-82.4, 34.85];
     function run() {
-        var formatter = new ags_symbolizer_2.StyleConverter();
+        var formatter = new ags_symbolizer_3.StyleConverter();
         var generator = new StyleGenerator({
             center: center,
             fromJson: function (json) { return formatter.fromJson(json); }
@@ -12651,7 +13462,7 @@ define("ol3-lab/ux/ags-symbols", ["require", "exports", "openlayers", "ol3-lab/l
         var map = new ol.Map({
             target: "map",
             view: new ol.View({
-                projection: 'EPSG:4326',
+                projection: "EPSG:4326",
                 center: center,
                 zoom: 10
             }),
@@ -12673,7 +13484,10 @@ define("ol3-lab/ux/ags-symbols", ["require", "exports", "openlayers", "ol3-lab/l
             formatter.fromJson(iconurl[0]),
             formatter.fromJson(iconimagedata[0])
         ];
-        layer.getSource().getFeatures().forEach(function (f, i) { return f.setStyle([styles[i % styles.length]]); });
+        layer
+            .getSource()
+            .getFeatures()
+            .forEach(function (f, i) { return f.setStyle([styles[i % styles.length]]); });
     }
     exports.run = run;
 });
