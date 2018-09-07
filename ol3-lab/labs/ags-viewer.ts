@@ -1,20 +1,16 @@
 import $ = require("jquery");
 import ol = require("openlayers");
 import { doif, getParameterByName } from "./common/common";
-import { StyleConverter } from "ol3-symbolizer";
-import pointStyle = require("ol3-symbolizer/ol3-symbolizer/styles/star/flower");
-import { LayerSwitcher } from "ol3-layerswitcher";
-import { Popup } from "ol3-popup";
+import { LayerSwitcher } from "ol3-layerswitcher/index";
+import { Popup } from "ol3-popup/index";
 import { ArcGisVectorSourceFactory } from "ol3-symbolizer/ol3-symbolizer/ags/ags-source";
-
-let styler = new StyleConverter();
 
 function parse<T>(v: string, type: T): T {
     if (typeof type === "string") return <any>v;
     if (typeof type === "number") return <any>parseFloat(v);
     if (typeof type === "boolean") return <any>(v === "1" || v === "true");
     if (Array.isArray(type)) {
-        return <any>(v.split(",").map(v => parse(v, (<any>type)[0])));
+        return <any>v.split(",").map((v) => parse(v, (<any>type)[0]));
     }
     throw `unknown type: ${type}`;
 }
@@ -65,26 +61,25 @@ let center = {
     fire: [-117.754430386, 34.2606862490001],
     wichita: [-97.4, 37.8],
     vegas: [-115.235, 36.173]
-}
+};
 
 export function run() {
-
     $(html).appendTo(".map");
     $(css).appendTo("head");
 
     let options = {
-        srs: 'EPSG:4326',
+        srs: "EPSG:4326",
         center: <[number, number]>center.vegas,
         zoom: 10,
         services: "http://sampleserver3.arcgisonline.com/ArcGIS/rest/services",
         serviceName: "SanFrancisco/311Incidents",
         layers: [0]
-    }
+    };
 
     {
         let opts = <any>options;
-        Object.keys(opts).forEach(k => {
-            doif(getParameterByName(k), v => {
+        Object.keys(opts).forEach((k) => {
+            doif(getParameterByName(k), (v) => {
                 let value = parse(v, opts[k]);
                 if (value !== undefined) opts[k] = value;
             });
@@ -105,21 +100,22 @@ export function run() {
         layers: [
             new ol.layer.Tile({
                 title: "OSM",
-                type: 'base',
+                type: "base",
                 opacity: 0.8,
                 visible: true,
                 source: new ol.source.OSM()
             }),
             new ol.layer.Tile({
                 title: "Bing",
-                type: 'base',
+                type: "base",
                 opacity: 0.8,
                 visible: false,
                 source: new ol.source.BingMaps({
-                    key: 'AuPHWkNxvxVAL_8Z4G8Pcq_eOKGm5eITH_cJMNAyYoIC1S_29_HhE893YrUUbIGl',
-                    imagerySet: 'Aerial'
+                    key: "AuPHWkNxvxVAL_8Z4G8Pcq_eOKGm5eITH_cJMNAyYoIC1S_29_HhE893YrUUbIGl",
+                    imagerySet: "Aerial"
                 })
-            })]
+            })
+        ]
     });
 
     ArcGisVectorSourceFactory.create({
@@ -128,9 +124,8 @@ export function run() {
         services: options.services,
         serviceName: options.serviceName,
         layers: options.layers.reverse()
-    }).then(agsLayers => {
-
-        agsLayers.forEach(agsLayer => map.addLayer(agsLayer));
+    }).then((agsLayers) => {
+        agsLayers.forEach((agsLayer) => map.addLayer(agsLayer));
 
         let layerSwitcher = new LayerSwitcher();
         layerSwitcher.setMap(map);
@@ -155,25 +150,24 @@ export function run() {
 
             let pageNum = 0;
             map.forEachFeatureAtPixel(event.pixel, (feature: ol.Feature, layer) => {
-                let page = document.createElement('p');
-                let keys = Object.keys(feature.getProperties()).filter(key => {
+                let page = document.createElement("p");
+                let keys = Object.keys(feature.getProperties()).filter((key) => {
                     let v = feature.get(key);
                     if (typeof v === "string") return true;
                     if (typeof v === "number") return true;
                     return false;
                 });
                 page.title = "" + ++pageNum;
-                page.innerHTML = `<table>${keys.map(k => `<tr><td>${k}</td><td>${feature.get(k)}</td></tr>`).join("")}</table>`;
+                page.innerHTML = `<table>${keys
+                    .map((k) => `<tr><td>${k}</td><td>${feature.get(k)}</td></tr>`)
+                    .join("")}</table>`;
                 popup.pages.add(page, feature.getGeometry());
             });
 
             popup.show(coord, `<label>${pageNum} Features Found</label>`);
             popup.pages.goto(0);
         });
-
     });
 
-
     return map;
-
 }
