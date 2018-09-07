@@ -13,8 +13,10 @@
 		"css": "npm run css-layerswitcher && npm run css-popup && npm run css-panzoom",
 		"dev": "npm run build && start npm run live && npm run build -- -w",
 		"live": "live-server --port=5000 --wait=200 --watch=./built/index.js --open=./rawgit.html --browser=CHROME",
-		"before-push": "npm run clean && npm run build && npm run live",
-		"test": "npm run live"
+		"build-loader": "tsc loader.ts --outDir ./built/",
+		"before-push": "npm run clean && npm run build && npm run build-loader && npm run live",
+		"test": "npm run live",
+		"install": "npm run build-loader && npm run build"
 	},
 	"devDependencies": {
 		"@types/arcgis-js-api": "^4.8.1",
