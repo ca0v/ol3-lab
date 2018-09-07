@@ -5,86 +5,86 @@
  */
 
 import * as ajax from "../labs/common/ajax";
+import { MapQuestDirections } from "../../d.ts/mapquest";
 
 const MapQuestKey = "cwm3pF5yuEGNp54sh96TF0irs5kCLd5y";
 
-
 class Directions {
+	private sessionId = "";
 
-    private sessionId = "";
+	directions(
+		url: string,
+		data: {
+			key: string;
+			from: string;
+			to: string | string[];
+			session?: string;
+			unit?: string;
+			avoids?: string;
+		},
+	) {
+		let req = $.extend(
+			{
+				outFormat: "json",
+				unit: "m",
+				routeType: "fastest",
+				avoidTimedConditions: false,
+				doReverseGeocode: true,
+				narrativeType: "text",
+				enhancedNarrative: false,
+				maxLinkId: 0,
+				locale: "en_US",
+				// no way to handle multiple avoids without hand-coding url?
+				// [toll road, unpaved, ferry, limited access, approximate seasonal closure, country border crossing]
+				inFormat: "kvp",
+				avoids: "unpaved",
+				stateBoundaryDisplay: true,
+				countryBoundaryDisplay: true,
+				sideOfStreetDisplay: false,
+				destinationManeuverDisplay: false,
+				fullShape: false,
+				shapeFormat: "raw",
+				inShapeFormat: "raw",
+				outShapeFormat: "raw",
+				generalize: 10,
+				drivingStyle: "normal",
+				highwayEfficiency: 20,
+				manMaps: false,
+			},
+			data,
+		);
 
-    directions(url: string, data: {
-        key: string;
-        from: string;
-        to: string | string[];
-        session?: string;
-        unit?: string;
-        avoids?: string;
-    }) {
+		if (this.sessionId) req.session = this.sessionId;
 
-        let req = $.extend({
-            outFormat: "json",
-            unit: "m",
-            routeType: "fastest",
-            avoidTimedConditions: false,
-            doReverseGeocode: true,
-            narrativeType: "text",
-            enhancedNarrative: false,
-            maxLinkId: 0,
-            locale: "en_US",
-            // no way to handle multiple avoids without hand-coding url?
-            // [toll road, unpaved, ferry, limited access, approximate seasonal closure, country border crossing]
-            inFormat: "kvp",
-            avoids: "unpaved",
-            stateBoundaryDisplay: true,
-            countryBoundaryDisplay: true,
-            sideOfStreetDisplay: false,
-            destinationManeuverDisplay: false,
-            fullShape: false,
-            shapeFormat: "raw",
-            inShapeFormat: "raw",
-            outShapeFormat: "raw",
-            generalize: 10,
-            drivingStyle: "normal",
-            highwayEfficiency: 20,
-            manMaps: false
-        }, data);
+		return ajax.mapquest<MapQuestDirections.Response>(url, req).then(response => {
+			this.sessionId = response.route.sessionId;
+			return response;
+		});
+	}
 
-        if (this.sessionId) req.sessionId = this.sessionId;
+	static test(options?: { from: string; to: string | string[] }) {
+		if (!options) {
+			options = {
+				from: "50 Datastream Plaza, Greenville, SC",
+				to: "550 S Main St 101, Greenville, SC 29601",
+			};
+		}
 
-        return ajax.mapquest<MapQuestDirections.Response>(url, req).then(response => {
-            this.sessionId = response.route.sessionId;
-            return response;
-        });
-    }
+		let serviceUrl = `http://www.mapquestapi.com/directions/v2/route`;
+		let request = {
+			key: MapQuestKey,
+			from: options.from,
+			to: options.to,
+		};
 
-    static test(options?: {
-        from: string;
-        to: string | string[];
-    }) {
-
-        if (!options) {
-            options = {
-                from: "50 Datastream Plaza, Greenville, SC",
-                to: "550 S Main St 101, Greenville, SC 29601"
-            };
-        }
-        
-        let serviceUrl = `http://www.mapquestapi.com/directions/v2/route`;
-        let request = {
-            key: MapQuestKey,
-            from: options.from,
-            to: options.to
-        };
-
-        return new Directions().directions(serviceUrl, request).then(result => {
-            console.log("directions", result);
-            result.route.legs.forEach(leg => {
-                console.log(leg.destNarrative, leg.maneuvers.map(m => m.narrative).join("\n\t"));
-            });
-            return result;
-        });
-    }
+		return new Directions().directions(serviceUrl, request).then(result => {
+			console.log("directions", result);
+			result.route.legs.forEach(leg => {
+				console.log(leg.destNarrative, leg.maneuvers.map(m => m.narrative).join("\n\t"));
+			});
+			return result;
+		});
+	}
 }
 
 export = Directions;

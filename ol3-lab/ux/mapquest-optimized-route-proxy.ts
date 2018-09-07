@@ -32,6 +32,7 @@ REQUEST BODY:
 */
 
 import * as ajax from "../labs/common/ajax";
+import { MapQuestRoute } from "../../d.ts/mapquest";
 
 const MapQuestKey = "cwm3pF5yuEGNp54sh96TF0irs5kCLd5y";
 
@@ -81,7 +82,7 @@ class Route {
             manMaps: false
         }, data);
 
-        if (this.sessionId) req.sessionId = this.sessionId;
+        if (this.sessionId) req.session = this.sessionId;
 
         /** GET + POST work with from/to but how to set locations? */
         return ajax.post<MapQuestRoute.Response>(`${url}?key=${req.key}`, {

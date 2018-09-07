@@ -2,28 +2,30 @@ import $ = require("jquery");
 import ol = require("openlayers");
 import { doif, getParameterByName } from "./common/common";
 import { StyleConverter } from "ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer";
-import pointStyle = require("ol3-symbolizer/ol3-symbolizer/styles/star/flower");
-import { Popup } from "ol3-popup";
-import { Grid } from "ol3-grid";
+import pointStyle = require("ol3-symbolizer/examples/styles/star/flower");
+import { Popup } from "ol3-popup/index";
+import { Grid } from "ol3-grid/index";
 
 let styler = new StyleConverter();
 
 function parse<T>(v: string, type: T): T {
-    if (typeof type === "string") return <any>v;
-    if (typeof type === "number") return <any>parseFloat(v);
-    if (typeof type === "boolean") return <any>(v === "1" || v === "true");
-    if (Array.isArray(type)) {
-        return <any>(v.split(",").map(v => parse(v, (<any>type)[0])));
-    }
-    throw `unknown type: ${type}`;
+	if (typeof type === "string") return <any>v;
+	if (typeof type === "number") return <any>parseFloat(v);
+	if (typeof type === "boolean") return <any>(v === "1" || v === "true");
+	if (Array.isArray(type)) {
+		return <any>v.split(",").map(v => parse(v, (<any>type)[0]));
+	}
+	throw `unknown type: ${type}`;
 }
 
 function randomName() {
-    const nouns = "cat,dog,bird,horse,pig,elephant,giraffe,tiger,bear,cow,chicken,moose".split(",");
-    const adverbs = "running,walking,turning,jumping,hiding,pouncing,stomping,rutting,landing,floating,sinking".split(",");
-    let noun = nouns[(Math.random() * nouns.length) | 0];
-    let adverb = adverbs[(Math.random() * adverbs.length) | 0];
-    return `${adverb} ${noun}`.toLocaleUpperCase();
+	const nouns = "cat,dog,bird,horse,pig,elephant,giraffe,tiger,bear,cow,chicken,moose".split(",");
+	const adverbs = "running,walking,turning,jumping,hiding,pouncing,stomping,rutting,landing,floating,sinking".split(
+		","
+	);
+	let noun = nouns[(Math.random() * nouns.length) | 0];
+	let adverb = adverbs[(Math.random() * adverbs.length) | 0];
+	return `${adverb} ${noun}`.toLocaleUpperCase();
 }
 
 const html = `
@@ -89,139 +91,150 @@ const css_popup = `
 `;
 
 export function run() {
+	$(html).appendTo(".map");
+	$(css).appendTo("head");
 
-    $(html).appendTo(".map");
-    $(css).appendTo("head");
+	let options = {
+		srs: "EPSG:4326",
+		center: <[number, number]>[-82.4, 34.85],
+		zoom: 15,
+		basemap: "bing"
+	};
 
-    let options = {
-        srs: 'EPSG:4326',
-        center: <[number, number]>[-82.4, 34.85],
-        zoom: 15,
-        basemap: "bing"
-    }
+	{
+		let opts = <any>options;
+		Object.keys(opts).forEach(k => {
+			doif(getParameterByName(k), v => {
+				let value = parse(v, opts[k]);
+				if (value !== undefined) opts[k] = value;
+			});
+		});
+	}
 
-    {
-        let opts = <any>options;
-        Object.keys(opts).forEach(k => {
-            doif(getParameterByName(k), v => {
-                let value = parse(v, opts[k]);
-                if (value !== undefined) opts[k] = value;
-            });
-        });
-    }
+	let map = new ol.Map({
+		target: "map",
+		keyboardEventTarget: document,
+		loadTilesWhileAnimating: true,
+		loadTilesWhileInteracting: true,
+		controls: ol.control.defaults({ attribution: false }),
+		view: new ol.View({
+			projection: options.srs,
+			center: options.center,
+			zoom: options.zoom
+		}),
+		layers: [
+			new ol.layer.Tile({
+				opacity: 0.8,
+				source:
+					options.basemap !== "bing"
+						? new ol.source.OSM()
+						: new ol.source.BingMaps({
+								key: "AuPHWkNxvxVAL_8Z4G8Pcq_eOKGm5eITH_cJMNAyYoIC1S_29_HhE893YrUUbIGl",
+								imagerySet: "Aerial"
+						  })
+			})
+		]
+	});
 
-    let map = new ol.Map({
-        target: "map",
-        keyboardEventTarget: document,
-        loadTilesWhileAnimating: true,
-        loadTilesWhileInteracting: true,
-        controls: ol.control.defaults({ attribution: false }),
-        view: new ol.View({
-            projection: options.srs,
-            center: options.center,
-            zoom: options.zoom
-        }),
-        layers: [
-            new ol.layer.Tile({
-                opacity: 0.8,
-                source: options.basemap !== "bing" ? new ol.source.OSM() : new ol.source.BingMaps({
-                    key: 'AuPHWkNxvxVAL_8Z4G8Pcq_eOKGm5eITH_cJMNAyYoIC1S_29_HhE893YrUUbIGl',
-                    imagerySet: 'Aerial'
-                })
-            })]
-    });
+	let features = new ol.Collection<ol.Feature>();
 
-    let features = new ol.Collection<ol.Feature>();
+	let source = new ol.source.Vector({
+		features: features
+	});
 
-    let source = new ol.source.Vector({
-        features: features
-    });
+	let layer = new ol.layer.Vector({
+		source: source
+	});
 
+	map.addLayer(layer);
 
-    let layer = new ol.layer.Vector({
-        source: source
-    });
+	let popup = Popup.create({
+		map: map,
+		dockContainer: $(".popup-container")[0],
+		pointerPosition: 10,
+		positioning: "bottom-left",
+		offset: [0, 20],
+		css: css_popup
+	});
+	popup.setMap(map);
 
-    map.addLayer(layer);
+	map.on("click", (event: Event & { coordinate: [number, number] }) => {
+		let location = event.coordinate.map(v => v.toFixed(5)).join(", ");
+		let point = new ol.geom.Point(event.coordinate);
+		point.set("location", location);
+		let feature = new ol.Feature(point);
+		feature.set("text", randomName());
 
-    let popup = new Popup({
-        dockContainer: '.popup-container',
-        pointerPosition: 100,
-        positioning: "bottom-left",
-        yOffset: 20,
-        css: css_popup
-    });
-    popup.setMap(map);
+		let textStyle = pointStyle.filter(p => p.text)[0];
+		if (textStyle && textStyle.text) {
+			textStyle.text["offset-y"] = -24;
+			textStyle.text.text = feature.get("text");
+		}
+		pointStyle[0].star.points = (3 + Math.random() * 12) | 0;
+		pointStyle[0].star.stroke.width = 1 + Math.random() * 5;
+		let style = pointStyle.map(s => styler.fromJson(s));
+		feature.setStyle(style);
 
-    map.on("click", (event: {
-        coordinate: [number, number];
-    }) => {
-        let location = event.coordinate.map(v => v.toFixed(5)).join(", ");
-        let point = new ol.geom.Point(event.coordinate);
-        point.set("location", location);
-        let feature = new ol.Feature(point);
-        feature.set("text", randomName());
+		source.addFeature(feature);
 
-        let textStyle = pointStyle.filter(p => p.text)[0];;
-        if (textStyle && textStyle.text) {
-            textStyle.text["offset-y"] = -24;
-            textStyle.text.text = feature.get("text");
-        }
-        pointStyle[0].star.points = 3 + (Math.random() * 12) | 0;
-        pointStyle[0].star.stroke.width = 1 + Math.random() * 5;
-        let style = pointStyle.map(s => styler.fromJson(s));
-        feature.setStyle((resolution: number) => style);
+		setTimeout(() => popup.show(event.coordinate, `<div>You clicked on ${location}</div>`), 50);
+	});
 
-        source.addFeature(feature);
+	let grid = Grid.create({
+		currentExtent: false,
+		labelAttributeName: "text",
+		map: map,
+		layers: [layer]
+	});
 
-        setTimeout(() => popup.show(event.coordinate, `<div>You clicked on ${location}</div>`), 50);
+	Grid.create({
+		map: map,
+		className: "ol-grid",
+		position: "top left-2",
+		closedText: "+",
+		openedText: "-",
+		autoCollapse: false,
+		showIcon: true,
+		layers: [layer]
+	});
 
-    });
+	Grid.create({
+		map: map,
+		className: "ol-grid",
+		position: "bottom left",
+		currentExtent: true,
+		hideButton: false,
+		closedText: "+",
+		openedText: "-",
+		autoCollapse: true,
+		canCollapse: true,
+		showIcon: true,
+		labelAttributeName: "",
+		layers: [layer]
+	});
 
-    let grid = Grid.create({
-        currentExtent: false,
-        labelAttributeName: "text"
-    });
+	Grid.create({
+		map: map,
+		className: "ol-grid",
+		position: "bottom right",
+		hideButton: true,
+		showIcon: true,
+		labelAttributeName: "text",
+		layers: [layer]
+	});
 
-    map.addControl(grid);
+	map.getControls()
+		.getArray()
+		.filter(c => c instanceof Grid)
+		.forEach(grid =>
+			grid.on("feature-click", (args: Event & { feature: ol.Feature }) => {
+				let center = args.feature.getGeometry().getClosestPoint(map.getView().getCenter());
+				map.getView().animate({
+					center: center
+				});
+				popup.show(center, args.feature.get("text"));
+			})
+		);
 
-    map.addControl(Grid.create({
-        className: "ol-grid top left-2",
-        closedText: "+",
-        openedText: "-",
-        autoCollapse: false,
-        showIcon: true
-    }));
-
-    map.addControl(Grid.create({
-        className: "ol-grid bottom left",
-        currentExtent: true,
-        hideButton: false,
-        closedText: "+",
-        openedText: "-",
-        autoCollapse: true,
-        canCollapse: true,
-        showIcon: true,
-        labelAttributeName: ""
-    }));
-
-    map.addControl(Grid.create({
-        className: "ol-grid bottom right",
-        hideButton: true,
-        showIcon: true,
-        labelAttributeName: "text"
-    }));
-
-    map.getControls().getArray()
-        .filter(c => c instanceof Grid)
-        .forEach(grid => grid.on("feature-click", (args: { feature: ol.Feature }) => {
-            let center = args.feature.getGeometry().getClosestPoint(map.getView().getCenter());
-            map.getView().animate({
-                center: center
-            });
-            popup.show(center, args.feature.get("text"));
-        }));
-
-    return map;
-
+	return map;
 }

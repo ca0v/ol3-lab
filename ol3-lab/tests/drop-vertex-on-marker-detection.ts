@@ -1,196 +1,185 @@
 import ol = require("openlayers");
-import {run as mapmaker} from "../labs/mapmaker";
-import {Route} from "../labs/route-editor";
+import { run as mapmaker } from "../labs/mapmaker";
+import { Route } from "../labs/route-editor";
 import { range } from "ol3-fun/ol3-fun/common";
 
 function midpoint(points: number[][]) {
-    let p0 = points.reduce((sum, p) => p.map((v, i) => v + sum[i]));
-    return p0.map(v => v / points.length);
+	let p0 = points.reduce((sum, p) => p.map((v, i) => v + sum[i]));
+	return p0.map(v => v / points.length);
 }
 
 export function run() {
+	let features = new ol.Collection([]);
+	let activeFeature: ol.Feature;
 
-    let features = new ol.Collection([]);
-    let activeFeature: ol.Feature;
+	features.on("add", (args: Event & { element: ol.Feature }) => {
+		let feature = args.element;
 
-    features.on("add", (args: { element: ol.Feature }) => {
+		feature.on("change", (args: any) => {
+			activeFeature = feature;
+		});
 
-        let feature = args.element;
+		feature.on("change:geometry", (args: any) => {
+			console.log("feature change:geometry", args);
+		});
+	});
 
-        feature.on("change", (args: any) => {
-            activeFeature = feature;
-        });
+	let layer = new ol.layer.Vector({
+		source: new ol.source.Vector({
+			features: features,
+		}),
+	});
 
-        feature.on("change:geometry", (args: any) => {
-            console.log("feature change:geometry", args);
-        });
+	let colors = ["229966", "cc6633", "cc22cc", "331199"].map(v => "#" + v);
 
-    });
+	mapmaker().then(map => {
+		map.addLayer(layer);
 
-    let layer = new ol.layer.Vector({
-        source: new ol.source.Vector({
-            features: features
-        })
-    });
+		let [a, b, c, d] = map.getView().calculateExtent(map.getSize().map(v => v * 0.25) as ol.Coordinate);
 
-    let colors = ['229966', 'cc6633', 'cc22cc', '331199'].map(v => '#' + v);
+		let routes = <Route[]>[];
 
-    mapmaker().then(map => {
+		let shift = [-0.001, -0.005];
+		while (colors.length) {
+			let stops = range(8).map(
+				v =>
+					<ol.Coordinate>(
+						[a + (c - a) * Math.random(), b + (d - b) * Math.random()].map((v, i) => v + shift[i])
+					),
+			);
+			let startstop = <ol.Coordinate>(
+				[a + (c - a) * Math.random(), b + (d - b) * Math.random()].map((v, i) => v + shift[i])
+			);
 
-        map.addLayer(layer);
+			let route = new Route({
+				color: colors.pop(),
+				start: startstop,
+				finish: startstop,
+				stops: stops,
+			});
+			shift = shift.map(v => v + 0.005);
+			routes.push(route);
+		}
 
-        let [a, b, c, d] = map.getView().calculateExtent(map.getSize().map(v => v * 0.25));
+		let redRoute = new Route({
+			color: "red",
+			showLines: false,
+			modifyRoute: true,
+		});
+		routes.push(redRoute);
 
-        let routes = <Route[]>[];
+		routes.forEach(r => {
+			r.refresh(map);
+			r.appendTo(layer);
+		});
 
-        let shift = [-0.001, -0.005];
-        while (colors.length) {
-            let stops = range(8).map(v => <ol.Coordinate>[a + (c - a) * Math.random(), b + (d - b) * Math.random()].map((v, i) => v + shift[i]));
-            let startstop = <ol.Coordinate>[a + (c - a) * Math.random(), b + (d - b) * Math.random()].map((v, i) => v + shift[i]);
-            
-            let route = new Route({
-                color: colors.pop(),
-                start: startstop,
-                finish: startstop,
-                stops: stops
-            });
-            shift = shift.map(v => v + 0.005);
-            routes.push(route);
-        }
+		let editFeatures = new ol.Collection<ol.Feature>();
+		routes.map(route => route.allowModify(editFeatures));
 
-        let redRoute = new Route({
-            color: "red",
-            showLines: false,
-            modifyRoute: true
-        });
-        routes.push(redRoute);
+		let modify = new ol.interaction.Modify({
+			pixelTolerance: 8,
+			condition: (evt: ol.MapBrowserEvent) => {
+				if (!ol.events.condition.noModifierKeys(evt)) return false; // ol.events.condition.primaryAction
+				// only if it is not a starting or ending location for any route
+				if (routes.some(r => r.isStartingLocation(map, evt.coordinate))) return false;
+				if (routes.some(r => r.isEndingLocation(map, evt.coordinate))) return false;
+				return true;
+			},
+			features: editFeatures,
+		});
 
-        routes.forEach(r => {
-            r.refresh(map);
-            r.appendTo(layer);
-        });
+		map.addInteraction(modify);
 
-        let editFeatures = new ol.Collection<ol.Feature>();
-        routes.map(route => route.allowModify(editFeatures));
+		/**
+		 * Can drag existing or new vertex onto stops of a route
+		 * Can be same route or another route
+		 * A drop on the 1st stop has no effect
+		 * A drop of an existing vertex on stop orphans [vertexindex..end] transfers ownership of [stop..end]
+		 * A drop of new vertex transfers ownership of [stop]
+		 */
+		modify.on("modifyend", (args: Event & { mapBrowserEvent: ol.MapBrowserEvent }) => {
+			console.log("modifyend", args);
+			let dropLocation = args.mapBrowserEvent.coordinate;
+			console.log("drop-location", dropLocation);
 
-        let modify = new ol.interaction.Modify({
-            pixelTolerance: 8,
-            condition: (evt: ol.MapBrowserEvent) => {
-                if (!ol.events.condition.noModifierKeys(evt)) return false; // ol.events.condition.primaryAction
-                // only if it is not a starting or ending location for any route
-                if (routes.some(r => r.isStartingLocation(map, evt.coordinate))) return false;
-                if (routes.some(r => r.isEndingLocation(map, evt.coordinate))) return false;
-                return true;
-            },
-            features: editFeatures
-        });
+			let dropInfo = {
+				route: <Route>null,
+				stops: <number[]>null,
+			};
+			let targetInfo = {
+				route: <Route>null,
+				vertexIndex: <number>null,
+			};
 
-        map.addInteraction(modify);
+			targetInfo.route = routes.filter(route => route.owns(activeFeature))[0];
+			console.log("target-route", targetInfo.route);
 
-        /**
-         * Can drag existing or new vertex onto stops of a route
-         * Can be same route or another route
-         * A drop on the 1st stop has no effect
-         * A drop of an existing vertex on stop orphans [vertexindex..end] transfers ownership of [stop..end]
-         * A drop of new vertex transfers ownership of [stop]  
-         */
-        modify.on("modifyend", (args: { mapBrowserEvent: ol.MapBrowserEvent }) => {
-            console.log("modifyend", args);
-            let dropLocation = args.mapBrowserEvent.coordinate;
-            console.log("drop-location", dropLocation);
+			{
+				let geom = <ol.geom.LineString>activeFeature.getGeometry();
+				let coords = geom.getCoordinates();
+				let vertex = coords.filter(p => p[0] === dropLocation[0])[0];
+				let vertexIndex = coords.indexOf(vertex);
+				console.log("vertex", vertexIndex);
+				targetInfo.vertexIndex = vertexIndex;
 
-            let dropInfo = {
-                route: <Route>null,
-                stops: <number[]>null
-            };
-            let targetInfo = {
-                route: <Route>null,
-                vertexIndex: <number>null
-            };
+				// use endpoint of line segment of length 0
+				if (targetInfo.vertexIndex == 0) {
+					targetInfo.vertexIndex = targetInfo.route.stops.length;
+				}
+			}
 
-            targetInfo.route = routes.filter(route => route.owns(activeFeature))[0];
-            console.log("target-route", targetInfo.route);
+			routes.some(route => {
+				let stop = route.findStop(map, dropLocation);
+				if (stop >= 0) {
+					console.log("drop", route, stop);
+					dropInfo.route = route;
+					dropInfo.stops = [stop];
+					return true;
+				}
+			});
 
-            {
-                let geom = <ol.geom.LineString>activeFeature.getGeometry();
-                let coords = geom.getCoordinates();
-                let vertex = coords.filter(p => p[0] === dropLocation[0])[0];
-                let vertexIndex = coords.indexOf(vertex);
-                console.log("vertex", vertexIndex);
-                targetInfo.vertexIndex = vertexIndex;
+			// new or existing vertex?
+			let isNewVertex = targetInfo.route.isNewVertex();
+			let dropOnStop = dropInfo.route && 0 < dropInfo.stops.length;
+			let isSameRoute = dropOnStop && dropInfo.route === targetInfo.route;
 
-                // use endpoint of line segment of length 0
-                if (targetInfo.vertexIndex == 0) {
-                    targetInfo.vertexIndex = targetInfo.route.stops.length;
-                }
+			let stopIndex = targetInfo.vertexIndex;
+			if (targetInfo.route.startLocation) stopIndex--;
 
-            }
+			if (stopIndex < 0) {
+				// do nothing
+				console.log("moving the starting vertex is not allowed");
+			} else if (stopIndex > targetInfo.route.stops.length) {
+				console.log("moving the ending vertex is not allowed");
+			} else if (dropOnStop && isNewVertex) {
+				// adopt stop
+				let stop = dropInfo.route.removeStop(dropInfo.stops[0]);
+				targetInfo.route.addStop(stop, stopIndex);
+			} else if (dropOnStop && !isNewVertex && !isSameRoute) {
+				// ophan stop
+				let stop = targetInfo.route.removeStop(stopIndex);
+				redRoute.addStop(stop);
+				// adopt stop
+				stop = dropInfo.route.removeStop(dropInfo.stops[0]);
+				targetInfo.route.addStop(stop, stopIndex);
+			} else if (dropOnStop && !isNewVertex && isSameRoute) {
+				// ophan in-betweens
+				let count = dropInfo.stops[0] - stopIndex;
+				if (count > 1)
+					while (count--) {
+						let stop = targetInfo.route.removeStop(stopIndex);
+						redRoute.addStop(stop);
+					}
+			} else if (!dropOnStop && isNewVertex) {
+				// meaningless
+				console.log("dropping a new vertex on empty space has not effect");
+			} else if (!dropOnStop && !isNewVertex) {
+				// orphan the stop (unless it is the last stop)
+				let stop = targetInfo.route.removeStop(stopIndex);
+				stop && redRoute.addStop(stop);
+			}
 
-            routes.some(route => {
-                let stop = route.findStop(map, dropLocation);
-                if (stop >= 0) {
-                    console.log("drop", route, stop);
-                    dropInfo.route = route;
-                    dropInfo.stops = [stop];
-                    return true;
-                }
-            });
-
-            // new or existing vertex?
-            let isNewVertex = targetInfo.route.isNewVertex();
-            let dropOnStop = dropInfo.route && 0 < dropInfo.stops.length;
-            let isSameRoute = dropOnStop && dropInfo.route === targetInfo.route;
-
-            let stopIndex = targetInfo.vertexIndex;
-            if (targetInfo.route.startLocation) stopIndex--;
-
-            if (stopIndex < 0) {
-                // do nothing
-                console.log("moving the starting vertex is not allowed");
-            }
-
-            else if (stopIndex > targetInfo.route.stops.length) {
-                console.log("moving the ending vertex is not allowed");
-            }
-
-            else if (dropOnStop && isNewVertex) {
-                // adopt stop
-                let stop = dropInfo.route.removeStop(dropInfo.stops[0]);
-                targetInfo.route.addStop(stop, stopIndex);
-            }
-
-            else if (dropOnStop && !isNewVertex && !isSameRoute) {
-                // ophan stop
-                let stop = targetInfo.route.removeStop(stopIndex);
-                redRoute.addStop(stop);
-                // adopt stop
-                stop = dropInfo.route.removeStop(dropInfo.stops[0]);
-                targetInfo.route.addStop(stop, stopIndex);
-            }
-
-            else if (dropOnStop && !isNewVertex && isSameRoute) {
-                // ophan in-betweens
-                let count = dropInfo.stops[0] - stopIndex;
-                if (count > 1) while (count--) {
-                    let stop = targetInfo.route.removeStop(stopIndex);
-                    redRoute.addStop(stop);
-                }
-            }
-
-            else if (!dropOnStop && isNewVertex) {
-                // meaningless
-                console.log("dropping a new vertex on empty space has not effect");
-            }
-
-            else if (!dropOnStop && !isNewVertex) {
-                // orphan the stop (unless it is the last stop)
-                let stop = targetInfo.route.removeStop(stopIndex);
-                stop && redRoute.addStop(stop);
-            }
-
-            routes.map(r => r.refresh(map));
-        });
-
-    });
-
+			routes.map(r => r.refresh(map));
+		});
+	});
 }

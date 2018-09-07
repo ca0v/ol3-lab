@@ -6,20 +6,14 @@
         "target": "es3",
         "noImplicitAny": true,
         "sourceMap": true,
+        "inlineSourceMap": false,
+        "inlineSources": true,
         "outFile": "./built/index.js",
-        "moduleResolution": "node",
-        "baseUrl": "./bower_components"
+        "moduleResolution": "classic",
+        "baseUrl": "./node_modules",
+        "rootDir": "./"
     },
-    "lib": [
-        "es2015"
-    ],
-    "include": [
-        "ol3-lab.ts",
-        "ol3-lab",
-        "typings/index.d.ts"
-    ],
-    "exclude": [
-        "ol3-lab/tests/data/routes",
-        "ol3-lab/tests/routing.ts"
-    ]
+    "lib": ["es2015"],
+    "include": ["ol3-lab.ts", "ol3-lab/**/*.ts"],
+    "exclude": ["ol3-lab/tests/data/routes", "ol3-lab/tests/routing.ts"]
 }
