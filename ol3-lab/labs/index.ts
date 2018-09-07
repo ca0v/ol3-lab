@@ -2,6 +2,7 @@ export function run() {
     let l = window.location;
     let path = `${l.origin}${l.pathname}?run=ol3-lab/labs/`;
     let labs = `
+    ol-hidden-fit
     geoserver/services
     wfs-map
     ol-draw
