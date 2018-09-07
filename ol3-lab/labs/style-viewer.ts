@@ -12,8 +12,9 @@ import ol = require("openlayers");
 import $ = require("jquery");
 import Snapshot = require("./common/snapshot");
 import { getParameterByName } from "./common/common";
-import { Format, StyleConverter } from "ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer";
-import pointStyle = require("ol3-symbolizer/ol3-symbolizer/styles/icon/png");
+import { Format, StyleConverter } from "ol3-symbolizer/index";
+import pointStyle = require("ol3-symbolizer/examples/styles/icon/png");
+import gradient = require("ol3-symbolizer/examples/styles/fill/gradient");
 
 const html = `
 <div class='style-to-canvas'>
@@ -128,23 +129,22 @@ function loadStyle(name: string) {
     type T = Format.Style[];
     let d = $.Deferred<T>();
 
-    if ('[' === name[0]) {
+    if ("[" === name[0]) {
         d.resolve(JSON.parse(name));
     } else {
-        let mids = name.split(",").map(name => `ol3-lab/node_modules/ol3-symbolizer/ol3-symbolizer/styles/${name}`);
+        let mids = name.split(",").map((name) => `node_modules/ol3-symbolizer/examples/styles/${name}`);
         require(mids, (...styles: T[]) => {
             let style = <T>[];
-            styles.forEach(s => style = style.concat(s));
+            styles.forEach((s) => (style = style.concat(s)));
             d.resolve(style);
         });
-
     }
     return d;
 }
 
 function loadGeom(name: string) {
     type T = ol.geom.Geometry[];
-    let mids = name.split(",").map(name => `../tests/data/geom/${name}`);
+    let mids = name.split(",").map((name) => `../tests/data/geom/${name}`);
     let d = $.Deferred<T>();
     require(mids, (...geoms: ol.geom.Geometry[]) => {
         d.resolve(geoms);
@@ -159,7 +159,6 @@ const styles = {
 const serializer = new StyleConverter();
 
 class Renderer {
-
     canvas: HTMLCanvasElement;
     feature: ol.Feature;
 
@@ -174,19 +173,17 @@ class Renderer {
         return canvas;
     }
 
-    draw(styles: Serializer.Coretech.Style[]) {
+    draw(styles: Format.Style[]) {
         let canvas = this.canvas;
         let feature = this.feature;
-        let style = styles.map(style => serializer.fromJson(style));
+        let style = styles.map((style) => serializer.fromJson(style));
         feature.setStyle(style);
         canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
         Snapshot.render(canvas, feature);
     }
-
 }
 
 export function run() {
-
     $(html).appendTo("body");
     $(svg).appendTo("body");
     $(css).appendTo("head");
@@ -195,34 +192,30 @@ export function run() {
     let style = getParameterByName("style") || "fill/gradient";
 
     let save = () => {
-        let style = JSON.stringify(JSON.parse($(".style").val()));
+        let style = JSON.stringify(JSON.parse($(".style").val() + ""));
         let loc = window.location;
         let url = `${loc.origin}${loc.pathname}?run=ol3-lab/labs/style-viewer&geom=${geom}&style=${encodeURI(style)}`;
         history.replaceState({}, "Changes", url);
         return url;
     };
 
-    loadStyle(style).then(styles => {
-        loadGeom(geom).then(geoms => {
-            let style = JSON.stringify(styles, null, ' ');
+    loadStyle(style).then((styles) => {
+        loadGeom(geom).then((geoms) => {
+            let style = JSON.stringify(styles, null, " ");
             $(".style").val(style);
 
-            let renderers = geoms.map(g => new Renderer(g));
-            renderers.forEach(r => $(r.canvas).appendTo("#canvas-collection"));
+            let renderers = geoms.map((g) => new Renderer(g));
+            renderers.forEach((r) => $(r.canvas).appendTo("#canvas-collection"));
 
             setInterval(() => {
                 try {
-                    let style = JSON.parse($(".style").val());
-                    renderers.forEach(r => r.draw(style));
+                    let style = JSON.parse($(".style").val() + "");
+                    renderers.forEach((r) => r.draw(style));
                     save();
                 } catch (ex) {
                     // invalid json, try later
                 }
             }, 2000);
-
         });
     });
-
-
 }
-
