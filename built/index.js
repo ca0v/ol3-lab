@@ -4627,15 +4627,9 @@ define("node_modules/ol3-draw/ol3-draw/ol3-edit", ["require", "exports", "openla
     }(ol3_button_2.Button));
     exports.Modify = Modify;
 });
-define("ol3-lab/labs/ol-draw", ["require", "exports", "openlayers", "node_modules/ol3-fun/ol3-fun/common", "node_modules/ol3-draw/ol3-draw/ol3-draw", "node_modules/ol3-draw/ol3-draw/ol3-edit"], function (require, exports, ol, common_11, ol3_draw_1, ol3_edit_1) {
+define("ol3-lab/labs/common/map-maker", ["require", "exports", "openlayers", "node_modules/ol3-fun/ol3-fun/common"], function (require, exports, ol, common_11) {
     "use strict";
     exports.__esModule = true;
-    function stopInteraction(map, type) {
-        map.getInteractions()
-            .getArray()
-            .filter(function (i) { return i instanceof type; })
-            .forEach(function (t) { return t.setActive(false); });
-    }
     var MapMaker = (function () {
         function MapMaker() {
         }
@@ -4654,21 +4648,44 @@ define("ol3-lab/labs/ol-draw", ["require", "exports", "openlayers", "node_module
                     center: options.center,
                     zoom: options.zoom
                 }),
-                layers: [
-                    new ol.layer.Tile({
+                layers: []
+            });
+            switch (options.basemap) {
+                case "osm":
+                    map.addLayer(new ol.layer.Tile({
                         opacity: 0.8,
                         source: new ol.source.OSM()
-                    })
-                ]
-            });
+                    }));
+                    break;
+                case "bing":
+                    map.addLayer(new ol.layer.Tile({
+                        opacity: 0.8,
+                        source: options.basemap !== "bing"
+                            ? new ol.source.OSM()
+                            : new ol.source.BingMaps({
+                                key: "AuPHWkNxvxVAL_8Z4G8Pcq_eOKGm5eITH_cJMNAyYoIC1S_29_HhE893YrUUbIGl",
+                                imagerySet: "Aerial"
+                            })
+                    }));
+            }
             return map;
         };
         MapMaker.DEFAULT_OPTIONS = {};
         return MapMaker;
     }());
     exports.MapMaker = MapMaker;
+});
+define("ol3-lab/labs/ol-draw", ["require", "exports", "openlayers", "node_modules/ol3-fun/ol3-fun/common", "node_modules/ol3-draw/ol3-draw/ol3-draw", "node_modules/ol3-draw/ol3-draw/ol3-edit", "ol3-lab/labs/common/map-maker"], function (require, exports, ol, common_12, ol3_draw_1, ol3_edit_1, map_maker_1) {
+    "use strict";
+    exports.__esModule = true;
+    function stopInteraction(map, type) {
+        map.getInteractions()
+            .getArray()
+            .filter(function (i) { return i instanceof type; })
+            .forEach(function (t) { return t.setActive(false); });
+    }
     function run() {
-        var map = MapMaker.create({
+        var map = map_maker_1.MapMaker.create({
             target: document.getElementsByClassName("map")[0],
             projection: "EPSG:4326",
             center: [-82.4, 34.85],
@@ -4686,19 +4703,19 @@ define("ol3-lab/labs/ol-draw", ["require", "exports", "openlayers", "node_module
             debugger;
         });
         ol3_draw_1.Draw.create({ map: map, geometryType: "MultiLineString", label: "▬", position: "right-2 top" });
-        ol3_draw_1.Draw.create({ map: map, geometryType: "Point", label: "●" });
+        ol3_draw_1.Draw.create({ map: map, geometryType: "Point", label: "●", position: "right top" });
         ol3_edit_1.Modify.create({ map: map, position: "right top-2", label: "Δ" });
         {
             var element_1 = document.createElement("div");
             element_1.className = "gmlOut";
-            common_11.cssin("gmlOut", "\n.myMousePos {\n    position:absolute;\n    top: auto;\n    left: auto;\n    bottom: 0;\n    right: 0;    \n}\n.gmlOut {\n    position: absolute;\n    bottom: 0;\n    left: 20%;\n    width: 60%;\n    height: 200px;\n    border: 1px solid black;\n    overflow-y: auto;\n    overflow-x: auto;\n    font-size: 12px;\n    font-family: monospace;\n    background: rgba(160, 160, 60, 0.5);\n}        \n        ");
+            common_12.cssin("gmlOut", "\n.myMousePos {\n    position:absolute;\n    top: auto;\n    left: auto;\n    bottom: 0;\n    right: 0;    \n}\n.gmlOut {\n    position: absolute;\n    bottom: 0;\n    left: 20%;\n    width: 60%;\n    height: 200px;\n    border: 1px solid black;\n    overflow-y: auto;\n    overflow-x: auto;\n    font-size: 12px;\n    font-family: monospace;\n    background: rgba(160, 160, 60, 0.5);\n}        \n        ");
             var esriFormatter_1 = new ol.format.EsriJSON({
                 geometryName: "geom"
             });
             var kmlFormatter = new ol.format.KML({});
             var gmlOut = new ol.control.Control({
                 element: element_1,
-                render: common_11.debounce(function (args) {
+                render: common_12.debounce(function (args) {
                     console.log(args.map.getView().getCenter());
                     polyLayer.getSource().forEachFeature(function (f) {
                         element_1.innerText = esriFormatter_1.writeFeatures([f.clone()], {
@@ -5044,7 +5061,7 @@ define("node_modules/ol3-grid/index", ["require", "exports", "node_modules/ol3-g
     "use strict";
     return Grid;
 });
-define("ol3-lab/labs/ol-grid", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/common/common", "node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", "node_modules/ol3-symbolizer/examples/styles/star/flower", "node_modules/ol3-popup/index", "node_modules/ol3-grid/index"], function (require, exports, $, ol, common_12, ol3_symbolizer_4, pointStyle, index_7, index_8) {
+define("ol3-lab/labs/ol-grid", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/common/common", "node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", "node_modules/ol3-symbolizer/examples/styles/star/flower", "node_modules/ol3-popup/index", "node_modules/ol3-grid/index", "ol3-lab/labs/common/map-maker"], function (require, exports, $, ol, common_13, ol3_symbolizer_4, pointStyle, index_7, index_8, map_maker_2) {
     "use strict";
     exports.__esModule = true;
     var styler = new ol3_symbolizer_4.StyleConverter();
@@ -5082,35 +5099,19 @@ define("ol3-lab/labs/ol-grid", ["require", "exports", "jquery", "openlayers", "o
         {
             var opts_5 = options;
             Object.keys(opts_5).forEach(function (k) {
-                common_12.doif(common_12.getParameterByName(k), function (v) {
+                common_13.doif(common_13.getParameterByName(k), function (v) {
                     var value = parse(v, opts_5[k]);
                     if (value !== undefined)
                         opts_5[k] = value;
                 });
             });
         }
-        var map = new ol.Map({
-            target: "map",
-            keyboardEventTarget: document,
-            loadTilesWhileAnimating: true,
-            loadTilesWhileInteracting: true,
-            controls: ol.control.defaults({ attribution: false }),
-            view: new ol.View({
-                projection: options.srs,
-                center: options.center,
-                zoom: options.zoom
-            }),
-            layers: [
-                new ol.layer.Tile({
-                    opacity: 0.8,
-                    source: options.basemap !== "bing"
-                        ? new ol.source.OSM()
-                        : new ol.source.BingMaps({
-                            key: "AuPHWkNxvxVAL_8Z4G8Pcq_eOKGm5eITH_cJMNAyYoIC1S_29_HhE893YrUUbIGl",
-                            imagerySet: "Aerial"
-                        })
-                })
-            ]
+        var map = map_maker_2.MapMaker.create({
+            target: document.getElementById("map"),
+            projection: options.srs,
+            center: options.center,
+            zoom: options.zoom,
+            basemap: "bing"
         });
         var features = new ol.Collection();
         var source = new ol.source.Vector({
@@ -5739,7 +5740,7 @@ define("node_modules/ol3-panzoom/index", ["require", "exports", "node_modules/ol
     "use strict";
     return Panzoom;
 });
-define("ol3-lab/labs/ol-layerswitcher", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/common/common", "node_modules/ol3-layerswitcher/index", "node_modules/ol3-popup/index", "node_modules/ol3-panzoom/index", "node_modules/ol3-symbolizer/ol3-symbolizer/ags/ags-source"], function (require, exports, $, ol, common_13, index_11, index_12, index_13, ags_source_3) {
+define("ol3-lab/labs/ol-layerswitcher", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/common/common", "node_modules/ol3-layerswitcher/index", "node_modules/ol3-popup/index", "node_modules/ol3-panzoom/index", "node_modules/ol3-symbolizer/ol3-symbolizer/ags/ags-source"], function (require, exports, $, ol, common_14, index_11, index_12, index_13, ags_source_3) {
     "use strict";
     exports.__esModule = true;
     function loadCss(url) {
@@ -5781,7 +5782,7 @@ define("ol3-lab/labs/ol-layerswitcher", ["require", "exports", "jquery", "openla
         {
             var opts_6 = options;
             Object.keys(opts_6).forEach(function (k) {
-                common_13.doif(common_13.getParameterByName(k), function (v) {
+                common_14.doif(common_14.getParameterByName(k), function (v) {
                     var value = parse(v, opts_6[k]);
                     if (value !== undefined)
                         opts_6[k] = value;
@@ -5908,7 +5909,7 @@ define("ol3-lab/labs/ol-panzoom", ["require", "exports", "openlayers", "node_mod
     }
     exports.run = run;
 });
-define("ol3-lab/labs/ol-popup", ["require", "exports", "openlayers", "ol3-lab/labs/common/common", "node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", "node_modules/ol3-symbolizer/examples/styles/star/flower", "node_modules/ol3-popup/index"], function (require, exports, ol, common_14, ol3_symbolizer_5, pointStyle, index_15) {
+define("ol3-lab/labs/ol-popup", ["require", "exports", "openlayers", "ol3-lab/labs/common/common", "node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", "node_modules/ol3-symbolizer/examples/styles/star/flower", "node_modules/ol3-popup/index"], function (require, exports, ol, common_15, ol3_symbolizer_5, pointStyle, index_15) {
     "use strict";
     exports.__esModule = true;
     var styler = new ol3_symbolizer_5.StyleConverter();
@@ -5936,8 +5937,8 @@ define("ol3-lab/labs/ol-popup", ["require", "exports", "openlayers", "ol3-lab/la
     var css_popup = "\n.ol-popup {\n    color: white;\n    background-color: rgba(77,77,77,1);\n    border: 1px solid white;\n    min-width: 200px;\n    padding: 12px;\n}\n\n.ol-popup:after {\n    border-top-color: white;\n}\n\n.simple-popup-down-arrow {\n    color: rgba(77,77,77,1);\n}\n\n.simple-popup-up-arrow {\n    color: white;\n}\n";
     function run() {
         var mapDom = document.getElementById("map");
-        mapDom.appendChild(common_14.html(html));
-        common_14.cssin("ol-popup", css);
+        mapDom.appendChild(common_15.html(html));
+        common_15.cssin("ol-popup", css);
         var options = {
             srs: "EPSG:4326",
             center: [-82.4, 34.85],
@@ -5947,7 +5948,7 @@ define("ol3-lab/labs/ol-popup", ["require", "exports", "openlayers", "ol3-lab/la
         {
             var opts_7 = options;
             Object.keys(opts_7).forEach(function (k) {
-                common_14.doif(common_14.getParameterByName(k), function (v) {
+                common_15.doif(common_15.getParameterByName(k), function (v) {
                     var value = parse(v, opts_7[k]);
                     if (value !== undefined)
                         opts_7[k] = value;
@@ -6383,7 +6384,7 @@ define("node_modules/ol3-search/ol3-search/providers/osm", ["require", "exports"
     }());
     exports.OpenStreetGeocode = OpenStreetGeocode;
 });
-define("ol3-lab/labs/ol-search", ["require", "exports", "openlayers", "node_modules/ol3-popup/index", "node_modules/ol3-grid/index", "node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", "node_modules/ol3-search/index", "node_modules/ol3-search/ol3-search/providers/osm", "node_modules/ol3-fun/ol3-fun/common", "node_modules/ol3-symbolizer/ol3-symbolizer/ags/ags-source"], function (require, exports, ol, index_18, index_19, ol3_symbolizer_6, index_20, osm_4, common_15, ags_source_4) {
+define("ol3-lab/labs/ol-search", ["require", "exports", "openlayers", "node_modules/ol3-popup/index", "node_modules/ol3-grid/index", "node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", "node_modules/ol3-search/index", "node_modules/ol3-search/ol3-search/providers/osm", "node_modules/ol3-fun/ol3-fun/common", "node_modules/ol3-symbolizer/ol3-symbolizer/ags/ags-source"], function (require, exports, ol, index_18, index_19, ol3_symbolizer_6, index_20, osm_4, common_16, ags_source_4) {
     "use strict";
     exports.__esModule = true;
     function zoomToFeature(map, feature) {
@@ -6400,7 +6401,7 @@ define("ol3-lab/labs/ol-search", ["require", "exports", "openlayers", "node_modu
         });
     }
     function run() {
-        common_15.cssin("examples/ol3-search", "\n\n.map {\n    position: absolute;\n    top: 0;\n    bottom: 0;\n    left: 0;\n    right: 0;\n}\n\n.ol-popup {\n    background-color: white;\n}\n\n.ol-popup .pages {\n    max-height: 10em;\n    min-width: 20em;\n    overflow: auto;\n}\n\n.ol-grid.statecode .ol-grid-container {\n    background-color: white;\n    width: 10em;\n}\n\n.ol-grid .ol-grid-container.ol-hidden {\n}\n\n.ol-grid .ol-grid-container {\n    width: 15em;\n}\n\n.ol-grid .ol-grid-table {\n    width: 100%;\n}\n\n.ol-grid table.ol-grid-table {\n    border-collapse: collapse;\n    width: 100%;\n}\n\n.ol-grid table.ol-grid-table > td {\n    padding: 8px;\n    text-align: left;\n    border-bottom: 1px solid #ddd;\n}\n\n.ol-search.nominatim form {\n    width: 20em;\n}\n\n.ol-search tr.focus {\n    background: white;\n}\n\n.ol-search:hover {\n    background: white;\n}\n\n.ol-search label.ol-search-label {\n    white-space: nowrap;\n}\n\n    ");
+        common_16.cssin("examples/ol3-search", "\n\n.map {\n    position: absolute;\n    top: 0;\n    bottom: 0;\n    left: 0;\n    right: 0;\n}\n\n.ol-popup {\n    background-color: white;\n}\n\n.ol-popup .pages {\n    max-height: 10em;\n    min-width: 20em;\n    overflow: auto;\n}\n\n.ol-grid.statecode .ol-grid-container {\n    background-color: white;\n    width: 10em;\n}\n\n.ol-grid .ol-grid-container.ol-hidden {\n}\n\n.ol-grid .ol-grid-container {\n    width: 15em;\n}\n\n.ol-grid .ol-grid-table {\n    width: 100%;\n}\n\n.ol-grid table.ol-grid-table {\n    border-collapse: collapse;\n    width: 100%;\n}\n\n.ol-grid table.ol-grid-table > td {\n    padding: 8px;\n    text-align: left;\n    border-bottom: 1px solid #ddd;\n}\n\n.ol-search.nominatim form {\n    width: 20em;\n}\n\n.ol-search tr.focus {\n    background: white;\n}\n\n.ol-search:hover {\n    background: white;\n}\n\n.ol-search label.ol-search-label {\n    white-space: nowrap;\n}\n\n    ");
         var center = ol.proj.transform([-120, 35], "EPSG:4326", "EPSG:3857");
         var mapContainer = document.getElementsByClassName("map")[0];
         var map = new ol.Map({
@@ -6580,7 +6581,7 @@ define("ol3-lab/labs/ol-search", ["require", "exports", "openlayers", "node_modu
                 return;
             var searchProvider = new osm_4.OpenStreetGeocode({
                 map: map,
-                params: common_15.defaults({ limit: 1 }, osm_4.OpenStreetGeocode.DEFAULT_OPTIONS.params)
+                params: common_16.defaults({ limit: 1 }, osm_4.OpenStreetGeocode.DEFAULT_OPTIONS.params)
             });
             searchProvider
                 .execute({ params: args.value })
@@ -6627,7 +6628,7 @@ define("ol3-lab/labs/ol-search", ["require", "exports", "openlayers", "node_modu
     }
     exports.run = run;
 });
-define("ol3-lab/labs/ol-symbolizer", ["require", "exports", "openlayers", "node_modules/ol3-popup/index", "node_modules/ol3-symbolizer/ol3-symbolizer/ags/ags-source", "node_modules/ol3-fun/ol3-fun/common"], function (require, exports, ol, index_21, ags_source_5, common_16) {
+define("ol3-lab/labs/ol-symbolizer", ["require", "exports", "openlayers", "node_modules/ol3-popup/index", "node_modules/ol3-symbolizer/ol3-symbolizer/ags/ags-source", "node_modules/ol3-fun/ol3-fun/common"], function (require, exports, ol, index_21, ags_source_5, common_17) {
     "use strict";
     exports.__esModule = true;
     function parse(v, type) {
@@ -6651,8 +6652,8 @@ define("ol3-lab/labs/ol-symbolizer", ["require", "exports", "openlayers", "node_
     };
     function run() {
         var target = document.getElementsByClassName("map")[0];
-        target.appendChild(common_16.html(html));
-        document.head.appendChild(common_16.html(css));
+        target.appendChild(common_17.html(html));
+        document.head.appendChild(common_17.html(css));
         var options = {
             srs: "EPSG:4326",
             center: center.vegas,
@@ -6666,7 +6667,7 @@ define("ol3-lab/labs/ol-symbolizer", ["require", "exports", "openlayers", "node_
         {
             var opts_8 = options;
             Object.keys(opts_8).forEach(function (k) {
-                common_16.doif(common_16.getParameterByName(k), function (v) {
+                common_17.doif(common_17.getParameterByName(k), function (v) {
                     var value = parse(v, opts_8[k]);
                     if (value !== undefined)
                         opts_8[k] = value;
@@ -6887,7 +6888,7 @@ define("ol3-lab/labs/polyline-encoder", ["require", "exports", "jquery", "openla
     }
     exports.run = run;
 });
-define("ol3-lab/labs/route-editor", ["require", "exports", "openlayers", "node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", "ol3-lab/labs/common/common"], function (require, exports, ol, ol3_symbolizer_7, common_17) {
+define("ol3-lab/labs/route-editor", ["require", "exports", "openlayers", "node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", "ol3-lab/labs/common/common"], function (require, exports, ol, ol3_symbolizer_7, common_18) {
     "use strict";
     exports.__esModule = true;
     var delta = 16;
@@ -6913,7 +6914,7 @@ define("ol3-lab/labs/route-editor", ["require", "exports", "openlayers", "node_m
     ]; };
     var Route = (function () {
         function Route(options) {
-            this.options = common_17.defaults(options, {
+            this.options = common_18.defaults(options, {
                 color: "black",
                 delta: delta,
                 stops: [],
@@ -7304,7 +7305,7 @@ define("node_modules/ol3-symbolizer/examples/styles/basic", ["require", "exports
         x: [{ star: x }]
     };
 });
-define("ol3-lab/labs/common/style-generator", ["require", "exports", "openlayers", "node_modules/ol3-symbolizer/examples/styles/basic", "node_modules/ol3-symbolizer/index", "node_modules/ol3-fun/ol3-fun/common"], function (require, exports, ol, basic_styles, index_22, common_18) {
+define("ol3-lab/labs/common/style-generator", ["require", "exports", "openlayers", "node_modules/ol3-symbolizer/examples/styles/basic", "node_modules/ol3-symbolizer/index", "node_modules/ol3-fun/ol3-fun/common"], function (require, exports, ol, basic_styles, index_22, common_19) {
     "use strict";
     var converter = new index_22.StyleConverter();
     var orientations = "forward,backward,diagonal,horizontal,vertical,cross".split(",");
@@ -7366,7 +7367,7 @@ define("ol3-lab/labs/common/style-generator", ["require", "exports", "openlayers
             }
             stops = stops.sort(function (a, b) { return a.stop - b.stop; });
             stops.forEach(function (stop) { return gradient.addColorStop(stop.stop, stop.color); });
-            common_18.mixin(gradient, {
+            common_19.mixin(gradient, {
                 stops: stops.map(function (stop) { return stop.color + " " + Math.round(100 * stop.stop) + "%"; }).join(";")
             });
         };
@@ -7381,7 +7382,7 @@ define("ol3-lab/labs/common/style-generator", ["require", "exports", "openlayers
                 0
             ], x0 = _a[0], y0 = _a[1], r0 = _a[2], x1 = _a[3], y1 = _a[4], r1 = _a[5];
             var gradient = context.createRadialGradient(x0, y0, r0, x1, y1, r1);
-            return common_18.mixin(gradient, {
+            return common_19.mixin(gradient, {
                 type: "radial(" + [x0, y0, r0, x1, y1, r1].join(",") + ")"
             });
         };
@@ -7393,7 +7394,7 @@ define("ol3-lab/labs/common/style-generator", ["require", "exports", "openlayers
                 2 * radius
             ], x0 = _a[0], y0 = _a[1], x1 = _a[2], y1 = _a[3];
             var gradient = context.createLinearGradient(x0, y0, x1, y1);
-            return common_18.mixin(gradient, { type: "linear(" + [x0, y0, x1, y1].join(",") + ")" });
+            return common_19.mixin(gradient, { type: "linear(" + [x0, y0, x1, y1].join(",") + ")" });
         };
         StyleGenerator.prototype.asGradient = function () {
             var radius = this.asRadius();
@@ -7492,7 +7493,7 @@ define("ol3-lab/labs/common/style-generator", ["require", "exports", "openlayers
                 default:
                     throw "invalid orientation";
             }
-            common_18.mixin(pattern, {
+            common_19.mixin(pattern, {
                 orientation: orientation,
                 color: color,
                 spacing: spacing,
@@ -7581,7 +7582,7 @@ define("ol3-lab/labs/common/style-generator", ["require", "exports", "openlayers
                 function () { return _this.asPattern(); }
             ];
             feature.setGeometry(this.asPoint());
-            var styles = common_18.range(styleCount).map(function (x) {
+            var styles = common_19.range(styleCount).map(function (x) {
                 return new ol.style.Style({
                     image: gens[Math.round((gens.length - 1) * Math.random())](),
                     text: null && _this.asText()
@@ -7610,7 +7611,7 @@ define("ol3-lab/labs/common/style-generator", ["require", "exports", "openlayers
             var layer = new ol.layer.Vector();
             var source = new ol.source.Vector();
             layer.setSource(source);
-            var features = common_18.range(10).map(function (i) { return _this.asLineFeature(); });
+            var features = common_19.range(10).map(function (i) { return _this.asLineFeature(); });
             source.addFeatures(features);
             return layer;
         };
@@ -7619,7 +7620,7 @@ define("ol3-lab/labs/common/style-generator", ["require", "exports", "openlayers
             var layer = new ol.layer.Vector();
             var source = new ol.source.Vector();
             layer.setSource(source);
-            var features = common_18.range(args.markerCount || 100).map(function (i) { return _this.asPointFeature(args.styleCount || 1); });
+            var features = common_19.range(args.markerCount || 100).map(function (i) { return _this.asPointFeature(args.styleCount || 1); });
             source.addFeatures(features);
             return layer;
         };
@@ -7820,7 +7821,7 @@ define("node_modules/ol3-symbolizer/examples/styles/fill/gradient", ["require", 
         }
     ];
 });
-define("ol3-lab/labs/style-viewer", ["require", "exports", "openlayers", "jquery", "ol3-lab/labs/common/snapshot", "ol3-lab/labs/common/common", "node_modules/ol3-symbolizer/index", "node_modules/ol3-symbolizer/examples/styles/icon/png"], function (require, exports, ol, $, Snapshot, common_19, index_23, pointStyle) {
+define("ol3-lab/labs/style-viewer", ["require", "exports", "openlayers", "jquery", "ol3-lab/labs/common/snapshot", "ol3-lab/labs/common/common", "node_modules/ol3-symbolizer/index", "node_modules/ol3-symbolizer/examples/styles/icon/png"], function (require, exports, ol, $, Snapshot, common_20, index_23, pointStyle) {
     "use strict";
     exports.__esModule = true;
     var html = "\n<div class='style-to-canvas'>\n    <h3>Renders a feature on a canvas</h3>\n    <div class=\"area\">\n        <label>256 x 256 Canvas</label>\n        <div id='canvas-collection'></div>\n    </div>\n    <div class=\"area\">\n        <label>Style</label>\n        <textarea class='style'></textarea>\n    </div>\n    <div class=\"area\">\n        <label>Potential control for setting linear gradient start/stop locations</label>\n        <div class=\"colorramp\">\n            <input class=\"top\" type=\"range\" min=\"0\" max=\"100\" value=\"20\"/>\n            <input class=\"bottom\" type=\"range\" min=\"0\" max=\"100\" value=\"80\"/>\n        </div>\n    </div>\n</div>\n";
@@ -7886,8 +7887,8 @@ define("ol3-lab/labs/style-viewer", ["require", "exports", "openlayers", "jquery
         $(html).appendTo("body");
         $(svg).appendTo("body");
         $(css).appendTo("head");
-        var geom = common_19.getParameterByName("geom") || "polygon-with-holes";
-        var style = common_19.getParameterByName("style") || "fill/gradient";
+        var geom = common_20.getParameterByName("geom") || "polygon-with-holes";
+        var style = common_20.getParameterByName("style") || "fill/gradient";
         var save = function () {
             var style = JSON.stringify(JSON.parse($(".style").val() + ""));
             var loc = window.location;
@@ -8007,7 +8008,7 @@ define("ol3-lab/labs/wfs-map", ["require", "exports", "openlayers", "ol3-lab/lab
     }
     exports.run = run;
 });
-define("ol3-lab/labs/common/ol3-patch", ["require", "exports", "openlayers", "ol3-lab/labs/common/common"], function (require, exports, ol3, common_20) {
+define("ol3-lab/labs/common/ol3-patch", ["require", "exports", "openlayers", "ol3-lab/labs/common/common"], function (require, exports, ol3, common_21) {
     "use strict";
     if (!ol3.geom.SimpleGeometry.prototype.scale) {
         var scale_1 = function (flatCoordinates, offset, end, stride, deltaX, deltaY, opt_dest) {
@@ -8026,7 +8027,7 @@ define("ol3-lab/labs/common/ol3-patch", ["require", "exports", "openlayers", "ol
             }
             return dest;
         };
-        common_20.mixin(ol3.geom.SimpleGeometry.prototype, {
+        common_21.mixin(ol3.geom.SimpleGeometry.prototype, {
             scale: function (deltaX, deltaY) {
                 var it = this;
                 it.applyTransform(function (flatCoordinates, output, stride) {
@@ -8039,7 +8040,7 @@ define("ol3-lab/labs/common/ol3-patch", ["require", "exports", "openlayers", "ol
     }
     return ol3;
 });
-define("node_modules/ol3-draw/ol3-draw/ol3-delete", ["require", "exports", "openlayers", "node_modules/ol3-draw/ol3-draw/ol3-button", "node_modules/ol3-fun/ol3-fun/common"], function (require, exports, ol, ol3_button_3, common_21) {
+define("node_modules/ol3-draw/ol3-draw/ol3-delete", ["require", "exports", "openlayers", "node_modules/ol3-draw/ol3-draw/ol3-button", "node_modules/ol3-fun/ol3-fun/common"], function (require, exports, ol, ol3_button_3, common_22) {
     "use strict";
     exports.__esModule = true;
     var Delete = (function (_super) {
@@ -8067,7 +8068,7 @@ define("node_modules/ol3-draw/ol3-draw/ol3-delete", ["require", "exports", "open
                         scale: 3
                     };
                     var style = options.style[feature.getGeometry().getType()]
-                        .map(function (s) { return _this.symbolizer.fromJson(common_21.defaults({ text: textTemplate }, s)); });
+                        .map(function (s) { return _this.symbolizer.fromJson(common_22.defaults({ text: textTemplate }, s)); });
                     return style;
                 }
             });
@@ -8111,7 +8112,7 @@ define("node_modules/ol3-draw/ol3-draw/ol3-delete", ["require", "exports", "open
             return _this;
         }
         Delete.create = function (options) {
-            options = common_21.defaults({}, options, Delete.DEFAULT_OPTIONS);
+            options = common_22.defaults({}, options, Delete.DEFAULT_OPTIONS);
             return ol3_button_3.Button.create(options);
         };
         Delete.prototype.addFeatureLayerAssociation = function (feature, layer) {
@@ -8195,7 +8196,7 @@ define("node_modules/ol3-draw/ol3-draw/ol3-delete", ["require", "exports", "open
     }(ol3_button_3.Button));
     exports.Delete = Delete;
 });
-define("node_modules/ol3-draw/ol3-draw/ol3-translate", ["require", "exports", "openlayers", "node_modules/ol3-draw/ol3-draw/ol3-button", "node_modules/ol3-fun/ol3-fun/common"], function (require, exports, ol, ol3_button_4, common_22) {
+define("node_modules/ol3-draw/ol3-draw/ol3-translate", ["require", "exports", "openlayers", "node_modules/ol3-draw/ol3-draw/ol3-button", "node_modules/ol3-fun/ol3-fun/common"], function (require, exports, ol, ol3_button_4, common_23) {
     "use strict";
     exports.__esModule = true;
     var Translate = (function (_super) {
@@ -8238,7 +8239,7 @@ define("node_modules/ol3-draw/ol3-draw/ol3-translate", ["require", "exports", "o
             return _this;
         }
         Translate.create = function (options) {
-            options = common_22.defaults({}, options, Translate.DEFAULT_OPTIONS);
+            options = common_23.defaults({}, options, Translate.DEFAULT_OPTIONS);
             return ol3_button_4.Button.create(options);
         };
         Translate.DEFAULT_OPTIONS = {
@@ -12381,7 +12382,7 @@ define("ol3-lab/tests/canvas", ["require", "exports"], function (require, export
     }
     exports.run = run;
 });
-define("ol3-lab/tests/drop-vertex-on-marker-detection", ["require", "exports", "openlayers", "ol3-lab/labs/mapmaker", "ol3-lab/labs/route-editor", "node_modules/ol3-fun/ol3-fun/common"], function (require, exports, ol, mapmaker_1, route_editor_1, common_23) {
+define("ol3-lab/tests/drop-vertex-on-marker-detection", ["require", "exports", "openlayers", "ol3-lab/labs/mapmaker", "ol3-lab/labs/route-editor", "node_modules/ol3-fun/ol3-fun/common"], function (require, exports, ol, mapmaker_1, route_editor_1, common_24) {
     "use strict";
     exports.__esModule = true;
     function midpoint(points) {
@@ -12412,7 +12413,7 @@ define("ol3-lab/tests/drop-vertex-on-marker-detection", ["require", "exports", "
             var routes = [];
             var shift = [-0.001, -0.005];
             while (colors.length) {
-                var stops = common_23.range(8).map(function (v) {
+                var stops = common_24.range(8).map(function (v) {
                     return ([a + (c - a) * Math.random(), b + (d - b) * Math.random()].map(function (v, i) { return v + shift[i]; }));
                 });
                 var startstop = ([a + (c - a) * Math.random(), b + (d - b) * Math.random()].map(function (v, i) { return v + shift[i]; }));
