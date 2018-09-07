@@ -3,7 +3,7 @@ import { PanZoom } from "ol3-panzoom/index";
 
 export function run() {
     let panZoom = new PanZoom({
-        imgPath: "../static/css/ol2img"
+        imgPath: "./static/css/ol2img"
     });
 
     var map = new ol.Map({

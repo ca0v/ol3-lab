@@ -12,7 +12,7 @@
 		"css-popup": "cp -r ./node_modules/ol3-popup/ol3-popup/css/** ./static/css/",
 		"css": "npm run css-layerswitcher && npm run css-popup && npm run css-panzoom",
 		"dev": "npm run build && start npm run live && npm run build -- -w",
-		"live": "live-server --port=5000 --wait=200 --watch=./built/*.js --open=./rawgit.html --browser=CHROME",
+		"live": "live-server --port=5000 --wait=200 --watch=./built/index.js --open=./rawgit.html --browser=CHROME",
 		"before-push": "npm run clean && npm run build && npm run live",
 		"test": "npm run live"
 	},

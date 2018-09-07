@@ -5823,7 +5823,7 @@ define("ol3-lab/labs/ol-panzoom", ["require", "exports", "openlayers", "node_mod
     exports.__esModule = true;
     function run() {
         var panZoom = new index_14.PanZoom({
-            imgPath: "../static/css/ol2img"
+            imgPath: "./static/css/ol2img"
         });
         var map = new ol.Map({
             controls: ol.control
