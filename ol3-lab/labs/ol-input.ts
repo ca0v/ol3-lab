@@ -151,13 +151,13 @@ export function run() {
 
 						feature.set("text", r.original.display_name);
 						source.addFeature(feature);
-						zoomToFeature(map, feature);
+						navigation.zoomToFeature(map, feature);
 					} else {
 						let [lon, lat] = ol.proj.transform([r.lon, r.lat], "EPSG:4326", "EPSG:3857");
 						let feature = new ol.Feature(new ol.geom.Point([lon, lat]));
 						feature.set("text", r.original.display_name);
 						source.addFeature(feature);
-						zoomToFeature(map, feature);
+						navigation.zoomToFeature(map, feature);
 					}
 					return true;
 				});

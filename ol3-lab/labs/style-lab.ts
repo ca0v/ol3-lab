@@ -1,7 +1,6 @@
 import ol = require("openlayers");
 import $ = require("jquery");
-import { Format, StyleConverter } from "ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer";
-import AgsMarkerSerializer = require("../ux/serializers/ags-simplemarkersymbol");
+import { StyleConverter } from "ol3-symbolizer/index";
 import StyleGenerator = require("./common/style-generator");
 
 const center = <[number, number]>[-82.4, 34.85];
@@ -9,8 +8,8 @@ const center = <[number, number]>[-82.4, 34.85];
 let formatter = new StyleConverter();
 
 let generator = new StyleGenerator({
-    center: center,
-    fromJson: json => formatter.fromJson(json)
+	center: center,
+	fromJson: json => formatter.fromJson(json)
 });
 
 let ux = `
@@ -119,79 +118,84 @@ let css = `
 `;
 
 export function run() {
+	$(ux).appendTo(".map");
+	$(css).appendTo("head");
 
-    $(ux).appendTo(".map");
-    $(css).appendTo("head");
+	let formatter = new StyleConverter();
 
-    let formatter = new StyleConverter();
+	let map = new ol.Map({
+		target: "map",
+		view: new ol.View({
+			projection: "EPSG:4326",
+			center: center,
+			zoom: 10
+		}),
+		layers: []
+	});
 
-    let map = new ol.Map({
-        target: "map",
-        view: new ol.View({
-            projection: 'EPSG:4326',
-            center: center,
-            zoom: 10
-        }),
-        layers: []
-    });
+	let styleOut = <HTMLTextAreaElement>document.getElementById("style-out");
 
-    let styleOut = <HTMLTextAreaElement>document.getElementById("style-out");
+	$("#more").click(() => $("#style-count").change());
 
-    $("#more").click(() => $("#style-count").change());
+	$("#style-count")
+		.on("change", args => {
+			map.addLayer(
+				generator.asMarkerLayer({
+					markerCount: 100,
+					styleCount: (<any>args.target).valueAsNumber
+				})
+			);
+		})
+		.change();
 
-    $("#style-count").on("change", args => {
-        map.addLayer(generator.asMarkerLayer({
-            markerCount: 100,
-            styleCount: (<any>args.target).valueAsNumber
-        }));
-    }).change();
+	$("#apply-style").on("click", () => {
+		let json = <any[]>JSON.parse(styleOut.value);
+		let styles = json.map(json => formatter.fromJson(json));
+		map.getLayers().forEach(l => {
+			if (l instanceof ol.layer.Vector) {
+				let s = l.getSource();
+				let features = s.getFeatures().filter((f, i) => 0.1 > Math.random());
+				features.forEach(f => f.setStyle(styles));
+				l.changed();
+			}
+		});
+	});
 
-    $("#apply-style").on("click", () => {
-        let json = <any[]>JSON.parse(styleOut.value);
-        let styles = json.map(json => formatter.fromJson(json));
-        map.getLayers().forEach(l => {
-            if (l instanceof ol.layer.Vector) {
-                let s = l.getSource();
-                let features = s.getFeatures().filter((f, i) => 0.1 > Math.random());
-                features.forEach(f => f.setStyle(styles));
-                l.changed();
-            }
-        });
-    });
+	map.on("click", (args: ol.MapBrowserEvent) =>
+		map.forEachFeatureAtPixel(args.pixel, (feature: ol.Feature, layer) => {
+			let style = feature.getStyle();
+			let json = "";
+			if (Array.isArray(style)) {
+				let styles = style.map(s => formatter.toJson(s));
+				json = JSON.stringify(styles, null, "\t");
+			} else {
+				throw "todo";
+			}
+			styleOut.value = json;
 
-    map.on("click", (args: ol.MapBrowserEvent) => map.forEachFeatureAtPixel(args.pixel, (feature: ol.Feature, layer) => {
-        let style = feature.getStyle();
-        let json = "";
-        if (Array.isArray(style)) {
-            let styles = style.map(s => formatter.toJson(s));
-            json = JSON.stringify(styles, null, '\t');
-        } else {
-            throw "todo";
-        }
-        styleOut.value = json;
+			{
+				if (Array.isArray(style)) {
+					let s = <HTMLImageElement | HTMLCanvasElement | ol.style.Style | ol.style.Image>style[0];
+					while (s) {
+						if (s instanceof HTMLCanvasElement) {
+							let dataUrl = s.toDataURL();
+							$(".last-image-clicked").attr("src", dataUrl);
+							break;
+						}
+						if (s instanceof HTMLImageElement) {
+							$(".last-image-clicked").attr("src", s.src);
+							break;
+						}
+						s = (<ol.style.Style>s).getImage();
+					}
+				}
+			}
+		})
+	);
 
-        {
-            if (Array.isArray(style)) {
-                let s = <HTMLImageElement | HTMLCanvasElement | ol.style.Style>style[0];
-                while (s) {
-                    if (s instanceof HTMLCanvasElement) {
-                        let dataUrl = s.toDataURL();
-                        $(".last-image-clicked").attr("src", dataUrl);
-                        break;
-                    }
-                    if (s instanceof HTMLImageElement) {
-                        $(".last-image-clicked").attr("src", s.src);
-                        break;
-                    }
-                    s = (<ol.style.Style>s).getImage();
-                }
-            }
-        }
-    }));
+	$(".last-image-clicked").click(evt => {
+		"light,dark,bright".split(",").forEach(c => $("#map").toggleClass(c, $(evt.target).hasClass(c)));
+	});
 
-    $(".last-image-clicked").click(evt => {
-        "light,dark,bright".split(",").forEach(c => $("#map").toggleClass(c, $(evt.target).hasClass(c)));
-    });
-
-    return map;
+	return map;
 }

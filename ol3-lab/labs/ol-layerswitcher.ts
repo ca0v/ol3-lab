@@ -169,7 +169,6 @@ export function run() {
 					.map(k => `<tr><td>${k}</td><td>${feature.get(k)}</td></tr>`)
 					.join("")}</table>`;
 
-				throw "here i am..page doesn't get added because its HTMLElement";
 				popup.pages.add(page, feature.getGeometry());
 			});
 

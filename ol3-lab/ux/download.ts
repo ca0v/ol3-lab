@@ -91,13 +91,13 @@ function makeMap() {
 		view: new ol.View({
 			projection: "EPSG:4326",
 			center: center,
-			zoom: 15,
+			zoom: 15
 		}),
 		layers: [
 			new ol.layer.Tile({
-				source: new ol.source.OSM(),
-			}),
-		],
+				source: new ol.source.OSM()
+			})
+		]
 	});
 	return map;
 }
@@ -107,7 +107,7 @@ export function run() {
 	$(css).appendTo("head");
 
 	$(() => {
-		ol.source.Image.defaultImageLoadFunction = (image: { getImage: () => HTMLImageElement }, src: string) =>
+		(<any>ol.source.Image).defaultImageLoadFunction = (image: { getImage: () => HTMLImageElement }, src: string) =>
 			(image.getImage().src = `${proxy}${src}`);
 
 		let map = makeMap();
@@ -119,9 +119,9 @@ export function run() {
 					params: {},
 					projection: "EPSG:3857",
 					url:
-						"http://sampleserver1.arcgisonline.com/arcgis/rest/services/Demographics/ESRI_Census_USA/MapServer",
-				}),
-			}),
+						"http://sampleserver1.arcgisonline.com/arcgis/rest/services/Demographics/ESRI_Census_USA/MapServer"
+				})
+			})
 		);
 
 		$(".download-map").click(() => {

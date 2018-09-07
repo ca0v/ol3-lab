@@ -8,114 +8,119 @@ import * as ajax from "../labs/common/ajax";
 import * as $ from "jquery";
 import Encoder = require("../labs/common/google-polyline");
 
-declare module OsrmServices {
+declare namespace OsrmServices {
+	export interface HintData {
+		locations: string[];
+		checksum: number;
+	}
 
-    export interface HintData {
-        locations: string[];
-        checksum: number;
-    }
+	export interface RouteSummary {
+		total_distance: number;
+		total_time: number;
+		end_point: string;
+		start_point: string;
+	}
 
-    export interface RouteSummary {
-        total_distance: number;
-        total_time: number;
-        end_point: string;
-        start_point: string;
-    }
+	export interface Trip {
+		hint_data: HintData;
+		route_name: string[];
+		route_geometry: string;
+		via_indices: number[];
+		via_points: number[][];
+		permutation: number[];
+		found_alternative: boolean;
+		route_summary: RouteSummary;
+	}
 
-    export interface Trip {
-        hint_data: HintData;
-        route_name: string[];
-        route_geometry: string;
-        via_indices: number[];
-        via_points: number[][];
-        permutation: number[];
-        found_alternative: boolean;
-        route_summary: RouteSummary;
-    }
-
-    export interface TripResponse {
-        status: number;
-        status_message: string;
-        trips: Trip[];
-    }
-
+	export interface TripResponse {
+		status: number;
+		status_message: string;
+		trips: Trip[];
+	}
 }
 
-
 class Osrm {
+	constructor(public url = "http://router.project-osrm.org") {}
 
-    constructor(public url = "http://router.project-osrm.org") {
+	viaroute(data: {
+		loc?: number[][] | string;
+		locs?: string;
+		z?: number;
+		output?: string;
+		instructions?: boolean;
+		alt?: boolean;
+		geometry?: boolean;
+		compression?: boolean;
+		uturns?: boolean;
+		u?: boolean[];
+		hint?: string[];
+		checksum?: number;
+	}) {
+		let req = $.extend({}, data);
+		req.loc = typeof req.loc === "string" ? req.loc : req.loc.map(l => `${l[0]},${l[1]}`).join("&loc=");
 
-    }
+		return ajax.jsonp<OsrmServices.Trip>(this.url + "/viaroute", req, "jsonp");
+	}
 
-    viaroute(data: {
-        loc?: number[][];
-        locs?: string;
-        z?: number;
-        output?: string;
-        instructions?: boolean;
-        alt?: boolean;
-        geometry?: boolean;
-        compression?: boolean;
-        uturns?: boolean;
-        u?: boolean[];
-        hint?: string[];
-        checksum?: number;
-    }) {
+	nearest(loc: number[]) {
+		return ajax.jsonp<{
+			status: number;
+			mapped_coordinate: number[];
+			name: string;
+		}>(
+			this.url + "/nearest",
+			{
+				loc: loc
+			},
+			"jsonp"
+		);
+	}
 
-        let req = $.extend({}, data);
-        req.loc = data.loc.map(l => `${l[0]},${l[1]}`).join("&loc=");
+	table() {}
 
-        return ajax.jsonp<OsrmServices.Trip>(this.url + "/viaroute", req, "jsonp");
-    }
+	match() {}
 
-    nearest(loc: number[]) {
-        return ajax.jsonp<{
-            status: number;
-            mapped_coordinate: number[];
-            name: string;
-        }>(this.url + "/nearest", {
-            loc: loc
-        }, "jsonp");
-    }
+	trip(loc: number[][]) {
+		let url = this.url + "/trip";
+		return ajax.jsonp<OsrmServices.TripResponse>(
+			url,
+			{
+				loc: loc.map(l => `${l[0]},${l[1]}`).join("&loc=")
+			},
+			"jsonp"
+		);
+	}
 
-    table() {
-    }
+	static test() {
+		let service = new Osrm();
 
-    match() {
-    }
+		false &&
+			service.trip([[34.8, -82.85], [34.8, -82.8]]).then(result => {
+				console.log("trip", result);
+				let decoder = new Encoder();
+				result.trips.map(trip => {
+					console.log(
+						"trip",
+						trip.route_name,
+						"route_geometry",
+						decoder.decode(trip.route_geometry, 6).map(v => [v[1], v[0]])
+					);
+				});
+			});
 
-    trip(loc: number[][]) {
-        let url = this.url + "/trip";
-        return ajax.jsonp<OsrmServices.TripResponse>(url, {
-            loc: loc.map(l => `${l[0]},${l[1]}`).join("&loc="),
-        }, "jsonp");
-    }
+		service
+			.viaroute({
+				loc: [[34.85, -82.4], [34.85, -82.4]]
+			})
+			.then(result => {
+				console.log("viaroute", result);
+				let decoder = new Encoder();
+				console.log("route_geometry", decoder.decode(result.route_geometry, 6).map(v => [v[1], v[0]]));
+			});
 
-    static test() {
-        let service = new Osrm();
-
-        false && service.trip([[34.8, -82.85], [34.8, -82.80]]).then(result => {
-            console.log("trip", result);
-            let decoder = new Encoder();
-            result.trips.map(trip => {                                
-                console.log("trip", trip.route_name, "route_geometry", decoder.decode(trip.route_geometry, 6).map(v => [v[1], v[0]]));
-            });
-        });
-
-        service.viaroute({
-            loc: [[34.85, -82.4], [34.85, -82.4]]
-        }).then(result => {
-            console.log("viaroute", result);
-            let decoder = new Encoder();
-            console.log("route_geometry", decoder.decode(result.route_geometry, 6).map(v => [v[1], v[0]]));
-        });
-        
-        // "West McBee Avenue"
-        false && service.nearest([34.85, -82.4]).then(result => console.log("nearest", result));
-
-    }
-
+		// "West McBee Avenue"
+		false && service.nearest([34.85, -82.4]).then(result => console.log("nearest", result));
+	}
 }
 
 export = Osrm;

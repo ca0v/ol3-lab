@@ -4,15 +4,16 @@ import { doif, getParameterByName } from "./common/common";
 import { LayerSwitcher } from "ol3-layerswitcher/index";
 import { Popup } from "ol3-popup/index";
 import { ArcGisVectorSourceFactory } from "ol3-symbolizer/ol3-symbolizer/ags/ags-source";
+import { LayerTileOptions } from "ol3-layerswitcher/ol3-layerswitcher/@types/LayerTileOptions";
 
 function parse<T>(v: string, type: T): T {
-    if (typeof type === "string") return <any>v;
-    if (typeof type === "number") return <any>parseFloat(v);
-    if (typeof type === "boolean") return <any>(v === "1" || v === "true");
-    if (Array.isArray(type)) {
-        return <any>v.split(",").map((v) => parse(v, (<any>type)[0]));
-    }
-    throw `unknown type: ${type}`;
+	if (typeof type === "string") return <any>v;
+	if (typeof type === "number") return <any>parseFloat(v);
+	if (typeof type === "boolean") return <any>(v === "1" || v === "true");
+	if (Array.isArray(type)) {
+		return <any>v.split(",").map(v => parse(v, (<any>type)[0]));
+	}
+	throw `unknown type: ${type}`;
 }
 
 const html = `
@@ -58,80 +59,82 @@ const css_popup = `
 `;
 
 let center = {
-    fire: [-117.754430386, 34.2606862490001],
-    wichita: [-97.4, 37.8],
-    vegas: [-115.235, 36.173]
+	fire: [-117.754430386, 34.2606862490001],
+	wichita: [-97.4, 37.8],
+	vegas: [-115.235, 36.173]
 };
 
 export function run() {
-    $(html).appendTo(".map");
-    $(css).appendTo("head");
+	$(html).appendTo(".map");
+	$(css).appendTo("head");
 
-    let options = {
-        srs: "EPSG:4326",
-        center: <[number, number]>center.vegas,
-        zoom: 10,
-        services: "http://sampleserver3.arcgisonline.com/ArcGIS/rest/services",
-        serviceName: "SanFrancisco/311Incidents",
-        layers: [0]
-    };
+	let options = {
+		srs: "EPSG:4326",
+		center: <[number, number]>center.vegas,
+		zoom: 10,
+		services: "http://sampleserver3.arcgisonline.com/ArcGIS/rest/services",
+		serviceName: "SanFrancisco/311Incidents",
+		layers: [0]
+	};
 
-    {
-        let opts = <any>options;
-        Object.keys(opts).forEach((k) => {
-            doif(getParameterByName(k), (v) => {
-                let value = parse(v, opts[k]);
-                if (value !== undefined) opts[k] = value;
-            });
-        });
-    }
+	{
+		let opts = <any>options;
+		Object.keys(opts).forEach(k => {
+			doif(getParameterByName(k), v => {
+				let value = parse(v, opts[k]);
+				if (value !== undefined) opts[k] = value;
+			});
+		});
+	}
 
-    let map = new ol.Map({
-        target: "map",
-        keyboardEventTarget: document,
-        loadTilesWhileAnimating: true,
-        loadTilesWhileInteracting: true,
-        controls: ol.control.defaults({ attribution: false }),
-        view: new ol.View({
-            projection: options.srs,
-            center: options.center,
-            zoom: options.zoom
-        }),
-        layers: [
-            new ol.layer.Tile({
-                title: "OSM",
-                type: "base",
-                opacity: 0.8,
-                visible: true,
-                source: new ol.source.OSM()
-            }),
-            new ol.layer.Tile({
-                title: "Bing",
-                type: "base",
-                opacity: 0.8,
-                visible: false,
-                source: new ol.source.BingMaps({
-                    key: "AuPHWkNxvxVAL_8Z4G8Pcq_eOKGm5eITH_cJMNAyYoIC1S_29_HhE893YrUUbIGl",
-                    imagerySet: "Aerial"
-                })
-            })
-        ]
-    });
+	let map = new ol.Map({
+		target: "map",
+		keyboardEventTarget: document,
+		loadTilesWhileAnimating: true,
+		loadTilesWhileInteracting: true,
+		controls: ol.control.defaults({ attribution: false }),
+		view: new ol.View({
+			projection: options.srs,
+			center: options.center,
+			zoom: options.zoom
+		}),
+		layers: [
+			new ol.layer.Tile(<LayerTileOptions>{
+				title: "OSM",
+				type: "base",
+				opacity: 0.8,
+				visible: true,
+				source: new ol.source.OSM()
+			}),
+			new ol.layer.Tile(<LayerTileOptions>{
+				title: "Bing",
+				type: "base",
+				opacity: 0.8,
+				visible: false,
+				source: new ol.source.BingMaps({
+					key: "AuPHWkNxvxVAL_8Z4G8Pcq_eOKGm5eITH_cJMNAyYoIC1S_29_HhE893YrUUbIGl",
+					imagerySet: "Aerial"
+				})
+			})
+		]
+	});
 
-    ArcGisVectorSourceFactory.create({
-        tileSize: 256,
-        map: map,
-        services: options.services,
-        serviceName: options.serviceName,
-        layers: options.layers.reverse()
-    }).then((agsLayers) => {
-        agsLayers.forEach((agsLayer) => map.addLayer(agsLayer));
+	ArcGisVectorSourceFactory.create({
+		tileSize: 256,
+		map: map,
+		services: options.services,
+		serviceName: options.serviceName,
+		serviceType: "FeatureServer",
+		layers: options.layers.reverse()
+	}).then(agsLayers => {
+		agsLayers.forEach(agsLayer => map.addLayer(agsLayer));
 
-        let layerSwitcher = new LayerSwitcher();
-        layerSwitcher.setMap(map);
+		let layerSwitcher = new LayerSwitcher();
+		layerSwitcher.setMap(map);
 
-        let popup = new Popup({
-            css: `
+		let popup = Popup.create({
+			map: map,
+			css: `
             .ol-popup {
                 background-color: white;
             }
@@ -140,34 +143,33 @@ export function run() {
                 overflow-y: auto;
             }
             `
-        });
-        map.addOverlay(popup);
+		});
 
-        map.on("click", (event: { coordinate: any; pixel: any }) => {
-            console.log("click");
-            let coord = event.coordinate;
-            popup.hide();
+		map.on("click", (event: Event & { coordinate: any; pixel: any }) => {
+			console.log("click");
+			let coord = event.coordinate;
+			popup.hide();
 
-            let pageNum = 0;
-            map.forEachFeatureAtPixel(event.pixel, (feature: ol.Feature, layer) => {
-                let page = document.createElement("p");
-                let keys = Object.keys(feature.getProperties()).filter((key) => {
-                    let v = feature.get(key);
-                    if (typeof v === "string") return true;
-                    if (typeof v === "number") return true;
-                    return false;
-                });
-                page.title = "" + ++pageNum;
-                page.innerHTML = `<table>${keys
-                    .map((k) => `<tr><td>${k}</td><td>${feature.get(k)}</td></tr>`)
-                    .join("")}</table>`;
-                popup.pages.add(page, feature.getGeometry());
-            });
+			let pageNum = 0;
+			map.forEachFeatureAtPixel(event.pixel, (feature: ol.Feature, layer) => {
+				let page = document.createElement("p");
+				let keys = Object.keys(feature.getProperties()).filter(key => {
+					let v = feature.get(key);
+					if (typeof v === "string") return true;
+					if (typeof v === "number") return true;
+					return false;
+				});
+				page.title = "" + ++pageNum;
+				page.innerHTML = `<table>${keys
+					.map(k => `<tr><td>${k}</td><td>${feature.get(k)}</td></tr>`)
+					.join("")}</table>`;
+				popup.pages.add(page, feature.getGeometry());
+			});
 
-            popup.show(coord, `<label>${pageNum} Features Found</label>`);
-            popup.pages.goto(0);
-        });
-    });
+			popup.show(coord, `<label>${pageNum} Features Found</label>`);
+			popup.pages.goto(0);
+		});
+	});
 
-    return map;
+	return map;
 }
