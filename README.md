@@ -97,3 +97,19 @@ Proof of Concept code for learning aspects of OpenLayers and related spatial lib
 ```
 t`syzE}gm_dAm_@A?r@p@Bp@Hp@Ph@Td@Z`@`@Vb@Nd@xUABmF
 ```
+
+## Test Results
+
+-   TODO - [ol-ags](https://rawgit.com/ca0v/ol3-ags/v5.1.3/loaders/tests.html)
+-   [ol-draw](https://rawgit.com/ca0v/ol3-draw/v5.1.3/loaders/tests.html)
+-   [ol-fun](https://rawgit.com/ca0v/ol3-fun/v5.1.3/loaders/tests.html)
+-   TODO - [ol-geocoder](https://rawgit.com/ca0v/ol3-geocoder/v5.1.3/loaders/tests.html)
+-   [ol-grid](https://rawgit.com/ca0v/ol3-grid/v5.1.3/loaders/tests.html)
+-   [ol-input](https://rawgit.com/ca0v/ol3-input/v5.1.3/loaders/tests.html)
+-   TODO - [ol-lab](https://rawgit.com/ca0v/ol3-lab/v5.1.3/loaders/tests.html)
+-   [ol-layerswitcher](https://rawgit.com/ca0v/ol3-layerswitcher/v5.1.3/loaders/tests.html)
+-   TODO - [ol-mapquest](https://rawgit.com/ca0v/ol3-mapquest/v5.1.3/loaders/tests.html)
+-   [ol-panzoom](https://rawgit.com/ca0v/ol3-panzoom/v5.1.3/loaders/tests.html)
+-   [ol-popup](https://rawgit.com/ca0v/ol3-popup/v5.1.3/loaders/tests.html)
+-   [ol-search](https://rawgit.com/ca0v/ol3-search/v5.1.3/loaders/tests.html)
+-   [ol-symbolizer](https://rawgit.com/ca0v/ol3-symbolizer/v5.1.3/loaders/tests.html)
