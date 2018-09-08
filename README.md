@@ -5,11 +5,15 @@ Proof of Concept code for learning aspects of OpenLayers and related spatial lib
 -   [ol3-lab](https://github.com/ca0v/ol3-lab/)
 -   [v5.1.3](https://github.com/ca0v/ol3-lab/tree/v5.1.3/) switches to npm
 
-## All Examples
+## Tests
 
--   [index (v5.1.3)](https://rawgit.com/ca0v/ol3-lab/v5.1.3/rawgit.html?run=ol3-lab/labs/index)
--   [index (v4.6.5)](https://rawgit.com/ca0v/ol3-lab/v4.6.5/rawgit.html?run=ol3-lab/labs/index)
--   [index (master)](https://rawgit.com/ca0v/ol3-lab/master/rawgit.html?run=ol3-lab/labs/index)
+-   [v5.1.3](https://rawgit.com/ca0v/ol3-lab/v5.1.3/loader/tests.html)
+
+## Examples
+
+-   [v5.1.3](https://rawgit.com/ca0v/ol3-lab/v5.1.3/loader/examples.html)
+-   [v4.6.5](https://rawgit.com/ca0v/ol3-lab/v4.6.5/rawgit.html?run=ol3-lab/labs/index)
+-   [master](https://rawgit.com/ca0v/ol3-lab/master/rawgit.html?run=ol3-lab/labs/index)
 
 ## Develop
 
@@ -98,7 +102,7 @@ Proof of Concept code for learning aspects of OpenLayers and related spatial lib
 t`syzE}gm_dAm_@A?r@p@Bp@Hp@Ph@Td@Z`@`@Vb@Nd@xUABmF
 ```
 
-## Test Results
+## Individual Test Results
 
 -   TODO - [ol-ags](https://rawgit.com/ca0v/ol3-ags/v5.1.3/loaders/tests.html)
 -   [ol-draw](https://rawgit.com/ca0v/ol3-draw/v5.1.3/loaders/tests.html)

@@ -1775,52 +1775,52 @@ define("node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", ["req
                 var repitition = fill.pattern.repitition;
                 var canvas = document.createElement('canvas');
                 var spacing = canvas.width = canvas.height = fill.pattern.spacing | 6;
-                var context = canvas.getContext('2d');
-                context.fillStyle = fill.pattern.color;
+                var context_1 = canvas.getContext('2d');
+                context_1.fillStyle = fill.pattern.color;
                 switch (fill.pattern.orientation) {
                     case "horizontal":
                         for (var i = 0; i < spacing; i++) {
-                            context.fillRect(i, 0, 1, 1);
+                            context_1.fillRect(i, 0, 1, 1);
                         }
                         break;
                     case "vertical":
                         for (var i = 0; i < spacing; i++) {
-                            context.fillRect(0, i, 1, 1);
+                            context_1.fillRect(0, i, 1, 1);
                         }
                         break;
                     case "cross":
                         for (var i = 0; i < spacing; i++) {
-                            context.fillRect(i, 0, 1, 1);
-                            context.fillRect(0, i, 1, 1);
+                            context_1.fillRect(i, 0, 1, 1);
+                            context_1.fillRect(0, i, 1, 1);
                         }
                         break;
                     case "forward":
                         for (var i = 0; i < spacing; i++) {
-                            context.fillRect(i, i, 1, 1);
+                            context_1.fillRect(i, i, 1, 1);
                         }
                         break;
                     case "backward":
                         for (var i = 0; i < spacing; i++) {
-                            context.fillRect(spacing - 1 - i, i, 1, 1);
+                            context_1.fillRect(spacing - 1 - i, i, 1, 1);
                         }
                         break;
                     case "diagonal":
                         for (var i = 0; i < spacing; i++) {
-                            context.fillRect(i, i, 1, 1);
-                            context.fillRect(spacing - 1 - i, i, 1, 1);
+                            context_1.fillRect(i, i, 1, 1);
+                            context_1.fillRect(spacing - 1 - i, i, 1, 1);
                         }
                         break;
                 }
-                return mixin_1.mixin(context.createPattern(canvas, repitition), fill.pattern);
+                return mixin_1.mixin(context_1.createPattern(canvas, repitition), fill.pattern);
             }
             if (fill.image) {
                 var canvas = document.createElement('canvas');
                 var _b = (_a = fill.image.imgSize, canvas.width = _a[0], canvas.height = _a[1], _a), w_1 = _b[0], h_2 = _b[1];
-                var context_1 = canvas.getContext('2d');
+                var context_2 = canvas.getContext('2d');
                 var _c = [0, 0], dx = _c[0], dy = _c[1];
                 var image_1 = document.createElement("img");
                 image_1.src = fill.image.imageData;
-                image_1.onload = function () { return context_1.drawImage(image_1, 0, 0, w_1, h_2); };
+                image_1.onload = function () { return context_2.drawImage(image_1, 0, 0, w_1, h_2); };
                 return "rgba(255,255,255,0.1)";
             }
             throw "invalid color configuration";
@@ -5660,7 +5660,7 @@ define("ol3-lab/labs/ol-panzoom", ["require", "exports", "openlayers", "node_mod
     Object.defineProperty(exports, "__esModule", { value: true });
     function run() {
         var panZoom = new index_14.PanZoom({
-            imgPath: "./static/css/ol2img"
+            imgPath: "../static/css/ol2img"
         });
         var map = new ol.Map({
             controls: ol.control
@@ -14445,5 +14445,1590 @@ define("ol3-lab/ux/serializers/ags-simplemarkersymbol", ["require", "exports", "
         return SimpleMarkerConverter;
     }());
     exports.SimpleMarkerConverter = SimpleMarkerConverter;
+});
+define("node_modules/ol3-draw/tests/base", ["require", "exports"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    function describe(title, cb) {
+        console.log(title || "undocumented test group");
+        return window.describe(title, cb);
+    }
+    exports.describe = describe;
+    function it(title, cb) {
+        console.log(title || "undocumented test");
+        return window.it(title, cb);
+    }
+    exports.it = it;
+    function should(result, message) {
+        console.log(message || "undocumented assertion");
+        if (!result)
+            throw message;
+    }
+    exports.should = should;
+    function shouldEqual(a, b, message) {
+        if (a != b)
+            console.warn("\"" + a + "\" <> \"" + b + "\"");
+        should(a == b, message);
+    }
+    exports.shouldEqual = shouldEqual;
+    function stringify(o) {
+        return JSON.stringify(o, null, "\t");
+    }
+    exports.stringify = stringify;
+});
+define("node_modules/ol3-draw/tests/spec/draw", ["require", "exports", "node_modules/ol3-draw/tests/base", "mocha", "node_modules/ol3-draw/ol3-draw/ol3-draw"], function (require, exports, base_1, mocha_1, ol3_draw_3) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    mocha_1.describe("Draw Tests", function () {
+        mocha_1.it("Draw", function () {
+            base_1.should(!!ol3_draw_3.Draw, "Draw");
+        });
+        mocha_1.it("DEFAULT_OPTIONS", function () {
+            var options = ol3_draw_3.Draw.DEFAULT_OPTIONS;
+            checkDefaultInputOptions(options);
+        });
+        mocha_1.it("options of an Input instance", function () {
+            var input = ol3_draw_3.Draw.create();
+            checkDefaultInputOptions(input.options);
+        });
+    });
+    function checkDefaultInputOptions(options) {
+        base_1.should(!!options, "options");
+        base_1.shouldEqual(options.className, "ol-draw", "className");
+        base_1.shouldEqual(options.map, undefined, "map");
+        base_1.shouldEqual(options.position, "top left", "position");
+    }
+});
+define("node_modules/ol3-draw/tests/spec/wfs-sync", ["require", "exports", "openlayers", "node_modules/ol3-draw/tests/base", "mocha", "node_modules/ol3-draw/ol3-draw/services/wfs-sync"], function (require, exports, ol, base_2, mocha_2, wfs_sync_3) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    var WFS_INFO = {
+        srsName: "EPSG:3857",
+        wfsUrl: location.protocol + "//" + location.hostname + ":8080/geoserver/cite/wfs",
+        featureNS: "http://www.opengeospatial.net/cite",
+        featurePrefix: "cite",
+    };
+    mocha_2.describe("wfs-sync", function () {
+        mocha_2.it("WfsSync", function () {
+            base_2.should(!!wfs_sync_3.WfsSync, "WfsSync");
+        });
+        mocha_2.it("DEFAULT_OPTIONS", function () {
+            var options = wfs_sync_3.WfsSync.DEFAULT_OPTIONS;
+            checkDefaultInputOptions(options);
+        });
+        mocha_2.it("should invoke a POST request", function (done) {
+            var source = new ol.source.Vector();
+            var service = wfs_sync_3.WfsSync.create({
+                wfsUrl: WFS_INFO.wfsUrl,
+                featureNS: WFS_INFO.featureNS,
+                featurePrefix: WFS_INFO.featurePrefix,
+                srsName: WFS_INFO.srsName,
+                sourceSrs: WFS_INFO.srsName,
+                source: source,
+                targets: {
+                    "Point": "point_layer"
+                }
+            });
+            service.on("after-save", function (args) {
+                console.warn(args);
+                done();
+            });
+            service.on("error", function (args) {
+                base_2.shouldEqual(args, "Feature type 'point_layer' is not available: ", "point_layer not available error message");
+                done();
+            });
+            source.addFeature(new ol.Feature(new ol.geom.Point([0, 0])));
+        });
+    });
+    function checkDefaultInputOptions(options) {
+        base_2.should(!!options, "options");
+        base_2.shouldEqual(options.featureIdFieldName, "gid", "featureIdFieldName");
+        base_2.shouldEqual(options.lastUpdateFieldName, "touched", "lastUpdateFieldName");
+    }
+});
+define("node_modules/ol3-draw/tests/index", ["require", "exports", "node_modules/ol3-draw/tests/spec/draw", "node_modules/ol3-draw/tests/spec/wfs-sync"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+});
+define("node_modules/ol3-fun/tests/base", ["require", "exports", "node_modules/ol3-fun/ol3-fun/slowloop"], function (require, exports, slowloop_2) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.slowloop = slowloop_2.slowloop;
+    function describe(title, fn) {
+        console.log(title || "undocumented test group");
+        return window.describe(title, fn);
+    }
+    exports.describe = describe;
+    function it(title, fn) {
+        console.log(title || "undocumented test");
+        return window.it(title, fn);
+    }
+    exports.it = it;
+    function should(result, message) {
+        console.log(message || "undocumented assertion");
+        if (!result)
+            throw message;
+    }
+    exports.should = should;
+    function shouldEqual(a, b, message) {
+        if (a != b)
+            console.warn("\"" + a + "\" <> \"" + b + "\"");
+        should(a == b, message);
+    }
+    exports.shouldEqual = shouldEqual;
+    function stringify(o) {
+        return JSON.stringify(o, null, "\t");
+    }
+    exports.stringify = stringify;
+});
+define("node_modules/ol3-fun/tests/spec/api", ["require", "exports", "node_modules/ol3-fun/tests/base", "node_modules/ol3-fun/index"], function (require, exports, base_3, API) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    base_3.describe("API", function () {
+        base_3.it("full api exists", function () {
+            base_3.shouldEqual([
+                API.asArray,
+                API.cssin,
+                API.debounce,
+                API.defaults,
+                API.dms.parse,
+                API.doif,
+                API.getParameterByName,
+                API.getQueryParameters,
+                API.html,
+                API.mixin,
+                API.navigation.zoomToFeature,
+                API.pair,
+                API.parse,
+                API.range,
+                API.shuffle,
+                API.slowloop,
+                API.toggle,
+                API.uuid,
+            ].every(function (f) { return typeof f === "function"; }), true, "API functions exist");
+        });
+    });
+});
+define("node_modules/ol3-fun/tests/spec/common", ["require", "exports", "node_modules/ol3-fun/tests/base", "node_modules/ol3-fun/ol3-fun/common"], function (require, exports, base_4, common_29) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    function sum(list) {
+        return list.reduce(function (a, b) { return a + b; }, 0);
+    }
+    describe("asArray tests", function () {
+        it("asArray", function (done) {
+            if (!document)
+                return;
+            document.body.appendChild(document.createElement("div"));
+            var list = document.getElementsByTagName("div");
+            var result = common_29.asArray(list);
+            base_4.should(result.length === list.length, "array size matches list size");
+            done();
+        });
+    });
+    describe("uuid tests", function () {
+        it("uuid", function () {
+            base_4.should(common_29.uuid().length === 36, "uuid has 36 characters");
+        });
+    });
+    describe("pair tests", function () {
+        it("empty test", function () {
+            base_4.should(0 === common_29.pair([], []).length, "empty result");
+            base_4.should(0 === common_29.pair([1], []).length, "empty result");
+            base_4.should(0 === common_29.pair([], [1]).length, "empty result");
+        });
+        it("ensures all combinations", function () {
+            var A = [1, 3, 5], B = [7, 11, 13], result = common_29.pair(A, B);
+            base_4.should((A.length * sum(B) + B.length * sum(A)) === sum(result.map(function (v) { return v[0] + v[1]; })), "create product from two vectors");
+        });
+    });
+    describe("range tests", function () {
+        it("empty test", function () {
+            base_4.should(0 === common_29.range(0).length, "empty result");
+        });
+        it("size tests", function () {
+            base_4.should(1 === common_29.range(1).length, "single item");
+            base_4.should(10 === common_29.range(10).length, "ten items");
+        });
+        it("content tests", function () {
+            base_4.should(45 === sum(common_29.range(10)), "range '10' contains 0..9");
+        });
+    });
+    describe("shuffle tests", function () {
+        it("empty test", function () {
+            base_4.should(0 === common_29.shuffle([]).length, "empty result");
+        });
+        it("size tests", function () {
+            base_4.should(1 === common_29.shuffle(common_29.range(1)).length, "single item");
+            base_4.should(10 === common_29.shuffle(common_29.range(10)).length, "ten items");
+        });
+        it("content tests", function () {
+            base_4.should(45 === sum(common_29.shuffle(common_29.range(10))), "range '10' contains 0..9");
+        });
+    });
+    describe("toggle tests", function () {
+        it("toggle", function () {
+            var div = document.createElement("div");
+            base_4.should(div.className === "", "div contains no className");
+            common_29.toggle(div, "foo");
+            base_4.should(div.className === "foo", "toggle adds");
+            common_29.toggle(div, "foo");
+            base_4.should(div.className === "", "second toggles removes");
+            common_29.toggle(div, "foo", true);
+            base_4.should(div.className === "foo", "forces foo to exist when it does not exist");
+            common_29.toggle(div, "foo", true);
+            base_4.should(div.className === "foo", "forces foo to exist when it already exists");
+            common_29.toggle(div, "foo", false);
+            base_4.should(div.className === "", "forces foo to not exist");
+            common_29.toggle(div, "foo", false);
+            base_4.should(div.className === "", "forces foo to not exist");
+        });
+    });
+    describe("parse tests", function () {
+        it("parse", function () {
+            var num = 0;
+            var bool = false;
+            base_4.should(common_29.parse("", "").toString() === "", "empty string");
+            base_4.should(common_29.parse("1", "").toString() === "1", "numeric string");
+            base_4.should(common_29.parse("1", num) === 1, "numeric string as number returns number");
+            base_4.should(common_29.parse("0", bool) === false, "0 as boolean is false");
+            base_4.should(common_29.parse("1", bool) === true, "1 as boolean is true");
+            base_4.should(common_29.parse("false", bool) === false, "'false' as boolean is false");
+            base_4.should(common_29.parse("true", bool) === true, "'true' as boolean is true");
+            base_4.should(common_29.parse("1", num) === 1, "numeric string as number returns number");
+            base_4.should(common_29.parse("1", num) === 1, "numeric string as number returns number");
+            base_4.should(common_29.parse("1,2,3", [num])[1] === 2, "parse into numeric array");
+        });
+    });
+    describe("getQueryParameters tests", function () {
+        it("getQueryParameters", function () {
+            var options = { a: "" };
+            common_29.getQueryParameters(options, "foo?a=1&b=2");
+            base_4.shouldEqual(options.a, "1", "a=1 extracted");
+            base_4.shouldEqual(options.b, undefined, "b not assigned");
+            options = { b: "" };
+            common_29.getQueryParameters(options, "foo?a=1&b=2");
+            base_4.shouldEqual(options.b, "2", "b=2 extracted");
+            base_4.shouldEqual(options.a, undefined, "a not assigned");
+            options.a = options.b = options.c = "<null>";
+            common_29.getQueryParameters(options, "foo?a=1&b=2");
+            base_4.shouldEqual(options.a, "1", "a=1 extracted");
+            base_4.shouldEqual(options.b, "2", "b=2 extracted");
+            base_4.shouldEqual(options.c, "<null>", "c not assigned, original value untouched");
+        });
+    });
+    describe("getParameterByName tests", function () {
+        it("getParameterByName", function () {
+            base_4.shouldEqual(common_29.getParameterByName("a", "foo?a=1"), "1", "a=1");
+            base_4.shouldEqual(common_29.getParameterByName("b", "foo?a=1"), null, "b does not exist");
+        });
+    });
+    describe("doif tests", function () {
+        var die = function (n) { throw "doif callback not expected to execute: " + n; };
+        var spawn = function () {
+            var v = true;
+            return function () { return v = !v; };
+        };
+        it("doif false tests", function () {
+            common_29.doif(undefined, die);
+            common_29.doif(null, die);
+        });
+        it("doif empty tests", function () {
+            var c = spawn();
+            common_29.doif(0, c);
+            base_4.shouldEqual(c(), true, "0 invokes doif");
+            common_29.doif(false, c);
+            base_4.shouldEqual(c(), true, "false invokes doif");
+            common_29.doif({}, c);
+            base_4.shouldEqual(c(), true, "{} invokes doif");
+        });
+        it("doif value tests", function () {
+            common_29.doif(0, function (v) { return base_4.shouldEqual(v, 0, "0"); });
+            common_29.doif({ a: 100 }, function (v) { return base_4.shouldEqual(v.a, 100, "a = 100"); });
+        });
+    });
+    describe("mixin tests", function () {
+        it("simple mixins", function () {
+            base_4.shouldEqual(common_29.mixin({ a: 1 }, { b: 2 }).a, 1, "a=1");
+            base_4.shouldEqual(common_29.mixin({ a: 1 }, { b: 2 }).b, 2, "b=2");
+            base_4.shouldEqual(common_29.mixin({ a: 1 }, { b: 2 }).c, undefined, "c undefined");
+            base_4.shouldEqual(common_29.mixin({ a: 1 }, {}).a, 1, "a=1");
+            base_4.shouldEqual(common_29.mixin({}, { b: 2 }).b, 2, "b=2");
+        });
+        it("nested mixins", function () {
+            var _a;
+            base_4.shouldEqual(common_29.mixin({ vermont: { burlington: true } }, (_a = {}, _a["south carolina"] = { greenville: true }, _a))["south carolina"].greenville, true, "greenville is in south carolina");
+            base_4.shouldEqual(common_29.mixin({ vermont: { burlington: true } }, { vermont: { greenville: false } }).vermont.greenville, false, "greenville is not in vermont");
+            base_4.shouldEqual(common_29.mixin({ vermont: { burlington: true } }, { vermont: { greenville: false } }).vermont.burlington, undefined, "second vermont completely wipes out 1st");
+        });
+    });
+    describe("defaults tests", function () {
+        it("defaults", function () {
+            base_4.shouldEqual(common_29.defaults({ a: 1 }, { a: 2, b: 3 }).a, 1, "a = 1");
+            base_4.shouldEqual(common_29.defaults({ a: 1 }, { a: 2, b: 3 }).b, 3, "b = 3");
+            base_4.shouldEqual(common_29.defaults({}, { a: 2, b: 3 }).a, 2, "a = 2");
+        });
+    });
+    describe("cssin tests", function () {
+        it("hides the body", function () {
+            var handles = [];
+            handles.push(common_29.cssin("css1", "body {display: none}"));
+            handles.push(common_29.cssin("css1", "body {display: block}"));
+            base_4.shouldEqual(getComputedStyle(document.body).display, "none", "body is hidden, 1st css1 wins");
+            handles.shift()();
+            base_4.shouldEqual(getComputedStyle(document.body).display, "none", "body is still hidden, 1st css1 still registered");
+            handles.shift()();
+            base_4.shouldEqual(getComputedStyle(document.body).display, "block", "body is no longer hidden, css1 destroyed");
+        });
+    });
+    describe("html tests", function () {
+        it("tableless tr test", function () {
+            var markup = "<tr>A<td>B</td></tr>";
+            var tr = common_29.html(markup);
+            base_4.should(tr.nodeValue === "AB", "setting innerHTML on a 'div' will not assign tr elements");
+        });
+        it("table tr test", function () {
+            var markup = "<table><tbody><tr><td>Test</td></tr></tbody></table>";
+            var table = common_29.html(markup);
+            base_4.should(table.outerHTML === markup, "preserves tr when within a table");
+        });
+        it("canvas test", function () {
+            var markup = "<canvas width=\"100\" height=\"100\"></canvas>";
+            var canvas = common_29.html(markup);
+            base_4.should(canvas.outerHTML === markup, "canvas markup preserved");
+            base_4.should(!!canvas.getContext("2d"), "cnvas has 2d context");
+        });
+    });
+});
+define("node_modules/ol3-fun/tests/spec/slowloop", ["require", "exports", "node_modules/ol3-fun/tests/base"], function (require, exports, base_5) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    base_5.describe("slowloop", function () {
+        base_5.it("slowloop empty", function (done) {
+            try {
+                base_5.slowloop(null);
+                base_5.should(false, "slowloop requires an array");
+            }
+            catch (_a) {
+                done();
+            }
+        });
+        base_5.it("slowloop fast", function (done) {
+            var count = 0;
+            var inc = function () { return count++; };
+            base_5.slowloop([inc, inc, inc], 0, 100).then(function () {
+                base_5.shouldEqual(count, 300, "0 ms * 100 iterations * 3 functions => 300 invocations");
+                done();
+            });
+        }).timeout(2000);
+        base_5.it("slowloop iterations", function (done) {
+            var count = 0;
+            var inc = function () { return count++; };
+            base_5.slowloop([inc]).then(function () {
+                base_5.shouldEqual(count, 1, "defaults to a single iteration");
+                base_5.slowloop([inc], 0, 2).then(function () {
+                    base_5.shouldEqual(count, 3, "performs two iterations");
+                    base_5.slowloop([inc], 0, 0).then(function () {
+                        base_5.shouldEqual(count, 3, "performs 0 iterations");
+                        done();
+                    });
+                });
+            });
+        });
+    });
+});
+define("node_modules/ol3-fun/tests/spec/parse-dms", ["require", "exports", "node_modules/ol3-fun/tests/base", "node_modules/ol3-fun/ol3-fun/parse-dms"], function (require, exports, base_6, parse_dms_2) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    base_6.describe("parse-dms", function () {
+        base_6.it("parse", function () {
+            var dms = parse_dms_2.parse("10 5'2\" 10");
+            if (typeof dms === "number")
+                throw "lat-lon expected";
+            base_6.should(dms.lat === 10.08388888888889, "10 degrees 5 minutes 2 seconds");
+            base_6.should(dms.lon === 10, "10 degrees 0 minutes 0 seconds");
+        });
+    });
+});
+define("node_modules/ol3-fun/ol3-fun/google-polyline", ["require", "exports"], function (require, exports) {
+    "use strict";
+    var PolylineEncoder = (function () {
+        function PolylineEncoder() {
+        }
+        PolylineEncoder.prototype.encodeCoordinate = function (coordinate, factor) {
+            coordinate = Math.round(coordinate * factor);
+            coordinate <<= 1;
+            if (coordinate < 0) {
+                coordinate = ~coordinate;
+            }
+            var output = '';
+            while (coordinate >= 0x20) {
+                output += String.fromCharCode((0x20 | (coordinate & 0x1f)) + 0x3f);
+                coordinate >>= 5;
+            }
+            output += String.fromCharCode(coordinate + 0x3f);
+            return output;
+        };
+        PolylineEncoder.prototype.decode = function (str, precision) {
+            if (precision === void 0) { precision = 5; }
+            var index = 0, lat = 0, lng = 0, coordinates = [], latitude_change, longitude_change, factor = Math.pow(10, precision);
+            while (index < str.length) {
+                var byte = 0;
+                var shift = 0;
+                var result = 0;
+                do {
+                    byte = str.charCodeAt(index++) - 0x3f;
+                    result |= (byte & 0x1f) << shift;
+                    shift += 5;
+                } while (byte >= 0x20);
+                var latitude_change_2 = ((result & 1) ? ~(result >> 1) : (result >> 1));
+                shift = result = 0;
+                do {
+                    byte = str.charCodeAt(index++) - 0x3f;
+                    result |= (byte & 0x1f) << shift;
+                    shift += 5;
+                } while (byte >= 0x20);
+                longitude_change = ((result & 1) ? ~(result >> 1) : (result >> 1));
+                lat += latitude_change_2;
+                lng += longitude_change;
+                coordinates.push([lat / factor, lng / factor]);
+            }
+            return coordinates;
+        };
+        PolylineEncoder.prototype.encode = function (coordinates, precision) {
+            if (precision === void 0) { precision = 5; }
+            if (!coordinates.length)
+                return '';
+            var factor = Math.pow(10, precision), output = this.encodeCoordinate(coordinates[0][0], factor) + this.encodeCoordinate(coordinates[0][1], factor);
+            for (var i = 1; i < coordinates.length; i++) {
+                var a = coordinates[i], b = coordinates[i - 1];
+                output += this.encodeCoordinate(a[0] - b[0], factor);
+                output += this.encodeCoordinate(a[1] - b[1], factor);
+            }
+            return output;
+        };
+        return PolylineEncoder;
+    }());
+    return PolylineEncoder;
+});
+define("node_modules/ol3-fun/tests/spec/polyline", ["require", "exports", "node_modules/ol3-fun/tests/base", "node_modules/ol3-fun/ol3-fun/google-polyline", "node_modules/ol3-fun/ol3-fun/ol3-polyline", "node_modules/ol3-fun/ol3-fun/common"], function (require, exports, base_7, GooglePolylineEncoder, PolylineEncoder, common_30) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    describe("GooglePolylineEncoder", function () {
+        it("GooglePolylineEncoder", function () {
+            base_7.should(!!GooglePolylineEncoder, "GooglePolylineEncoder");
+        });
+        var points = common_30.pair(common_30.range(10), common_30.range(10));
+        var poly = new GooglePolylineEncoder();
+        var encoded = poly.encode(points);
+        var decoded = poly.decode(encoded);
+        base_7.shouldEqual(encoded.length, 533, "encoding is 533 characters");
+        base_7.shouldEqual(base_7.stringify(decoded), base_7.stringify(points), "encode->decode");
+    });
+    describe("PolylineEncoder", function () {
+        it("PolylineEncoder", function () {
+            base_7.should(!!PolylineEncoder, "PolylineEncoder");
+        });
+        var points = common_30.pair(common_30.range(10), common_30.range(10));
+        var poly = new PolylineEncoder();
+        var encoded = poly.encode(points);
+        var decoded = poly.decode(encoded);
+        base_7.shouldEqual(encoded.length, 533, "encoding is 533 characters");
+        base_7.shouldEqual(base_7.stringify(decoded), base_7.stringify(points), "encode->decode");
+        poly = new PolylineEncoder(6);
+        encoded = poly.encode(points);
+        decoded = poly.decode(encoded);
+        base_7.shouldEqual(encoded.length, 632, "encoding is 632 characters");
+        base_7.shouldEqual(base_7.stringify(decoded), base_7.stringify(points), "encode->decode");
+    });
+});
+define("node_modules/ol3-fun/tests/spec/snapshot", ["require", "exports", "node_modules/ol3-fun/tests/base", "node_modules/ol3-fun/ol3-fun/snapshot", "openlayers", "node_modules/ol3-fun/ol3-fun/common"], function (require, exports, base_8, Snapshot, ol, common_31) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    var pointData = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAFdUlEQVR4Xu1aXUybVRh+3hiWxiX+ZNSMECvjJxiqyaROyq5M2MWUZGyDLEZg0WzhJ2QELharjmbWGgqOOTRxTMDIGHpBpIwE40Un3ujA0EmUYkhcRpoJRObfJkJG9Ji3+1gWoP2+rudrSvq9l/2e857nPOc5/yUkeVCStx+GAIYDklwBYwgkuQGMSdAYAsYQSHIFjCGQ5AYwVgFjCBhDIMkViPsQEEKkANgFIB2AGcCjAP4AsADgOoBxIlqJV7/ETQAhRCWAlwA8D+DBCA38G8DXAD4jok/1FkJ3AYQQVgDdAAruozHfAqgloh/uo6ymIroKIIQ4DOBjAA9oYrMx6F8AVUTEeaSHLgIIITjvOwBel8jYTURNEvOFUuklQDMAh2yyAJqJ6A2ZeaULIIR4GUCfTJJrch0ion5Z+aUKIIRIA/CzyiwfK/d/AGQQES+bMYdsAc4D4OVO7/iEiF6VUYk0AYQQvMyNyiClMUc+EX2vERsWJlOAqHp/enoaY2NjmJubQ1paGgoKCpCbmxtNe3qI6JVoCmyElSKAsuz9CiBVC6GzZ8+ioaEBt2/fvgvfsmUL2tvbUVNToyUFYxaI6DGt4HA4WQLw3v47LWQ6OjpQW1sbFnru3DlUVVVpScWYZ4hoQitYTwfwjq9HjQjbPTMzE8vLy2GhJpMJS0tLaqlWvzuIqEUrWE8BGgC8p0ZkYGAApaWlajAIIVQxCuArIirSCtZTgDcBuNWInDp1CsePH1eDRSPA70S0TTVhBICsOYAH9YdqRLxeLw4ePKgGi0aAL4noBdWEcRCAW/W5GpHZ2VlkZWXJnAP4qNyhVm+k77IckKVsgVW58Cwfaanr7OzE0aNHVfMogGwiuqoVrNscwImFEDMAntBCpr+/H/X19Zifn78LT09Px5kzZ1BWVqYlBWOuE9HjWsHhcFIcoAjQCUBz162srGB0dBRXrlxBfn4+7HY7UlL4ulBzfERE1ZrRYYAyBXgOwFishKIov4uIxqPAbwiVJoDigosA9sVKSkP5QSI6oAGnCpEtwJMAflKtNTbAfwDyiGg6tjR3SksVQHEBX4XxlZhe8RoRtcpKLl0AJjY+Pt5jMpn4fICtW7ciIyMjIt+ZmZkQzmzmd5KI0U5EvO2WFnoIwHvddT3Ep8Dq6vWT9tDQEEpKSkINunbt2jqxFhYW4Ha7MTg4OB8MBrMBLEprvR5DAMD7gUDgWF5e3l2efO5vaWnB7t27UVRUhMnJSRARrFYr+vr6sH37drALcnJyYLFYQuUWFxdDYjQ3Nwuz2Uw3b96E0+l8GsBkwgvg9/uPDQ8PM+He1NTUhzweT0lhYSFaW1tx48YN8DcOm82GiooKNDY2btgmi8XyZzAYfMTv94fKOJ1OP4BnN5MAfE2Grq6uwyyA3W7/y+v1Pswu4JiamkJxcTF/DzmAY//+/di27c4B79KlS6Hfjxw5glu3bqGurg69vb1Sh63UZErPrBsCq+TZ4nwbdPr06W+6u7t/GxkZ2Xf58uWQ1VcF2Lt3L5qamrw7duw4UF5ezlvmoMvlsigO4MliaDM5YJXrFwBGXC7Xu9zjNputgj/4fL4Lq4BVAViMPXv2VFRWVl5wOBxwOBxXT548maUIsOnmgHsJP+VyuX5kB3g8nom2trZfAoFA8VoHqAjwNgDnZnLA2h477/P5Ku+dA6xW64TP59sZzgEnTpyYcLvdO7Ozs0MridPp5JtgKa9CLKQecwCfBfhMwLY/tGbd5p0Ov/AeU3rxA+Uxhd8SAwB4m8ui2QHUKa9Mbyn/KHkxTM6YDKGHADERindhQ4B4K55o9RkOSLQeiTcfwwHxVjzR6jMckGg9Em8+hgPirXii1Zf0DvgfGiXvUAsr6xQAAAAASUVORK5CYII=";
+    var circleData = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAHzUlEQVR4XuWbaWxVRRTHf+OGS1BRUQuCuICRRoMWFTRugEgCVo2IQqEgUAmpiCIgJuoHiAmgKEowBlsXwCLuEv2g0kaNti7RaBTFjaBScYtRq1FRueZ/79z75r32tfe9PmrpPclL+96dOzPnP+fMnG0MBSVvP2AUcIn9HFig7n8GNgBPAS+C+aNA/WIK05F3EFAJ3AAckr3Pb4Hv7ec74C9gJyDcDgeOsH+PbG1aPwLLgXvANLV3/u0EwDsMuA6YBbSw2l8EC8ZLwEYg7nyF5zBgJHABcFxLfP4CrACWgZGE5EV5AuB1A24HptvlcwbXyq4NFoiv8ppU85f6AtcCE62UpLX4HXgAmAdGIpUT5QGA1x94EjgpfaQvgaVAtRXtnOYRs7FwnwbcBByV+c4HwGVgPovZmd8sRwC8CcAq4ID0QaYCa4B/chm7HW33ttKghW8mDVPAPBG385gAeHsCd9uNzvYtZm8GlsQdaxe00/TnA7cBmmJEK4HZYP5ta9AYAHh7AOuBsanOGoFxQH1b/XfQ8zPtCalTJKJHgHIwOmayUhsA+MyvBspSPWg3vwL4qYOYiztMT6AGGJETCK0A0BLzDwHSdy/urDq4ndjRvjAlNghZAMjG/FUdzFC+wz0YG4RsAGhncXY3nXrS+VbVKd/Z7oL3pLmPBadiiuaDke2SRi0A4Mns+gjYJ2hZB1zYgUdcofDYy1qh54cd7gCKwXzujpABgC/6bwCnBY22AqcAeVuaheImz34OBt4FjgnffwsYAibaxDIBuBFYHLSWuA8B3s5z8M7y2ul2TSNW54JZFs7OAcA7EXgvJfoya4VHV6A7rKPq85KmCi4A8rcvCtiVFzfQtu0KAGg72wQcHzKzAczF+mIB8I4FtDnY7+cBr3QFzh0e5F7Xht+1B/QFsy0E4C7r19tGadZUFwJCJ1p0KiiOMNeAtz+wPRXQkGRIG7oiKVL3dMjYr0CRALjGRlaAbYFkdFpTt72LolNecYsoljBTAHwYGAiiOYC0oSvTPBu48Xl8XwA4no1icZKMrkwKXSqc6JPnAPAacHZX5tzh7XVAMQT/2AslQAagYm1JIBl5UoU0AGQDPZcE7gGddM9kAiDdiBu3391xOhRQfiWSAAU4FWlNEgV7v90DXrApvSQBIJ5HhgAo4uMEfROBg/Ksl4YAPJwZQ0sABErkTAwBUB5BFnGS6D5gRgiA4p8LksR9kFRmTgiAxKE8YQAocTQhBGCd/yVZ9Kif4bLH4Js2AJokCBTsHRwC8IMtTUkSAMpt9nCdIdXp/JkQBFIuseMNyhWWS5wEUlxQ8cE0b/B6W3yVBAAU+QpyI44EvAqcmwTuraSfFQGgMpI9gkCoqt46W+FDoddENYjfhCmQnZIAJ1g+w9ZAFXrQztTfTODecEJ1AkBcyzAGkuAWq8RneAhAhQDoAcgQsGVWJwCftmvJNm3axMCByi1CU1MTlZWVNDY2smLFChYvXsyaNTK9s1NVVRX9+vVjxIhCZ6gGAJ+EA0v1e4apscAw9kl+clplRU5giPnt27dHkxczo0aNory8nLq64Ohpi3YdAIoD+jlR0Vowk9zkqJbdSkGJLSxoa6rpzydNmsSCBQuYNWtWM2aHDRsWScDkyZMZNGgQ3bt3Z/369ehZ79692bFjB0uWLKFXr16RBGzcuJHhwwORra2tbYdUKAyucLhPWv0BYLa46fEqW4cKNERx81wgWLhwIaNHj6akRACmUyYAeioRF4NFRUUUFxejlR86dCgNDQ0+APX19ZSVlVFRUeEDKunSs+nTVaKcK70DnBq+tAqM9j63VNZTwmxLKjqqUjNFiuJTNgkQYzU1NWkSsHXrVp8RARD+H44UqoB+nzZNtcEpyk8K1IfW16e/gT5gVNWdWSvsqfzcCQ31tmdmfBBa2gPGjRvHypUrKS0t9TdBqYALQCgNkiCt+ObNm+nWrVszCYg/C7elkr1KiEa0HIzMXp8ya4RkJWgv6B48VoGRdCe3KvS2TgEXAKnG6tWrY+0BmlF1dXUOKqDqcrm9UWG7Ep/9wejWRksA6DdvdHqKaHcOlqh0dry7+mPAPO/+kK1QcpEtBbdtpRUKnO5ONDvTuVsE5tZMDrIBoN9118WxRK4G7t9NEKjINOll/o106wNbUYHwkX8RSmeHc2HnTmBuJ64gUQWIqmHl7kakkrcSMFFRQAwViEDQ0ajbF2ekXlIG+fJOGD3aF3gcGOPyp2DnWFWDZRPdOBcmVGSn3JnTs0qJh3aiahIJqy5vBP6HJdn048GoMDIrxQDAPxnUTlUFkn9LXwPSNXmQ/yepkFt7Ux93EkvBxCpzjQlApBLiWK6zlM3Ss/baoADpSDraXs0rdQeVjT8VjG65xKIcAfClQVdjdXPMgVzRZJ25qsn9ONbA+TdSSbNKebQPSe8zRdLkJJJ5AOCDoOLKW6xKqDDfIVmP8iF0ebJQ4TXdB5JBM9l1aMIxpeOKcC4Ek3NcP08AIpVQ9ETScE7zFZXPITBkQOlOozbOVvcjpwuZsFppmbC6mXsykIFz0FqRXIm8jrq8qJ0AREAo0K57rVcCko4WSGU4cjMEhi5/pzkoQD8r0mJauKbdA3T701VZXeNbA+blvLh2XioQABEQcqIkq9osB7d3chnvy6vRdr8OzG+F6vs/cM4xojBcMyUAAAAASUVORK5CYII=";
+    function show(data) {
+        document.body.appendChild(common_31.html("<img src=\"" + data + "\" />"));
+    }
+    function circle(radius, points) {
+        if (radius === void 0) { radius = 1; }
+        if (points === void 0) { points = 36; }
+        if (points < 3)
+            throw "a circle must contain at least three points";
+        if (radius <= 0)
+            throw "a circle must have a positive radius";
+        var a = 0;
+        var dr = (2 * Math.PI) / (points - 1);
+        var result = new Array(points);
+        for (var i = 0; i < points - 1; i++) {
+            result[i] = [radius * Math.sin(a), radius * Math.cos(a)];
+            a += dr;
+        }
+        result[result.length - 1] = result[0];
+        return result;
+    }
+    describe("Snapshot", function () {
+        it("Snapshot", function () {
+            base_8.should(!!Snapshot, "Snapshot");
+            base_8.should(!!Snapshot.render, "Snapshot.render");
+            base_8.should(!!Snapshot.snapshot, "Snapshot.snapshot");
+        });
+        it("Converts a point to image data", function () {
+            var feature = new ol.Feature(new ol.geom.Point([0, 0]));
+            feature.setStyle(new ol.style.Style({
+                image: new ol.style.Circle({
+                    radius: 10,
+                    fill: new ol.style.Fill({ color: "black" }),
+                    stroke: new ol.style.Stroke({
+                        color: "white",
+                        width: 10
+                    })
+                }),
+                text: new ol.style.Text({
+                    text: "Point",
+                    fill: new ol.style.Fill({
+                        color: "white"
+                    }),
+                    stroke: new ol.style.Stroke({
+                        color: "black",
+                        width: 2,
+                    }),
+                    offsetY: 16
+                })
+            }));
+            var data = Snapshot.snapshot(feature, 64);
+            show(data);
+            if (1 === window.devicePixelRatio) {
+                if (data !== pointData)
+                    show(pointData);
+                base_8.shouldEqual(data, pointData, "point data as expected");
+            }
+        });
+        it("Converts a triangle to image data", function () {
+            var points = circle(50, 4);
+            var feature = new ol.Feature(new ol.geom.Polygon([points]));
+            feature.setStyle(createStyle("Triangle"));
+            var data = Snapshot.snapshot(feature, 64);
+            show(data);
+        });
+        it("Converts a diamond to image data", function () {
+            var points = circle(50, 5);
+            var feature = new ol.Feature(new ol.geom.Polygon([points]));
+            feature.setStyle(createStyle("Diamond"));
+            var data = Snapshot.snapshot(feature, 64);
+            show(data);
+        });
+        it("Converts a polygon to image data", function () {
+            var geom = new ol.geom.Polygon([circle(3 + 100 * Math.random())]);
+            var feature = new ol.Feature(geom);
+            base_8.shouldEqual(feature.getGeometry(), geom, "geom still assigned");
+            feature.setStyle(createStyle("Circle"));
+            var originalCoordinates = base_8.stringify(geom.getCoordinates());
+            var data = Snapshot.snapshot(feature, 64);
+            console.log(data);
+            base_8.should(!!data, "snapshot returns data");
+            show(data);
+            var finalCoordinates = base_8.stringify(geom.getCoordinates());
+            base_8.shouldEqual(originalCoordinates, finalCoordinates, "coordinates unchanged");
+            base_8.shouldEqual(feature.getGeometry(), geom, "geom still assigned");
+            if (1 === window.devicePixelRatio) {
+                if (data !== pointData)
+                    show(circleData);
+                base_8.shouldEqual(data, circleData, "circle data as expected");
+            }
+        });
+    });
+    function createStyle(text) {
+        if (text === void 0) { text = ""; }
+        return new ol.style.Style({
+            fill: new ol.style.Fill({
+                color: "black"
+            }),
+            stroke: new ol.style.Stroke({
+                color: "blue",
+                width: 3
+            }),
+            text: new ol.style.Text({
+                text: text,
+                fill: new ol.style.Fill({
+                    color: "white"
+                }),
+                stroke: new ol.style.Stroke({
+                    color: "black",
+                    width: 2,
+                }),
+                offsetY: 16
+            })
+        });
+    }
+});
+define("node_modules/ol3-fun/tests/spec/zoom-to-feature", ["require", "exports", "openlayers", "node_modules/ol3-fun/tests/base", "node_modules/ol3-fun/ol3-fun/navigation"], function (require, exports, ol, base_9, navigation_4) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    describe("zoomToFeature", function () {
+        it("zoomToFeature", function (done) {
+            base_9.should(!!navigation_4.zoomToFeature, "zoomToFeature");
+            var map = new ol.Map({
+                view: new ol.View({
+                    zoom: 0,
+                    center: [0, 0]
+                })
+            });
+            var feature = new ol.Feature();
+            var geom = new ol.geom.Point([100, 100]);
+            feature.setGeometry(geom);
+            map.once("postrender", function () {
+                var res = map.getView().getResolution();
+                var zoom = map.getView().getZoom();
+                navigation_4.zoomToFeature(map, feature, {
+                    duration: 200,
+                    minResolution: res / 4,
+                }).then(function () {
+                    var _a = map.getView().getCenter(), cx = _a[0], cy = _a[1];
+                    base_9.should(map.getView().getZoom() === zoom + 2, "zoom in two because minRes is 1/4 of initial res");
+                    base_9.should(cx === 100, "center-x");
+                    base_9.should(cy === 100, "center-y");
+                    done();
+                });
+            });
+        });
+    });
+});
+define("node_modules/ol3-fun/tests/index", ["require", "exports", "node_modules/ol3-fun/tests/spec/api", "node_modules/ol3-fun/tests/spec/common", "node_modules/ol3-fun/tests/spec/slowloop", "node_modules/ol3-fun/tests/spec/parse-dms", "node_modules/ol3-fun/tests/spec/polyline", "node_modules/ol3-fun/tests/spec/snapshot", "node_modules/ol3-fun/tests/spec/zoom-to-feature"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+});
+define("node_modules/ol3-grid/tests/base", ["require", "exports"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    function describe(title, cb) {
+        console.log(title || "undocumented test group");
+        return window.describe(title, cb);
+    }
+    exports.describe = describe;
+    function it(title, cb) {
+        console.log(title || "undocumented test");
+        return window.it(title, cb);
+    }
+    exports.it = it;
+    function should(result, message) {
+        console.log(message || "undocumented assertion");
+        if (!result)
+            throw message;
+    }
+    exports.should = should;
+    function shouldEqual(a, b, message) {
+        if (a != b)
+            console.warn(a + " <> " + b);
+        should(a == b, message);
+    }
+    exports.shouldEqual = shouldEqual;
+    function stringify(o) {
+        return JSON.stringify(o, null, "\t");
+    }
+    exports.stringify = stringify;
+});
+define("node_modules/ol3-grid/tests/spec/grid", ["require", "exports", "node_modules/ol3-grid/tests/base", "mocha", "node_modules/ol3-grid/ol3-grid/ol3-grid"], function (require, exports, base_10, mocha_3, ol3_grid_1) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    mocha_3.describe("Grid Tests", function () {
+        mocha_3.it("Grid", function () {
+            base_10.should(!!ol3_grid_1.Grid, "Grid");
+        });
+        mocha_3.it("DEFAULT_OPTIONS", function () {
+            var options = ol3_grid_1.Grid.DEFAULT_OPTIONS;
+            checkDefaultInputOptions(options);
+        });
+        mocha_3.it("options of an Input instance", function () {
+            var grid = ol3_grid_1.Grid.create();
+            base_10.shouldEqual(grid.getMap(), null, "no map");
+            grid.destroy();
+        });
+    });
+    function checkDefaultInputOptions(options) {
+        base_10.should(!!options, "options");
+        base_10.shouldEqual(options.autoCollapse, true, "autoCollapse");
+        base_10.shouldEqual(options.canCollapse, true, "canCollapse");
+        base_10.shouldEqual(options.className, "ol-grid", "className");
+        base_10.should(options.closedText.length > 0, "closedText");
+        base_10.shouldEqual(options.expanded, false, "expanded");
+        base_10.shouldEqual(options.hideButton, false, "hideButton");
+        base_10.shouldEqual(options.map, undefined, "map");
+        base_10.shouldEqual(!!options.openedText, true, "openedText");
+        base_10.shouldEqual(!!options.placeholderText, true, "placeholderText");
+        base_10.shouldEqual(options.position, "top right", "position");
+        base_10.shouldEqual(options.target, undefined, "target");
+    }
+});
+define("node_modules/ol3-grid/tests/index", ["require", "exports", "node_modules/ol3-grid/tests/spec/grid"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+});
+define("node_modules/ol3-input/tests/base", ["require", "exports"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    function describe(title, cb) {
+        console.log(title || "undocumented test group");
+        return window.describe(title, cb);
+    }
+    exports.describe = describe;
+    function it(title, cb) {
+        console.log(title || "undocumented test");
+        return window.it(title, cb);
+    }
+    exports.it = it;
+    function should(result, message) {
+        console.log(message || "undocumented assertion");
+        if (!result)
+            throw message;
+    }
+    exports.should = should;
+    function shouldEqual(a, b, message) {
+        if (a != b)
+            console.warn(a, b);
+        should(a == b, message);
+    }
+    exports.shouldEqual = shouldEqual;
+    function stringify(o) {
+        return JSON.stringify(o, null, "\t");
+    }
+    exports.stringify = stringify;
+});
+define("node_modules/ol3-input/tests/spec/input", ["require", "exports", "node_modules/ol3-input/tests/base", "mocha", "node_modules/ol3-input/index"], function (require, exports, base_11, mocha_4, index_30) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    mocha_4.describe("Input Tests", function () {
+        mocha_4.it("Input", function () {
+            base_11.should(!!index_30.Input, "Input");
+        });
+        mocha_4.it("OsmSearchProvider", function () {
+            base_11.should(!!index_30.OsmSearchProvider, "OsmSearchProvider");
+        });
+        mocha_4.it("DEFAULT_OPTIONS", function () {
+            var options = index_30.Input.DEFAULT_OPTIONS;
+            checkDefaultInputOptions(options);
+        });
+        mocha_4.it("options of an Input instance", function () {
+            var input = index_30.Input.create();
+            checkDefaultInputOptions(input.options);
+        });
+        mocha_4.it("input dom", function (done) {
+            var input = index_30.Input.create({});
+            var target = document.createElement("div");
+            input.on("change", function (args) {
+                base_11.should(args.value === "hello", "change to hello");
+                done();
+            });
+            base_11.shouldEqual(target.innerHTML, "", "innerHTML");
+            input.setValue("hello");
+        });
+    });
+    function checkDefaultInputOptions(options) {
+        base_11.should(!!options, "options");
+        base_11.shouldEqual(options.autoChange, false, "autoChange");
+        base_11.shouldEqual(options.autoClear, false, "autoClear");
+        base_11.shouldEqual(options.autoCollapse, true, "autoCollapse");
+        base_11.shouldEqual(options.autoSelect, true, "autoSelect");
+        base_11.shouldEqual(options.canCollapse, true, "canCollapse");
+        base_11.shouldEqual(options.changeDelay, 2000, "changeDelay");
+        base_11.shouldEqual(options.className, "ol-input", "className");
+        base_11.should(options.closedText.length > 0, "closedText");
+        base_11.shouldEqual(options.expanded, false, "expanded");
+        base_11.shouldEqual(options.hideButton, false, "hideButton");
+        base_11.shouldEqual(options.map, undefined, "map");
+        base_11.shouldEqual(!!options.openedText, true, "openedText");
+        base_11.shouldEqual(!!options.placeholderText, true, "placeholderText");
+        base_11.shouldEqual(options.position, "bottom left", "position");
+        base_11.shouldEqual(!!options.provider, true, "provider");
+        base_11.should(!!options.regex, "regex");
+        base_11.shouldEqual(options.render, undefined, "render");
+        base_11.shouldEqual(options.source, undefined, "source");
+        base_11.shouldEqual(options.target, undefined, "target");
+    }
+});
+define("node_modules/ol3-input/tests/index", ["require", "exports", "node_modules/ol3-input/tests/spec/input"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+});
+define("node_modules/ol3-layerswitcher/tests/spec/layerswitcher", ["require", "exports", "openlayers", "node_modules/ol3-fun/tests/base", "node_modules/ol3-layerswitcher/index", "node_modules/ol3-fun/index"], function (require, exports, ol, base_12, index_31, index_32) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    base_12.describe("LayerSwitcher Tests", function () {
+        base_12.it("LayerSwitcher", function () {
+            base_12.should(!!index_31.LayerSwitcher, "LayerSwitcher");
+        });
+        base_12.it("DEFAULT_OPTIONS", function () {
+            var options = index_31.DEFAULT_OPTIONS;
+            checkDefaultInputOptions(options);
+        });
+        base_12.it("Renders in DOM", function (done) {
+            var cssout = index_32.cssin("map", ".map {width:16em;height:12em;border:1pt solid}");
+            var target = document.createElement("div");
+            target.className = "map";
+            document.body.appendChild(target);
+            var map = new ol.Map({
+                controls: [],
+                interactions: [],
+                layers: [],
+                target: target,
+            });
+            var switcher = new index_31.LayerSwitcher({});
+            var refresh = function (msg) {
+                console.log("refresh", msg);
+                switcher.hidePanel();
+                switcher.showPanel();
+            };
+            var tiles = ["Bing", "OSM"].map(function (n) {
+                return new ol.layer.Tile({
+                    title: "Tile " + n,
+                    visible: n === "Bing",
+                    type: "base",
+                    source: new ol.source.Tile({ projection: "EPSG:3857" }),
+                });
+            });
+            var groupLayers = new ol.Collection();
+            var group1 = new ol.layer.Group({
+                title: "Basemaps",
+                visible: true,
+                layers: groupLayers,
+            });
+            var vectors = ["Parcel", "Addresses", "Streets"].map(function (n) {
+                return new ol.layer.Vector({
+                    title: n,
+                    visible: n === "Addresses",
+                    source: new ol.source.Vector({}),
+                });
+            });
+            var mapLayers = map.getLayers();
+            vectors.forEach(function (t) { return t.on("change:visible", function (args) { return refresh("" + args.target.get("title")); }); });
+            tiles.forEach(function (t) { return t.on("change:visible", function (args) { return refresh("" + args.target.get("title")); }); });
+            [group1].forEach(function (t) { return t.on("change:visible", function (args) { return refresh("" + args.target.get("title")); }); });
+            groupLayers.on("add", function (args) { return refresh("add " + args.target.get("title")); });
+            mapLayers.on("add", function (args) { return refresh("add " + args.target.get("title")); });
+            mapLayers.on("remove", function (args) { return refresh("remove " + args.target.get("title")); });
+            switcher.setMap(map);
+            index_32.slowloop([
+                function () {
+                    switcher.showPanel();
+                    base_12.shouldEqual(switcher.isVisible(), true, "Panel is visible");
+                },
+                function () { return mapLayers.insertAt(0, group1); },
+                function () { return groupLayers.insertAt(0, tiles[0]); },
+                function () { return groupLayers.insertAt(1, tiles[1]); },
+                function () { return tiles[0].setVisible(!tiles[0].getVisible()); },
+                function () { return tiles[0].setVisible(!tiles[0].getVisible()); },
+                function () { return tiles[1].setVisible(!tiles[1].getVisible()); },
+                function () { return tiles[1].setVisible(!tiles[1].getVisible()); },
+                function () { return group1.setVisible(!group1.getVisible()); },
+                function () { return group1.setVisible(!group1.getVisible()); },
+                function () { return mapLayers.insertAt(1, vectors[0]); },
+                function () { return mapLayers.insertAt(2, vectors[1]); },
+                function () { return mapLayers.insertAt(0, vectors[2]); },
+                function () { return vectors[0].setVisible(!vectors[0].getVisible()); },
+                function () { return vectors[0].setVisible(!vectors[0].getVisible()); },
+                function () { return vectors[1].setVisible(!vectors[1].getVisible()); },
+                function () { return vectors[1].setVisible(!vectors[1].getVisible()); },
+                function () { return switcher.hidePanel(); },
+                function () { return switcher.showPanel(); },
+                function () { return mapLayers.remove(vectors[2]); },
+                function () { return mapLayers.insertAt(0, vectors[2]); },
+                function () { return vectors[2].setVisible(true); },
+            ], 100).then(function () {
+                base_12.shouldEqual(vectors[0].getVisible(), false, "Parcel is hidden");
+                vectors[0].setVisible(true);
+                base_12.shouldEqual(vectors[1].getVisible(), true, "Address is visible");
+                base_12.shouldEqual(vectors[2].getVisible(), true, "Address is visible");
+                base_12.shouldEqual(tiles[0].getVisible(), true, "Bing is visible");
+                base_12.shouldEqual(tiles[1].getVisible(), false, "OSM is hidden");
+                tiles[1].setVisible(true);
+                base_12.shouldEqual(tiles[1].getVisible(), true, "OSM is now visible");
+                base_12.shouldEqual(tiles[0].getVisible(), true, "Bing is still visible");
+                base_12.shouldEqual(switcher.isVisible(), true, "Panel is visible");
+                done();
+            });
+        }).timeout(20 * 200);
+    });
+    function checkDefaultInputOptions(options) {
+        base_12.should(!!options, "options");
+        base_12.shouldEqual(options.className, "layer-switcher", "className");
+        base_12.shouldEqual(options.closeOnClick, true, "closeOnClick");
+        base_12.shouldEqual(options.closeOnMouseOut, false, "closeOnMouseOut");
+        base_12.shouldEqual(options.openOnClick, true, "openOnClick");
+        base_12.shouldEqual(options.openOnMouseOver, false, "openOnMouseOver");
+        base_12.shouldEqual(options.target, undefined, "target");
+        base_12.shouldEqual(options.tipLabel, "Layers", "tipLabel");
+    }
+});
+define("node_modules/ol3-layerswitcher/tests/index", ["require", "exports", "node_modules/ol3-layerswitcher/tests/spec/layerswitcher"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+});
+define("node_modules/ol3-panzoom/tests/index", ["require", "exports", "node_modules/ol3-fun/tests/base", "node_modules/ol3-panzoom/ol3-panzoom/ol3-panzoom"], function (require, exports, base_13, PanZoom) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    base_13.describe("ol3-panzoom", function () {
+        base_13.it("ol3-panzoom", function () {
+            base_13.should(!!PanZoom, "PanZoom exists");
+        });
+    });
+});
+define("node_modules/ol3-popup/tests/spec/popup", ["require", "exports", "openlayers", "node_modules/ol3-fun/tests/base", "node_modules/ol3-fun/index", "node_modules/ol3-popup/index"], function (require, exports, ol, base_14, index_33, index_34) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    base_14.describe("Popup Options", function () {
+        base_14.it("Popup", function () {
+            base_14.should(!!index_34.Popup, "Popup");
+        });
+        base_14.it("DEFAULT_OPTIONS", function () {
+            checkDefaultInputOptions(index_34.DEFAULT_OPTIONS);
+        });
+    });
+    base_14.describe("Popup Constructor", function () {
+        var map = new ol.Map({});
+        base_14.it("Constructors", function () {
+            try {
+                index_34.Popup.create().destroy();
+            }
+            catch (_a) {
+                base_14.should(true, "empty constructor throws, either map or autoPopup=false necessary");
+            }
+            index_34.Popup.create({ autoPopup: false }).destroy();
+            index_34.Popup.create({ map: map }).destroy();
+        });
+    });
+    base_14.describe("Popup Paging", function () {
+        var target = document.createElement("div");
+        document.body.appendChild(target);
+        var map = new ol.Map({
+            target: target,
+            layers: [
+                new ol.layer.Tile({
+                    source: new ol.source.OSM()
+                })
+            ],
+            view: new ol.View({
+                center: [0, 0],
+                projection: "EPSG:3857",
+                zoom: 24
+            })
+        });
+        base_14.it("Paging", function (done) {
+            map.once("postrender", function () {
+                var popup = index_34.Popup.create({ map: map });
+                var c = map.getView().getCenter();
+                var points = index_33.pair(index_33.range(3), index_33.range(3)).map(function (n) { return new ol.geom.Point([c[0] + n[0], c[1] + n[1]]); });
+                points.forEach(function (p, i) {
+                    popup.pages.add("Page " + i, p);
+                });
+                var i = 0;
+                base_14.slowloop([function () { return popup.pages.goto(i++); }], 300, points.length).then(function () {
+                    map.setTarget(null);
+                    target.remove();
+                    done();
+                });
+            });
+        });
+    });
+    function checkDefaultInputOptions(options) {
+        base_14.should(!!options, "options");
+        base_14.shouldEqual(typeof options.asContent, "function", "asContent");
+        base_14.shouldEqual(options.autoPan, true, "autoPan");
+        base_14.shouldEqual(!options.autoPanAnimation, true, "autoPanAnimation");
+        base_14.shouldEqual(options.autoPanMargin, 20, "autoPanMargin");
+        base_14.shouldEqual(options.autoPopup, true, "autoPopup");
+        base_14.shouldEqual(options.autoPositioning, true, "autoPositioning");
+        base_14.shouldEqual(options.className, "ol-popup", "className");
+        base_14.shouldEqual(typeof options.css, "string", "css");
+        base_14.shouldEqual(!options.dockContainer, true, "dockContainer");
+        base_14.shouldEqual(!options.element, true, "element");
+        base_14.shouldEqual(!options.id, true, "id");
+        base_14.shouldEqual(options.insertFirst, true, "insertFirst");
+        base_14.shouldEqual(!options.layers, true, "layers");
+        base_14.shouldEqual(!options.map, true, "map");
+        base_14.shouldEqual(!options.multi, true, "multi");
+        base_14.shouldEqual(base_14.stringify(options.offset), base_14.stringify([0, -10]), "offset");
+        base_14.shouldEqual(!options.pagingStyle, true, "pagingStyle");
+        base_14.shouldEqual(options.pointerPosition, 20, "pointerPosition");
+        base_14.shouldEqual(!options.position, true, "position");
+        base_14.shouldEqual(options.positioning, "bottom-center", "positioning");
+        base_14.shouldEqual(!options.showCoordinates, true, "showCoordinates");
+        base_14.shouldEqual(options.stopEvent, true, "stopEvent");
+    }
+});
+define("node_modules/ol3-popup/tests/index", ["require", "exports", "node_modules/ol3-popup/tests/spec/popup"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+});
+define("node_modules/ol3-search/tests/spec/search", ["require", "exports", "node_modules/ol3-fun/tests/base", "mocha", "node_modules/ol3-search/index"], function (require, exports, base_15, mocha_5, index_35) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    mocha_5.describe("SearchForm Tests", function () {
+        mocha_5.it("SearchForm", function () {
+            base_15.should(!!index_35.SearchForm, "SearchForm");
+        });
+        mocha_5.it("DEFAULT_OPTIONS", function () {
+            var options = index_35.SearchForm.DEFAULT_OPTIONS;
+            checkDefaultInputOptions(options);
+        });
+        mocha_5.it("options of an Input instance", function () {
+            var input = index_35.SearchForm.create();
+            checkDefaultInputOptions(input.options);
+        });
+    });
+    function checkDefaultInputOptions(options) {
+        base_15.should(!!options, "options");
+        base_15.shouldEqual(options.autoChange, false, "autoChange");
+        base_15.shouldEqual(options.autoClear, false, "autoClear");
+        base_15.shouldEqual(options.autoCollapse, true, "autoCollapse");
+        base_15.shouldEqual(options.canCollapse, true, "canCollapse");
+        base_15.shouldEqual(options.className, "ol-search", "className");
+        base_15.should(options.closedText.length > 0, "closedText");
+        base_15.shouldEqual(options.expanded, false, "expanded");
+        base_15.shouldEqual(options.hideButton, false, "hideButton");
+        base_15.shouldEqual(!!options.openedText, true, "openedText");
+        base_15.shouldEqual(options.position, "bottom left", "position");
+        base_15.shouldEqual(options.render, undefined, "render");
+        base_15.shouldEqual(options.source, undefined, "source");
+        base_15.shouldEqual(options.target, undefined, "target");
+    }
+});
+define("node_modules/ol3-search/tests/index", ["require", "exports", "node_modules/ol3-search/tests/spec/search"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+});
+define("node_modules/ol3-symbolizer/tests/base", ["require", "exports"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    function describe(title, cb) {
+        console.log(title || "undocumented test group");
+        return window.describe(title, cb);
+    }
+    exports.describe = describe;
+    function it(title, cb) {
+        console.log(title || "undocumented test");
+        return window.it(title, cb);
+    }
+    exports.it = it;
+    function should(result, message) {
+        console.log(message || "undocumented assertion");
+        if (!result)
+            throw message;
+    }
+    exports.should = should;
+    function shouldEqual(a, b, message) {
+        if (a != b)
+            console.warn(a, b);
+        should(a == b, message);
+    }
+    exports.shouldEqual = shouldEqual;
+    function stringify(o) {
+        return JSON.stringify(o, null, "\t");
+    }
+    exports.stringify = stringify;
+});
+define("node_modules/ol3-symbolizer/tests/common", ["require", "exports", "node_modules/ol3-symbolizer/ol3-symbolizer/common/assign", "node_modules/ol3-symbolizer/ol3-symbolizer/common/mixin", "node_modules/ol3-symbolizer/ol3-symbolizer/common/defaults", "node_modules/ol3-symbolizer/tests/base"], function (require, exports, assign_2, mixin_3, defaults_2, base_16) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    describe("assign tests", function () {
+        it("assign empty", function () {
+        });
+        it("assign number", function () {
+            var target = {};
+            assign_2.assign(target, "a", 100);
+            base_16.should(target.a === 100, "");
+        });
+        it("assign object", function () {
+            var target = {};
+            assign_2.assign(target, "a", { "a": 100 });
+            base_16.should(target.a.a === 100, "");
+        });
+    });
+    describe("defaults tests", function () {
+        it("defaults number", function () {
+            base_16.should(defaults_2.defaults({}, { a: 100 }).a === 100, "");
+            base_16.should(defaults_2.defaults(defaults_2.defaults({}, { a: 100 }), { a: 200 }).a === 100, "");
+            var a = defaults_2.defaults({}, { a: 1 });
+            base_16.should(a === defaults_2.defaults(a, { a: 2 }), "");
+        });
+    });
+    describe("mixin tests", function () {
+        it("mixin number", function () {
+            base_16.should(mixin_3.mixin({}, { a: 100 }).a === 100, "");
+            base_16.should(mixin_3.mixin(mixin_3.mixin({}, { a: 100 }), { a: 200 }).a === 200, "");
+            var a = mixin_3.mixin({}, { a: 1 });
+            base_16.should(a === mixin_3.mixin(a, { a: 2 }), "");
+        });
+    });
+    describe("test accessing openlayers using amd", function () {
+        it("log ol.style.Style", function () {
+            require(["openlayers"], function (ol) {
+                var style = ol.style.Style;
+                base_16.should(!!style, "");
+                console.log(style.toString());
+            });
+        });
+    });
+});
+define("node_modules/ol3-symbolizer/ol3-symbolizer/styles/stroke/linedash", ["require", "exports"], function (require, exports) {
+    "use strict";
+    var dasharray = {
+        solid: "none",
+        shortdash: [4, 1],
+        shortdot: [1, 1],
+        shortdashdot: [4, 1, 1, 1],
+        shortdashdotdot: [4, 1, 1, 1, 1, 1],
+        dot: [1, 3],
+        dash: [4, 3],
+        longdash: [8, 3],
+        dashdot: [4, 3, 1, 3],
+        longdashdot: [8, 3, 1, 3],
+        longdashdotdot: [8, 3, 1, 3, 1, 3]
+    };
+    return dasharray;
+});
+define("node_modules/ol3-symbolizer/tests/ol3-symbolizer", ["require", "exports", "node_modules/ol3-symbolizer/ol3-symbolizer/styles/stroke/linedash", "node_modules/ol3-symbolizer/tests/base", "node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer"], function (require, exports, Dashes, base_17, ol3_symbolizer_7) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    var converter = new ol3_symbolizer_7.StyleConverter();
+    base_17.describe("OL Format Tests", function () {
+        base_17.it("Ensures interface does not break", function () {
+            var circle = {};
+            circle.fill;
+            circle.opacity;
+            circle.radius;
+            circle.snapToPixel;
+            circle.stroke;
+            var color = {};
+            color === [1] || color == "";
+            var fill = {};
+            fill.color;
+            fill.gradient;
+            fill.image;
+            fill.pattern;
+            var icon = {};
+            icon["anchor-x"];
+            icon["anchor-y"];
+            icon.anchor;
+            icon.anchorOrigin;
+            icon.anchorXUnits;
+            icon.anchorYUnits;
+            icon.color;
+            icon.crossOrigin;
+            icon.offset;
+            icon.offsetOrigin;
+            icon.opacity;
+            icon.rotateWithView;
+            icon.rotation;
+            icon.scale;
+            icon.size;
+            icon.snapToPixel;
+            icon.src;
+            var image = {};
+            image.opacity;
+            image.rotateWithView;
+            image.rotation;
+            image.scale;
+            image.snapToPixel;
+        });
+    });
+    base_17.describe("OL StyleConverter API Tests", function () {
+        base_17.it("StyleConverter API", function () {
+            var converter = new ol3_symbolizer_7.StyleConverter();
+            base_17.should(typeof converter.fromJson === "function", "fromJson exists");
+            base_17.should(typeof converter.toJson === "function", "toJson exists");
+        });
+    });
+    base_17.describe("OL StyleConverter Json Tests", function () {
+        base_17.it("Circle Tests", function () {
+            var baseline = {
+                "circle": {
+                    "fill": {
+                        "color": "rgba(197,37,84,0.90)"
+                    },
+                    "opacity": 1,
+                    "stroke": {
+                        "color": "rgba(227,83,105,1)",
+                        "width": 4.4
+                    },
+                    "radius": 7.3
+                },
+                "text": {
+                    "fill": {
+                        "color": "rgba(205,86,109,0.9)"
+                    },
+                    "stroke": {
+                        "color": "rgba(252,175,131,0.5)",
+                        "width": 2
+                    },
+                    "text": "Test",
+                    "offset-x": 0,
+                    "offset-y": 20,
+                    "font": "18px fantasy"
+                }
+            };
+            var style = converter.fromJson(baseline);
+            var circleStyle = style.getImage();
+            base_17.should(circleStyle !== null, "getImage returns a style");
+            base_17.shouldEqual(circleStyle.getRadius(), baseline.circle.radius, "getImage is a circle and radius");
+            var circleJson = converter.toJson(style);
+            base_17.should(circleJson.circle !== null, "json contains a circle");
+            base_17.shouldEqual(circleJson.circle.radius, baseline.circle.radius, "circle radius");
+        });
+        base_17.it("Star Tests", function () {
+            var baseline = {
+                "star": {
+                    "fill": {
+                        "color": "rgba(54,47,234,1)"
+                    },
+                    "stroke": {
+                        "color": "rgba(75,92,105,0.85)",
+                        "width": 4
+                    },
+                    "radius": 9,
+                    "radius2": 0,
+                    "points": 6
+                }
+            };
+            var style = converter.fromJson(baseline);
+            var starStyle = style.getImage();
+            base_17.should(starStyle !== null, "getImage returns a style");
+            base_17.shouldEqual(starStyle.getRadius(), baseline.star.radius, "starStyle radius");
+            base_17.shouldEqual(starStyle.getRadius2(), baseline.star.radius2, "starStyle radius2");
+            base_17.shouldEqual(starStyle.getPoints(), baseline.star.points, "starStyle points");
+            var starJson = converter.toJson(style);
+            base_17.should(starJson.star !== null, "json contains a star");
+            base_17.shouldEqual(starJson.star.radius, baseline.star.radius, "starJson radius");
+            base_17.shouldEqual(starJson.star.radius2, baseline.star.radius2, "starJson radius2");
+            base_17.shouldEqual(starJson.star.points, baseline.star.points, "starJson point count");
+        });
+        base_17.it("Fill Test", function () {
+            var baseline = {
+                "fill": {
+                    "gradient": {
+                        "type": "linear(200,0,201,0)",
+                        "stops": "rgba(255,0,0,.1) 0%;rgba(255,0,0,0.8) 100%"
+                    }
+                }
+            };
+            var style = converter.fromJson(baseline);
+            var fillStyle = style.getFill();
+            base_17.should(fillStyle !== null, "fillStyle exists");
+            var gradient = fillStyle.getColor();
+            base_17.shouldEqual(gradient.stops, baseline.fill.gradient.stops, "fillStyle color");
+            base_17.shouldEqual(gradient.type, baseline.fill.gradient.type, "fillStyle color");
+        });
+        base_17.it("Stroke Test", function () {
+            var baseline = {
+                "stroke": {
+                    "color": "orange",
+                    "width": 2,
+                    "lineDash": Dashes.longdashdotdot
+                }
+            };
+            var style = converter.fromJson(baseline);
+            var strokeStyle = style.getStroke();
+            base_17.should(strokeStyle !== null, "strokeStyle exists");
+            base_17.shouldEqual(strokeStyle.getColor(), baseline.stroke.color, "strokeStyle color");
+            base_17.shouldEqual(strokeStyle.getWidth(), baseline.stroke.width, "strokeStyle width");
+            base_17.shouldEqual(strokeStyle.getLineDash().join(), baseline.stroke.lineDash.join(), "strokeStyle lineDash");
+        });
+        base_17.it("Text Test", function () {
+            var baseline = {
+                "text": {
+                    "fill": {
+                        "color": "rgba(75,92,85,0.85)"
+                    },
+                    "stroke": {
+                        "color": "rgba(255,255,255,1)",
+                        "width": 5
+                    },
+                    "offset-x": 5,
+                    "offset-y": 10,
+                    offsetX: 15,
+                    offsetY: 20,
+                    "text": "fantasy light",
+                    "font": "18px serif"
+                }
+            };
+            var style = converter.fromJson(baseline);
+            var textStyle = style.getText();
+            base_17.should(textStyle !== null, "textStyle exists");
+            base_17.shouldEqual(textStyle.getFill().getColor(), baseline.text.fill.color, "textStyle text color");
+            base_17.shouldEqual(textStyle.getText(), baseline.text.text, "textStyle text");
+            base_17.shouldEqual(textStyle.getOffsetX(), baseline.text["offset-x"], "textStyle color");
+            base_17.shouldEqual(textStyle.getOffsetY(), baseline.text["offset-y"], "textStyle color");
+            base_17.shouldEqual(textStyle.getFont(), baseline.text.font, "textStyle font");
+        });
+    });
+    base_17.describe("OL Basic shapes", function () {
+        base_17.it("cross, square, diamond, star, triangle, x", function () {
+            var cross = {
+                "star": {
+                    "opacity": 0.5,
+                    "fill": {
+                        "color": "red"
+                    },
+                    "stroke": {
+                        "color": "black",
+                        "width": 2
+                    },
+                    "points": 4,
+                    "radius": 10,
+                    "radius2": 0,
+                    "angle": 0
+                }
+            };
+            var square = {
+                "star": {
+                    "fill": {
+                        "color": "red"
+                    },
+                    "stroke": {
+                        "color": "black",
+                        "width": 2
+                    },
+                    "points": 4,
+                    "radius": 10,
+                    "angle": 0.7853981633974483
+                }
+            };
+            var diamond = {
+                "star": {
+                    "fill": {
+                        "color": "red"
+                    },
+                    "stroke": {
+                        "color": "black",
+                        "width": 2
+                    },
+                    "points": 4,
+                    "radius": 10,
+                    "angle": 0
+                }
+            };
+            var star = {
+                "star": {
+                    "fill": {
+                        "color": "red"
+                    },
+                    "stroke": {
+                        "color": "black",
+                        "width": 2
+                    },
+                    "points": 5,
+                    "radius": 10,
+                    "radius2": 4,
+                    "angle": 0
+                }
+            };
+            var triangle = {
+                "star": {
+                    "fill": {
+                        "color": "red"
+                    },
+                    "stroke": {
+                        "color": "black",
+                        "width": 2
+                    },
+                    "points": 3,
+                    "radius": 10,
+                    "angle": 0
+                }
+            };
+            var x = {
+                "star": {
+                    "fill": {
+                        "color": "red"
+                    },
+                    "stroke": {
+                        "color": "black",
+                        "width": 2
+                    },
+                    "points": 4,
+                    "radius": 10,
+                    "radius2": 0,
+                    "angle": 0.7853981633974483
+                }
+            };
+            var crossJson = converter.toJson(converter.fromJson(cross));
+            var squareJson = converter.toJson(converter.fromJson(square));
+            var diamondJson = converter.toJson(converter.fromJson(diamond));
+            var starJson = converter.toJson(converter.fromJson(star));
+            var triangleJson = converter.toJson(converter.fromJson(triangle));
+            var xJson = converter.toJson(converter.fromJson(x));
+            base_17.should(!!crossJson.cross, "cross exists");
+            base_17.shouldEqual(crossJson.cross.size, cross.star.radius * 2, "cross size");
+            base_17.should(!!squareJson.square, "square exists");
+            base_17.shouldEqual(squareJson.square.size, square.star.radius * 2, "square size");
+            base_17.should(!!diamondJson.diamond, "diamond exists");
+            base_17.shouldEqual(diamondJson.diamond.size, diamond.star.radius * 2, "diamond size");
+            base_17.should(!!triangleJson.triangle, "triangle exists");
+            base_17.shouldEqual(triangleJson.triangle.size, triangle.star.radius * 2, "triangle size");
+            base_17.should(!!xJson.x, "x exists");
+            base_17.shouldEqual(xJson.x.size, x.star.radius * 2, "x size");
+            var items = { crossJson: crossJson, squareJson: squareJson, diamondJson: diamondJson, triangleJson: triangleJson, xJson: xJson };
+            Object.keys(items).forEach(function (k) {
+                base_17.shouldEqual(base_17.stringify(converter.toJson(converter.fromJson(items[k]))), base_17.stringify(items[k]), k + " json->style->json");
+            });
+        });
+    });
+    base_17.describe("OL NEXT", function () {
+        base_17.it("NEXT", function () {
+        });
+    });
+});
+define("node_modules/ol3-symbolizer/tests/ags-symbolizer", ["require", "exports", "node_modules/ol3-symbolizer/tests/base", "node_modules/ol3-symbolizer/ol3-symbolizer/format/ags-symbolizer", "node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer"], function (require, exports, base_18, ags_symbolizer_4, ol3_symbolizer_8) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    var fromJson = (function () {
+        var fromJsonConverter = new ags_symbolizer_4.StyleConverter();
+        return function (style) { return fromJsonConverter.fromJson(style); };
+    })();
+    var toJson = (function () {
+        var toJsonConverter = new ol3_symbolizer_8.StyleConverter();
+        return function (style) { return toJsonConverter.toJson(style); };
+    })();
+    function rgba(_a) {
+        var r = _a[0], g = _a[1], b = _a[2], a = _a[3];
+        return "rgba(" + r + "," + g + "," + b + "," + a / 255 + ")";
+    }
+    base_18.describe("esriSMS Tests", function () {
+        base_18.it("esriSMSCircle", function () {
+            var baseline = {
+                "color": [
+                    255,
+                    255,
+                    255,
+                    64
+                ],
+                "size": 12,
+                "angle": 0,
+                "xoffset": 0,
+                "yoffset": 0,
+                "type": "esriSMS",
+                "style": "esriSMSCircle",
+                "outline": {
+                    "color": [
+                        0,
+                        0,
+                        0,
+                        255
+                    ],
+                    "width": 1,
+                    "type": "esriSLS",
+                    "style": "esriSLSSolid"
+                }
+            };
+            var style = fromJson(baseline);
+            var circleJson = toJson(style);
+            var expectedRadius = (baseline.size * 4 / 3) / 2;
+            base_18.shouldEqual(circleJson.circle.radius, expectedRadius, "circleJson radius is 33% larger than specified in the ags style (see StyleConverter.asWidth)");
+            base_18.shouldEqual(circleJson.circle.fill.color, rgba(baseline.color), "circleJson fill color");
+            base_18.shouldEqual(circleJson.circle.fill.pattern, null, "circleJson fill pattern is solid");
+            base_18.shouldEqual(circleJson.circle.stroke.color, rgba(baseline.outline.color), "circleJson stroke color");
+            base_18.shouldEqual(circleJson.circle.stroke.width, baseline.outline.width * 4 / 3, "circleJson stroke width");
+            base_18.shouldEqual(circleJson.circle.stroke.lineCap, undefined, "circleJson stroke lineCap");
+            base_18.shouldEqual(circleJson.circle.stroke.lineDash, undefined, "circleJson stroke lineDash");
+            base_18.shouldEqual(circleJson.circle.stroke.lineJoin, undefined, "circleJson stroke lineJoin");
+        });
+        base_18.it("esriSMSCross", function () {
+            var baseline = {
+                "color": [
+                    255,
+                    255,
+                    255,
+                    64
+                ],
+                "size": 12,
+                "angle": 0,
+                "xoffset": 0,
+                "yoffset": 0,
+                "type": "esriSMS",
+                "style": "esriSMSCross",
+                "outline": {
+                    "color": [
+                        0,
+                        0,
+                        0,
+                        255
+                    ],
+                    "width": 1,
+                    "type": "esriSLS",
+                    "style": "esriSLSSolid"
+                }
+            };
+            var json = toJson(fromJson(baseline));
+            base_18.should(!!json.cross, "cross");
+            base_18.shouldEqual(json.cross.opacity, 1, "opacity");
+            base_18.shouldEqual(json.cross.size, 22.62741699796952, "size");
+        });
+    });
+    base_18.describe("esriSLS Tests", function () {
+        base_18.it("esriSLSShortDash esriLCSSquare esriLJSRound", function () {
+            var baseline = {
+                "type": "esriSLS",
+                "style": "esriSLSShortDash",
+                "color": [
+                    152,
+                    230,
+                    0,
+                    255
+                ],
+                "width": 1,
+                "cap": "esriLCSSquare",
+                "join": "esriLJSRound",
+                "miterLimit": 9.75
+            };
+            var style = fromJson(baseline);
+            var json = toJson(style);
+            base_18.shouldEqual(json.stroke.color, rgba(baseline.color), "stroke color");
+        });
+        base_18.it("esriSLSDash esriLCSButt esriLJSBevel", function () {
+            var baseline = {
+                "type": "esriSLS",
+                "style": "esriSLSDash",
+                "color": [
+                    152,
+                    230,
+                    0,
+                    255
+                ],
+                "width": 1,
+                "cap": "esriLCSButt",
+                "join": "esriLJSBevel",
+                "miterLimit": 9.75
+            };
+            var style = fromJson(baseline);
+            var json = toJson(style);
+            base_18.shouldEqual(json.stroke.color, rgba(baseline.color), "stroke color");
+        });
+        base_18.it("esriSLSSolid esriLCSRound esriLJSMiter", function () {
+            var baseline = {
+                "type": "esriSLS",
+                "style": "esriSLSSolid",
+                "color": [
+                    152,
+                    230,
+                    0,
+                    255
+                ],
+                "width": 1,
+                "cap": "esriLCSRound",
+                "join": "esriLJSMiter",
+                "miterLimit": 9.75
+            };
+            var style = fromJson(baseline);
+            var json = toJson(style);
+            base_18.shouldEqual(json.stroke.color, rgba(baseline.color), "stroke color");
+        });
+    });
+});
+define("node_modules/ol3-symbolizer/tests/index", ["require", "exports", "node_modules/ol3-symbolizer/tests/common", "node_modules/ol3-symbolizer/tests/ol3-symbolizer", "node_modules/ol3-symbolizer/tests/ags-symbolizer"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+});
+define("tests/index", ["require", "exports", "node_modules/ol3-draw/tests/index", "node_modules/ol3-fun/tests/index", "node_modules/ol3-grid/tests/index", "node_modules/ol3-input/tests/index", "node_modules/ol3-layerswitcher/tests/index", "node_modules/ol3-panzoom/tests/index", "node_modules/ol3-popup/tests/index", "node_modules/ol3-search/tests/index", "node_modules/ol3-symbolizer/tests/index"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
 });
 //# sourceMappingURL=index.js.map

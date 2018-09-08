@@ -14,6 +14,6 @@
 		"rootDir": "./",
 		"lib": ["esnext", "dom"]
 	},
-	"include": ["ol3-lab/**/*.ts"],
+	"include": ["ol3-lab/**/*.ts", "tests/index.ts"],
 	"exclude": ["ol3-lab/tests/data/routes", "ol3-lab/tests/routing.ts"]
 }

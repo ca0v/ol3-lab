@@ -1,4 +1,4 @@
-(() => {
+(function() {
 	function loadCss(url) {
 		let link = document.createElement("link");
 		link.type = "text/css";
@@ -16,13 +16,11 @@
 		return decodeURIComponent(results[2].replace(/\+/g, " "));
 	}
 
-	let run = getParameterByName("run") || "ol3-lab/labs/index";
-	let debug = getParameterByName("debug") === "1";
 	let localhost = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
 
 	loadCss(
 		localhost
-			? "./node_modules/ol3-fun/static/ol/v5.1.3/ol.css"
+			? "../node_modules/ol3-fun/static/ol/v5.1.3/ol.css"
 			: "https://cdn.rawgit.com/openlayers/openlayers.github.io/master/en/v5.1.3/css/ol.css"
 	);
 
@@ -35,26 +33,28 @@
 				exports: "ol" // tell requirejs which global this library defines
 			}
 		},
+
+		paths: {
+			openlayers: localhost
+				? "../../node_modules/ol3-fun/static/ol/v5.1.3/ol"
+				: "https://cdn.rawgit.com/openlayers/openlayers.github.io/master/en/v5.1.3/build/ol"
+		},
+
 		packages: [
 			{
-				name: "xstyle",
-				location: "https://cdn.rawgit.com/kriszyp/xstyle/v0.3.2",
-				main: "xstyle"
+				name: "jquery",
+				location: localhost
+					? "../../node_modules/jquery/dist"
+					: "https://cdn.rawgit.com/jquery/jquery-dist/3.1.1/dist",
+				main: "jquery.min"
 			}
 		],
-		paths: {
-			"resize-sensor": "https://rawgit.com/marcj/css-element-queries/master/src/ResizeSensor",
-			openlayers: localhost
-				? "./node_modules/ol3-fun/static/ol/v5.1.3/ol"
-				: "https://cdn.rawgit.com/openlayers/openlayers.github.io/master/en/v5.1.3/build/ol",
-			jquery: localhost
-				? "./node_modules/jquery/dist/jquery.min"
-				: "https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.1/jquery.min"
-		},
-		deps: ["./index"],
-		callback: () => {
-			requirejs([run], test => {
-				test.run ? test.run() : test();
+
+		deps: ["../index"],
+
+		callback: function() {
+			requirejs([getParameterByName("run") || "ol3-lab/labs/index"], function(test) {
+				test.run();
 			});
 		}
 	});
