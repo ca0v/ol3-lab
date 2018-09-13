@@ -15,8 +15,8 @@ define("node_modules/ol3-fun/ol3-fun/common", ["require", "exports"], function (
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     function uuid() {
-        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
-            var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+        return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
+            var r = (Math.random() * 16) | 0, v = c == "x" ? r : (r & 0x3) | 0x8;
             return v.toString(16);
         });
     }
@@ -35,7 +35,6 @@ define("node_modules/ol3-fun/ol3-fun/common", ["require", "exports"], function (
             e.classList.remove(className);
             return false;
         }
-        ;
         if (!exists && force !== false) {
             e.classList.add(className);
             return true;
@@ -51,7 +50,7 @@ define("node_modules/ol3-fun/ol3-fun/common", ["require", "exports"], function (
         if (typeof type === "boolean")
             return (v === "1" || v === "true");
         if (Array.isArray(type)) {
-            return (v.split(",").map(function (v) { return parse(v, type[0]); }));
+            return v.split(",").map(function (v) { return parse(v, type[0]); });
         }
         throw "unknown type: " + type;
     }
@@ -75,7 +74,7 @@ define("node_modules/ol3-fun/ol3-fun/common", ["require", "exports"], function (
         if (!results)
             return null;
         if (!results[2])
-            return '';
+            return "";
         return decodeURIComponent(results[2].replace(/\+/g, " "));
     }
     exports.getParameterByName = getParameterByName;
@@ -85,7 +84,7 @@ define("node_modules/ol3-fun/ol3-fun/common", ["require", "exports"], function (
     }
     exports.doif = doif;
     function mixin(a, b) {
-        Object.keys(b).forEach(function (k) { return a[k] = b[k]; });
+        Object.keys(b).forEach(function (k) { return (a[k] = b[k]); });
         return a;
     }
     exports.mixin = mixin;
@@ -95,7 +94,9 @@ define("node_modules/ol3-fun/ol3-fun/common", ["require", "exports"], function (
             b[_i - 1] = arguments[_i];
         }
         b.forEach(function (b) {
-            Object.keys(b).filter(function (k) { return a[k] === undefined; }).forEach(function (k) { return a[k] = b[k]; });
+            Object.keys(b)
+                .filter(function (k) { return a[k] === undefined; })
+                .forEach(function (k) { return (a[k] = b[k]); });
         });
         return a;
     }
@@ -151,7 +152,7 @@ define("node_modules/ol3-fun/ol3-fun/common", ["require", "exports"], function (
     function pair(a1, a2) {
         var result = new Array(a1.length * a2.length);
         var i = 0;
-        a1.forEach(function (v1) { return a2.forEach(function (v2) { return result[i++] = [v1, v2]; }); });
+        a1.forEach(function (v1) { return a2.forEach(function (v2) { return (result[i++] = [v1, v2]); }); });
         return result;
     }
     exports.pair = pair;
@@ -313,6 +314,7 @@ define("node_modules/ol3-fun/ol3-fun/slowloop", ["require", "exports"], function
         if (cycles === void 0) { cycles = 1; }
         var d = $.Deferred();
         var index = 0;
+        var cycle = 0;
         if (!functions || 0 >= cycles) {
             d.resolve();
             return d;
@@ -320,15 +322,21 @@ define("node_modules/ol3-fun/ol3-fun/slowloop", ["require", "exports"], function
         var h = setInterval(function () {
             if (index === functions.length) {
                 index = 0;
-                cycles--;
-                if (cycles <= 0) {
+                if (++cycle === cycles) {
                     d.resolve();
+                    clearInterval(h);
                     return;
                 }
             }
-            functions[index++]();
+            try {
+                d.notify({ index: index, cycle: cycle });
+                functions[index++]();
+            }
+            catch (ex) {
+                clearInterval(h);
+                d.reject(ex);
+            }
         }, interval);
-        d.done(function () { return clearInterval(h); });
         return d;
     }
     exports.slowloop = slowloop;
@@ -885,7 +893,7 @@ define("node_modules/ol3-popup/ol3-popup/interaction", ["require", "exports", "o
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var dispose = function (handlers) {
-        return handlers.forEach(function (h) { return (h instanceof Function) ? h() : ol.Observable.unByKey(h); });
+        return handlers.forEach(function (h) { return (h instanceof Function ? h() : ol.Observable.unByKey(h)); });
     };
     var SelectInteraction = (function (_super) {
         __extends(SelectInteraction, _super);
@@ -898,6 +906,8 @@ define("node_modules/ol3-popup/ol3-popup/interaction", ["require", "exports", "o
             _this.handlers = [];
             _this.handlers.push(map.on("click", function (args) {
                 var _a, _b, _c;
+                if (!popup.options.autoPopup)
+                    return;
                 if (!_this.get("active"))
                     return;
                 var wasDocked = popup.isDocked();
@@ -916,7 +926,10 @@ define("node_modules/ol3-popup/ol3-popup/interaction", ["require", "exports", "o
                     ], _b = _a[0], extent_1[0] = _b[0], extent_1[3] = _b[1], _c = _a[1], extent_1[2] = _c[0], extent_1[1] = _c[1];
                     var layers_1 = popup.options.layers;
                     if (!layers_1) {
-                        layers_1 = map.getLayers().getArray().filter(function (l) { return l instanceof ol.layer.Vector; });
+                        layers_1 = map
+                            .getLayers()
+                            .getArray()
+                            .filter(function (l) { return l instanceof ol.layer.Vector; });
                     }
                     var page_1;
                     layers_1.forEach(function (layer) {
@@ -943,8 +956,7 @@ define("node_modules/ol3-popup/ol3-popup/interaction", ["require", "exports", "o
                         });
                     }
                     if (!found_1 && popup.options.showCoordinates) {
-                        page_1 = popup.pages.add(("\n<table>\n<tr><td>lon</td><td>" + args.coordinate[0].toPrecision(6) + "</td></tr>\n<tr><td>lat</td><td>" + args.coordinate[1].toPrecision(6) + "</td></tr>\n</table>")
-                            .trim(), new ol.geom.Point(args.coordinate));
+                        page_1 = popup.pages.add(("\n<table>\n<tr><td>lon</td><td>" + args.coordinate[0].toPrecision(6) + "</td></tr>\n<tr><td>lat</td><td>" + args.coordinate[1].toPrecision(6) + "</td></tr>\n</table>").trim(), new ol.geom.Point(args.coordinate));
                         found_1 = true;
                     }
                     if (found_1) {
@@ -1039,7 +1051,7 @@ define("node_modules/ol3-popup/ol3-popup/interaction", ["require", "exports", "o
         };
         SelectInteraction.DEFAULT_OPTIONS = {
             multi: true,
-            buffer: 8,
+            buffer: 8
         };
         return SelectInteraction;
     }(ol.interaction.Select));
@@ -2200,7 +2212,7 @@ define("node_modules/ol3-popup/ol3-popup/commands/smartpick", ["require", "expor
             threshold = (popup.options.autoPanMargin || 0) + (popup.options.pointerPosition || 0);
             var content = popup.content;
             var style = getComputedStyle(content);
-            var _a = [style.width, style.height].map(function (n) { return parseInt(n); }), w = _a[0], h = _a[1];
+            var _a = [style.width, style.height].map(function (n) { return parseInt(n); }).map(function (n) { return (isNaN(n) ? threshold : n); }), w = _a[0], h = _a[1];
             padding = [threshold + w / 2, threshold + h / 2];
         }
         else {
@@ -2229,17 +2241,16 @@ define("node_modules/ol3-popup/ol3-popup/commands/smartpick", ["require", "expor
             verticalPosition = "center";
         }
         horizontalPosition = horizontalPosition || "center";
-        verticalPosition = verticalPosition || ((distanceToTop < distanceToBottom) ? "top" : "bottom");
+        verticalPosition = verticalPosition || (distanceToTop < distanceToBottom ? "top" : "bottom");
         return verticalPosition + "-" + horizontalPosition;
     }
     exports.smartpick = smartpick;
-    ;
 });
-define("node_modules/ol3-popup/ol3-popup/ol3-popup", ["require", "exports", "jquery", "openlayers", "node_modules/ol3-popup/ol3-popup/paging/paging", "node_modules/ol3-popup/ol3-popup/paging/page-navigator", "node_modules/ol3-fun/ol3-fun/common", "node_modules/ol3-popup/ol3-popup/interaction", "node_modules/ol3-symbolizer/index", "node_modules/ol3-popup/ol3-popup/commands/smartpick", "node_modules/ol3-symbolizer/ol3-symbolizer/common/mixin"], function (require, exports, $, ol, paging_1, page_navigator_1, common_4, interaction_1, Symbolizer, smartpick_1, mixin_2) {
+define("node_modules/ol3-popup/ol3-popup/ol3-popup", ["require", "exports", "openlayers", "node_modules/ol3-popup/ol3-popup/paging/paging", "node_modules/ol3-popup/ol3-popup/paging/page-navigator", "node_modules/ol3-fun/ol3-fun/common", "node_modules/ol3-popup/ol3-popup/interaction", "node_modules/ol3-symbolizer/index", "node_modules/ol3-popup/ol3-popup/commands/smartpick", "node_modules/ol3-symbolizer/ol3-symbolizer/common/mixin"], function (require, exports, ol, paging_1, page_navigator_1, common_4, interaction_1, Symbolizer, smartpick_1, mixin_2) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var symbolizer = new Symbolizer.Symbolizer.StyleConverter();
-    var css = "\n.ol-popup {\n}\n\n.ol-popup.hidden {\n    display: none;\n}\n\n.ol-popup-element.docked {\n    position:absolute;\n    bottom:0;\n    top:0;\n    left:0;\n    right:0;\n    width:auto;\n    height:auto;\n    pointer-events: all;\n}\n\n.ol-popup-element.docked:after {\n    display:none;\n}\n\n.ol-popup-element.docked .pages {\n    max-height: inherit;\n    overflow: auto;\n    height: calc(100% - 60px);\n}\n\n.ol-popup-element.docked .pagination {\n    position: absolute;\n    bottom: 0;\n}\n\n.ol-popup .pagination .btn-prev::after {\n    content: \"\u21E6\"; \n}\n\n.ol-popup .pagination .btn-next::after {\n    content: \"\u21E8\"; \n}\n\n.ol-popup .pagination.hidden {\n    display: none;\n}\n\n.ol-popup-element .pagination .btn-prev::after {\n    content: \"\u21E6\"; \n}\n\n.ol-popup-element .pagination .btn-next::after {\n    content: \"\u21E8\"; \n}\n\n.ol-popup-element .pagination.hidden {\n    display: none;\n}\n\n.ol-popup-element .ol-popup-closer {\n    border: none;\n    background: transparent;\n    color: inherit;\n    position: absolute;\n    top: 0;\n    right: 0;\n    text-decoration: none;\n}\n    \n.ol-popup-element .ol-popup-closer:after {\n    content:'\u2716';\n}\n\n.ol-popup .ol-popup-docker {\n    border: none;\n    background: transparent;\n    color: inherit;\n    text-decoration: none;\n    position: absolute;\n    top: 0;\n    right: 20px;\n}\n\n.ol-popup .ol-popup-docker:after {\n    content:'\u25A1';\n}\n\n.simple-popup {\n    border: 1px solid black;\n    border-radius: 4px;\n    padding: 10px;\n    background-color: rgba(80, 80, 80, 0.5);\n    color: rgb(250, 250, 250);\n    max-width: 120px;\n}\n\n.simple-popup-down-arrow {\n    color: black;\n    font-size: 20px;\n}\n\n.simple-popup-down-arrow:after {\n    content: \"\u21E9\";\n}\n\n.simple-popup-up-arrow {\n    color: black;\n    font-size: 20px;\n}\n\n.simple-popup-up-arrow:after {\n    content: \"\u21E7\";\n}\n\n.simple-popup-left-arrow {\n    color: black;\n    font-size: 20px;\n}\n\n.simple-popup-left-arrow:after {\n    content: \"\u21E6\";\n}\n\n.simple-popup-right-arrow {\n    color: black;\n    font-size: 20px;\n}\n\n.simple-popup-right-arrow:after {\n    content: \"\u21E8\";\n}\n";
+    var css = "\n.ol-popup {\n}\n\n.ol-popup.hidden {\n    display: none;\n}\n\n.ol-popup-element.docked {\n    position:absolute;\n    bottom:0;\n    top:0;\n    left:0;\n    right:0;\n    width:auto;\n    height:auto;\n    pointer-events: all;\n}\n\n.ol-popup-element.docked:after {\n    display:none;\n}\n\n.ol-popup-element.docked .pages {\n    max-height: inherit;\n    overflow: auto;\n    height: calc(100% - 60px);\n}\n\n.ol-popup-element.docked .pagination {\n    position: absolute;\n    bottom: 0;\n}\n\n.ol-popup .pagination .btn-prev::after {\n    content: \"\u21E6\"; \n}\n\n.ol-popup .pagination .btn-next::after {\n    content: \"\u21E8\"; \n}\n\n.ol-popup .pagination.hidden {\n    display: none;\n}\n\n.ol-popup-element .pagination .btn-prev::after {\n    content: \"\u21E6\"; \n}\n\n.ol-popup-element .pagination .btn-next::after {\n    content: \"\u21E8\"; \n}\n\n.ol-popup-element .pagination.hidden {\n    display: none;\n}\n\n.ol-popup-element .ol-popup-closer {\n    border: none;\n    background: transparent;\n    color: inherit;\n    position: absolute;\n    top: 0;\n    right: 0;\n    text-decoration: none;\n}\n    \n.ol-popup-element .ol-popup-closer:after {\n    content:'\u2716';\n}\n\n.ol-popup .ol-popup-docker {\n    border: none;\n    background: transparent;\n    color: inherit;\n    text-decoration: none;\n    position: absolute;\n    top: 0;\n    right: 20px;\n}\n\n.ol-popup .ol-popup-docker:after {\n    content:'\u25A1';\n}\n\n.popup-indicator {\n\tcolor: inherit;\n\tfont-size: 2em;\n\tfont-family: monospace;\n}\n";
     var baseStyle = symbolizer.fromJson({
         circle: {
             fill: {
@@ -2269,6 +2280,9 @@ define("node_modules/ol3-popup/ol3-popup/ol3-popup", ["require", "exports", "jqu
         show: "show",
         undock: "undock"
     };
+    function clone(o) {
+        return JSON.parse(JSON.stringify(o));
+    }
     function arrayEqual(a, b) {
         if (!a || !b)
             return false;
@@ -2315,8 +2329,32 @@ define("node_modules/ol3-popup/ol3-popup/ol3-popup", ["require", "exports", "jqu
             return style;
         };
     }
+    exports.TRIANGLES = {
+        "bottom-left": "▽",
+        "bottom-center": "▽",
+        "bottom-right": "▽",
+        "center-left": "◁",
+        "center-center": "",
+        "center-right": "▷",
+        "top-left": "△",
+        "top-center": "△",
+        "top-right": "△"
+    };
+    exports.DIAMONDS = {
+        "bottom-left": "♢",
+        "bottom-center": "♢",
+        "bottom-right": "♢",
+        "center-left": "♢",
+        "center-center": "",
+        "center-right": "♢",
+        "top-left": "♢",
+        "top-center": "♢",
+        "top-right": "♢"
+    };
     exports.DEFAULT_OPTIONS = {
+        id: "popup",
         map: null,
+        pagingStyle: null,
         asContent: asContent,
         multi: false,
         autoPan: true,
@@ -2324,6 +2362,18 @@ define("node_modules/ol3-popup/ol3-popup/ol3-popup", ["require", "exports", "jqu
         autoPanMargin: 20,
         autoPositioning: true,
         className: classNames.olPopup,
+        indicators: exports.TRIANGLES,
+        indicatorOffsets: {
+            "bottom-left": [15, 23],
+            "bottom-center": [0, 23],
+            "bottom-right": [15, 23],
+            "center-left": [15, 0],
+            "center-center": [0, 0],
+            "center-right": [15, 0],
+            "top-left": [15, 23],
+            "top-center": [0, 23],
+            "top-right": [15, 23]
+        },
         css: "\n.ol-popup {\n    background-color: white;\n    border: 1px solid black;\n    padding: 4px;\n    padding-top: 24px;\n}\n.ol-popup .ol-popup-content {\n    overflow: auto;\n    min-width: 120px;\n    max-width: 360px;\n    max-height: 240px;\n}\n.ol-popup .pages {\n    overflow: auto;\n    max-width: 360px;\n    max-height: 240px;\n}\n.ol-popup .ol-popup-closer {\n    right: 4px;\n}\n".trim(),
         insertFirst: true,
         pointerPosition: 20,
@@ -2341,22 +2391,31 @@ define("node_modules/ol3-popup/ol3-popup/ol3-popup", ["require", "exports", "jqu
             }
             _this.options = options;
             _this.handlers = [];
-            _this.configureDom(options);
-            _this.configureDockerButton(_this.domNode);
-            _this.configureCloserButton(_this.domNode);
-            _this.configureContentContainer();
-            _this.configurePaging();
-            _this.configureAutoPopup();
+            try {
+                _this.configureDom(options);
+                _this.configureDockerButton(_this.domNode);
+                _this.configureCloserButton(_this.domNode);
+                _this.configureContentContainer();
+                _this.configurePaging();
+                _this.configureAutoPopup();
+            }
+            catch (ex) {
+                _this.destroy();
+                throw ex;
+            }
             return _this;
         }
         Popup.create = function (options) {
-            options = common_4.defaults({}, options || {}, exports.DEFAULT_OPTIONS);
+            options = common_4.defaults({}, options || {}, clone(exports.DEFAULT_OPTIONS), {
+                pagingStyle: exports.DEFAULT_OPTIONS.pagingStyle,
+                asContent: exports.DEFAULT_OPTIONS.asContent
+            });
             var popup = new Popup(options);
             options.map && options.map.addOverlay(popup);
             return popup;
         };
         Popup.prototype.configureDom = function (options) {
-            common_4.cssin("ol3-popup", css);
+            this.handlers.push(common_4.cssin("ol3-popup", css));
             options.css && this.injectCss("options", options.css);
             var domNode = (this.domNode = document.createElement("div"));
             domNode.className = classNames.olPopupElement;
@@ -2417,13 +2476,10 @@ define("node_modules/ol3-popup/ol3-popup/ol3-popup", ["require", "exports", "jqu
             this.handlers.push(function () { return autoPopup.destroy(); });
         };
         Popup.prototype.injectCss = function (id, css) {
+            if (!this.getId())
+                throw "cannot injects css on an overlay with no assigned id";
             id = this.getId() + "_" + id;
-            var style = document.getElementById(id);
-            if (style)
-                style.remove();
-            style = common_4.html("<style type='text/css' id='" + id + "'>" + css + "</style>");
-            $(document.head).append(style);
-            this.handlers.push(function () { return style.remove(); });
+            this.handlers.push(common_4.cssin(id, css));
         };
         Popup.prototype.hideIndicator = function () {
             this.indicator && this.indicator.setPosition(undefined);
@@ -2434,11 +2490,16 @@ define("node_modules/ol3-popup/ol3-popup/ol3-popup", ["require", "exports", "jqu
                 indicator = this.indicator = new ol.Overlay({
                     autoPan: this.options.autoPan,
                     autoPanMargin: this.options.autoPanMargin,
-                    autoPanAnimation: this.options.autoPanAnimation,
-                    element: common_4.html("<span class=\"simple-popup-down-arrow\"></span>")
+                    autoPanAnimation: this.options.autoPanAnimation
                 });
                 this.options.map.addOverlay(indicator);
             }
+            var indicatorElement = this.options.indicators[this.getPositioning()];
+            if (typeof indicatorElement === "string")
+                indicatorElement = common_4.html("<div class=\"popup-indicator " + this.getPositioning()
+                    .split("-")
+                    .join(" ") + "\">" + indicatorElement + "</div>");
+            indicator.setElement(indicatorElement);
             indicator.setPositioning(this.getPositioning());
             indicator.setPosition(this.getPosition());
             return indicator;
@@ -2449,24 +2510,32 @@ define("node_modules/ol3-popup/ol3-popup/ol3-popup", ["require", "exports", "jqu
                 this.hideIndicator();
                 return;
             }
-            var _a = this.getPositioning().split("-", 2), verticalPosition = _a[0], horizontalPosition = _a[1];
+            var pos = this.getPositioning();
+            var _a = pos.split("-", 2), verticalPosition = _a[0], horizontalPosition = _a[1];
+            {
+                var el = this.element;
+                el.classList.toggle("center", verticalPosition === "center" || horizontalPosition === "center");
+                el.classList.toggle("top", verticalPosition === "top");
+                el.classList.toggle("bottom", verticalPosition === "bottom");
+                el.classList.toggle("left", horizontalPosition === "left");
+                el.classList.toggle("right", horizontalPosition === "right");
+            }
             var indicator = this.showIndicator();
+            var _b = [this.options.indicatorOffsets[pos][0], this.options.indicatorOffsets[pos][1]], dx = _b[0], dy = _b[1];
             switch (verticalPosition) {
                 case "top":
                     {
-                        indicator.setElement(common_4.html("<span class=\"simple-popup-up-arrow\"></span>"));
-                        indicator.setOffset([0, 0 + offset]);
                         indicator.setPositioning("top-center");
-                        var _b = [7, 8 + offset], dx = _b[0], dy = _b[1];
+                        indicator.setOffset([0, 0 + offset]);
                         switch (horizontalPosition) {
                             case "center":
-                                this.setOffset([0, dy]);
+                                this.setOffset([dx, dy + offset]);
                                 break;
                             case "left":
-                                this.setOffset([-dx, dy]);
+                                this.setOffset([-dx, dy + offset]);
                                 break;
                             case "right":
-                                this.setOffset([dx, dy]);
+                                this.setOffset([dx, dy + offset]);
                                 break;
                             default:
                                 throw "unknown value: " + horizontalPosition;
@@ -2475,19 +2544,17 @@ define("node_modules/ol3-popup/ol3-popup/ol3-popup", ["require", "exports", "jqu
                     break;
                 case "bottom":
                     {
-                        indicator.setElement(common_4.html("<span class=\"simple-popup-down-arrow\"></span>"));
                         indicator.setOffset([0, 0 - offset]);
                         indicator.setPositioning("bottom-center");
-                        var _c = [7, -(10 + offset)], dx = _c[0], dy = _c[1];
                         switch (horizontalPosition) {
                             case "center":
-                                this.setOffset([0, dy]);
+                                this.setOffset([dx, -(dy + offset)]);
                                 break;
                             case "left":
-                                this.setOffset([-dx, dy]);
+                                this.setOffset([-dx, -(dy + offset)]);
                                 break;
                             case "right":
-                                this.setOffset([dx, dy]);
+                                this.setOffset([dx, -(dy + offset)]);
                                 break;
                             default:
                                 throw "unknown value: " + horizontalPosition;
@@ -2496,23 +2563,22 @@ define("node_modules/ol3-popup/ol3-popup/ol3-popup", ["require", "exports", "jqu
                     break;
                 case "center":
                     {
-                        var _d = [5 + offset, 0], dx = _d[0], dy = _d[1];
                         switch (horizontalPosition) {
                             case "center":
                                 indicator.setPosition(null);
                                 break;
-                            case "left":
-                                indicator.setElement(common_4.html("<span class=\"simple-popup-left-arrow\"></span>"));
+                            case "left": {
                                 indicator.setOffset([offset, 0]);
                                 indicator.setPositioning("center-left");
-                                this.setOffset([dx, dy]);
+                                this.setOffset([dx + offset, dy]);
                                 break;
-                            case "right":
-                                indicator.setElement(common_4.html("<span class=\"simple-popup-right-arrow\"></span>"));
+                            }
+                            case "right": {
                                 indicator.setOffset([-offset, 0]);
                                 indicator.setPositioning("center-right");
-                                this.setOffset([-dx, dy]);
+                                this.setOffset([-(dx + offset), dy]);
                                 break;
+                            }
                             default:
                                 throw "unknown value: " + horizontalPosition;
                         }
@@ -2568,6 +2634,7 @@ define("node_modules/ol3-popup/ol3-popup/ol3-popup", ["require", "exports", "jqu
                 throw "unexpected html";
             }
             if (this.options.autoPositioning) {
+                this.element.style.display = "";
                 this.setPositioning(smartpick_1.smartpick(this, coord));
             }
             this.setPosition(coord);
@@ -2639,6 +2706,8 @@ define("node_modules/ol3-popup/index", ["require", "exports", "node_modules/ol3-
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.Popup = ol3_popup_1.Popup;
     exports.DEFAULT_OPTIONS = ol3_popup_1.DEFAULT_OPTIONS;
+    exports.DIAMONDS = ol3_popup_1.DIAMONDS;
+    exports.TRIANGLES = ol3_popup_1.TRIANGLES;
 });
 define("node_modules/ol3-symbolizer/ol3-symbolizer/common/ajax", ["require", "exports", "jquery"], function (require, exports, $) {
     "use strict";
@@ -5222,9 +5291,6 @@ define("node_modules/ol3-panzoom/ol3-panzoom/zoomslidercontrol", ["require", "ex
         function ZoomSlider(opt_options) {
             return _super.call(this, opt_options) || this;
         }
-        ZoomSlider.prototype.getElement = function () {
-            return this.element;
-        };
         return ZoomSlider;
     }(ol.control.ZoomSlider));
     return ZoomSlider;
@@ -5237,16 +5303,16 @@ define("node_modules/ol3-panzoom/ol3-panzoom/ol3-panzoom", ["require", "exports"
         return function () { return element.removeEventListener(event, listener); };
     }
     var DEFAULT_OPTIONS = {
-        imgPath: "../ol3-panzoom/resources/ol2img",
+        imgPath: "../ol3-panzoom/resources",
+        theme: "ol2img",
         className: "ol-panzoom",
         duration: 500,
         maxZoom: 19,
         minZoom: 0,
         pixelDelta: 128,
         slider: false,
-        zoomDelta: 1,
+        zoomDelta: 1
     };
-    var css = "\n.zoombar.black.north.mini {\n\n}\n";
     var PanZoom = (function (_super) {
         __extends(PanZoom, _super);
         function PanZoom(options) {
@@ -5255,165 +5321,104 @@ define("node_modules/ol3-panzoom/ol3-panzoom/ol3-panzoom", ["require", "exports"
             options = index_10.defaults({}, options, DEFAULT_OPTIONS);
             _this = _super.call(this, options) || this;
             _this.options = options;
-            index_10.cssin("ol3-panzoom", css);
-            _this.imgPath_ = options.imgPath || "./ol3-panzoom/resources/ol2img";
-            var element = (_this.element = _this.element_ = _this.createEl_());
-            _this.setTarget(options.target);
-            _this.listenerKeys_ = [];
-            _this.maxExtent_ = options.maxExtent ? options.maxExtent : null;
-            _this.maxZoom_ = options.maxZoom ? options.maxZoom : 19;
-            _this.minZoom_ = options.minZoom ? options.minZoom : 0;
-            _this.slider_ = options.slider !== undefined ? options.slider : false;
-            _this.zoomDelta_ = options.zoomDelta !== undefined ? options.zoomDelta : 1;
-            _this.panEastEl_ = _this.createButton("pan-east");
-            _this.panNorthEl_ = _this.createButton("pan-north");
-            _this.panSouthEl_ = _this.createButton("pan-south");
-            _this.panWestEl_ = _this.createButton("pan-west");
-            _this.zoomInEl_ = _this.createButton("zoom-in");
-            _this.zoomOutEl_ = _this.createButton("zoom-out");
-            _this.zoomMaxEl_ = !_this.slider_ && _this.maxExtent_ ? _this.createButton("zoom-max") : null;
-            _this.zoomSliderCtrl_ = _this.slider_ ? new ZoomSlider() : null;
-            element.appendChild(_this.panNorthEl_);
-            element.appendChild(_this.panWestEl_);
-            element.appendChild(_this.panEastEl_);
-            element.appendChild(_this.panSouthEl_);
-            element.appendChild(_this.zoomInEl_);
-            element.appendChild(_this.zoomOutEl_);
-            if (_this.zoomMaxEl_) {
-                element.appendChild(_this.zoomMaxEl_);
-            }
+            index_10.cssin("ol3-panzoom", ".ol-panzoom {\n\t\t\t\ttop: 0.5em;\n\t\t\t\tleft: 0.5em;\n\t\t\t\tbackground-color: transparent;\n\t\t\t}\n\t\t\t.ol-panzoom:hover {\n\t\t\t\tbackground-color: transparent;\n\t\t\t}\n\t\t\t.ol-panzoom .action {\n\t\t\t\tposition:absolute;\n\t\t\t\twidth:18px;\n\t\t\t\theight:18px;\n\t\t\t\tcursor:pointer;\t\n\t\t\t\tbackground-position: center;\n\t\t\t\tbackground-repeat: no-repeat;\n\t\t\t}\n\t\t\t.ol-panzoom .action.pan.west {\n\t\t\t\ttop: 22px;\n\t\t\t\tleft: 4px;\n\t\t\t}\n\t\t\t.ol-panzoom .action.pan.east {\n\t\t\t\ttop: 22px;\n\t\t\t\tleft: 22px;\n\t\t\t}\n\t\t\t.ol-panzoom .action.pan.north {\n\t\t\t\ttop: 4px;\n\t\t\t\tleft: 13px;\n\t\t\t}\n\t\t\t.ol-panzoom .action.pan.south {\n\t\t\t\ttop: 40px;\n\t\t\t\tleft: 13px;\n\t\t\t}\n\t\t\t.ol-panzoom .action.zoom.in {\n\t\t\t\ttop: 63px;\n\t\t\t\tleft: 13px;\n\t\t\t}\n\t\t\t.ol-panzoom .action img {\n\t\t\t\twidth:18px;\n\t\t\t\theight:18px;\n\t\t\t\tvertical-align:top;\n\t\t\t}\n\t\t\t.ol-panzoom .ol-zoomslider {\n\t\t\t\tborder:0;\n\t\t\t\tborderRadius:0;\n\t\t\t\tleft :13px;\n\t\t\t\tpadding:0;\n\t\t\t\ttop:81px;\n\t\t\t\twidth:18px\";\n\t\t\t}\n\t\t\t.ol-panzoom .ol-zoomslider .ol-zoomslider-thumb {\n\t\t\t\tborder:none;\n\t\t\t\theight:9px;\n\t\t\t\tmargin:0 -1px;\n\t\t\t\twidth:20px;\n\t\t\t}\n\t\t\t.ol-panzoom .action.zoom.out {\n\t\t\t\ttop: " + (_this.options.slider ? _this.getSliderSize() + 81 : _this.options.maxExtent ? 99 : 81) + "px;\n\t\t\t\tleft: 13px;\n\t\t\t}\n\t\t\t.ol-panzoom .action.zoom.max {\n\t\t\t\ttop:81px;\n\t\t\t\tleft:13px;\n\t\t\t}\n\t\t\t");
+            ["ol2img", "zoombar_black"].forEach(function (theme) {
+                return index_10.cssin("ol2-popup-" + theme, ".ol-panzoom." + theme + " .action.pan.north {\n\t\t\tbackground-image:url(" + _this.options.imgPath + "/" + theme + "/north-mini.png);\n\t\t}\n\t\t.ol-panzoom." + theme + " .action.pan.south {\n\t\t\tbackground-image:url(" + _this.options.imgPath + "/" + theme + "/south-mini.png);\n\t\t}\n\t\t.ol-panzoom." + theme + " .action.pan.west {\n\t\t\tbackground-image:url(" + _this.options.imgPath + "/" + theme + "/west-mini.png);\n\t\t}\n\t\t.ol-panzoom." + theme + " .action.pan.east {\n\t\t\tbackground-image:url(" + _this.options.imgPath + "/" + theme + "/east-mini.png);\n\t\t}\n\t\t.ol-panzoom." + theme + " .action.zoom.in {\n\t\t\tbackground-image:url(" + _this.options.imgPath + "/" + theme + "/zoom-plus-mini.png);\n\t\t}\n\t\t.ol-panzoom." + theme + " .action.zoom.out {\n\t\t\tbackground-image:url(" + _this.options.imgPath + "/" + theme + "/zoom-minus-mini.png);\n\t\t}\n\t\t.ol-panzoom." + theme + " .action.zoom.max {\n\t\t\tbackground-image:url(" + _this.options.imgPath + "/" + theme + "/zoom-world-mini.png);\n\t\t}\n\t\t.ol-panzoom." + theme + " .ol-zoomslider {\n\t\t\tbackground: url(" + _this.options.imgPath + "/" + theme + "/zoombar.png);\n\t\t}\n\t\t.ol-panzoom." + theme + " .ol-zoomslider .ol-zoomslider-thumb {\n\t\t\tbackground:url(" + _this.options.imgPath + "/" + theme + "/slider.png);\n\t\t}\n");
+            });
+            _this.createUx();
             return _this;
         }
-        PanZoom.prototype.setMap = function (map) {
-            var _this = this;
+        PanZoom.prototype.redraw = function () {
+            var map = this.getMap();
+            this.setMap(null);
+            this.setMap(map);
+        };
+        PanZoom.prototype.createUx = function () {
+            var options = this.options;
+            var element = (this.element = this.element_ = this.createDiv());
+            this.setTarget(options.target);
+            this.listenerKeys_ = [];
+            this.zoomDelta_ = options.zoomDelta !== undefined ? options.zoomDelta : 1;
+            this.panEastEl_ = this.createButton("pan-east");
+            this.panNorthEl_ = this.createButton("pan-north");
+            this.panSouthEl_ = this.createButton("pan-south");
+            this.panWestEl_ = this.createButton("pan-west");
+            this.zoomInEl_ = this.createButton("zoom-in");
+            this.zoomOutEl_ = this.createButton("zoom-out");
+            this.zoomMaxEl_ = !this.options.slider && this.options.maxExtent ? this.createButton("zoom-max") : null;
+            this.zoomSliderCtrl_ = this.options.slider ? new ZoomSlider() : null;
+            element.appendChild(this.panNorthEl_);
+            element.appendChild(this.panWestEl_);
+            element.appendChild(this.panEastEl_);
+            element.appendChild(this.panSouthEl_);
+            element.appendChild(this.zoomInEl_);
+            element.appendChild(this.zoomOutEl_);
+            if (this.zoomMaxEl_) {
+                element.appendChild(this.zoomMaxEl_);
+            }
+        };
+        PanZoom.prototype.destroyUx = function () {
             var keys = this.listenerKeys_;
             var zoomSlider = this.zoomSliderCtrl_;
             var currentMap = this.getMap();
+            this.element.remove();
             if (currentMap && currentMap instanceof ol.Map) {
                 keys.forEach(function (k) { return k(); });
                 keys.length = 0;
-                if (this.zoomSliderCtrl_) {
-                    this.zoomSliderCtrl_.setTarget(null);
-                    window.setTimeout(function () {
-                        currentMap.removeControl(zoomSlider);
-                    }, 0);
-                }
-            }
-            _super.prototype.setMap.call(this, map);
-            if (map) {
-                keys.push(on(this.panEastEl_, "click", function (evt) { return _this.pan_("east", evt); }));
-                keys.push(on(this.panNorthEl_, "click", function (evt) { return _this.pan_("north", evt); }));
-                keys.push(on(this.panSouthEl_, "click", function (evt) { return _this.pan_("south", evt); }));
-                keys.push(on(this.panWestEl_, "click", function (evt) { return _this.pan_("west", evt); }));
-                keys.push(on(this.zoomInEl_, "click", function (evt) { return _this.zoom_("in", evt); }));
-                keys.push(on(this.zoomOutEl_, "click", function (evt) { return _this.zoom_("out", evt); }));
-                if (this.maxExtent_ && !this.slider_) {
-                    keys.push(on(this.zoomMaxEl_, "click", function (evt) { return _this.zoom_("max", evt); }));
-                }
-                if (this.slider_) {
-                    zoomSlider.setTarget(this.element_);
-                    window.setTimeout(function () {
-                        map.addControl(zoomSlider);
-                    }, 0);
-                    this.adjustZoomSlider_();
+                if (zoomSlider) {
+                    zoomSlider.element.remove();
+                    zoomSlider.setTarget(null);
+                    currentMap.removeControl(zoomSlider);
                 }
             }
         };
-        PanZoom.prototype.createEl_ = function () {
-            var path = this.imgPath_;
-            var cssClasses = [this.options.className, "ol-unselectable"];
-            if (!path) {
-                cssClasses.push("ol-control");
+        PanZoom.prototype.setMap = function (map) {
+            var _this = this;
+            this.destroyUx();
+            this.createUx();
+            _super.prototype.setMap.call(this, map);
+            if (map) {
+                var keys = this.listenerKeys_;
+                keys.push(on(this.panEastEl_, "click", function (evt) { return _this.pan("east", evt); }));
+                keys.push(on(this.panNorthEl_, "click", function (evt) { return _this.pan("north", evt); }));
+                keys.push(on(this.panSouthEl_, "click", function (evt) { return _this.pan("south", evt); }));
+                keys.push(on(this.panWestEl_, "click", function (evt) { return _this.pan("west", evt); }));
+                keys.push(on(this.zoomInEl_, "click", function (evt) { return _this.zoom("in", evt); }));
+                keys.push(on(this.zoomOutEl_, "click", function (evt) { return _this.zoom("out", evt); }));
+                if (this.options.maxExtent && !this.options.slider) {
+                    keys.push(on(this.zoomMaxEl_, "click", function (evt) { return _this.zoom("max", evt); }));
+                }
+                if (this.options.slider) {
+                    map.once("postrender", function () {
+                        var zoomSlider = _this.zoomSliderCtrl_;
+                        zoomSlider.setTarget(_this.element_);
+                        map.addControl(zoomSlider);
+                        _this.adjustZoomSlider();
+                    });
+                }
             }
+        };
+        PanZoom.prototype.createDiv = function () {
+            var cssClasses = [this.options.className, "ol-unselectable", "ol-control", this.options.theme];
             var element = document.createElement("div");
             element.className = cssClasses.join(" ");
-            if (path) {
-                element.style.left = "4px";
-                element.style.position = "absolute";
-                element.style.top = "4px";
-            }
             return element;
+        };
+        PanZoom.prototype.imgPath = function () {
+            return this.options.imgPath + "/" + this.options.theme;
         };
         PanZoom.prototype.createButton = function (action) {
             var divEl = document.createElement("div");
-            divEl.className = action;
-            var path = this.imgPath_;
-            var maxExtent = this.maxExtent_;
-            var slider = this.slider_;
-            if (path) {
-                divEl.style.width = "18px";
-                divEl.style.height = "18px";
-                divEl.style.position = "absolute";
-                divEl.style.cursor = "pointer";
-                var imgEl = document.createElement("img");
-                imgEl.style.width = "18px";
-                imgEl.style.height = "18px";
-                imgEl.style.verticalAlign = "top";
-                switch (action) {
-                    case "pan-east":
-                        imgEl.id = "OpenLayers_Control_PanZoom_panright_innerImage";
-                        imgEl.src = [path, "east-mini.png"].join("/");
-                        divEl.id = "OpenLayers_Control_PanZoom_panright";
-                        divEl.style.top = "22px";
-                        divEl.style.left = "22px";
-                        break;
-                    case "pan-north":
-                        imgEl.id = "OpenLayers_Control_PanZoom_panup_innerImage";
-                        imgEl.src = [path, "north-mini.png"].join("/");
-                        divEl.id = "OpenLayers_Control_PanZoom_panup";
-                        divEl.style.top = "4px";
-                        divEl.style.left = "13px";
-                        break;
-                    case "pan-south":
-                        imgEl.id = "OpenLayers_Control_PanZoom_pandown_innerImage";
-                        imgEl.src = [path, "south-mini.png"].join("/");
-                        divEl.id = "OpenLayers_Control_PanZoom_pandown";
-                        divEl.style.top = "40px";
-                        divEl.style.left = "13px";
-                        break;
-                    case "pan-west":
-                        imgEl.id = "OpenLayers_Control_PanZoom_panleft_innerImage";
-                        imgEl.src = [path, "west-mini.png"].join("/");
-                        divEl.id = "OpenLayers_Control_PanZoom_panleft";
-                        divEl.style.top = "22px";
-                        divEl.style.left = "4px";
-                        break;
-                    case "zoom-in":
-                        imgEl.id = "OpenLayers_Control_PanZoom_zoomin_innerImage";
-                        imgEl.src = [path, "zoom-plus-mini.png"].join("/");
-                        divEl.id = "OpenLayers_Control_PanZoom_zoomin";
-                        divEl.style.top = "63px";
-                        divEl.style.left = "13px";
-                        break;
-                    case "zoom-out":
-                        imgEl.id = "OpenLayers_Control_PanZoom_zoomout_innerImage";
-                        imgEl.src = [path, "zoom-minus-mini.png"].join("/");
-                        divEl.id = "OpenLayers_Control_PanZoom_zoomout";
-                        if (slider) {
-                            divEl.style.top = [this.getSliderSize_() + 81, "px"].join("");
-                        }
-                        else if (maxExtent) {
-                            divEl.style.top = "99px";
-                        }
-                        else {
-                            divEl.style.top = "81px";
-                        }
-                        divEl.style.left = "13px";
-                        break;
-                    case "zoom-max":
-                        imgEl.id = "OpenLayers_Control_PanZoom_zoomworld_innerImage";
-                        imgEl.src = [path, "zoom-world-mini.png"].join("/");
-                        divEl.id = "OpenLayers_Control_PanZoom_zoomworld";
-                        divEl.style.top = "81px";
-                        divEl.style.left = "13px";
-                        break;
-                }
-                divEl.appendChild(imgEl);
+            divEl.className = "action " + action.split("-").join(" ");
+            switch (action) {
+                case "zoom-out":
+                    divEl.style.top =
+                        (this.options.slider ? this.getSliderSize() + 81 : this.options.maxExtent ? 99 : 81) + "px";
+                    break;
             }
             return divEl;
         };
-        PanZoom.prototype.pan_ = function (direction, evt) {
-            var stopEvent = false;
+        PanZoom.prototype.pan = function (direction, evt) {
             var map = this.getMap();
             console.assert(!!map, "map must be set");
             var view = map.getView();
@@ -5441,30 +5446,34 @@ define("node_modules/ol3-panzoom/ol3-panzoom/ol3-panzoom", ["require", "exports"
             center = view.constrainCenter([center[0] + delta[0], center[1] + delta[1]]);
             view.animate({
                 center: center,
-                duration: this.options.duration,
+                duration: this.options.duration
             });
-            evt.preventDefault();
-            stopEvent = true;
-            return !stopEvent;
+            evt && evt.preventDefault();
+            return !evt;
         };
-        PanZoom.prototype.zoom_ = function (direction, evt) {
-            if (direction === "in") {
-                this.zoomByDelta_(this.zoomDelta_);
+        PanZoom.prototype.zoom = function (direction, evt) {
+            switch (direction) {
+                case "in":
+                    this.zoomByDelta(this.zoomDelta_);
+                    break;
+                case "out":
+                    this.zoomByDelta(-this.zoomDelta_);
+                    break;
+                case "max":
+                    {
+                        var view = this.getMap().getView();
+                        var extent = this.options.maxExtent || view.getProjection().getExtent();
+                        view.fit(extent, {
+                            duration: this.options.duration
+                        });
+                    }
+                    break;
+                default:
+                    throw "unknown direction: " + direction;
             }
-            else if (direction === "out") {
-                this.zoomByDelta_(-this.zoomDelta_);
-            }
-            else if (direction === "max") {
-                var map = this.getMap();
-                var view = map.getView();
-                var extent = !this.maxExtent_ ? view.getProjection().getExtent() : this.maxExtent_;
-                view.fit(extent, {
-                    duration: this.options.duration,
-                });
-            }
-            evt.preventDefault();
+            evt && evt.preventDefault();
         };
-        PanZoom.prototype.zoomByDelta_ = function (delta) {
+        PanZoom.prototype.zoomByDelta = function (delta) {
             var map = this.getMap();
             var view = map.getView();
             if (!view) {
@@ -5475,36 +5484,22 @@ define("node_modules/ol3-panzoom/ol3-panzoom/ol3-panzoom", ["require", "exports"
                 var newResolution = view.constrainResolution(currentResolution, delta);
                 view.animate({
                     resolution: newResolution,
-                    duration: this.options.duration,
+                    duration: this.options.duration
                 });
             }
         };
-        PanZoom.prototype.adjustZoomSlider_ = function () {
+        PanZoom.prototype.adjustZoomSlider = function () {
             var zoomSlider = this.zoomSliderCtrl_;
-            var path = this.imgPath_;
+            var path = this.imgPath();
             if (!zoomSlider || !path) {
                 return;
             }
-            var height = [this.getSliderSize_(), "px"].join("");
-            var zoomSliderEl = zoomSlider.getElement();
-            zoomSliderEl.style.background = ["url(", path, "/", "zoombar.png", ")"].join("");
-            zoomSliderEl.style.border = "0";
-            zoomSliderEl.style.borderRadius = "0";
-            zoomSliderEl.style.height = height;
-            zoomSliderEl.style.left = "13px";
-            zoomSliderEl.style.padding = "0";
-            zoomSliderEl.style.top = "81px";
-            zoomSliderEl.style.width = "18px";
-            var sliderEl = zoomSliderEl.children[0];
-            console.assert(sliderEl instanceof Element);
-            sliderEl.style.background = ["url(", path, "/", "slider.png", ")"].join("");
-            sliderEl.style.border = "none";
-            sliderEl.style.height = "9px";
-            sliderEl.style.margin = "0 -1px";
-            sliderEl.style.width = "20px";
+            var zoomSliderEl = zoomSlider.element;
+            zoomSliderEl.classList.add(this.options.theme);
+            zoomSliderEl.style.height = this.getSliderSize() + "px";
         };
-        PanZoom.prototype.getSliderSize_ = function () {
-            return (this.maxZoom_ - this.minZoom_ + 1) * 11;
+        PanZoom.prototype.getSliderSize = function () {
+            return (this.options.maxZoom - this.options.minZoom + 1) * 11;
         };
         return PanZoom;
     }(ol.control.Control));
@@ -14800,7 +14795,7 @@ define("node_modules/ol3-fun/tests/spec/common", ["require", "exports", "node_mo
         });
     });
 });
-define("node_modules/ol3-fun/tests/spec/slowloop", ["require", "exports", "node_modules/ol3-fun/tests/base"], function (require, exports, base_5) {
+define("node_modules/ol3-fun/tests/spec/slowloop", ["require", "exports", "node_modules/ol3-fun/tests/base", "node_modules/ol3-fun/ol3-fun/common"], function (require, exports, base_5, common_30) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     base_5.describe("slowloop", function () {
@@ -14812,6 +14807,35 @@ define("node_modules/ol3-fun/tests/spec/slowloop", ["require", "exports", "node_
             catch (_a) {
                 done();
             }
+        });
+        base_5.it("slowloop with progress", function () {
+            var progressCount = 0;
+            return base_5.slowloop(common_30.range(7).map(function (n) { return function () { }; }), 0, 5)
+                .progress(function (args) {
+                console.log(args);
+                progressCount++;
+            })
+                .then(function () {
+                base_5.shouldEqual(progressCount, 7 * 5, "progress callbacks");
+            });
+        });
+        base_5.it("slowloop with exceptions", function () {
+            return base_5.slowloop([
+                function () {
+                    throw "exception occured in slowloop";
+                }
+            ])
+                .then(function () { return base_5.should(false, "failure expected"); })
+                .catch(function (ex) { return base_5.should(!!ex, ex); });
+        });
+        base_5.it("slowloop with abort", function () {
+            return base_5.slowloop([
+                function () {
+                    base_5.should(false, "aborted from inside");
+                }
+            ], 10)
+                .reject("aborted from outside")
+                .catch(function (ex) { return base_5.shouldEqual(ex, "aborted from outside", "aborted from outside"); });
         });
         base_5.it("slowloop fast", function (done) {
             var count = 0;
@@ -14837,16 +14861,25 @@ define("node_modules/ol3-fun/tests/spec/slowloop", ["require", "exports", "node_
         });
     });
 });
-define("node_modules/ol3-fun/tests/spec/parse-dms", ["require", "exports", "node_modules/ol3-fun/tests/base", "node_modules/ol3-fun/ol3-fun/parse-dms"], function (require, exports, base_6, parse_dms_2) {
+define("node_modules/ol3-fun/tests/spec/openlayers-test", ["require", "exports", "node_modules/ol3-fun/tests/base", "openlayers"], function (require, exports, base_6, ol) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    base_6.describe("parse-dms", function () {
-        base_6.it("parse", function () {
+    describe("ol/Map", function () {
+        it("ol/Map", function () {
+            base_6.should(!!ol.Map, "Map");
+        });
+    });
+});
+define("node_modules/ol3-fun/tests/spec/parse-dms", ["require", "exports", "node_modules/ol3-fun/tests/base", "node_modules/ol3-fun/ol3-fun/parse-dms"], function (require, exports, base_7, parse_dms_2) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    base_7.describe("parse-dms", function () {
+        base_7.it("parse", function () {
             var dms = parse_dms_2.parse("10 5'2\" 10");
             if (typeof dms === "number")
                 throw "lat-lon expected";
-            base_6.should(dms.lat === 10.08388888888889, "10 degrees 5 minutes 2 seconds");
-            base_6.should(dms.lon === 10, "10 degrees 0 minutes 0 seconds");
+            base_7.should(dms.lat === 10.08388888888889, "10 degrees 5 minutes 2 seconds");
+            base_7.should(dms.lon === 10, "10 degrees 0 minutes 0 seconds");
         });
     });
 });
@@ -14911,44 +14944,44 @@ define("node_modules/ol3-fun/ol3-fun/google-polyline", ["require", "exports"], f
     }());
     return PolylineEncoder;
 });
-define("node_modules/ol3-fun/tests/spec/polyline", ["require", "exports", "node_modules/ol3-fun/tests/base", "node_modules/ol3-fun/ol3-fun/google-polyline", "node_modules/ol3-fun/ol3-fun/ol3-polyline", "node_modules/ol3-fun/ol3-fun/common"], function (require, exports, base_7, GooglePolylineEncoder, PolylineEncoder, common_30) {
+define("node_modules/ol3-fun/tests/spec/polyline", ["require", "exports", "node_modules/ol3-fun/tests/base", "node_modules/ol3-fun/ol3-fun/google-polyline", "node_modules/ol3-fun/ol3-fun/ol3-polyline", "node_modules/ol3-fun/ol3-fun/common"], function (require, exports, base_8, GooglePolylineEncoder, PolylineEncoder, common_31) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     describe("GooglePolylineEncoder", function () {
         it("GooglePolylineEncoder", function () {
-            base_7.should(!!GooglePolylineEncoder, "GooglePolylineEncoder");
+            base_8.should(!!GooglePolylineEncoder, "GooglePolylineEncoder");
         });
-        var points = common_30.pair(common_30.range(10), common_30.range(10));
+        var points = common_31.pair(common_31.range(10), common_31.range(10));
         var poly = new GooglePolylineEncoder();
         var encoded = poly.encode(points);
         var decoded = poly.decode(encoded);
-        base_7.shouldEqual(encoded.length, 533, "encoding is 533 characters");
-        base_7.shouldEqual(base_7.stringify(decoded), base_7.stringify(points), "encode->decode");
+        base_8.shouldEqual(encoded.length, 533, "encoding is 533 characters");
+        base_8.shouldEqual(base_8.stringify(decoded), base_8.stringify(points), "encode->decode");
     });
     describe("PolylineEncoder", function () {
         it("PolylineEncoder", function () {
-            base_7.should(!!PolylineEncoder, "PolylineEncoder");
+            base_8.should(!!PolylineEncoder, "PolylineEncoder");
         });
-        var points = common_30.pair(common_30.range(10), common_30.range(10));
+        var points = common_31.pair(common_31.range(10), common_31.range(10));
         var poly = new PolylineEncoder();
         var encoded = poly.encode(points);
         var decoded = poly.decode(encoded);
-        base_7.shouldEqual(encoded.length, 533, "encoding is 533 characters");
-        base_7.shouldEqual(base_7.stringify(decoded), base_7.stringify(points), "encode->decode");
+        base_8.shouldEqual(encoded.length, 533, "encoding is 533 characters");
+        base_8.shouldEqual(base_8.stringify(decoded), base_8.stringify(points), "encode->decode");
         poly = new PolylineEncoder(6);
         encoded = poly.encode(points);
         decoded = poly.decode(encoded);
-        base_7.shouldEqual(encoded.length, 632, "encoding is 632 characters");
-        base_7.shouldEqual(base_7.stringify(decoded), base_7.stringify(points), "encode->decode");
+        base_8.shouldEqual(encoded.length, 632, "encoding is 632 characters");
+        base_8.shouldEqual(base_8.stringify(decoded), base_8.stringify(points), "encode->decode");
     });
 });
-define("node_modules/ol3-fun/tests/spec/snapshot", ["require", "exports", "node_modules/ol3-fun/tests/base", "node_modules/ol3-fun/ol3-fun/snapshot", "openlayers", "node_modules/ol3-fun/ol3-fun/common"], function (require, exports, base_8, Snapshot, ol, common_31) {
+define("node_modules/ol3-fun/tests/spec/snapshot", ["require", "exports", "node_modules/ol3-fun/tests/base", "node_modules/ol3-fun/ol3-fun/snapshot", "openlayers", "node_modules/ol3-fun/ol3-fun/common"], function (require, exports, base_9, Snapshot, ol, common_32) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var pointData = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAFdUlEQVR4Xu1aXUybVRh+3hiWxiX+ZNSMECvjJxiqyaROyq5M2MWUZGyDLEZg0WzhJ2QELharjmbWGgqOOTRxTMDIGHpBpIwE40Un3ujA0EmUYkhcRpoJRObfJkJG9Ji3+1gWoP2+rudrSvq9l/2e857nPOc5/yUkeVCStx+GAIYDklwBYwgkuQGMSdAYAsYQSHIFjCGQ5AYwVgFjCBhDIMkViPsQEEKkANgFIB2AGcCjAP4AsADgOoBxIlqJV7/ETQAhRCWAlwA8D+DBCA38G8DXAD4jok/1FkJ3AYQQVgDdAAruozHfAqgloh/uo6ymIroKIIQ4DOBjAA9oYrMx6F8AVUTEeaSHLgIIITjvOwBel8jYTURNEvOFUuklQDMAh2yyAJqJ6A2ZeaULIIR4GUCfTJJrch0ion5Z+aUKIIRIA/CzyiwfK/d/AGQQES+bMYdsAc4D4OVO7/iEiF6VUYk0AYQQvMyNyiClMUc+EX2vERsWJlOAqHp/enoaY2NjmJubQ1paGgoKCpCbmxtNe3qI6JVoCmyElSKAsuz9CiBVC6GzZ8+ioaEBt2/fvgvfsmUL2tvbUVNToyUFYxaI6DGt4HA4WQLw3v47LWQ6OjpQW1sbFnru3DlUVVVpScWYZ4hoQitYTwfwjq9HjQjbPTMzE8vLy2GhJpMJS0tLaqlWvzuIqEUrWE8BGgC8p0ZkYGAApaWlajAIIVQxCuArIirSCtZTgDcBuNWInDp1CsePH1eDRSPA70S0TTVhBICsOYAH9YdqRLxeLw4ePKgGi0aAL4noBdWEcRCAW/W5GpHZ2VlkZWXJnAP4qNyhVm+k77IckKVsgVW58Cwfaanr7OzE0aNHVfMogGwiuqoVrNscwImFEDMAntBCpr+/H/X19Zifn78LT09Px5kzZ1BWVqYlBWOuE9HjWsHhcFIcoAjQCUBz162srGB0dBRXrlxBfn4+7HY7UlL4ulBzfERE1ZrRYYAyBXgOwFishKIov4uIxqPAbwiVJoDigosA9sVKSkP5QSI6oAGnCpEtwJMAflKtNTbAfwDyiGg6tjR3SksVQHEBX4XxlZhe8RoRtcpKLl0AJjY+Pt5jMpn4fICtW7ciIyMjIt+ZmZkQzmzmd5KI0U5EvO2WFnoIwHvddT3Ep8Dq6vWT9tDQEEpKSkINunbt2jqxFhYW4Ha7MTg4OB8MBrMBLEprvR5DAMD7gUDgWF5e3l2efO5vaWnB7t27UVRUhMnJSRARrFYr+vr6sH37drALcnJyYLFYQuUWFxdDYjQ3Nwuz2Uw3b96E0+l8GsBkwgvg9/uPDQ8PM+He1NTUhzweT0lhYSFaW1tx48YN8DcOm82GiooKNDY2btgmi8XyZzAYfMTv94fKOJ1OP4BnN5MAfE2Grq6uwyyA3W7/y+v1Pswu4JiamkJxcTF/DzmAY//+/di27c4B79KlS6Hfjxw5glu3bqGurg69vb1Sh63UZErPrBsCq+TZ4nwbdPr06W+6u7t/GxkZ2Xf58uWQ1VcF2Lt3L5qamrw7duw4UF5ezlvmoMvlsigO4MliaDM5YJXrFwBGXC7Xu9zjNputgj/4fL4Lq4BVAViMPXv2VFRWVl5wOBxwOBxXT548maUIsOnmgHsJP+VyuX5kB3g8nom2trZfAoFA8VoHqAjwNgDnZnLA2h477/P5Ku+dA6xW64TP59sZzgEnTpyYcLvdO7Ozs0MridPp5JtgKa9CLKQecwCfBfhMwLY/tGbd5p0Ov/AeU3rxA+Uxhd8SAwB4m8ui2QHUKa9Mbyn/KHkxTM6YDKGHADERindhQ4B4K55o9RkOSLQeiTcfwwHxVjzR6jMckGg9Em8+hgPirXii1Zf0DvgfGiXvUAsr6xQAAAAASUVORK5CYII=";
     var circleData = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAHzUlEQVR4XuWbaWxVRRTHf+OGS1BRUQuCuICRRoMWFTRugEgCVo2IQqEgUAmpiCIgJuoHiAmgKEowBlsXwCLuEv2g0kaNti7RaBTFjaBScYtRq1FRueZ/79z75r32tfe9PmrpPclL+96dOzPnP+fMnG0MBSVvP2AUcIn9HFig7n8GNgBPAS+C+aNA/WIK05F3EFAJ3AAckr3Pb4Hv7ec74C9gJyDcDgeOsH+PbG1aPwLLgXvANLV3/u0EwDsMuA6YBbSw2l8EC8ZLwEYg7nyF5zBgJHABcFxLfP4CrACWgZGE5EV5AuB1A24HptvlcwbXyq4NFoiv8ppU85f6AtcCE62UpLX4HXgAmAdGIpUT5QGA1x94EjgpfaQvgaVAtRXtnOYRs7FwnwbcBByV+c4HwGVgPovZmd8sRwC8CcAq4ID0QaYCa4B/chm7HW33ttKghW8mDVPAPBG385gAeHsCd9uNzvYtZm8GlsQdaxe00/TnA7cBmmJEK4HZYP5ta9AYAHh7AOuBsanOGoFxQH1b/XfQ8zPtCalTJKJHgHIwOmayUhsA+MyvBspSPWg3vwL4qYOYiztMT6AGGJETCK0A0BLzDwHSdy/urDq4ndjRvjAlNghZAMjG/FUdzFC+wz0YG4RsAGhncXY3nXrS+VbVKd/Z7oL3pLmPBadiiuaDke2SRi0A4Mns+gjYJ2hZB1zYgUdcofDYy1qh54cd7gCKwXzujpABgC/6bwCnBY22AqcAeVuaheImz34OBt4FjgnffwsYAibaxDIBuBFYHLSWuA8B3s5z8M7y2ul2TSNW54JZFs7OAcA7EXgvJfoya4VHV6A7rKPq85KmCi4A8rcvCtiVFzfQtu0KAGg72wQcHzKzAczF+mIB8I4FtDnY7+cBr3QFzh0e5F7Xht+1B/QFsy0E4C7r19tGadZUFwJCJ1p0KiiOMNeAtz+wPRXQkGRIG7oiKVL3dMjYr0CRALjGRlaAbYFkdFpTt72LolNecYsoljBTAHwYGAiiOYC0oSvTPBu48Xl8XwA4no1icZKMrkwKXSqc6JPnAPAacHZX5tzh7XVAMQT/2AslQAagYm1JIBl5UoU0AGQDPZcE7gGddM9kAiDdiBu3391xOhRQfiWSAAU4FWlNEgV7v90DXrApvSQBIJ5HhgAo4uMEfROBg/Ksl4YAPJwZQ0sABErkTAwBUB5BFnGS6D5gRgiA4p8LksR9kFRmTgiAxKE8YQAocTQhBGCd/yVZ9Kif4bLH4Js2AJokCBTsHRwC8IMtTUkSAMpt9nCdIdXp/JkQBFIuseMNyhWWS5wEUlxQ8cE0b/B6W3yVBAAU+QpyI44EvAqcmwTuraSfFQGgMpI9gkCoqt46W+FDoddENYjfhCmQnZIAJ1g+w9ZAFXrQztTfTODecEJ1AkBcyzAGkuAWq8RneAhAhQDoAcgQsGVWJwCftmvJNm3axMCByi1CU1MTlZWVNDY2smLFChYvXsyaNTK9s1NVVRX9+vVjxIhCZ6gGAJ+EA0v1e4apscAw9kl+clplRU5giPnt27dHkxczo0aNory8nLq64Ohpi3YdAIoD+jlR0Vowk9zkqJbdSkGJLSxoa6rpzydNmsSCBQuYNWtWM2aHDRsWScDkyZMZNGgQ3bt3Z/369ehZ79692bFjB0uWLKFXr16RBGzcuJHhwwORra2tbYdUKAyucLhPWv0BYLa46fEqW4cKNERx81wgWLhwIaNHj6akRACmUyYAeioRF4NFRUUUFxejlR86dCgNDQ0+APX19ZSVlVFRUeEDKunSs+nTVaKcK70DnBq+tAqM9j63VNZTwmxLKjqqUjNFiuJTNgkQYzU1NWkSsHXrVp8RARD+H44UqoB+nzZNtcEpyk8K1IfW16e/gT5gVNWdWSvsqfzcCQ31tmdmfBBa2gPGjRvHypUrKS0t9TdBqYALQCgNkiCt+ObNm+nWrVszCYg/C7elkr1KiEa0HIzMXp8ya4RkJWgv6B48VoGRdCe3KvS2TgEXAKnG6tWrY+0BmlF1dXUOKqDqcrm9UWG7Ep/9wejWRksA6DdvdHqKaHcOlqh0dry7+mPAPO/+kK1QcpEtBbdtpRUKnO5ONDvTuVsE5tZMDrIBoN9118WxRK4G7t9NEKjINOll/o106wNbUYHwkX8RSmeHc2HnTmBuJ64gUQWIqmHl7kakkrcSMFFRQAwViEDQ0ajbF2ekXlIG+fJOGD3aF3gcGOPyp2DnWFWDZRPdOBcmVGSn3JnTs0qJh3aiahIJqy5vBP6HJdn048GoMDIrxQDAPxnUTlUFkn9LXwPSNXmQ/yepkFt7Ux93EkvBxCpzjQlApBLiWK6zlM3Ss/baoADpSDraXs0rdQeVjT8VjG65xKIcAfClQVdjdXPMgVzRZJ25qsn9ONbA+TdSSbNKebQPSe8zRdLkJJJ5AOCDoOLKW6xKqDDfIVmP8iF0ebJQ4TXdB5JBM9l1aMIxpeOKcC4Ek3NcP08AIpVQ9ETScE7zFZXPITBkQOlOozbOVvcjpwuZsFppmbC6mXsykIFz0FqRXIm8jrq8qJ0AREAo0K57rVcCko4WSGU4cjMEhi5/pzkoQD8r0mJauKbdA3T701VZXeNbA+blvLh2XioQABEQcqIkq9osB7d3chnvy6vRdr8OzG+F6vs/cM4xojBcMyUAAAAASUVORK5CYII=";
     function show(data) {
-        document.body.appendChild(common_31.html("<img src=\"" + data + "\" />"));
+        document.body.appendChild(common_32.html("<img src=\"" + data + "\" />"));
     }
     function circle(radius, points) {
         if (radius === void 0) { radius = 1; }
@@ -14969,9 +15002,9 @@ define("node_modules/ol3-fun/tests/spec/snapshot", ["require", "exports", "node_
     }
     describe("Snapshot", function () {
         it("Snapshot", function () {
-            base_8.should(!!Snapshot, "Snapshot");
-            base_8.should(!!Snapshot.render, "Snapshot.render");
-            base_8.should(!!Snapshot.snapshot, "Snapshot.snapshot");
+            base_9.should(!!Snapshot, "Snapshot");
+            base_9.should(!!Snapshot.render, "Snapshot.render");
+            base_9.should(!!Snapshot.snapshot, "Snapshot.snapshot");
         });
         it("Converts a point to image data", function () {
             var feature = new ol.Feature(new ol.geom.Point([0, 0]));
@@ -15001,7 +15034,7 @@ define("node_modules/ol3-fun/tests/spec/snapshot", ["require", "exports", "node_
             if (1 === window.devicePixelRatio) {
                 if (data !== pointData)
                     show(pointData);
-                base_8.shouldEqual(data, pointData, "point data as expected");
+                base_9.shouldEqual(data, pointData, "point data as expected");
             }
         });
         it("Converts a triangle to image data", function () {
@@ -15021,20 +15054,20 @@ define("node_modules/ol3-fun/tests/spec/snapshot", ["require", "exports", "node_
         it("Converts a polygon to image data", function () {
             var geom = new ol.geom.Polygon([circle(3 + 100 * Math.random())]);
             var feature = new ol.Feature(geom);
-            base_8.shouldEqual(feature.getGeometry(), geom, "geom still assigned");
+            base_9.shouldEqual(feature.getGeometry(), geom, "geom still assigned");
             feature.setStyle(createStyle("Circle"));
-            var originalCoordinates = base_8.stringify(geom.getCoordinates());
+            var originalCoordinates = base_9.stringify(geom.getCoordinates());
             var data = Snapshot.snapshot(feature, 64);
             console.log(data);
-            base_8.should(!!data, "snapshot returns data");
+            base_9.should(!!data, "snapshot returns data");
             show(data);
-            var finalCoordinates = base_8.stringify(geom.getCoordinates());
-            base_8.shouldEqual(originalCoordinates, finalCoordinates, "coordinates unchanged");
-            base_8.shouldEqual(feature.getGeometry(), geom, "geom still assigned");
+            var finalCoordinates = base_9.stringify(geom.getCoordinates());
+            base_9.shouldEqual(originalCoordinates, finalCoordinates, "coordinates unchanged");
+            base_9.shouldEqual(feature.getGeometry(), geom, "geom still assigned");
             if (1 === window.devicePixelRatio) {
                 if (data !== pointData)
                     show(circleData);
-                base_8.shouldEqual(data, circleData, "circle data as expected");
+                base_9.shouldEqual(data, circleData, "circle data as expected");
             }
         });
     });
@@ -15062,12 +15095,12 @@ define("node_modules/ol3-fun/tests/spec/snapshot", ["require", "exports", "node_
         });
     }
 });
-define("node_modules/ol3-fun/tests/spec/zoom-to-feature", ["require", "exports", "openlayers", "node_modules/ol3-fun/tests/base", "node_modules/ol3-fun/ol3-fun/navigation"], function (require, exports, ol, base_9, navigation_4) {
+define("node_modules/ol3-fun/tests/spec/zoom-to-feature", ["require", "exports", "openlayers", "node_modules/ol3-fun/tests/base", "node_modules/ol3-fun/ol3-fun/navigation"], function (require, exports, ol, base_10, navigation_4) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     describe("zoomToFeature", function () {
         it("zoomToFeature", function (done) {
-            base_9.should(!!navigation_4.zoomToFeature, "zoomToFeature");
+            base_10.should(!!navigation_4.zoomToFeature, "zoomToFeature");
             var map = new ol.Map({
                 view: new ol.View({
                     zoom: 0,
@@ -15085,16 +15118,16 @@ define("node_modules/ol3-fun/tests/spec/zoom-to-feature", ["require", "exports",
                     minResolution: res / 4,
                 }).then(function () {
                     var _a = map.getView().getCenter(), cx = _a[0], cy = _a[1];
-                    base_9.should(map.getView().getZoom() === zoom + 2, "zoom in two because minRes is 1/4 of initial res");
-                    base_9.should(cx === 100, "center-x");
-                    base_9.should(cy === 100, "center-y");
+                    base_10.should(map.getView().getZoom() === zoom + 2, "zoom in two because minRes is 1/4 of initial res");
+                    base_10.should(cx === 100, "center-x");
+                    base_10.should(cy === 100, "center-y");
                     done();
                 });
             });
         });
     });
 });
-define("node_modules/ol3-fun/tests/index", ["require", "exports", "node_modules/ol3-fun/tests/spec/api", "node_modules/ol3-fun/tests/spec/common", "node_modules/ol3-fun/tests/spec/slowloop", "node_modules/ol3-fun/tests/spec/parse-dms", "node_modules/ol3-fun/tests/spec/polyline", "node_modules/ol3-fun/tests/spec/snapshot", "node_modules/ol3-fun/tests/spec/zoom-to-feature"], function (require, exports) {
+define("node_modules/ol3-fun/tests/index", ["require", "exports", "node_modules/ol3-fun/tests/spec/api", "node_modules/ol3-fun/tests/spec/common", "node_modules/ol3-fun/tests/spec/slowloop", "node_modules/ol3-fun/tests/spec/openlayers-test", "node_modules/ol3-fun/tests/spec/parse-dms", "node_modules/ol3-fun/tests/spec/polyline", "node_modules/ol3-fun/tests/spec/snapshot", "node_modules/ol3-fun/tests/spec/zoom-to-feature"], function (require, exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
 });
@@ -15128,12 +15161,12 @@ define("node_modules/ol3-grid/tests/base", ["require", "exports"], function (req
     }
     exports.stringify = stringify;
 });
-define("node_modules/ol3-grid/tests/spec/grid", ["require", "exports", "node_modules/ol3-grid/tests/base", "mocha", "node_modules/ol3-grid/ol3-grid/ol3-grid"], function (require, exports, base_10, mocha_3, ol3_grid_1) {
+define("node_modules/ol3-grid/tests/spec/grid", ["require", "exports", "node_modules/ol3-grid/tests/base", "mocha", "node_modules/ol3-grid/ol3-grid/ol3-grid"], function (require, exports, base_11, mocha_3, ol3_grid_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     mocha_3.describe("Grid Tests", function () {
         mocha_3.it("Grid", function () {
-            base_10.should(!!ol3_grid_1.Grid, "Grid");
+            base_11.should(!!ol3_grid_1.Grid, "Grid");
         });
         mocha_3.it("DEFAULT_OPTIONS", function () {
             var options = ol3_grid_1.Grid.DEFAULT_OPTIONS;
@@ -15141,23 +15174,23 @@ define("node_modules/ol3-grid/tests/spec/grid", ["require", "exports", "node_mod
         });
         mocha_3.it("options of an Input instance", function () {
             var grid = ol3_grid_1.Grid.create();
-            base_10.shouldEqual(grid.getMap(), null, "no map");
+            base_11.shouldEqual(grid.getMap(), null, "no map");
             grid.destroy();
         });
     });
     function checkDefaultInputOptions(options) {
-        base_10.should(!!options, "options");
-        base_10.shouldEqual(options.autoCollapse, true, "autoCollapse");
-        base_10.shouldEqual(options.canCollapse, true, "canCollapse");
-        base_10.shouldEqual(options.className, "ol-grid", "className");
-        base_10.should(options.closedText.length > 0, "closedText");
-        base_10.shouldEqual(options.expanded, false, "expanded");
-        base_10.shouldEqual(options.hideButton, false, "hideButton");
-        base_10.shouldEqual(options.map, undefined, "map");
-        base_10.shouldEqual(!!options.openedText, true, "openedText");
-        base_10.shouldEqual(!!options.placeholderText, true, "placeholderText");
-        base_10.shouldEqual(options.position, "top right", "position");
-        base_10.shouldEqual(options.target, undefined, "target");
+        base_11.should(!!options, "options");
+        base_11.shouldEqual(options.autoCollapse, true, "autoCollapse");
+        base_11.shouldEqual(options.canCollapse, true, "canCollapse");
+        base_11.shouldEqual(options.className, "ol-grid", "className");
+        base_11.should(options.closedText.length > 0, "closedText");
+        base_11.shouldEqual(options.expanded, false, "expanded");
+        base_11.shouldEqual(options.hideButton, false, "hideButton");
+        base_11.shouldEqual(options.map, undefined, "map");
+        base_11.shouldEqual(!!options.openedText, true, "openedText");
+        base_11.shouldEqual(!!options.placeholderText, true, "placeholderText");
+        base_11.shouldEqual(options.position, "top right", "position");
+        base_11.shouldEqual(options.target, undefined, "target");
     }
 });
 define("node_modules/ol3-grid/tests/index", ["require", "exports", "node_modules/ol3-grid/tests/spec/grid"], function (require, exports) {
@@ -15194,15 +15227,15 @@ define("node_modules/ol3-input/tests/base", ["require", "exports"], function (re
     }
     exports.stringify = stringify;
 });
-define("node_modules/ol3-input/tests/spec/input", ["require", "exports", "node_modules/ol3-input/tests/base", "mocha", "node_modules/ol3-input/index"], function (require, exports, base_11, mocha_4, index_30) {
+define("node_modules/ol3-input/tests/spec/input", ["require", "exports", "node_modules/ol3-input/tests/base", "mocha", "node_modules/ol3-input/index"], function (require, exports, base_12, mocha_4, index_30) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     mocha_4.describe("Input Tests", function () {
         mocha_4.it("Input", function () {
-            base_11.should(!!index_30.Input, "Input");
+            base_12.should(!!index_30.Input, "Input");
         });
         mocha_4.it("OsmSearchProvider", function () {
-            base_11.should(!!index_30.OsmSearchProvider, "OsmSearchProvider");
+            base_12.should(!!index_30.OsmSearchProvider, "OsmSearchProvider");
         });
         mocha_4.it("DEFAULT_OPTIONS", function () {
             var options = index_30.Input.DEFAULT_OPTIONS;
@@ -15216,52 +15249,52 @@ define("node_modules/ol3-input/tests/spec/input", ["require", "exports", "node_m
             var input = index_30.Input.create({});
             var target = document.createElement("div");
             input.on("change", function (args) {
-                base_11.should(args.value === "hello", "change to hello");
+                base_12.should(args.value === "hello", "change to hello");
                 done();
             });
-            base_11.shouldEqual(target.innerHTML, "", "innerHTML");
+            base_12.shouldEqual(target.innerHTML, "", "innerHTML");
             input.setValue("hello");
         });
     });
     function checkDefaultInputOptions(options) {
-        base_11.should(!!options, "options");
-        base_11.shouldEqual(options.autoChange, false, "autoChange");
-        base_11.shouldEqual(options.autoClear, false, "autoClear");
-        base_11.shouldEqual(options.autoCollapse, true, "autoCollapse");
-        base_11.shouldEqual(options.autoSelect, true, "autoSelect");
-        base_11.shouldEqual(options.canCollapse, true, "canCollapse");
-        base_11.shouldEqual(options.changeDelay, 2000, "changeDelay");
-        base_11.shouldEqual(options.className, "ol-input", "className");
-        base_11.should(options.closedText.length > 0, "closedText");
-        base_11.shouldEqual(options.expanded, false, "expanded");
-        base_11.shouldEqual(options.hideButton, false, "hideButton");
-        base_11.shouldEqual(options.map, undefined, "map");
-        base_11.shouldEqual(!!options.openedText, true, "openedText");
-        base_11.shouldEqual(!!options.placeholderText, true, "placeholderText");
-        base_11.shouldEqual(options.position, "bottom left", "position");
-        base_11.shouldEqual(!!options.provider, true, "provider");
-        base_11.should(!!options.regex, "regex");
-        base_11.shouldEqual(options.render, undefined, "render");
-        base_11.shouldEqual(options.source, undefined, "source");
-        base_11.shouldEqual(options.target, undefined, "target");
+        base_12.should(!!options, "options");
+        base_12.shouldEqual(options.autoChange, false, "autoChange");
+        base_12.shouldEqual(options.autoClear, false, "autoClear");
+        base_12.shouldEqual(options.autoCollapse, true, "autoCollapse");
+        base_12.shouldEqual(options.autoSelect, true, "autoSelect");
+        base_12.shouldEqual(options.canCollapse, true, "canCollapse");
+        base_12.shouldEqual(options.changeDelay, 2000, "changeDelay");
+        base_12.shouldEqual(options.className, "ol-input", "className");
+        base_12.should(options.closedText.length > 0, "closedText");
+        base_12.shouldEqual(options.expanded, false, "expanded");
+        base_12.shouldEqual(options.hideButton, false, "hideButton");
+        base_12.shouldEqual(options.map, undefined, "map");
+        base_12.shouldEqual(!!options.openedText, true, "openedText");
+        base_12.shouldEqual(!!options.placeholderText, true, "placeholderText");
+        base_12.shouldEqual(options.position, "bottom left", "position");
+        base_12.shouldEqual(!!options.provider, true, "provider");
+        base_12.should(!!options.regex, "regex");
+        base_12.shouldEqual(options.render, undefined, "render");
+        base_12.shouldEqual(options.source, undefined, "source");
+        base_12.shouldEqual(options.target, undefined, "target");
     }
 });
 define("node_modules/ol3-input/tests/index", ["require", "exports", "node_modules/ol3-input/tests/spec/input"], function (require, exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
 });
-define("node_modules/ol3-layerswitcher/tests/spec/layerswitcher", ["require", "exports", "openlayers", "node_modules/ol3-fun/tests/base", "node_modules/ol3-layerswitcher/index", "node_modules/ol3-fun/index"], function (require, exports, ol, base_12, index_31, index_32) {
+define("node_modules/ol3-layerswitcher/tests/spec/layerswitcher", ["require", "exports", "openlayers", "node_modules/ol3-fun/tests/base", "node_modules/ol3-layerswitcher/index", "node_modules/ol3-fun/index"], function (require, exports, ol, base_13, index_31, index_32) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    base_12.describe("LayerSwitcher Tests", function () {
-        base_12.it("LayerSwitcher", function () {
-            base_12.should(!!index_31.LayerSwitcher, "LayerSwitcher");
+    base_13.describe("LayerSwitcher Tests", function () {
+        base_13.it("LayerSwitcher", function () {
+            base_13.should(!!index_31.LayerSwitcher, "LayerSwitcher");
         });
-        base_12.it("DEFAULT_OPTIONS", function () {
+        base_13.it("DEFAULT_OPTIONS", function () {
             var options = index_31.DEFAULT_OPTIONS;
             checkDefaultInputOptions(options);
         });
-        base_12.it("Renders in DOM", function (done) {
+        base_13.it("Renders in DOM", function (done) {
             var cssout = index_32.cssin("map", ".map {width:16em;height:12em;border:1pt solid}");
             var target = document.createElement("div");
             target.className = "map";
@@ -15310,7 +15343,7 @@ define("node_modules/ol3-layerswitcher/tests/spec/layerswitcher", ["require", "e
             index_32.slowloop([
                 function () {
                     switcher.showPanel();
-                    base_12.shouldEqual(switcher.isVisible(), true, "Panel is visible");
+                    base_13.shouldEqual(switcher.isVisible(), true, "Panel is visible");
                 },
                 function () { return mapLayers.insertAt(0, group1); },
                 function () { return groupLayers.insertAt(0, tiles[0]); },
@@ -15334,162 +15367,689 @@ define("node_modules/ol3-layerswitcher/tests/spec/layerswitcher", ["require", "e
                 function () { return mapLayers.insertAt(0, vectors[2]); },
                 function () { return vectors[2].setVisible(true); },
             ], 100).then(function () {
-                base_12.shouldEqual(vectors[0].getVisible(), false, "Parcel is hidden");
+                base_13.shouldEqual(vectors[0].getVisible(), false, "Parcel is hidden");
                 vectors[0].setVisible(true);
-                base_12.shouldEqual(vectors[1].getVisible(), true, "Address is visible");
-                base_12.shouldEqual(vectors[2].getVisible(), true, "Address is visible");
-                base_12.shouldEqual(tiles[0].getVisible(), true, "Bing is visible");
-                base_12.shouldEqual(tiles[1].getVisible(), false, "OSM is hidden");
+                base_13.shouldEqual(vectors[1].getVisible(), true, "Address is visible");
+                base_13.shouldEqual(vectors[2].getVisible(), true, "Address is visible");
+                base_13.shouldEqual(tiles[0].getVisible(), true, "Bing is visible");
+                base_13.shouldEqual(tiles[1].getVisible(), false, "OSM is hidden");
                 tiles[1].setVisible(true);
-                base_12.shouldEqual(tiles[1].getVisible(), true, "OSM is now visible");
-                base_12.shouldEqual(tiles[0].getVisible(), true, "Bing is still visible");
-                base_12.shouldEqual(switcher.isVisible(), true, "Panel is visible");
+                base_13.shouldEqual(tiles[1].getVisible(), true, "OSM is now visible");
+                base_13.shouldEqual(tiles[0].getVisible(), true, "Bing is still visible");
+                base_13.shouldEqual(switcher.isVisible(), true, "Panel is visible");
                 done();
             });
         }).timeout(20 * 200);
     });
     function checkDefaultInputOptions(options) {
-        base_12.should(!!options, "options");
-        base_12.shouldEqual(options.className, "layer-switcher", "className");
-        base_12.shouldEqual(options.closeOnClick, true, "closeOnClick");
-        base_12.shouldEqual(options.closeOnMouseOut, false, "closeOnMouseOut");
-        base_12.shouldEqual(options.openOnClick, true, "openOnClick");
-        base_12.shouldEqual(options.openOnMouseOver, false, "openOnMouseOver");
-        base_12.shouldEqual(options.target, undefined, "target");
-        base_12.shouldEqual(options.tipLabel, "Layers", "tipLabel");
+        base_13.should(!!options, "options");
+        base_13.shouldEqual(options.className, "layer-switcher", "className");
+        base_13.shouldEqual(options.closeOnClick, true, "closeOnClick");
+        base_13.shouldEqual(options.closeOnMouseOut, false, "closeOnMouseOut");
+        base_13.shouldEqual(options.openOnClick, true, "openOnClick");
+        base_13.shouldEqual(options.openOnMouseOver, false, "openOnMouseOver");
+        base_13.shouldEqual(options.target, undefined, "target");
+        base_13.shouldEqual(options.tipLabel, "Layers", "tipLabel");
     }
 });
 define("node_modules/ol3-layerswitcher/tests/index", ["require", "exports", "node_modules/ol3-layerswitcher/tests/spec/layerswitcher"], function (require, exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
 });
-define("node_modules/ol3-panzoom/tests/index", ["require", "exports", "node_modules/ol3-fun/tests/base", "node_modules/ol3-panzoom/ol3-panzoom/ol3-panzoom"], function (require, exports, base_13, PanZoom) {
+define("node_modules/ol3-panzoom/examples/utils/MapMaker", ["require", "exports", "openlayers"], function (require, exports, ol) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    base_13.describe("ol3-panzoom", function () {
-        base_13.it("ol3-panzoom", function () {
-            base_13.should(!!PanZoom, "PanZoom exists");
-        });
-    });
-});
-define("node_modules/ol3-popup/tests/spec/popup", ["require", "exports", "openlayers", "node_modules/ol3-fun/tests/base", "node_modules/ol3-fun/index", "node_modules/ol3-popup/index"], function (require, exports, ol, base_14, index_33, index_34) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    base_14.describe("Popup Options", function () {
-        base_14.it("Popup", function () {
-            base_14.should(!!index_34.Popup, "Popup");
-        });
-        base_14.it("DEFAULT_OPTIONS", function () {
-            checkDefaultInputOptions(index_34.DEFAULT_OPTIONS);
-        });
-    });
-    base_14.describe("Popup Constructor", function () {
-        var map = new ol.Map({});
-        base_14.it("Constructors", function () {
-            try {
-                index_34.Popup.create().destroy();
-            }
-            catch (_a) {
-                base_14.should(true, "empty constructor throws, either map or autoPopup=false necessary");
-            }
-            index_34.Popup.create({ autoPopup: false }).destroy();
-            index_34.Popup.create({ map: map }).destroy();
-        });
-    });
-    base_14.describe("Popup Paging", function () {
-        var target = document.createElement("div");
-        document.body.appendChild(target);
-        var map = new ol.Map({
-            target: target,
-            layers: [
-                new ol.layer.Tile({
-                    source: new ol.source.OSM()
-                })
-            ],
+    function MapMaker(panZoom) {
+        var center = [-7910321, 6179398];
+        if (panZoom.options.maxExtent) {
+            center = ol.extent.getCenter(panZoom.options.maxExtent);
+        }
+        var vectorLayer = new ol.layer.Vector();
+        var vectors = new ol.source.Vector();
+        vectors.addFeature(new ol.Feature(new ol.geom.Polygon([
+            [
+                [center[0] - 100, center[1] - 100],
+                [center[0] - 100, center[1] + 100],
+                [center[0] + 100, center[1] + 100],
+                [center[0] + 100, center[1] - 100],
+                [center[0] - 100, center[1] - 100]
+            ]
+        ])));
+        vectorLayer.setSource(vectors);
+        return new ol.Map({
+            controls: ol.control
+                .defaults({
+                zoom: false
+            })
+                .extend([panZoom]),
+            layers: [vectorLayer],
+            target: "map",
             view: new ol.View({
-                center: [0, 0],
-                projection: "EPSG:3857",
-                zoom: 24
+                center: center,
+                minZoom: panZoom.options.minZoom,
+                maxZoom: panZoom.options.maxZoom,
+                zoom: Math.floor((panZoom.options.minZoom + panZoom.options.maxZoom) / 2)
             })
         });
-        base_14.it("Paging", function (done) {
+    }
+    exports.MapMaker = MapMaker;
+});
+define("node_modules/ol3-panzoom/tests/index", ["require", "exports", "node_modules/ol3-fun/tests/base", "node_modules/ol3-panzoom/index", "node_modules/ol3-panzoom/examples/utils/MapMaker"], function (require, exports, base_14, index_33, MapMaker_1) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    base_14.describe("ol3-panzoom", function () {
+        function mapDiv() {
+            var mapDiv = document.getElementById("map");
+            if (!mapDiv) {
+                mapDiv = document.createElement("div");
+                document.body.appendChild(mapDiv);
+                mapDiv.id = "map";
+            }
+            return mapDiv;
+        }
+        base_14.it("ol3-panzoom", function () {
+            base_14.should(!!index_33.PanZoom, "PanZoom exists");
+        });
+        base_14.it("creates", function (done) {
+            mapDiv();
+            var panzoom = new index_33.PanZoom({ duration: 20 });
+            var map = MapMaker_1.MapMaker(panzoom);
             map.once("postrender", function () {
-                var popup = index_34.Popup.create({ map: map });
-                var c = map.getView().getCenter();
-                var points = index_33.pair(index_33.range(3), index_33.range(3)).map(function (n) { return new ol.geom.Point([c[0] + n[0], c[1] + n[1]]); });
-                points.forEach(function (p, i) {
-                    popup.pages.add("Page " + i, p);
-                });
-                var i = 0;
-                base_14.slowloop([function () { return popup.pages.goto(i++); }], 300, points.length).then(function () {
+                var c1 = map.getView().getCenter();
+                var c = function () { return map.getView().getCenter(); };
+                base_14.slowloop([
+                    function () { return panzoom.pan("east"); },
+                    function () { return base_14.should(c()[0] > c1[0], "pan east"); },
+                    function () { return panzoom.pan("north"); },
+                    function () { return base_14.should(c()[1] > c1[1], "pan north"); },
+                    function () { return panzoom.pan("west"); },
+                    function () { return base_14.should(c()[0] === c1[0], "pan west"); },
+                    function () { return panzoom.pan("south"); },
+                    function () { return base_14.should(c()[1] === c1[1], "south north"); },
+                    function () { return panzoom.zoom("in"); }
+                ], panzoom.options.duration + 50, 2).then(function () {
                     map.setTarget(null);
-                    target.remove();
                     done();
                 });
             });
         });
+        base_14.it("cycles through the themes", function (done) {
+            mapDiv();
+            var panzoom = new index_33.PanZoom({
+                slider: true,
+                duration: 20,
+                minZoom: 6,
+                maxZoom: 15
+            });
+            var map = MapMaker_1.MapMaker(panzoom);
+            panzoom.on("change:theme", function (args) {
+                switch (panzoom.get("theme")) {
+                    case "dark":
+                        panzoom.options.theme = "zoombar_black";
+                        break;
+                    case "light":
+                        panzoom.options.theme = "ol2img";
+                        break;
+                }
+                panzoom.redraw();
+            });
+            panzoom.on("change:slider", function () {
+                panzoom.options.slider = panzoom.get("slider");
+                panzoom.redraw();
+            });
+            panzoom.on("change:maxextent", function () {
+                panzoom.options.maxExtent = panzoom.get("maxextent");
+                panzoom.redraw();
+            });
+            map.once("postrender", function () {
+                base_14.slowloop([
+                    function () { return panzoom.set("theme", panzoom.get("theme") == "dark" ? "light" : "dark"); },
+                    function () { return panzoom.set("slider", !panzoom.options.slider); },
+                    function () { return panzoom.set("maxextent", panzoom.get("maxextent") ? null : [-1000, -1000, 1000, 1000]); }
+                ], 1000, 2).then(function () {
+                    map.setTarget(null);
+                    done();
+                });
+            });
+        }).timeout(10000);
+    });
+});
+define("node_modules/ol3-popup/examples/extras/once", ["require", "exports"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    function once(map, event, cb) {
+        var d = $.Deferred();
+        map.once(event, function () {
+            try {
+                $.when(cb())
+                    .then(function (result) { return d.resolve(result); })
+                    .catch(function (ex) { return d.reject(ex); });
+            }
+            catch (ex) {
+                d.reject(ex);
+            }
+        });
+        return d;
+    }
+    exports.once = once;
+});
+define("node_modules/ol3-popup/tests/extras/kill", ["require", "exports", "node_modules/ol3-fun/tests/base"], function (require, exports, base_15) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    function kill(popup, delay) {
+        if (delay === void 0) { delay = 1000; }
+        var cancel = false;
+        popup.getMap().once("pointermove", function () {
+            cancel = true;
+        });
+        return function () {
+            return base_15.slowloop([
+                function () {
+                    if (cancel)
+                        throw "cancelled by user via pointermove";
+                    popup.getMap().getTarget().remove();
+                    popup.getMap().setTarget(null);
+                    popup.destroy();
+                }
+            ], delay);
+        };
+    }
+    exports.kill = kill;
+});
+define("node_modules/ol3-popup/tests/spec/popup", ["require", "exports", "openlayers", "node_modules/ol3-fun/tests/base", "node_modules/ol3-fun/index", "node_modules/ol3-popup/index", "node_modules/ol3-popup/examples/extras/once", "node_modules/ol3-popup/tests/extras/kill"], function (require, exports, ol, base_16, index_34, index_35, once_1, kill_1) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    function createMapDiv() {
+        var div = document.createElement("div");
+        div.className = "map";
+        document.body.appendChild(div);
+        return div;
+    }
+    base_16.describe("spec/popup", function () {
+        base_16.it("Popup", function () {
+            base_16.should(!!index_35.Popup, "Popup");
+        });
+        base_16.it("DEFAULT_OPTIONS", function () {
+            checkDefaultInputOptions(index_35.DEFAULT_OPTIONS);
+            base_16.should(!index_35.DEFAULT_OPTIONS.pagingStyle, "pagingStyle");
+            var p1 = index_35.Popup.create({ autoPopup: false });
+            p1.options.autoPopup = true;
+            checkDefaultInputOptions(p1.options);
+            base_16.should(!!p1.options.pagingStyle, "pagingStyle");
+        });
+        base_16.it("Ensures options do not leak into other instances", function () {
+            var p1 = index_35.Popup.create({ autoPopup: false });
+            var p2 = index_35.Popup.create({ autoPopup: false });
+            var expected = p1.options.indicatorOffsets["top-center"][0];
+            p1.options.indicatorOffsets["top-center"][0] += 200;
+            var actual = p2.options.indicatorOffsets["top-center"][0];
+            base_16.shouldEqual(actual, expected, "default did not change");
+            p1.destroy();
+            p2.destroy();
+        });
+        base_16.it("Ensures global options can be tweaked", function () {
+            var originalDefaultValue = index_35.DEFAULT_OPTIONS.indicatorOffsets["top-center"][0];
+            var expected = (index_35.DEFAULT_OPTIONS.indicatorOffsets["top-center"][0] += 200);
+            try {
+                var p1 = index_35.Popup.create({ autoPopup: false });
+                var actual = p1.options.indicatorOffsets["top-center"][0];
+                base_16.shouldEqual(actual, expected, "default did change");
+                p1.destroy();
+            }
+            finally {
+                index_35.DEFAULT_OPTIONS.indicatorOffsets["top-center"][0] = originalDefaultValue;
+            }
+        });
+        base_16.it("Constructors", function () {
+            var map = new ol.Map({});
+            try {
+                index_35.Popup.create({ id: "constructor-test" }).destroy();
+            }
+            catch (_a) {
+                base_16.should(true, "empty constructor throws, either map or autoPopup=false necessary");
+            }
+            index_35.Popup.create({ autoPopup: false }).destroy();
+            index_35.Popup.create({ map: map }).destroy();
+            map.setTarget(null);
+        });
+        base_16.it("Paging", function () {
+            var target = createMapDiv();
+            var map = new ol.Map({
+                target: target,
+                layers: [],
+                view: new ol.View({
+                    center: [0, 0],
+                    projection: "EPSG:3857",
+                    zoom: 24
+                })
+            });
+            var popup = index_35.Popup.create({ id: "paging-test", map: map });
+            return once_1.once(map, "postrender", function () {
+                var c = map.getView().getCenter();
+                var points = index_34.pair(index_34.range(3), index_34.range(3)).map(function (n) { return new ol.geom.Point([c[0] + n[0], c[1] + n[1]]); });
+                var count = 0;
+                points.forEach(function (p, i) {
+                    popup.pages.add(function () { return "Page " + (i + 1) + ": visit counter: " + ++count; }, p);
+                    base_16.shouldEqual(popup.pages.count, i + 1, i + 1 + " pages");
+                });
+                var i = 0;
+                return base_16.slowloop([function () { return popup.pages.goto(i++); }], 100, popup.pages.count).then(function () {
+                    base_16.shouldEqual(popup.getElement().getElementsByClassName("ol-popup-content")[0].textContent, "Page 9: visit counter: 9", "last page contains correct text");
+                });
+            }).then(kill_1.kill(popup));
+        });
     });
     function checkDefaultInputOptions(options) {
-        base_14.should(!!options, "options");
-        base_14.shouldEqual(typeof options.asContent, "function", "asContent");
-        base_14.shouldEqual(options.autoPan, true, "autoPan");
-        base_14.shouldEqual(!options.autoPanAnimation, true, "autoPanAnimation");
-        base_14.shouldEqual(options.autoPanMargin, 20, "autoPanMargin");
-        base_14.shouldEqual(options.autoPopup, true, "autoPopup");
-        base_14.shouldEqual(options.autoPositioning, true, "autoPositioning");
-        base_14.shouldEqual(options.className, "ol-popup", "className");
-        base_14.shouldEqual(typeof options.css, "string", "css");
-        base_14.shouldEqual(!options.dockContainer, true, "dockContainer");
-        base_14.shouldEqual(!options.element, true, "element");
-        base_14.shouldEqual(!options.id, true, "id");
-        base_14.shouldEqual(options.insertFirst, true, "insertFirst");
-        base_14.shouldEqual(!options.layers, true, "layers");
-        base_14.shouldEqual(!options.map, true, "map");
-        base_14.shouldEqual(!options.multi, true, "multi");
-        base_14.shouldEqual(base_14.stringify(options.offset), base_14.stringify([0, -10]), "offset");
-        base_14.shouldEqual(!options.pagingStyle, true, "pagingStyle");
-        base_14.shouldEqual(options.pointerPosition, 20, "pointerPosition");
-        base_14.shouldEqual(!options.position, true, "position");
-        base_14.shouldEqual(options.positioning, "bottom-center", "positioning");
-        base_14.shouldEqual(!options.showCoordinates, true, "showCoordinates");
-        base_14.shouldEqual(options.stopEvent, true, "stopEvent");
+        base_16.should(!!options, "options");
+        base_16.shouldEqual(typeof options.asContent, "function", "asContent");
+        base_16.shouldEqual(options.autoPan, true, "autoPan");
+        base_16.shouldEqual(!options.autoPanAnimation, true, "autoPanAnimation");
+        base_16.shouldEqual(options.autoPanMargin, 20, "autoPanMargin");
+        base_16.shouldEqual(options.autoPopup, true, "autoPopup");
+        base_16.shouldEqual(options.autoPositioning, true, "autoPositioning");
+        base_16.shouldEqual(options.className, "ol-popup", "className");
+        base_16.shouldEqual(typeof options.css, "string", "css");
+        base_16.shouldEqual(!options.dockContainer, true, "dockContainer");
+        base_16.shouldEqual(!options.element, true, "element");
+        base_16.shouldEqual(!!options.id, true, "id");
+        base_16.shouldEqual(options.insertFirst, true, "insertFirst");
+        base_16.shouldEqual(!options.layers, true, "layers");
+        base_16.shouldEqual(!options.map, true, "map");
+        base_16.shouldEqual(!options.multi, true, "multi");
+        base_16.shouldEqual(base_16.stringify(options.offset), base_16.stringify([0, -10]), "offset");
+        base_16.shouldEqual(options.pointerPosition, 20, "pointerPosition");
+        base_16.shouldEqual(!options.position, true, "position");
+        base_16.shouldEqual(options.positioning, "bottom-center", "positioning");
+        base_16.shouldEqual(!options.showCoordinates, true, "showCoordinates");
+        base_16.shouldEqual(options.stopEvent, true, "stopEvent");
     }
 });
-define("node_modules/ol3-popup/tests/index", ["require", "exports", "node_modules/ol3-popup/tests/spec/popup"], function (require, exports) {
+define("node_modules/ol3-popup/tests/spec/popup-content", ["require", "exports", "openlayers", "node_modules/ol3-fun/tests/base", "node_modules/ol3-popup/index"], function (require, exports, ol, base_17, index_36) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    base_17.describe("spec/popup-content", function () {
+        base_17.it("asContent returns a DOM node with content", function () {
+            var popup = index_36.Popup.create({ autoPopup: false });
+            var feature = new ol.Feature({ name: "Feature Name" });
+            var html = popup.options.asContent(feature);
+            base_17.should(0 < html.outerHTML.indexOf("Feature Name"), "Feature Name");
+            base_17.shouldEqual("<table><tbody><tr><td>name</td><td>Feature Name</td></tr></tbody></table>", html.innerHTML, "popup markup");
+        });
+    });
+});
+define("node_modules/ol3-popup/examples/extras/map-maker", ["require", "exports", "openlayers"], function (require, exports, ol) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    function MapMaker(mapContainer) {
+        return new ol.Map({
+            target: mapContainer,
+            layers: [],
+            view: new ol.View({
+                center: [0, 0],
+                zoom: 6
+            })
+        });
+    }
+    exports.MapMaker = MapMaker;
+});
+define("node_modules/ol3-popup/tests/spec/popup-css", ["require", "exports", "openlayers", "node_modules/ol3-fun/tests/base", "node_modules/ol3-fun/ol3-fun/common", "node_modules/ol3-popup/index", "node_modules/ol3-popup/examples/extras/map-maker", "node_modules/ol3-popup/examples/extras/once", "node_modules/ol3-popup/tests/extras/kill"], function (require, exports, ol, base_18, common_33, index_37, map_maker_3, once_2, kill_2) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    function createMapDiv() {
+        var div = document.createElement("div");
+        div.className = "map";
+        document.body.appendChild(div);
+        return div;
+    }
+    function rect(extent) {
+        var x1 = extent[0], y1 = extent[1], x2 = extent[2], y2 = extent[3];
+        return [[x1, y1], [x2, y1], [x2, y2], [x1, y2], [x1, y1]];
+    }
+    function callout(points, options) {
+        var index = options.index, size = options.size, width = options.width, offset = options.offset, skew = options.skew;
+        var a = points[index];
+        var c = points[index + 1];
+        var isVertical = a[0] === c[0];
+        var isHorizontal = a[1] === c[1];
+        var isLeft = isVertical && a[1] > c[1];
+        var isRight = isVertical && a[1] < c[1];
+        var isTop = isHorizontal && a[0] < c[0];
+        var isBottom = isHorizontal && a[0] > c[0];
+        var b = [(a[0] + c[0]) / 2, (a[1] + c[1]) / 2];
+        if (isHorizontal) {
+            b[0] += offset;
+        }
+        if (isVertical) {
+            b[1] += offset;
+        }
+        var b0 = [b[0], b[1]];
+        var b1 = [b[0], b[1]];
+        if (isHorizontal) {
+            if (isTop) {
+                b[0] += skew;
+                b[1] -= size;
+                b0[0] -= width / 2;
+                b1[0] += width / 2;
+            }
+            if (isBottom) {
+                b[0] += skew;
+                b[1] += size;
+                b0[0] += width / 2;
+                b1[0] -= width / 2;
+            }
+        }
+        if (isVertical) {
+            if (isLeft) {
+                b[1] += skew;
+                b[0] -= size;
+                b0[1] += width / 2;
+                b1[1] -= width / 2;
+            }
+            if (isRight) {
+                b[1] += skew;
+                b[0] += size;
+                b0[1] -= width / 2;
+                b1[1] += width / 2;
+            }
+        }
+        points.splice(index + 1, 0, b0, b, b1);
+        return points;
+    }
+    base_18.describe("ol3-popup/popup-css", function () {
+        base_18.it("Ensures css is destroyed with popup", function () {
+            var popup = index_37.Popup.create({
+                id: "my-popup",
+                autoPopup: false
+            });
+            var styleNode = document.getElementById("style-my-popup_options");
+            base_18.should(!!styleNode, "css node exists");
+            popup.destroy();
+            styleNode = document.getElementById("style-my-popup_options");
+            base_18.should(!styleNode, "css node does not exist");
+        });
+        base_18.it("DIAMONDS", function () {
+            var div = createMapDiv();
+            var map = map_maker_3.MapMaker(div);
+            var popup = index_37.Popup.create({
+                id: "diamonds-test",
+                map: map,
+                indicators: index_37.DIAMONDS,
+                indicatorOffsets: {
+                    "bottom-left": [15, 16],
+                    "bottom-center": [0, 16],
+                    "bottom-right": [15, 16],
+                    "center-left": [10, 0],
+                    "center-center": [0, 0],
+                    "center-right": [9, 0],
+                    "top-left": [15, 19],
+                    "top-center": [0, 19],
+                    "top-right": [15, 19]
+                },
+                pointerPosition: 1,
+                positioning: "bottom-center",
+                autoPositioning: false,
+                css: index_37.DEFAULT_OPTIONS.css +
+                    "\n\t\t\t\t.ol-popup {\n\t\t\t\t\tbackground: silver;\n\t\t\t\t\tcolor: black;\n\t\t\t\t\tborder-radius: 1em;\n\t\t\t\t\tpadding: 1em;\n\t\t\t\t\tborder-color: silver;\n\t\t\t\t}\n\t\t\t\t.ol-popup.top.right {\n\t\t\t\t\tborder-top-right-radius: 0em;\n\t\t\t\t}\t\n\t\t\t\t.ol-popup.top.left {\n\t\t\t\t\tborder-top-left-radius: 0em;\n\t\t\t\t}\t\n\t\t\t\t.ol-popup.bottom.right {\n\t\t\t\t\tborder-bottom-right-radius: 0em;\n\t\t\t\t}\t\n\t\t\t\t.ol-popup.bottom.left {\n\t\t\t\t\tborder-bottom-left-radius: 0em;\n\t\t\t\t}\t\n\t\t\t\t.ol-popup.center.left {\n\t\t\t\t\tborder-top-left-radius: 0em;\n\t\t\t\t\tborder-bottom-left-radius: 0em;\n\t\t\t\t}\t\n\t\t\t\t.ol-popup.center.right {\n\t\t\t\t\tborder-top-right-radius: 0em;\n\t\t\t\t\tborder-bottom-right-radius: 0em;\n\t\t\t\t}\t\n\t\t\t\t.popup-indicator { \n\t\t\t\tcolor: silver;\n\t\t\t\tfont-weight: 900;\n\t\t\t}\n"
+            });
+            var vectorLayer = new ol.layer.Vector({
+                source: new ol.source.Vector({ features: [new ol.Feature(new ol.geom.Point(map.getView().getCenter()))] })
+            });
+            map.addLayer(vectorLayer);
+            return once_2.once(map, "postrender", function () {
+                return base_18.slowloop(Object.keys(popup.options.indicators).map(function (k) { return function () {
+                    popup.setPositioning(k);
+                    popup.show(map.getView().getCenter(), "Popup with " + k);
+                    base_18.shouldEqual(popup.indicator.getElement().textContent, popup.options.indicators[k], k);
+                }; }), 200)
+                    .then(kill_2.kill(popup))
+                    .catch(function (ex) {
+                    base_18.should(!ex, ex);
+                });
+            });
+        });
+        base_18.it("renders a tooltip on a canvas", function () {
+            var div = document.createElement("div");
+            div.className = "canvas-container";
+            var cssRemove = common_33.cssin("canvas-test", ".canvas-container {\n            display: inline-block;\n            position: absolute;\n            top: 20px;\n            width: 200px;\n\t\t\theight: 200px;\n\t\t\tbackground: blue;\n            border: 1px solid white;\n        }");
+            div.innerHTML = "DIV CONTENT";
+            var canvas = document.createElement("canvas");
+            canvas.width = canvas.height = 200;
+            canvas.style.position = "absolute";
+            canvas.style.top = canvas.style.left = canvas.style.right = canvas.style.bottom = "0";
+            div.appendChild(canvas);
+            document.body.insertBefore(div, document.body.firstChild);
+            var ctx = canvas.getContext("2d");
+            ctx.strokeStyle = "white";
+            ctx.lineWidth = 3;
+            var clear = function () { return ctx.clearRect(0, 0, canvas.width, canvas.height); };
+            var loop = [
+                function () {
+                    var points = rect([10, 10, 190, 190]);
+                    clear();
+                    ctx.beginPath();
+                    ctx.moveTo(points[0][0], points[0][1]);
+                    points.forEach(function (p) { return ctx.lineTo(p[0], p[1]); });
+                    ctx.closePath();
+                    ctx.stroke();
+                }
+            ];
+            {
+                var points = common_33.range(4).map(function (index) {
+                    return callout(rect([25, 25, 175, 175]), { index: index, size: 25, width: 25, skew: 10, offset: 20 });
+                });
+                loop = loop.concat(points.map(function (points) { return function () {
+                    clear();
+                    ctx.beginPath();
+                    ctx.moveTo(points[0][0], points[0][1]);
+                    points.forEach(function (p) { return ctx.lineTo(p[0], p[1]); });
+                    ctx.closePath();
+                    ctx.stroke();
+                }; }));
+            }
+            return $.when(base_18.slowloop(common_33.range(100).map(function (n) { return function () {
+                div.style.left = div.style.top = 10 * Math.sin((n * Math.PI) / 100) * n + "px";
+            }; }), 50), base_18.slowloop(loop, 200).then(function () {
+                loop = [];
+                var points = common_33.range(70).map(function (index) {
+                    return callout(rect([20, 20, 180, 180]), {
+                        index: 0,
+                        size: 10,
+                        width: 20,
+                        skew: 0,
+                        offset: 2 * index - 70
+                    });
+                });
+                points = points.concat(common_33.range(140).map(function (index) {
+                    return callout(rect([20, 20, 180, 180]), {
+                        index: 1,
+                        size: 10,
+                        width: 20,
+                        skew: 0,
+                        offset: index - 70
+                    });
+                }));
+                points = points.concat(common_33.range(140)
+                    .reverse()
+                    .map(function (index) {
+                    return callout(rect([20, 20, 180, 180]), {
+                        index: 2,
+                        size: 10,
+                        width: 20,
+                        skew: 0,
+                        offset: index - 70
+                    });
+                }));
+                points = points.concat(common_33.range(140)
+                    .reverse()
+                    .map(function (index) {
+                    return callout(rect([20, 20, 180, 180]), {
+                        index: 3,
+                        size: 10,
+                        width: 20,
+                        skew: 0,
+                        offset: index - 70
+                    });
+                }));
+                loop = loop.concat(points.map(function (points) { return function () {
+                    clear();
+                    ctx.beginPath();
+                    ctx.moveTo(points[0][0], points[0][1]);
+                    points.forEach(function (p) { return ctx.lineTo(p[0], p[1]); });
+                    ctx.closePath();
+                    ctx.stroke();
+                }; }));
+                return base_18.slowloop(loop, 0).then(function () { return base_18.slowloop(loop.reverse(), 0).then(function () { return div.remove(); }); });
+            })).then(function () { return cssRemove(); });
+        }).timeout(6000);
+    });
+});
+define("node_modules/ol3-popup/tests/spec/smartpick", ["require", "exports", "openlayers", "node_modules/ol3-fun/tests/base", "node_modules/ol3-popup/ol3-popup/commands/smartpick", "node_modules/ol3-popup/examples/extras/map-maker", "node_modules/ol3-popup/index", "node_modules/ol3-popup/examples/extras/once", "node_modules/ol3-popup/tests/extras/kill"], function (require, exports, ol, base_19, smartpick_2, map_maker_4, index_38, once_3, kill_3) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    function PopupMaker(map) {
+        var popup = index_38.Popup.create({
+            id: "spec-smartpicker-test",
+            map: map,
+            autoPanAnimation: {
+                duration: 200,
+                source: [0, 0]
+            },
+            css: "\n\t\t\t\t.ol-popup-element { color: rgb(200, 200, 200) }\n                .ol-popup-element .pagination { margin-bottom: 2px }\n                .ol-popup-element button.arrow  { background: transparent; border: none; color: rgb(200, 200, 200); }\n                .ol-popup-content { color: rgb(200, 200, 200); max-width: 8em; max-height: 4em; margin: 0.5em; padding: 0.5em; overflow: hidden; overflow-y: auto} \n\t\t\t\t.ol-popup { background-color: rgb(30, 30, 30); border: 2px solid rgb(200, 200, 200); } \n\t\t\t\t.ol-popup:before {\n\t\t\t\t\tcontent: \" \";\n\t\t\t\t\tposition: absolute;\n\t\t\t\t\ttop: -2px;\n\t\t\t\t\tleft: -2px;\n\t\t\t\t\tright: -2px;\n\t\t\t\t\tbottom: -2px;\n\t\t\t\t\tborder: 1px solid rgb(30, 30, 30);\n\t\t\t\t}\n                .ol-popup-element .ol-popup-closer { right: 4px }"
+        });
+        return popup;
+    }
+    function createMapDiv() {
+        var div = document.createElement("div");
+        div.className = "map";
+        document.body.appendChild(div);
+        return div;
+    }
+    function GridMapMaker() {
+        var _a = [20000, 20000], w = _a[0], h = _a[1];
+        var points = GridMaker(w, h);
+        var div = createMapDiv();
+        var map = map_maker_4.MapMaker(div);
+        map.getView().setCenter([0, 0]);
+        var rez = map.getView().getResolutionForExtent([-w, -h, w, h]);
+        map.getView().setResolution(rez);
+        var vectors = VectorMaker();
+        map.addLayer(vectors);
+        vectors.getSource().addFeatures(points.map(function (p) {
+            var geom = new ol.geom.Point(p);
+            var ll = ol.proj.toLonLat(p);
+            return new ol.Feature({
+                geometry: geom,
+                latlon: ll[1].toPrecision(5) + " " + ll[0].toPrecision(5)
+            });
+        }));
+        return { map: map, points: points, div: div };
+    }
+    function GridMaker(w, h) {
+        return [[-w, h], [0, h], [w, h], [w, 0], [w, -h], [0, -h], [-w, -h], [-w, 0], [0, 0]];
+    }
+    function VectorMaker() {
+        var vectorSource = new ol.source.Vector({
+            features: []
+        });
+        var vectorLayer = new ol.layer.Vector({
+            source: vectorSource,
+            style: new ol.style.Style({
+                fill: new ol.style.Fill({
+                    color: "rgba(255, 255, 255, 0.2)"
+                }),
+                stroke: new ol.style.Stroke({
+                    color: "#ffcc33",
+                    width: 2
+                }),
+                image: new ol.style.Circle({
+                    radius: 7,
+                    fill: new ol.style.Fill({
+                        color: "#ffcc33"
+                    })
+                })
+            })
+        });
+        return vectorLayer;
+    }
+    base_19.describe("smartpick", function () {
+        base_19.it("places 9 popups on the map", function () {
+            var _a = GridMapMaker(), map = _a.map, points = _a.points, div = _a.div;
+            div.style.width = div.style.height = "480px";
+            div.style.border = "1px solid white";
+            map.setTarget(null);
+            map.setTarget(div);
+            var popups = points.map(function () {
+                var popup = PopupMaker(map);
+                popup.options.autoPopup = false;
+                popup.options.pointerPosition = 0;
+                popup.options.indicatorOffsets["top-right"][1] -= 0;
+                popup.options.indicatorOffsets["top-center"][1] -= 1;
+                popup.options.indicatorOffsets["top-left"][1] -= 0;
+                popup.options.indicatorOffsets["center-left"][0] += 3;
+                popup.options.indicatorOffsets["center-right"][0] += 3;
+                popup.options.indicatorOffsets["bottom-left"][1] += 1;
+                popup.options.indicatorOffsets["bottom-center"][1] += 1;
+                popup.options.indicatorOffsets["bottom-right"][1] += 1;
+                return popup;
+            });
+            return once_3.once(map, "postrender", function () {
+                return base_19.slowloop(points.map(function (p, i) { return function () {
+                    var popup = popups[i];
+                    popup.show(p, smartpick_2.smartpick(popup, p));
+                }; }), 0);
+            })
+                .then(kill_3.kill(popups[0]))
+                .then(function () { return popups.map(function (p) { return p.destroy(); }); });
+        });
+        base_19.it("configures a map with popup and points in strategic locations to ensure the positioning is correct", function () {
+            var _a = GridMapMaker(), map = _a.map, points = _a.points;
+            return once_3.once(map, "postrender", function () {
+                var popup = PopupMaker(map);
+                return base_19.slowloop(points.map(function (p) { return function () {
+                    var expected = smartpick_2.smartpick(popup, p);
+                    popup.show(p, "" + expected);
+                    var actual = popup.getPositioning();
+                    base_19.shouldEqual(expected, actual, "positioning");
+                }; }), 400, 1).then(kill_3.kill(popup, 0));
+            });
+        });
+    });
+});
+define("node_modules/ol3-popup/tests/index", ["require", "exports", "node_modules/ol3-popup/tests/spec/popup", "node_modules/ol3-popup/tests/spec/popup-content", "node_modules/ol3-popup/tests/spec/popup-css", "node_modules/ol3-popup/tests/spec/smartpick"], function (require, exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
 });
-define("node_modules/ol3-search/tests/spec/search", ["require", "exports", "node_modules/ol3-fun/tests/base", "mocha", "node_modules/ol3-search/index"], function (require, exports, base_15, mocha_5, index_35) {
+define("node_modules/ol3-search/tests/spec/search", ["require", "exports", "node_modules/ol3-fun/tests/base", "mocha", "node_modules/ol3-search/index"], function (require, exports, base_20, mocha_5, index_39) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     mocha_5.describe("SearchForm Tests", function () {
         mocha_5.it("SearchForm", function () {
-            base_15.should(!!index_35.SearchForm, "SearchForm");
+            base_20.should(!!index_39.SearchForm, "SearchForm");
         });
         mocha_5.it("DEFAULT_OPTIONS", function () {
-            var options = index_35.SearchForm.DEFAULT_OPTIONS;
+            var options = index_39.SearchForm.DEFAULT_OPTIONS;
             checkDefaultInputOptions(options);
         });
         mocha_5.it("options of an Input instance", function () {
-            var input = index_35.SearchForm.create();
+            var input = index_39.SearchForm.create();
             checkDefaultInputOptions(input.options);
         });
     });
     function checkDefaultInputOptions(options) {
-        base_15.should(!!options, "options");
-        base_15.shouldEqual(options.autoChange, false, "autoChange");
-        base_15.shouldEqual(options.autoClear, false, "autoClear");
-        base_15.shouldEqual(options.autoCollapse, true, "autoCollapse");
-        base_15.shouldEqual(options.canCollapse, true, "canCollapse");
-        base_15.shouldEqual(options.className, "ol-search", "className");
-        base_15.should(options.closedText.length > 0, "closedText");
-        base_15.shouldEqual(options.expanded, false, "expanded");
-        base_15.shouldEqual(options.hideButton, false, "hideButton");
-        base_15.shouldEqual(!!options.openedText, true, "openedText");
-        base_15.shouldEqual(options.position, "bottom left", "position");
-        base_15.shouldEqual(options.render, undefined, "render");
-        base_15.shouldEqual(options.source, undefined, "source");
-        base_15.shouldEqual(options.target, undefined, "target");
+        base_20.should(!!options, "options");
+        base_20.shouldEqual(options.autoChange, false, "autoChange");
+        base_20.shouldEqual(options.autoClear, false, "autoClear");
+        base_20.shouldEqual(options.autoCollapse, true, "autoCollapse");
+        base_20.shouldEqual(options.canCollapse, true, "canCollapse");
+        base_20.shouldEqual(options.className, "ol-search", "className");
+        base_20.should(options.closedText.length > 0, "closedText");
+        base_20.shouldEqual(options.expanded, false, "expanded");
+        base_20.shouldEqual(options.hideButton, false, "hideButton");
+        base_20.shouldEqual(!!options.openedText, true, "openedText");
+        base_20.shouldEqual(options.position, "bottom left", "position");
+        base_20.shouldEqual(options.render, undefined, "render");
+        base_20.shouldEqual(options.source, undefined, "source");
+        base_20.shouldEqual(options.target, undefined, "target");
     }
 });
 define("node_modules/ol3-search/tests/index", ["require", "exports", "node_modules/ol3-search/tests/spec/search"], function (require, exports) {
@@ -15526,7 +16086,7 @@ define("node_modules/ol3-symbolizer/tests/base", ["require", "exports"], functio
     }
     exports.stringify = stringify;
 });
-define("node_modules/ol3-symbolizer/tests/common", ["require", "exports", "node_modules/ol3-symbolizer/ol3-symbolizer/common/assign", "node_modules/ol3-symbolizer/ol3-symbolizer/common/mixin", "node_modules/ol3-symbolizer/ol3-symbolizer/common/defaults", "node_modules/ol3-symbolizer/tests/base"], function (require, exports, assign_2, mixin_3, defaults_2, base_16) {
+define("node_modules/ol3-symbolizer/tests/common", ["require", "exports", "node_modules/ol3-symbolizer/ol3-symbolizer/common/assign", "node_modules/ol3-symbolizer/ol3-symbolizer/common/mixin", "node_modules/ol3-symbolizer/ol3-symbolizer/common/defaults", "node_modules/ol3-symbolizer/tests/base"], function (require, exports, assign_2, mixin_3, defaults_2, base_21) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     describe("assign tests", function () {
@@ -15535,35 +16095,35 @@ define("node_modules/ol3-symbolizer/tests/common", ["require", "exports", "node_
         it("assign number", function () {
             var target = {};
             assign_2.assign(target, "a", 100);
-            base_16.should(target.a === 100, "");
+            base_21.should(target.a === 100, "");
         });
         it("assign object", function () {
             var target = {};
             assign_2.assign(target, "a", { "a": 100 });
-            base_16.should(target.a.a === 100, "");
+            base_21.should(target.a.a === 100, "");
         });
     });
     describe("defaults tests", function () {
         it("defaults number", function () {
-            base_16.should(defaults_2.defaults({}, { a: 100 }).a === 100, "");
-            base_16.should(defaults_2.defaults(defaults_2.defaults({}, { a: 100 }), { a: 200 }).a === 100, "");
+            base_21.should(defaults_2.defaults({}, { a: 100 }).a === 100, "");
+            base_21.should(defaults_2.defaults(defaults_2.defaults({}, { a: 100 }), { a: 200 }).a === 100, "");
             var a = defaults_2.defaults({}, { a: 1 });
-            base_16.should(a === defaults_2.defaults(a, { a: 2 }), "");
+            base_21.should(a === defaults_2.defaults(a, { a: 2 }), "");
         });
     });
     describe("mixin tests", function () {
         it("mixin number", function () {
-            base_16.should(mixin_3.mixin({}, { a: 100 }).a === 100, "");
-            base_16.should(mixin_3.mixin(mixin_3.mixin({}, { a: 100 }), { a: 200 }).a === 200, "");
+            base_21.should(mixin_3.mixin({}, { a: 100 }).a === 100, "");
+            base_21.should(mixin_3.mixin(mixin_3.mixin({}, { a: 100 }), { a: 200 }).a === 200, "");
             var a = mixin_3.mixin({}, { a: 1 });
-            base_16.should(a === mixin_3.mixin(a, { a: 2 }), "");
+            base_21.should(a === mixin_3.mixin(a, { a: 2 }), "");
         });
     });
     describe("test accessing openlayers using amd", function () {
         it("log ol.style.Style", function () {
             require(["openlayers"], function (ol) {
                 var style = ol.style.Style;
-                base_16.should(!!style, "");
+                base_21.should(!!style, "");
                 console.log(style.toString());
             });
         });
@@ -15586,12 +16146,12 @@ define("node_modules/ol3-symbolizer/ol3-symbolizer/styles/stroke/linedash", ["re
     };
     return dasharray;
 });
-define("node_modules/ol3-symbolizer/tests/ol3-symbolizer", ["require", "exports", "node_modules/ol3-symbolizer/ol3-symbolizer/styles/stroke/linedash", "node_modules/ol3-symbolizer/tests/base", "node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer"], function (require, exports, Dashes, base_17, ol3_symbolizer_7) {
+define("node_modules/ol3-symbolizer/tests/ol3-symbolizer", ["require", "exports", "node_modules/ol3-symbolizer/ol3-symbolizer/styles/stroke/linedash", "node_modules/ol3-symbolizer/tests/base", "node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer"], function (require, exports, Dashes, base_22, ol3_symbolizer_7) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var converter = new ol3_symbolizer_7.StyleConverter();
-    base_17.describe("OL Format Tests", function () {
-        base_17.it("Ensures interface does not break", function () {
+    base_22.describe("OL Format Tests", function () {
+        base_22.it("Ensures interface does not break", function () {
             var circle = {};
             circle.fill;
             circle.opacity;
@@ -15631,15 +16191,15 @@ define("node_modules/ol3-symbolizer/tests/ol3-symbolizer", ["require", "exports"
             image.snapToPixel;
         });
     });
-    base_17.describe("OL StyleConverter API Tests", function () {
-        base_17.it("StyleConverter API", function () {
+    base_22.describe("OL StyleConverter API Tests", function () {
+        base_22.it("StyleConverter API", function () {
             var converter = new ol3_symbolizer_7.StyleConverter();
-            base_17.should(typeof converter.fromJson === "function", "fromJson exists");
-            base_17.should(typeof converter.toJson === "function", "toJson exists");
+            base_22.should(typeof converter.fromJson === "function", "fromJson exists");
+            base_22.should(typeof converter.toJson === "function", "toJson exists");
         });
     });
-    base_17.describe("OL StyleConverter Json Tests", function () {
-        base_17.it("Circle Tests", function () {
+    base_22.describe("OL StyleConverter Json Tests", function () {
+        base_22.it("Circle Tests", function () {
             var baseline = {
                 "circle": {
                     "fill": {
@@ -15668,13 +16228,13 @@ define("node_modules/ol3-symbolizer/tests/ol3-symbolizer", ["require", "exports"
             };
             var style = converter.fromJson(baseline);
             var circleStyle = style.getImage();
-            base_17.should(circleStyle !== null, "getImage returns a style");
-            base_17.shouldEqual(circleStyle.getRadius(), baseline.circle.radius, "getImage is a circle and radius");
+            base_22.should(circleStyle !== null, "getImage returns a style");
+            base_22.shouldEqual(circleStyle.getRadius(), baseline.circle.radius, "getImage is a circle and radius");
             var circleJson = converter.toJson(style);
-            base_17.should(circleJson.circle !== null, "json contains a circle");
-            base_17.shouldEqual(circleJson.circle.radius, baseline.circle.radius, "circle radius");
+            base_22.should(circleJson.circle !== null, "json contains a circle");
+            base_22.shouldEqual(circleJson.circle.radius, baseline.circle.radius, "circle radius");
         });
-        base_17.it("Star Tests", function () {
+        base_22.it("Star Tests", function () {
             var baseline = {
                 "star": {
                     "fill": {
@@ -15691,17 +16251,17 @@ define("node_modules/ol3-symbolizer/tests/ol3-symbolizer", ["require", "exports"
             };
             var style = converter.fromJson(baseline);
             var starStyle = style.getImage();
-            base_17.should(starStyle !== null, "getImage returns a style");
-            base_17.shouldEqual(starStyle.getRadius(), baseline.star.radius, "starStyle radius");
-            base_17.shouldEqual(starStyle.getRadius2(), baseline.star.radius2, "starStyle radius2");
-            base_17.shouldEqual(starStyle.getPoints(), baseline.star.points, "starStyle points");
+            base_22.should(starStyle !== null, "getImage returns a style");
+            base_22.shouldEqual(starStyle.getRadius(), baseline.star.radius, "starStyle radius");
+            base_22.shouldEqual(starStyle.getRadius2(), baseline.star.radius2, "starStyle radius2");
+            base_22.shouldEqual(starStyle.getPoints(), baseline.star.points, "starStyle points");
             var starJson = converter.toJson(style);
-            base_17.should(starJson.star !== null, "json contains a star");
-            base_17.shouldEqual(starJson.star.radius, baseline.star.radius, "starJson radius");
-            base_17.shouldEqual(starJson.star.radius2, baseline.star.radius2, "starJson radius2");
-            base_17.shouldEqual(starJson.star.points, baseline.star.points, "starJson point count");
+            base_22.should(starJson.star !== null, "json contains a star");
+            base_22.shouldEqual(starJson.star.radius, baseline.star.radius, "starJson radius");
+            base_22.shouldEqual(starJson.star.radius2, baseline.star.radius2, "starJson radius2");
+            base_22.shouldEqual(starJson.star.points, baseline.star.points, "starJson point count");
         });
-        base_17.it("Fill Test", function () {
+        base_22.it("Fill Test", function () {
             var baseline = {
                 "fill": {
                     "gradient": {
@@ -15712,12 +16272,12 @@ define("node_modules/ol3-symbolizer/tests/ol3-symbolizer", ["require", "exports"
             };
             var style = converter.fromJson(baseline);
             var fillStyle = style.getFill();
-            base_17.should(fillStyle !== null, "fillStyle exists");
+            base_22.should(fillStyle !== null, "fillStyle exists");
             var gradient = fillStyle.getColor();
-            base_17.shouldEqual(gradient.stops, baseline.fill.gradient.stops, "fillStyle color");
-            base_17.shouldEqual(gradient.type, baseline.fill.gradient.type, "fillStyle color");
+            base_22.shouldEqual(gradient.stops, baseline.fill.gradient.stops, "fillStyle color");
+            base_22.shouldEqual(gradient.type, baseline.fill.gradient.type, "fillStyle color");
         });
-        base_17.it("Stroke Test", function () {
+        base_22.it("Stroke Test", function () {
             var baseline = {
                 "stroke": {
                     "color": "orange",
@@ -15727,12 +16287,12 @@ define("node_modules/ol3-symbolizer/tests/ol3-symbolizer", ["require", "exports"
             };
             var style = converter.fromJson(baseline);
             var strokeStyle = style.getStroke();
-            base_17.should(strokeStyle !== null, "strokeStyle exists");
-            base_17.shouldEqual(strokeStyle.getColor(), baseline.stroke.color, "strokeStyle color");
-            base_17.shouldEqual(strokeStyle.getWidth(), baseline.stroke.width, "strokeStyle width");
-            base_17.shouldEqual(strokeStyle.getLineDash().join(), baseline.stroke.lineDash.join(), "strokeStyle lineDash");
+            base_22.should(strokeStyle !== null, "strokeStyle exists");
+            base_22.shouldEqual(strokeStyle.getColor(), baseline.stroke.color, "strokeStyle color");
+            base_22.shouldEqual(strokeStyle.getWidth(), baseline.stroke.width, "strokeStyle width");
+            base_22.shouldEqual(strokeStyle.getLineDash().join(), baseline.stroke.lineDash.join(), "strokeStyle lineDash");
         });
-        base_17.it("Text Test", function () {
+        base_22.it("Text Test", function () {
             var baseline = {
                 "text": {
                     "fill": {
@@ -15752,16 +16312,16 @@ define("node_modules/ol3-symbolizer/tests/ol3-symbolizer", ["require", "exports"
             };
             var style = converter.fromJson(baseline);
             var textStyle = style.getText();
-            base_17.should(textStyle !== null, "textStyle exists");
-            base_17.shouldEqual(textStyle.getFill().getColor(), baseline.text.fill.color, "textStyle text color");
-            base_17.shouldEqual(textStyle.getText(), baseline.text.text, "textStyle text");
-            base_17.shouldEqual(textStyle.getOffsetX(), baseline.text["offset-x"], "textStyle color");
-            base_17.shouldEqual(textStyle.getOffsetY(), baseline.text["offset-y"], "textStyle color");
-            base_17.shouldEqual(textStyle.getFont(), baseline.text.font, "textStyle font");
+            base_22.should(textStyle !== null, "textStyle exists");
+            base_22.shouldEqual(textStyle.getFill().getColor(), baseline.text.fill.color, "textStyle text color");
+            base_22.shouldEqual(textStyle.getText(), baseline.text.text, "textStyle text");
+            base_22.shouldEqual(textStyle.getOffsetX(), baseline.text["offset-x"], "textStyle color");
+            base_22.shouldEqual(textStyle.getOffsetY(), baseline.text["offset-y"], "textStyle color");
+            base_22.shouldEqual(textStyle.getFont(), baseline.text.font, "textStyle font");
         });
     });
-    base_17.describe("OL Basic shapes", function () {
-        base_17.it("cross, square, diamond, star, triangle, x", function () {
+    base_22.describe("OL Basic shapes", function () {
+        base_22.it("cross, square, diamond, star, triangle, x", function () {
             var cross = {
                 "star": {
                     "opacity": 0.5,
@@ -15856,28 +16416,28 @@ define("node_modules/ol3-symbolizer/tests/ol3-symbolizer", ["require", "exports"
             var starJson = converter.toJson(converter.fromJson(star));
             var triangleJson = converter.toJson(converter.fromJson(triangle));
             var xJson = converter.toJson(converter.fromJson(x));
-            base_17.should(!!crossJson.cross, "cross exists");
-            base_17.shouldEqual(crossJson.cross.size, cross.star.radius * 2, "cross size");
-            base_17.should(!!squareJson.square, "square exists");
-            base_17.shouldEqual(squareJson.square.size, square.star.radius * 2, "square size");
-            base_17.should(!!diamondJson.diamond, "diamond exists");
-            base_17.shouldEqual(diamondJson.diamond.size, diamond.star.radius * 2, "diamond size");
-            base_17.should(!!triangleJson.triangle, "triangle exists");
-            base_17.shouldEqual(triangleJson.triangle.size, triangle.star.radius * 2, "triangle size");
-            base_17.should(!!xJson.x, "x exists");
-            base_17.shouldEqual(xJson.x.size, x.star.radius * 2, "x size");
+            base_22.should(!!crossJson.cross, "cross exists");
+            base_22.shouldEqual(crossJson.cross.size, cross.star.radius * 2, "cross size");
+            base_22.should(!!squareJson.square, "square exists");
+            base_22.shouldEqual(squareJson.square.size, square.star.radius * 2, "square size");
+            base_22.should(!!diamondJson.diamond, "diamond exists");
+            base_22.shouldEqual(diamondJson.diamond.size, diamond.star.radius * 2, "diamond size");
+            base_22.should(!!triangleJson.triangle, "triangle exists");
+            base_22.shouldEqual(triangleJson.triangle.size, triangle.star.radius * 2, "triangle size");
+            base_22.should(!!xJson.x, "x exists");
+            base_22.shouldEqual(xJson.x.size, x.star.radius * 2, "x size");
             var items = { crossJson: crossJson, squareJson: squareJson, diamondJson: diamondJson, triangleJson: triangleJson, xJson: xJson };
             Object.keys(items).forEach(function (k) {
-                base_17.shouldEqual(base_17.stringify(converter.toJson(converter.fromJson(items[k]))), base_17.stringify(items[k]), k + " json->style->json");
+                base_22.shouldEqual(base_22.stringify(converter.toJson(converter.fromJson(items[k]))), base_22.stringify(items[k]), k + " json->style->json");
             });
         });
     });
-    base_17.describe("OL NEXT", function () {
-        base_17.it("NEXT", function () {
+    base_22.describe("OL NEXT", function () {
+        base_22.it("NEXT", function () {
         });
     });
 });
-define("node_modules/ol3-symbolizer/tests/ags-symbolizer", ["require", "exports", "node_modules/ol3-symbolizer/tests/base", "node_modules/ol3-symbolizer/ol3-symbolizer/format/ags-symbolizer", "node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer"], function (require, exports, base_18, ags_symbolizer_4, ol3_symbolizer_8) {
+define("node_modules/ol3-symbolizer/tests/ags-symbolizer", ["require", "exports", "node_modules/ol3-symbolizer/tests/base", "node_modules/ol3-symbolizer/ol3-symbolizer/format/ags-symbolizer", "node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer"], function (require, exports, base_23, ags_symbolizer_4, ol3_symbolizer_8) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var fromJson = (function () {
@@ -15892,8 +16452,8 @@ define("node_modules/ol3-symbolizer/tests/ags-symbolizer", ["require", "exports"
         var r = _a[0], g = _a[1], b = _a[2], a = _a[3];
         return "rgba(" + r + "," + g + "," + b + "," + a / 255 + ")";
     }
-    base_18.describe("esriSMS Tests", function () {
-        base_18.it("esriSMSCircle", function () {
+    base_23.describe("esriSMS Tests", function () {
+        base_23.it("esriSMSCircle", function () {
             var baseline = {
                 "color": [
                     255,
@@ -15922,16 +16482,16 @@ define("node_modules/ol3-symbolizer/tests/ags-symbolizer", ["require", "exports"
             var style = fromJson(baseline);
             var circleJson = toJson(style);
             var expectedRadius = (baseline.size * 4 / 3) / 2;
-            base_18.shouldEqual(circleJson.circle.radius, expectedRadius, "circleJson radius is 33% larger than specified in the ags style (see StyleConverter.asWidth)");
-            base_18.shouldEqual(circleJson.circle.fill.color, rgba(baseline.color), "circleJson fill color");
-            base_18.shouldEqual(circleJson.circle.fill.pattern, null, "circleJson fill pattern is solid");
-            base_18.shouldEqual(circleJson.circle.stroke.color, rgba(baseline.outline.color), "circleJson stroke color");
-            base_18.shouldEqual(circleJson.circle.stroke.width, baseline.outline.width * 4 / 3, "circleJson stroke width");
-            base_18.shouldEqual(circleJson.circle.stroke.lineCap, undefined, "circleJson stroke lineCap");
-            base_18.shouldEqual(circleJson.circle.stroke.lineDash, undefined, "circleJson stroke lineDash");
-            base_18.shouldEqual(circleJson.circle.stroke.lineJoin, undefined, "circleJson stroke lineJoin");
+            base_23.shouldEqual(circleJson.circle.radius, expectedRadius, "circleJson radius is 33% larger than specified in the ags style (see StyleConverter.asWidth)");
+            base_23.shouldEqual(circleJson.circle.fill.color, rgba(baseline.color), "circleJson fill color");
+            base_23.shouldEqual(circleJson.circle.fill.pattern, null, "circleJson fill pattern is solid");
+            base_23.shouldEqual(circleJson.circle.stroke.color, rgba(baseline.outline.color), "circleJson stroke color");
+            base_23.shouldEqual(circleJson.circle.stroke.width, baseline.outline.width * 4 / 3, "circleJson stroke width");
+            base_23.shouldEqual(circleJson.circle.stroke.lineCap, undefined, "circleJson stroke lineCap");
+            base_23.shouldEqual(circleJson.circle.stroke.lineDash, undefined, "circleJson stroke lineDash");
+            base_23.shouldEqual(circleJson.circle.stroke.lineJoin, undefined, "circleJson stroke lineJoin");
         });
-        base_18.it("esriSMSCross", function () {
+        base_23.it("esriSMSCross", function () {
             var baseline = {
                 "color": [
                     255,
@@ -15958,13 +16518,13 @@ define("node_modules/ol3-symbolizer/tests/ags-symbolizer", ["require", "exports"
                 }
             };
             var json = toJson(fromJson(baseline));
-            base_18.should(!!json.cross, "cross");
-            base_18.shouldEqual(json.cross.opacity, 1, "opacity");
-            base_18.shouldEqual(json.cross.size, 22.62741699796952, "size");
+            base_23.should(!!json.cross, "cross");
+            base_23.shouldEqual(json.cross.opacity, 1, "opacity");
+            base_23.shouldEqual(json.cross.size, 22.62741699796952, "size");
         });
     });
-    base_18.describe("esriSLS Tests", function () {
-        base_18.it("esriSLSShortDash esriLCSSquare esriLJSRound", function () {
+    base_23.describe("esriSLS Tests", function () {
+        base_23.it("esriSLSShortDash esriLCSSquare esriLJSRound", function () {
             var baseline = {
                 "type": "esriSLS",
                 "style": "esriSLSShortDash",
@@ -15981,9 +16541,9 @@ define("node_modules/ol3-symbolizer/tests/ags-symbolizer", ["require", "exports"
             };
             var style = fromJson(baseline);
             var json = toJson(style);
-            base_18.shouldEqual(json.stroke.color, rgba(baseline.color), "stroke color");
+            base_23.shouldEqual(json.stroke.color, rgba(baseline.color), "stroke color");
         });
-        base_18.it("esriSLSDash esriLCSButt esriLJSBevel", function () {
+        base_23.it("esriSLSDash esriLCSButt esriLJSBevel", function () {
             var baseline = {
                 "type": "esriSLS",
                 "style": "esriSLSDash",
@@ -16000,9 +16560,9 @@ define("node_modules/ol3-symbolizer/tests/ags-symbolizer", ["require", "exports"
             };
             var style = fromJson(baseline);
             var json = toJson(style);
-            base_18.shouldEqual(json.stroke.color, rgba(baseline.color), "stroke color");
+            base_23.shouldEqual(json.stroke.color, rgba(baseline.color), "stroke color");
         });
-        base_18.it("esriSLSSolid esriLCSRound esriLJSMiter", function () {
+        base_23.it("esriSLSSolid esriLCSRound esriLJSMiter", function () {
             var baseline = {
                 "type": "esriSLS",
                 "style": "esriSLSSolid",
@@ -16019,7 +16579,7 @@ define("node_modules/ol3-symbolizer/tests/ags-symbolizer", ["require", "exports"
             };
             var style = fromJson(baseline);
             var json = toJson(style);
-            base_18.shouldEqual(json.stroke.color, rgba(baseline.color), "stroke color");
+            base_23.shouldEqual(json.stroke.color, rgba(baseline.color), "stroke color");
         });
     });
 });
