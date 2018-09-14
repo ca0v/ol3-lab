@@ -4,43 +4,12 @@
 <head>
     <title>Mocha Tests</title>
     <meta charset="utf-8">
-    <style>
-        body.dark {
-            background: rgb(30, 30, 30);
-            color: rgb(200, 200, 200);
-        }
-
-        #mocha.terse {
-            font-size: 10px;
-            line-height: 1;
-        }
-
-        #mocha.terse h1 {
-            margin-top: 4px;
-        }
-
-        /* hide tests if they pass */
-        #mocha.terse #mocha-report .suite .test.pass {
-            font-size: 6px;
-        }
-
-        /* hide tests if they pass */
-        #mocha.terse #mocha-report .suite .test.pass.fast {
-            display: none;
-        }
-
-        img {
-            border: 1px solid white;
-            padding: 4px;
-            margin: 4px;
-        }
-    </style>
+    <link rel="stylesheet" type="text/css" href="./theme.css">
+    <script type="text/javascript" src="../static/require.js" data-main="../built/loaders/tests"></script>
 </head>
 
-<body>
-    <a href="examples.html">examples</a>
-    <div id="mocha"></div>
-    <script type="text/javascript" src="../static/require.js" data-main="../built/loaders/tests"></script>
+<body class="dark">
+    <div id="mocha" class="terse"></div>
 </body>
 
 </html>

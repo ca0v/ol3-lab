@@ -1,0 +1,46 @@
+head,
+body,
+.map {
+	position: absolute;
+	top: 0;
+	left: 0;
+	bottom: 0;
+	right: 0;
+}
+
+body.dark {
+	background: rgb(30, 30, 30);
+	color: rgb(200, 200, 200);
+}
+
+body.dark a {
+	color: silver;
+}
+
+body.terse #mocha {
+	font-size: 10px;
+	line-height: 1;
+}
+
+body.terse #mocha.terse h1 {
+	margin-top: 4px;
+}
+
+/* hide tests if they pass */
+body.terse #mocha.terse #mocha-report .suite .test.pass {
+	font-size: 6px;
+}
+
+/* hide tests if they pass */
+body.terse #mocha #mocha-report .suite .test.pass.fast {
+	display: none;
+}
+
+body.dark #mocha-stats canvas {
+	background-color: silver;
+	border-radius: 20px;
+}
+
+body.dark #mocha-stats em {
+	color: silver;
+}

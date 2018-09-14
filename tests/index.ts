@@ -1,5 +1,5 @@
-import "ol3-draw/tests/index";
 import "ol3-fun/tests/index";
+import "ol3-draw/tests/index";
 import "ol3-grid/tests/index";
 import "ol3-input/tests/index";
 import "ol3-layerswitcher/tests/index";
