@@ -55,7 +55,7 @@ export function run() {
 	$(css).appendTo("head");
 
 	// relative to root/built but need way to prevent loading multiple copies (cssin should be extended to support urls)
-	loadCss("../static/css/ol3-layerswitcher.css");
+	//loadCss("../static/css/ol3-layerswitcher.css");
 	loadCss("../static/css/ol3-popup.css"); // <-- does not exist!!!
 
 	let options = {
@@ -134,8 +134,7 @@ export function run() {
 			map.addLayer(agsLayer);
 		});
 
-		let layerSwitcher = new LayerSwitcher({});
-		layerSwitcher.setMap(map);
+		let layerSwitcher = LayerSwitcher.create({ map });
 
 		let popup = Popup.create({
 			map: map,

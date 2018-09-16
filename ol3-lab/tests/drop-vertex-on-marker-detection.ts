@@ -1,7 +1,7 @@
 import ol = require("openlayers");
 import { run as mapmaker } from "../labs/mapmaker";
 import { Route } from "../labs/route-editor";
-import { range } from "ol3-fun/ol3-fun/common";
+import { range } from "ol3-fun/index";
 
 function midpoint(points: number[][]) {
 	let p0 = points.reduce((sum, p) => p.map((v, i) => v + sum[i]));
@@ -26,8 +26,8 @@ export function run() {
 
 	let layer = new ol.layer.Vector({
 		source: new ol.source.Vector({
-			features: features,
-		}),
+			features: features
+		})
 	});
 
 	let colors = ["229966", "cc6633", "cc22cc", "331199"].map(v => "#" + v);
@@ -45,7 +45,7 @@ export function run() {
 				v =>
 					<ol.Coordinate>(
 						[a + (c - a) * Math.random(), b + (d - b) * Math.random()].map((v, i) => v + shift[i])
-					),
+					)
 			);
 			let startstop = <ol.Coordinate>(
 				[a + (c - a) * Math.random(), b + (d - b) * Math.random()].map((v, i) => v + shift[i])
@@ -55,7 +55,7 @@ export function run() {
 				color: colors.pop(),
 				start: startstop,
 				finish: startstop,
-				stops: stops,
+				stops: stops
 			});
 			shift = shift.map(v => v + 0.005);
 			routes.push(route);
@@ -64,7 +64,7 @@ export function run() {
 		let redRoute = new Route({
 			color: "red",
 			showLines: false,
-			modifyRoute: true,
+			modifyRoute: true
 		});
 		routes.push(redRoute);
 
@@ -85,7 +85,7 @@ export function run() {
 				if (routes.some(r => r.isEndingLocation(map, evt.coordinate))) return false;
 				return true;
 			},
-			features: editFeatures,
+			features: editFeatures
 		});
 
 		map.addInteraction(modify);
@@ -104,11 +104,11 @@ export function run() {
 
 			let dropInfo = {
 				route: <Route>null,
-				stops: <number[]>null,
+				stops: <number[]>null
 			};
 			let targetInfo = {
 				route: <Route>null,
-				vertexIndex: <number>null,
+				vertexIndex: <number>null
 			};
 
 			targetInfo.route = routes.filter(route => route.owns(activeFeature))[0];

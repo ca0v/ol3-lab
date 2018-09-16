@@ -1,5 +1,5 @@
 import ol = require("openlayers");
-import { cssin, mixin } from "ol3-fun/ol3-fun/common";
+import { cssin, mixin } from "ol3-fun/index";
 import MapMaker = require("./mapmaker");
 
 const idealTextColor = ([a, b, c]: number[]) => (150 < a * 0.299 + b * 0.587 + c * 0.114 ? "black" : "white");

@@ -83,8 +83,14 @@ define("node_modules/ol3-fun/ol3-fun/common", ["require", "exports"], function (
             cb(v);
     }
     exports.doif = doif;
-    function mixin(a, b) {
-        Object.keys(b).forEach(function (k) { return (a[k] = b[k]); });
+    function mixin(a) {
+        var b = [];
+        for (var _i = 1; _i < arguments.length; _i++) {
+            b[_i - 1] = arguments[_i];
+        }
+        b.forEach(function (b) {
+            Object.keys(b).forEach(function (k) { return (a[k] = b[k]); });
+        });
         return a;
     }
     exports.mixin = mixin;
@@ -101,26 +107,6 @@ define("node_modules/ol3-fun/ol3-fun/common", ["require", "exports"], function (
         return a;
     }
     exports.defaults = defaults;
-    function cssin(name, css) {
-        var id = "style-" + name;
-        var styleTag = document.getElementById(id);
-        if (!styleTag) {
-            styleTag = document.createElement("style");
-            styleTag.id = id;
-            styleTag.type = "text/css";
-            document.head.appendChild(styleTag);
-            styleTag.appendChild(document.createTextNode(css));
-        }
-        var dataset = styleTag.dataset;
-        dataset["count"] = parseInt(dataset["count"] || "0") + 1 + "";
-        return function () {
-            dataset["count"] = parseInt(dataset["count"] || "0") - 1 + "";
-            if (dataset["count"] === "0") {
-                styleTag.remove();
-            }
-        };
-    }
-    exports.cssin = cssin;
     function debounce(func, wait, immediate) {
         if (wait === void 0) { wait = 50; }
         if (immediate === void 0) { immediate = false; }
@@ -178,9 +164,57 @@ define("node_modules/ol3-fun/ol3-fun/common", ["require", "exports"], function (
     }
     exports.shuffle = shuffle;
 });
-define("ol3-lab/labs/common/common", ["require", "exports", "node_modules/ol3-fun/ol3-fun/common"], function (require, exports, Common) {
+define("node_modules/ol3-fun/ol3-fun/css", ["require", "exports"], function (require, exports) {
     "use strict";
-    return Common;
+    Object.defineProperty(exports, "__esModule", { value: true });
+    function cssin(name, css) {
+        var id = "style-" + name;
+        var styleTag = document.getElementById(id);
+        if (!styleTag) {
+            styleTag = document.createElement("style");
+            styleTag.id = id;
+            styleTag.type = "text/css";
+            document.head.appendChild(styleTag);
+            styleTag.appendChild(document.createTextNode(css));
+        }
+        var dataset = styleTag.dataset;
+        dataset["count"] = parseInt(dataset["count"] || "0") + 1 + "";
+        return function () {
+            dataset["count"] = parseInt(dataset["count"] || "0") - 1 + "";
+            if (dataset["count"] === "0") {
+                styleTag.remove();
+            }
+        };
+    }
+    exports.cssin = cssin;
+    function loadCss(options) {
+        if (!options.url && !options.css)
+            throw "must provide either a url or css option";
+        if (options.url && options.css)
+            throw "cannot provide both a url and a css";
+        if (options.name && options.css)
+            return cssin(options.name, options.css);
+        var id = "style-" + options.name;
+        var head = document.getElementsByTagName("head")[0];
+        var link = document.getElementById(id);
+        if (!link) {
+            link = document.createElement("link");
+            link.id = id;
+            link.type = "text/css";
+            link.rel = "stylesheet";
+            link.href = options.url;
+            head.appendChild(link);
+        }
+        var dataset = link.dataset;
+        dataset["count"] = parseInt(dataset["count"] || "0") + 1 + "";
+        return function () {
+            dataset["count"] = parseInt(dataset["count"] || "0") - 1 + "";
+            if (dataset["count"] === "0") {
+                link.remove();
+            }
+        };
+    }
+    exports.loadCss = loadCss;
 });
 define("node_modules/ol3-fun/ol3-fun/navigation", ["require", "exports", "openlayers", "jquery", "node_modules/ol3-fun/ol3-fun/common"], function (require, exports, ol, $, common_1) {
     "use strict";
@@ -201,7 +235,7 @@ define("node_modules/ol3-fun/ol3-fun/navigation", ["require", "exports", "openla
                 padding: [options.padding, options.padding, options.padding, options.padding],
                 minResolution: options.minResolution,
                 duration: duration,
-                callback: function () { return promise.resolve(); },
+                callback: function () { return promise.resolve(); }
             });
         };
         if (ol.extent.containsExtent(currentExtent, targetExtent)) {
@@ -234,17 +268,17 @@ define("node_modules/ol3-fun/ol3-fun/parse-dms", ["require", "exports"], functio
     function decDegFromMatch(m) {
         var signIndex = {
             "-": -1,
-            "N": 1,
-            "S": -1,
-            "E": 1,
-            "W": -1
+            N: 1,
+            S: -1,
+            E: 1,
+            W: -1
         };
         var latLonIndex = {
             "-": "",
-            "N": "lat",
-            "S": "lat",
-            "E": "lon",
-            "W": "lon"
+            N: "lat",
+            S: "lat",
+            E: "lon",
+            W: "lon"
         };
         var degrees, minutes, seconds, sign, latLon;
         sign = signIndex[m[2]] || signIndex[m[1]] || signIndex[m[6]] || 1;
@@ -253,11 +287,11 @@ define("node_modules/ol3-fun/ol3-fun/parse-dms", ["require", "exports"], functio
         seconds = m[5] ? Number(m[5]) : 0;
         latLon = latLonIndex[m[1]] || latLonIndex[m[6]];
         if (!inRange(degrees, 0, 180))
-            throw 'Degrees out of range';
+            throw "Degrees out of range";
         if (!inRange(minutes, 0, 60))
-            throw 'Minutes out of range';
+            throw "Minutes out of range";
         if (!inRange(seconds, 0, 60))
-            throw 'Seconds out of range';
+            throw "Seconds out of range";
         return {
             decDeg: sign * (degrees + minutes / 60 + seconds / 3600),
             latLon: latLon
@@ -266,14 +300,29 @@ define("node_modules/ol3-fun/ol3-fun/parse-dms", ["require", "exports"], functio
     function inRange(value, a, b) {
         return value >= a && value <= b;
     }
-    function parse(dmsString) {
+    function toDegreesMinutesAndSeconds(coordinate) {
+        var absolute = Math.abs(coordinate);
+        var degrees = Math.floor(absolute);
+        var minutesNotTruncated = (absolute - degrees) * 60;
+        var minutes = Math.floor(minutesNotTruncated);
+        var seconds = Math.floor((minutesNotTruncated - minutes) * 60);
+        return degrees + " " + minutes + " " + seconds;
+    }
+    function fromLonLatToDms(lon, lat) {
+        var latitude = toDegreesMinutesAndSeconds(lat);
+        var latitudeCardinal = lat >= 0 ? "N" : "S";
+        var longitude = toDegreesMinutesAndSeconds(lon);
+        var longitudeCardinal = lon >= 0 ? "E" : "W";
+        return latitude + " " + latitudeCardinal + " " + longitude + " " + longitudeCardinal;
+    }
+    function fromDmsToLonLat(dmsString) {
         var _a;
         dmsString = dmsString.trim();
         var dmsRe = /([NSEW])?(-)?(\d+(?:\.\d+)?)[°º:d\s]?\s?(?:(\d+(?:\.\d+)?)['’‘′:]\s?(?:(\d{1,2}(?:\.\d+)?)(?:"|″|’’|'')?)?)?\s?([NSEW])?/i;
         var dmsString2;
         var m1 = dmsString.match(dmsRe);
         if (!m1)
-            throw 'Could not parse string';
+            throw "Could not parse string";
         if (m1[1]) {
             m1[6] = undefined;
             dmsString2 = dmsString.substr(m1[0].length - 1).trim();
@@ -284,25 +333,30 @@ define("node_modules/ol3-fun/ol3-fun/parse-dms", ["require", "exports"], functio
         var decDeg1 = decDegFromMatch(m1);
         var m2 = dmsString2.match(dmsRe);
         var decDeg2 = m2 && decDegFromMatch(m2);
-        if (typeof decDeg1.latLon === 'undefined') {
+        if (typeof decDeg1.latLon === "undefined") {
             if (!isNaN(decDeg1.decDeg) && decDeg2 && isNaN(decDeg2.decDeg)) {
                 return decDeg1.decDeg;
             }
             else if (!isNaN(decDeg1.decDeg) && decDeg2 && !isNaN(decDeg2.decDeg)) {
-                decDeg1.latLon = 'lat';
-                decDeg2.latLon = 'lon';
+                decDeg1.latLon = "lat";
+                decDeg2.latLon = "lon";
             }
             else {
-                throw 'Could not parse string';
+                throw "Could not parse string";
             }
         }
-        if (typeof decDeg2.latLon === 'undefined') {
-            decDeg2.latLon = decDeg1.latLon === 'lat' ? 'lon' : 'lat';
+        if (typeof decDeg2.latLon === "undefined") {
+            decDeg2.latLon = decDeg1.latLon === "lat" ? "lon" : "lat";
         }
         return _a = {},
             _a[decDeg1.latLon] = decDeg1.decDeg,
             _a[decDeg2.latLon] = decDeg2.decDeg,
             _a;
+    }
+    function parse(value) {
+        if (typeof value === "string")
+            return fromDmsToLonLat(value);
+        return fromLonLatToDms(value.lon, value.lat);
     }
     exports.parse = parse;
 });
@@ -341,14 +395,255 @@ define("node_modules/ol3-fun/ol3-fun/slowloop", ["require", "exports"], function
     }
     exports.slowloop = slowloop;
 });
-define("node_modules/ol3-fun/index", ["require", "exports", "node_modules/ol3-fun/ol3-fun/common", "node_modules/ol3-fun/ol3-fun/navigation", "node_modules/ol3-fun/ol3-fun/parse-dms", "node_modules/ol3-fun/ol3-fun/slowloop"], function (require, exports, common_2, navigation_1, parse_dms_1, slowloop_1) {
+define("node_modules/ol3-fun/ol3-fun/is-primitive", ["require", "exports"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    function isPrimitive(a) {
+        switch (typeof a) {
+            case "boolean":
+                return true;
+            case "number":
+                return true;
+            case "object":
+                return null === a;
+            case "string":
+                return true;
+            case "symbol":
+                return true;
+            case "undefined":
+                return true;
+            default:
+                throw "unknown type: " + typeof a;
+        }
+    }
+    exports.isPrimitive = isPrimitive;
+});
+define("node_modules/ol3-fun/ol3-fun/is-cyclic", ["require", "exports", "node_modules/ol3-fun/ol3-fun/is-primitive"], function (require, exports, is_primitive_1) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    function isCyclic(a) {
+        if (is_primitive_1.isPrimitive(a))
+            return false;
+        var test = function (o, history) {
+            if (is_primitive_1.isPrimitive(o))
+                return false;
+            if (0 <= history.indexOf(o)) {
+                return true;
+            }
+            return Object.keys(o).some(function (k) { return test(o[k], [o].concat(history)); });
+        };
+        return Object.keys(a).some(function (k) { return test(a[k], [a]); });
+    }
+    exports.isCyclic = isCyclic;
+});
+define("node_modules/ol3-fun/ol3-fun/deep-extend", ["require", "exports", "node_modules/ol3-fun/ol3-fun/is-cyclic", "node_modules/ol3-fun/ol3-fun/is-primitive"], function (require, exports, is_cyclic_1, is_primitive_2) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    function extend(a, b, trace, history) {
+        if (history === void 0) { history = []; }
+        if (!b) {
+            b = a;
+            a = {};
+        }
+        var merger = new Merger(trace, history);
+        return merger.deepExtend(a, b, []);
+    }
+    exports.extend = extend;
+    function isUndefined(a) {
+        return typeof a === "undefined";
+    }
+    function isArray(val) {
+        return Array.isArray(val);
+    }
+    function isHash(val) {
+        return !is_primitive_2.isPrimitive(val) && !canClone(val) && !isArray(val);
+    }
+    function canClone(val) {
+        if (val instanceof Date)
+            return true;
+        if (val instanceof RegExp)
+            return true;
+        return false;
+    }
+    function clone(val) {
+        if (val instanceof Date)
+            return new Date(val.getTime());
+        if (val instanceof RegExp)
+            return new RegExp(val.source);
+        throw "unclonable type encounted: " + typeof val;
+    }
+    var Merger = (function () {
+        function Merger(traceItems, history) {
+            this.traceItems = traceItems;
+            this.history = history;
+        }
+        Merger.prototype.trace = function (item) {
+            if (this.traceItems) {
+                this.traceItems.push(item);
+            }
+            return item.path;
+        };
+        Merger.prototype.deepExtend = function (target, source, path) {
+            var _this = this;
+            if (target === source)
+                return target;
+            if (!target || (!isHash(target) && !isArray(target))) {
+                throw "first argument must be an object";
+            }
+            if (!source || (!isHash(source) && !isArray(source))) {
+                throw "second argument must be an object";
+            }
+            if (typeof source === "function") {
+                return target;
+            }
+            this.push(source);
+            if (isArray(source)) {
+                if (!isArray(target)) {
+                    throw "attempting to merge an array into a non-array";
+                }
+                this.mergeArray("id", target, source, path);
+                return target;
+            }
+            else if (isArray(target)) {
+                throw "attempting to merge a non-array into an array";
+            }
+            Object.keys(source).forEach(function (k) { return _this.mergeChild(k, target, source[k], [k].concat(path)); });
+            return target;
+        };
+        Merger.prototype.cloneArray = function (val, path) {
+            var _this = this;
+            this.push(val);
+            return val.map(function (v) {
+                if (is_primitive_2.isPrimitive(v))
+                    return v;
+                if (isHash(v))
+                    return _this.deepExtend({}, v, path);
+                if (isArray(v))
+                    return _this.cloneArray(v, path);
+                if (canClone(v))
+                    return clone(v);
+                throw "unknown type encountered: " + typeof v;
+            });
+        };
+        Merger.prototype.push = function (a) {
+            if (is_primitive_2.isPrimitive(a))
+                return;
+            if (-1 < this.history.indexOf(a)) {
+                if (is_cyclic_1.isCyclic(a)) {
+                    throw "circular reference detected";
+                }
+            }
+            else
+                this.history.push(a);
+        };
+        Merger.prototype.mergeChild = function (key, target, sourceValue, path) {
+            var targetValue = target[key];
+            if (sourceValue === targetValue)
+                return;
+            if (is_primitive_2.isPrimitive(sourceValue)) {
+                path = this.trace({
+                    path: path,
+                    key: key,
+                    target: target,
+                    was: targetValue,
+                    value: sourceValue
+                });
+                target[key] = sourceValue;
+                return;
+            }
+            if (canClone(sourceValue)) {
+                sourceValue = clone(sourceValue);
+                path = this.trace({
+                    path: path,
+                    key: key,
+                    target: target,
+                    was: targetValue,
+                    value: sourceValue
+                });
+                target[key] = sourceValue;
+                return;
+            }
+            if (isArray(sourceValue)) {
+                if (isArray(targetValue)) {
+                    this.deepExtend(targetValue, sourceValue, path);
+                    return;
+                }
+                sourceValue = this.cloneArray(sourceValue, path);
+                path = this.trace({
+                    path: path,
+                    key: key,
+                    target: target,
+                    was: targetValue,
+                    value: sourceValue
+                });
+                target[key] = sourceValue;
+                return;
+            }
+            if (!isHash(sourceValue)) {
+                throw "unexpected source type: " + typeof sourceValue;
+            }
+            if (!isHash(targetValue)) {
+                var merger = new Merger(null, this.history);
+                sourceValue = merger.deepExtend({}, sourceValue, path);
+                path = this.trace({
+                    path: path,
+                    key: key,
+                    target: target,
+                    was: targetValue,
+                    value: sourceValue
+                });
+                target[key] = sourceValue;
+                return;
+            }
+            this.deepExtend(targetValue, sourceValue, path);
+            return;
+        };
+        Merger.prototype.mergeArray = function (key, target, source, path) {
+            var _this = this;
+            if (!isArray(target))
+                throw "target must be an array";
+            if (!isArray(source))
+                throw "input must be an array";
+            if (!source.length)
+                return target;
+            var hash = {};
+            target.forEach(function (item, i) {
+                if (!item[key])
+                    return;
+                hash[item[key]] = i;
+            });
+            source.forEach(function (sourceItem, i) {
+                var sourceKey = sourceItem[key];
+                var targetIndex = hash[sourceKey];
+                if (isUndefined(sourceKey)) {
+                    if (isHash(target[i]) && !!target[i][key]) {
+                        throw "cannot replace an identified array item with a non-identified array item";
+                    }
+                    _this.mergeChild(i, target, sourceItem, path);
+                    return;
+                }
+                if (isUndefined(targetIndex)) {
+                    _this.mergeChild(target.length, target, sourceItem, path);
+                    return;
+                }
+                _this.mergeChild(targetIndex, target, sourceItem, path);
+                return;
+            });
+            return target;
+        };
+        return Merger;
+    }());
+});
+define("node_modules/ol3-fun/index", ["require", "exports", "node_modules/ol3-fun/ol3-fun/common", "node_modules/ol3-fun/ol3-fun/css", "node_modules/ol3-fun/ol3-fun/navigation", "node_modules/ol3-fun/ol3-fun/parse-dms", "node_modules/ol3-fun/ol3-fun/slowloop", "node_modules/ol3-fun/ol3-fun/deep-extend"], function (require, exports, common_2, css_1, navigation_1, parse_dms_1, slowloop_1, deep_extend_1) {
     "use strict";
     var index = {
         asArray: common_2.asArray,
-        cssin: common_2.cssin,
+        cssin: css_1.cssin,
+        loadCss: css_1.loadCss,
         debounce: common_2.debounce,
         defaults: common_2.defaults,
         doif: common_2.doif,
+        deepExtend: deep_extend_1.extend,
         getParameterByName: common_2.getParameterByName,
         getQueryParameters: common_2.getQueryParameters,
         html: common_2.html,
@@ -362,16 +657,28 @@ define("node_modules/ol3-fun/index", ["require", "exports", "node_modules/ol3-fu
         slowloop: slowloop_1.slowloop,
         dms: {
             parse: parse_dms_1.parse,
+            fromDms: function (dms) { return parse_dms_1.parse(dms); },
+            fromLonLat: function (o) { return parse_dms_1.parse(o); }
         },
         navigation: {
-            zoomToFeature: navigation_1.zoomToFeature,
-        },
+            zoomToFeature: navigation_1.zoomToFeature
+        }
     };
     return index;
+});
+define("ol3-lab/labs/common/common", ["require", "exports", "node_modules/ol3-fun/index"], function (require, exports, Common) {
+    "use strict";
+    return Common;
 });
 define("node_modules/ol3-layerswitcher/ol3-layerswitcher/ol3-layerswitcher", ["require", "exports", "openlayers", "node_modules/ol3-fun/index"], function (require, exports, ol, index_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
+    var olcss = {
+        CLASS_CONTROL: "ol-control",
+        CLASS_UNSELECTABLE: "ol-unselectable",
+        CLASS_UNSUPPORTED: "ol-unsupported",
+        CLASS_HIDDEN: "ol-hidden"
+    };
     function allLayers(lyr) {
         var result = [];
         lyr.getLayers().forEach(function (lyr, idx, a) {
@@ -382,6 +689,11 @@ define("node_modules/ol3-layerswitcher/ol3-layerswitcher/ol3-layerswitcher", ["r
         });
         return result;
     }
+    var eventNames = {
+        dispose: "dispose",
+        hide: "hide",
+        show: "show"
+    };
     exports.DEFAULT_OPTIONS = {
         tipLabel: "Layers",
         openOnMouseOver: false,
@@ -389,6 +701,8 @@ define("node_modules/ol3-layerswitcher/ol3-layerswitcher/ol3-layerswitcher", ["r
         openOnClick: true,
         closeOnClick: true,
         className: "layer-switcher",
+        position: "bottom-2 right-2",
+        expanded: false,
         target: null
     };
     var LayerSwitcher = (function (_super) {
@@ -398,14 +712,38 @@ define("node_modules/ol3-layerswitcher/ol3-layerswitcher/ol3-layerswitcher", ["r
             options = index_1.defaults(options || {}, exports.DEFAULT_OPTIONS);
             _this = _super.call(this, options) || this;
             _this.options = options;
+            _this.unwatch = [];
             _this.afterCreate();
             return _this;
         }
+        LayerSwitcher.create = function (options) {
+            index_1.loadCss({ name: "ol3-layerswitcher", url: "../ol3-layerswitcher/css/ol3-layerswitcher.css" });
+            return new LayerSwitcher(options);
+        };
+        LayerSwitcher.prototype.destroy = function () {
+            this.hidePanel();
+            this.unwatch = [];
+            this.getMap() && this.getMap().removeControl(this);
+            this.dispatchEvent(eventNames.dispose);
+            this.setTarget(null);
+        };
+        LayerSwitcher.prototype.setPosition = function (position) {
+            var _this = this;
+            this.options.position.split(" ").forEach(function (k) { return _this.options.target.classList.remove(k); });
+            position.split(" ").forEach(function (k) { return _this.options.target.classList.add(k); });
+            this.options.position = position;
+        };
+        LayerSwitcher.prototype.cssin = function () {
+            var className = this.options.className;
+            var positions = index_1.pair("top left right bottom".split(" "), index_1.range(24)).map(function (pos) { return "." + className + "." + (pos[0] + (-pos[1] || "")) + " { " + pos[0] + ":" + (0.5 + pos[1]) + "em; }"; });
+            index_1.cssin(className, positions.join("\n"));
+        };
         LayerSwitcher.prototype.afterCreate = function () {
             var _this = this;
             var options = this.options;
-            this.hiddenClassName = "ol-unselectable ol-control " + options.className;
+            this.hiddenClassName = options.className + " " + options.position + " " + olcss.CLASS_UNSELECTABLE + " " + olcss.CLASS_CONTROL;
             this.shownClassName = this.hiddenClassName + " shown";
+            this.cssin();
             var element = document.createElement("div");
             element.className = this.hiddenClassName;
             var button = (this.button = document.createElement("button"));
@@ -414,7 +752,6 @@ define("node_modules/ol3-layerswitcher/ol3-layerswitcher/ol3-layerswitcher", ["r
             this.panel = document.createElement("div");
             this.panel.className = "panel";
             element.appendChild(this.panel);
-            this.unwatch = [];
             this.element = element;
             this.setTarget(options.target);
             if (options.openOnMouseOver) {
@@ -425,12 +762,11 @@ define("node_modules/ol3-layerswitcher/ol3-layerswitcher/ol3-layerswitcher", ["r
             }
             if (options.openOnClick || options.closeOnClick) {
                 button.addEventListener("click", function (e) {
-                    _this.isVisible()
-                        ? options.closeOnClick && _this.hidePanel()
-                        : options.openOnClick && _this.showPanel();
+                    _this.isVisible() ? options.closeOnClick && _this.hidePanel() : options.openOnClick && _this.showPanel();
                     e.preventDefault();
                 });
             }
+            options.map && this.setMap(options.map);
         };
         LayerSwitcher.prototype.isVisible = function () {
             return this.element.className != this.hiddenClassName;
@@ -444,6 +780,7 @@ define("node_modules/ol3-layerswitcher/ol3-layerswitcher/ol3-layerswitcher", ["r
         LayerSwitcher.prototype.hidePanel = function () {
             this.element.className = this.hiddenClassName;
             this.unwatch.forEach(function (f) { return f(); });
+            this.unwatch = [];
         };
         LayerSwitcher.prototype.renderPanel = function () {
             var _this = this;
@@ -520,9 +857,7 @@ define("node_modules/ol3-layerswitcher/ol3-layerswitcher/ol3-layerswitcher", ["r
                         index_1.toggle(ul_1, "hide-layer-group", !input_1.checked);
                         _this.setVisible(lyr, input_1.checked);
                         var childLayers = lyr.getLayers();
-                        _this.state
-                            .filter(function (s) { return s.container === ul_1 && s.input && s.input.checked; })
-                            .forEach(function (state) {
+                        _this.state.filter(function (s) { return s.container === ul_1 && s.input && s.input.checked; }).forEach(function (state) {
                             _this.setVisible(state.layer, input_1.checked);
                         });
                     });
@@ -580,6 +915,9 @@ define("node_modules/ol3-layerswitcher/ol3-layerswitcher/ol3-layerswitcher", ["r
                 .slice()
                 .reverse();
             return lyrs.filter(function (l) { return !!l.get("title"); }).forEach(function (l) { return _this.renderLayer(l, elm); });
+        };
+        LayerSwitcher.prototype.addLayer = function (layer, title) {
+            layer.set("title", title);
         };
         return LayerSwitcher;
     }(ol.control.Control));
@@ -1084,24 +1422,6 @@ define("node_modules/ol3-symbolizer/ol3-symbolizer/common/assign", ["require", "
     }
     exports.assign = assign;
 });
-define("node_modules/ol3-symbolizer/ol3-symbolizer/common/mixin", ["require", "exports"], function (require, exports) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    function mixin(a, b) {
-        Object.keys(b).forEach(function (k) { return a[k] = b[k]; });
-        return a;
-    }
-    exports.mixin = mixin;
-});
-define("node_modules/ol3-symbolizer/ol3-symbolizer/common/doif", ["require", "exports"], function (require, exports) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    function doif(v, cb) {
-        if (v !== undefined && v !== null)
-            cb(v);
-    }
-    exports.doif = doif;
-});
 define("node_modules/ol3-symbolizer/ol3-symbolizer/format/plugins/as-cross", ["require", "exports"], function (require, exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
@@ -1423,7 +1743,7 @@ define("node_modules/ol3-symbolizer/ol3-symbolizer/format/plugins/as-x", ["requi
     }());
     exports.Shapeshifter = Shapeshifter;
 });
-define("node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", ["require", "exports", "openlayers", "node_modules/ol3-symbolizer/ol3-symbolizer/common/assign", "node_modules/ol3-symbolizer/ol3-symbolizer/common/mixin", "node_modules/ol3-symbolizer/ol3-symbolizer/common/doif", "node_modules/ol3-symbolizer/ol3-symbolizer/format/plugins/as-cross", "node_modules/ol3-symbolizer/ol3-symbolizer/format/plugins/as-square", "node_modules/ol3-symbolizer/ol3-symbolizer/format/plugins/as-diamond", "node_modules/ol3-symbolizer/ol3-symbolizer/format/plugins/as-triangle", "node_modules/ol3-symbolizer/ol3-symbolizer/format/plugins/as-x"], function (require, exports, ol, assign_1, mixin_1, doif_1, as_cross_1, as_square_1, as_diamond_1, as_triangle_1, as_x_1) {
+define("node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", ["require", "exports", "openlayers", "node_modules/ol3-symbolizer/ol3-symbolizer/common/assign", "node_modules/ol3-fun/index", "node_modules/ol3-symbolizer/ol3-symbolizer/format/plugins/as-cross", "node_modules/ol3-symbolizer/ol3-symbolizer/format/plugins/as-square", "node_modules/ol3-symbolizer/ol3-symbolizer/format/plugins/as-diamond", "node_modules/ol3-symbolizer/ol3-symbolizer/format/plugins/as-triangle", "node_modules/ol3-symbolizer/ol3-symbolizer/format/plugins/as-x"], function (require, exports, ol, assign_1, index_2, as_cross_1, as_square_1, as_diamond_1, as_triangle_1, as_x_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var StyleConverter = (function () {
@@ -1460,7 +1780,7 @@ define("node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", ["req
             if (typeof style === "number")
                 throw style;
             if (style.getColor)
-                mixin_1.mixin(s, this.serializeColor(style.getColor()));
+                index_2.mixin(s, this.serializeColor(style.getColor()));
             if (style.getImage)
                 assign_1.assign(s, "image", this.serializeImage(style.getImage()));
             if (style.getFill)
@@ -1639,8 +1959,8 @@ define("node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", ["req
                 fill: json.fill && this.deserializeFill(json.fill),
                 stroke: json.stroke && this.deserializeStroke(json.stroke)
             });
-            doif_1.doif(json.rotation, function (v) { return image.setRotation(v); });
-            doif_1.doif(json.opacity, function (v) { return image.setOpacity(v); });
+            index_2.doif(json.rotation, function (v) { return image.setRotation(v); });
+            index_2.doif(json.opacity, function (v) { return image.setOpacity(v); });
             return image;
         };
         StyleConverter.prototype.deserializeIcon = function (json) {
@@ -1731,7 +2051,7 @@ define("node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", ["req
                 size: [canvas.width, canvas.height],
                 src: undefined
             });
-            return mixin_1.mixin(icon, {
+            return index_2.mixin(icon, {
                 path: json.path,
                 stroke: json.stroke,
                 fill: json.fill,
@@ -1747,12 +2067,12 @@ define("node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", ["req
         };
         StyleConverter.prototype.deserializeStroke = function (json) {
             var stroke = new ol.style.Stroke();
-            doif_1.doif(json.color, function (v) { return stroke.setColor(v); });
-            doif_1.doif(json.lineCap, function (v) { return stroke.setLineCap(v); });
-            doif_1.doif(json.lineDash, function (v) { return stroke.setLineDash(v); });
-            doif_1.doif(json.lineJoin, function (v) { return stroke.setLineJoin(v); });
-            doif_1.doif(json.miterLimit, function (v) { return stroke.setMiterLimit(v); });
-            doif_1.doif(json.width, function (v) { return stroke.setWidth(v); });
+            index_2.doif(json.color, function (v) { return stroke.setColor(v); });
+            index_2.doif(json.lineCap, function (v) { return stroke.setLineCap(v); });
+            index_2.doif(json.lineDash, function (v) { return stroke.setLineDash(v); });
+            index_2.doif(json.lineJoin, function (v) { return stroke.setLineJoin(v); });
+            index_2.doif(json.miterLimit, function (v) { return stroke.setMiterLimit(v); });
+            index_2.doif(json.width, function (v) { return stroke.setWidth(v); });
             return stroke;
         };
         StyleConverter.prototype.deserializeColor = function (fill) {
@@ -1770,7 +2090,7 @@ define("node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", ["req
                     gradient_1 = this.deserializeRadialGradient(fill.gradient);
                 }
                 if (fill.gradient.stops) {
-                    mixin_1.mixin(gradient_1, {
+                    index_2.mixin(gradient_1, {
                         stops: fill.gradient.stops
                     });
                     var stops = fill.gradient.stops.split(";");
@@ -1823,7 +2143,7 @@ define("node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", ["req
                         }
                         break;
                 }
-                return mixin_1.mixin(context_1.createPattern(canvas, repitition), fill.pattern);
+                return index_2.mixin(context_1.createPattern(canvas, repitition), fill.pattern);
             }
             if (fill.image) {
                 var canvas = document.createElement('canvas');
@@ -1845,7 +2165,7 @@ define("node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", ["req
             canvas.height = Math.max(y0, y1);
             var context = canvas.getContext('2d');
             var gradient = context.createLinearGradient(x0, y0, x1, y1);
-            mixin_1.mixin(gradient, {
+            index_2.mixin(gradient, {
                 type: "linear(" + [x0, y0, x1, y1].join(",") + ")"
             });
             return gradient;
@@ -1858,7 +2178,7 @@ define("node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", ["req
             canvas.height = 2 * Math.max(y0, y1);
             var context = canvas.getContext('2d');
             var gradient = context.createRadialGradient(x0, y0, r0, x1, y1, r1);
-            mixin_1.mixin(gradient, {
+            index_2.mixin(gradient, {
                 type: "radial(" + [x0, y0, r0, x1, y1, r1].join(",") + ")"
             });
             return gradient;
@@ -2246,7 +2566,7 @@ define("node_modules/ol3-popup/ol3-popup/commands/smartpick", ["require", "expor
     }
     exports.smartpick = smartpick;
 });
-define("node_modules/ol3-popup/ol3-popup/ol3-popup", ["require", "exports", "openlayers", "node_modules/ol3-popup/ol3-popup/paging/paging", "node_modules/ol3-popup/ol3-popup/paging/page-navigator", "node_modules/ol3-fun/ol3-fun/common", "node_modules/ol3-popup/ol3-popup/interaction", "node_modules/ol3-symbolizer/index", "node_modules/ol3-popup/ol3-popup/commands/smartpick", "node_modules/ol3-symbolizer/ol3-symbolizer/common/mixin"], function (require, exports, ol, paging_1, page_navigator_1, common_4, interaction_1, Symbolizer, smartpick_1, mixin_2) {
+define("node_modules/ol3-popup/ol3-popup/ol3-popup", ["require", "exports", "openlayers", "node_modules/ol3-popup/ol3-popup/paging/paging", "node_modules/ol3-popup/ol3-popup/paging/page-navigator", "node_modules/ol3-fun/index", "node_modules/ol3-popup/ol3-popup/interaction", "node_modules/ol3-symbolizer/index", "node_modules/ol3-popup/ol3-popup/commands/smartpick"], function (require, exports, ol, paging_1, page_navigator_1, index_3, interaction_1, Symbolizer, smartpick_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var symbolizer = new Symbolizer.Symbolizer.StyleConverter();
@@ -2406,7 +2726,7 @@ define("node_modules/ol3-popup/ol3-popup/ol3-popup", ["require", "exports", "ope
             return _this;
         }
         Popup.create = function (options) {
-            options = common_4.defaults({}, options || {}, clone(exports.DEFAULT_OPTIONS), {
+            options = index_3.defaults({}, options || {}, clone(exports.DEFAULT_OPTIONS), {
                 pagingStyle: exports.DEFAULT_OPTIONS.pagingStyle,
                 asContent: exports.DEFAULT_OPTIONS.asContent
             });
@@ -2415,7 +2735,7 @@ define("node_modules/ol3-popup/ol3-popup/ol3-popup", ["require", "exports", "ope
             return popup;
         };
         Popup.prototype.configureDom = function (options) {
-            this.handlers.push(common_4.cssin("ol3-popup", css));
+            this.handlers.push(index_3.cssin("ol3-popup", css));
             options.css && this.injectCss("options", options.css);
             var domNode = (this.domNode = document.createElement("div"));
             domNode.className = classNames.olPopupElement;
@@ -2479,7 +2799,7 @@ define("node_modules/ol3-popup/ol3-popup/ol3-popup", ["require", "exports", "ope
             if (!this.getId())
                 throw "cannot injects css on an overlay with no assigned id";
             id = this.getId() + "_" + id;
-            this.handlers.push(common_4.cssin(id, css));
+            this.handlers.push(index_3.cssin(id, css));
         };
         Popup.prototype.hideIndicator = function () {
             this.indicator && this.indicator.setPosition(undefined);
@@ -2496,7 +2816,7 @@ define("node_modules/ol3-popup/ol3-popup/ol3-popup", ["require", "exports", "ope
             }
             var indicatorElement = this.options.indicators[this.getPositioning()];
             if (typeof indicatorElement === "string")
-                indicatorElement = common_4.html("<div class=\"popup-indicator " + this.getPositioning()
+                indicatorElement = index_3.html("<div class=\"popup-indicator " + this.getPositioning()
                     .split("-")
                     .join(" ") + "\">" + indicatorElement + "</div>");
             indicator.setElement(indicatorElement);
@@ -2601,7 +2921,7 @@ define("node_modules/ol3-popup/ol3-popup/ol3-popup", ["require", "exports", "ope
                     center: position
                 };
                 var view = this.options.map.getView();
-                this.options.autoPanAnimation && mixin_2.mixin(animation, this.options.autoPanAnimation.duration);
+                this.options.autoPanAnimation && index_3.mixin(animation, this.options.autoPanAnimation.duration);
                 view.animate(animation);
             }
         };
@@ -2788,22 +3108,7 @@ define("node_modules/ol3-symbolizer/ol3-symbolizer/common/ajax", ["require", "ex
     }());
     return Ajax;
 });
-define("node_modules/ol3-symbolizer/ol3-symbolizer/common/defaults", ["require", "exports"], function (require, exports) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    function defaults(a) {
-        var b = [];
-        for (var _i = 1; _i < arguments.length; _i++) {
-            b[_i - 1] = arguments[_i];
-        }
-        b.filter(function (b) { return !!b; }).forEach(function (b) {
-            Object.keys(b).filter(function (k) { return a[k] === undefined; }).forEach(function (k) { return a[k] = b[k]; });
-        });
-        return a;
-    }
-    exports.defaults = defaults;
-});
-define("node_modules/ol3-symbolizer/ol3-symbolizer/ags/ags-catalog", ["require", "exports", "node_modules/ol3-symbolizer/ol3-symbolizer/common/ajax", "node_modules/ol3-symbolizer/ol3-symbolizer/common/defaults"], function (require, exports, Ajax, defaults_1) {
+define("node_modules/ol3-symbolizer/ol3-symbolizer/ags/ags-catalog", ["require", "exports", "node_modules/ol3-symbolizer/ol3-symbolizer/common/ajax", "node_modules/ol3-fun/index"], function (require, exports, Ajax, index_4) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var Catalog = (function () {
@@ -2811,7 +3116,7 @@ define("node_modules/ol3-symbolizer/ol3-symbolizer/ags/ags-catalog", ["require",
             this.ajax = new Ajax(url);
         }
         Catalog.prototype.about = function (data) {
-            var req = defaults_1.defaults({
+            var req = index_4.defaults({
                 f: "pjson"
             }, data);
             return this.ajax.jsonp(req);
@@ -2828,14 +3133,14 @@ define("node_modules/ol3-symbolizer/ol3-symbolizer/ags/ags-catalog", ["require",
             var req = {
                 f: "pjson"
             };
-            return defaults_1.defaults(ajax.jsonp(req), { url: ajax.url });
+            return index_4.defaults(ajax.jsonp(req), { url: ajax.url });
         };
         Catalog.prototype.aboutMapServer = function (name) {
             var ajax = new Ajax(this.ajax.url + "/" + name + "/MapServer");
             var req = {
                 f: "pjson"
             };
-            return defaults_1.defaults(ajax.jsonp(req), { url: ajax.url });
+            return index_4.defaults(ajax.jsonp(req), { url: ajax.url });
         };
         Catalog.prototype.aboutLayer = function (layer) {
             var ajax = new Ajax(this.ajax.url + "/" + layer);
@@ -2848,7 +3153,7 @@ define("node_modules/ol3-symbolizer/ol3-symbolizer/ags/ags-catalog", ["require",
     }());
     exports.Catalog = Catalog;
 });
-define("node_modules/ol3-symbolizer/ol3-symbolizer/ags/ags-source", ["require", "exports", "jquery", "openlayers", "node_modules/ol3-symbolizer/ol3-symbolizer/ags/ags-catalog", "node_modules/ol3-symbolizer/ol3-symbolizer/format/ags-symbolizer", "node_modules/ol3-fun/index"], function (require, exports, $, ol, AgsCatalog, Symbolizer, index_2) {
+define("node_modules/ol3-symbolizer/ol3-symbolizer/ags/ags-source", ["require", "exports", "jquery", "openlayers", "node_modules/ol3-symbolizer/ol3-symbolizer/ags/ags-catalog", "node_modules/ol3-symbolizer/ol3-symbolizer/format/ags-symbolizer", "node_modules/ol3-fun/index"], function (require, exports, $, ol, AgsCatalog, Symbolizer, index_5) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var esrijsonFormat = new ol.format.EsriJSON();
@@ -2866,7 +3171,7 @@ define("node_modules/ol3-symbolizer/ol3-symbolizer/ags/ags-source", ["require", 
         }
         ArcGisVectorSourceFactory.create = function (options) {
             var d = $.Deferred();
-            options = index_2.defaults(options, DEFAULT_OPTIONS);
+            options = index_5.defaults(options, DEFAULT_OPTIONS);
             var srs = options.map
                 .getView()
                 .getProjection()
@@ -2976,7 +3281,7 @@ define("node_modules/ol3-symbolizer/ol3-symbolizer/ags/ags-source", ["require", 
     }());
     exports.ArcGisVectorSourceFactory = ArcGisVectorSourceFactory;
 });
-define("ol3-lab/labs/ags-viewer", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/common/common", "node_modules/ol3-layerswitcher/index", "node_modules/ol3-popup/index", "node_modules/ol3-symbolizer/ol3-symbolizer/ags/ags-source"], function (require, exports, $, ol, common_5, index_3, index_4, ags_source_1) {
+define("ol3-lab/labs/ags-viewer", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/common/common", "node_modules/ol3-layerswitcher/index", "node_modules/ol3-popup/index", "node_modules/ol3-symbolizer/ol3-symbolizer/ags/ags-source"], function (require, exports, $, ol, common_4, index_6, index_7, ags_source_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     function parse(v, type) {
@@ -3013,7 +3318,7 @@ define("ol3-lab/labs/ags-viewer", ["require", "exports", "jquery", "openlayers",
         {
             var opts_1 = options;
             Object.keys(opts_1).forEach(function (k) {
-                common_5.doif(common_5.getParameterByName(k), function (v) {
+                common_4.doif(common_4.getParameterByName(k), function (v) {
                     var value = parse(v, opts_1[k]);
                     if (value !== undefined)
                         opts_1[k] = value;
@@ -3060,9 +3365,9 @@ define("ol3-lab/labs/ags-viewer", ["require", "exports", "jquery", "openlayers",
             layers: options.layers.reverse()
         }).then(function (agsLayers) {
             agsLayers.forEach(function (agsLayer) { return map.addLayer(agsLayer); });
-            var layerSwitcher = new index_3.LayerSwitcher();
+            var layerSwitcher = new index_6.LayerSwitcher();
             layerSwitcher.setMap(map);
-            var popup = index_4.Popup.create({
+            var popup = index_7.Popup.create({
                 map: map,
                 css: "\n            .ol-popup {\n                background-color: white;\n            }\n            .ol-popup .page {\n                max-height: 200px;\n                overflow-y: auto;\n            }\n            "
             });
@@ -3425,7 +3730,7 @@ define("ol3-lab/labs/common/myjson", ["require", "exports", "jquery"], function 
     }());
     exports.MyJson = MyJson;
 });
-define("ol3-lab/labs/mapmaker", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/common/common", "ol3-lab/labs/common/ol3-polyline", "node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", "node_modules/ol3-symbolizer/examples/styles/stroke/dashdotdot", "node_modules/ol3-symbolizer/examples/styles/stroke/solid", "node_modules/ol3-symbolizer/examples/styles/text/text", "ol3-lab/labs/common/myjson"], function (require, exports, $, ol, common_6, reduce, ol3_symbolizer_2, dashdotdot, strokeStyle, textStyle, myjson_1) {
+define("ol3-lab/labs/mapmaker", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/common/common", "ol3-lab/labs/common/ol3-polyline", "node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", "node_modules/ol3-symbolizer/examples/styles/stroke/dashdotdot", "node_modules/ol3-symbolizer/examples/styles/stroke/solid", "node_modules/ol3-symbolizer/examples/styles/text/text", "ol3-lab/labs/common/myjson"], function (require, exports, $, ol, common_5, reduce, ol3_symbolizer_2, dashdotdot, strokeStyle, textStyle, myjson_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var styler = new ol3_symbolizer_2.StyleConverter();
@@ -3455,13 +3760,13 @@ define("ol3-lab/labs/mapmaker", ["require", "exports", "jquery", "openlayers", "
         basemap: "osm",
     };
     function run(options) {
-        options = common_6.defaults(options || {}, DEFAULT_OPTIONS);
+        options = common_5.defaults(options || {}, DEFAULT_OPTIONS);
         $(html).appendTo(".map");
         $(css).appendTo("head");
         {
             var opts_2 = options;
             Object.keys(opts_2).forEach(function (k) {
-                common_6.doif(common_6.getParameterByName(k), function (v) {
+                common_5.doif(common_5.getParameterByName(k), function (v) {
                     var value = parse(v, opts_2[k]);
                     if (value !== undefined)
                         opts_2[k] = value;
@@ -3524,7 +3829,7 @@ define("ol3-lab/labs/mapmaker", ["require", "exports", "jquery", "openlayers", "
                     feature.setStyle(style);
                     features.push(feature);
                 });
-                if (!common_6.getParameterByName("center")) {
+                if (!common_5.getParameterByName("center")) {
                     map.getView().fit(layer.getSource().getExtent());
                 }
             }
@@ -3661,7 +3966,7 @@ define("node_modules/ol3-input/ol3-input/providers/osm", ["require", "exports"],
     }());
     exports.OpenStreet = OpenStreet;
 });
-define("node_modules/ol3-input/ol3-input/ol3-input", ["require", "exports", "openlayers", "jquery", "node_modules/ol3-fun/ol3-fun/common", "node_modules/ol3-fun/ol3-fun/common", "node_modules/ol3-fun/ol3-fun/navigation", "node_modules/ol3-input/ol3-input/providers/osm"], function (require, exports, ol, $, common_7, common_8, navigation_2, osm_1) {
+define("node_modules/ol3-input/ol3-input/ol3-input", ["require", "exports", "openlayers", "jquery", "node_modules/ol3-fun/index", "node_modules/ol3-fun/index", "node_modules/ol3-fun/ol3-fun/navigation", "node_modules/ol3-input/ol3-input/providers/osm"], function (require, exports, ol, $, index_8, index_9, navigation_2, osm_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var olcss = {
@@ -3777,7 +4082,7 @@ define("node_modules/ol3-input/ol3-input/ol3-input", ["require", "exports", "ope
                 }
             });
             if (options.autoChange) {
-                input.addEventListener("keypress", common_7.debounce(function () {
+                input.addEventListener("keypress", index_8.debounce(function () {
                     if (options.regex && !options.regex.test(input.value))
                         return;
                     var args = {
@@ -3812,14 +4117,14 @@ define("node_modules/ol3-input/ol3-input/ol3-input", ["require", "exports", "ope
         Input.create = function (options) {
             if (options === void 0) { options = {}; }
             options = options || {};
-            options = common_7.mixin({
+            options = index_8.mixin({
                 openedText: options.position && -1 < options.position.indexOf("left") ? expando.left : expando.right,
                 closedText: options.position && -1 < options.position.indexOf("left") ? expando.right : expando.left,
             }, options);
-            options = common_7.mixin(common_7.mixin({}, Input.DEFAULT_OPTIONS), options);
+            options = index_8.mixin(index_8.mixin({}, Input.DEFAULT_OPTIONS), options);
             var element = document.createElement('div');
             element.className = options.className + " " + options.position + " " + olcss.CLASS_UNSELECTABLE + " " + olcss.CLASS_CONTROL;
-            var geocoderOptions = common_7.mixin({
+            var geocoderOptions = index_8.mixin({
                 element: element,
                 target: options.target,
                 expanded: false
@@ -3852,9 +4157,9 @@ define("node_modules/ol3-input/ol3-input/ol3-input", ["require", "exports", "ope
         };
         Input.prototype.cssin = function () {
             var className = this.options.className;
-            var positions = common_8.pair("top left right bottom".split(" "), common_8.range(24))
+            var positions = index_9.pair("top left right bottom".split(" "), index_9.range(24))
                 .map(function (pos) { return "." + className + "." + (pos[0] + (-pos[1] || '')) + " { " + pos[0] + ":" + (0.5 + pos[1]) + "em; }"; });
-            this.handlers.push(common_7.cssin(className, "\n            ." + className + " {\n                position: absolute;\n                background-color: rgba(255,255,255,.4);\n            }\n            ." + className + ".active {\n                background-color: white;\n            }\n            ." + className + ":hover {\n                background-color: white;\n            }\n            ." + className + " input[type=\"button\"] {\n                color: rgba(0,60,136,1);\n                background: transparent;\n                border: none;\n                width: 2em;\n                height: 2em;\n            }            \n            ." + className + " button {\n                min-height: 1.375em;\n                min-width: 1.375em;\n                width: auto;\n                display: inline;\n            }\n\n            ." + className + ".left button {\n                float:right;\n            }\n\n            ." + className + ".right button {\n                float:left;\n            }\n\n            ." + className + " input {\n                height: 2.175em;\n                width: 16em;\n                border: none;\n                padding: 0;\n                margin: 0;\n                margin-left: 2px;\n                margin-top: 2px;\n                vertical-align: top;\n                transition: width 0.25s;\n            }\n\n            ." + className + " input.ol-hidden {\n                width: 0;\n                margin: 0;\n            }\n            \n            " + positions.join('\n') + "\n        "));
+            this.handlers.push(index_8.cssin(className, "\n            ." + className + " {\n                position: absolute;\n                background-color: rgba(255,255,255,.4);\n            }\n            ." + className + ".active {\n                background-color: white;\n            }\n            ." + className + ":hover {\n                background-color: white;\n            }\n            ." + className + " input[type=\"button\"] {\n                color: rgba(0,60,136,1);\n                background: transparent;\n                border: none;\n                width: 2em;\n                height: 2em;\n            }            \n            ." + className + " button {\n                min-height: 1.375em;\n                min-width: 1.375em;\n                width: auto;\n                display: inline;\n            }\n\n            ." + className + ".left button {\n                float:right;\n            }\n\n            ." + className + ".right button {\n                float:left;\n            }\n\n            ." + className + " input {\n                height: 2.175em;\n                width: 16em;\n                border: none;\n                padding: 0;\n                margin: 0;\n                margin-left: 2px;\n                margin-top: 2px;\n                vertical-align: top;\n                transition: width 0.25s;\n            }\n\n            ." + className + " input.ol-hidden {\n                width: 0;\n                margin: 0;\n            }\n            \n            " + positions.join('\n') + "\n        "));
         };
         Input.prototype.collapse = function (options) {
             if (!options.canCollapse)
@@ -3902,12 +4207,12 @@ define("node_modules/ol3-input/index", ["require", "exports", "node_modules/ol3-
     exports.Input = ol3_input_1.Input;
     exports.OsmSearchProvider = osm_2.OpenStreet;
 });
-define("ol3-lab/labs/geocoder", ["require", "exports", "ol3-lab/labs/mapmaker", "node_modules/ol3-input/index"], function (require, exports, MapMaker, index_5) {
+define("ol3-lab/labs/geocoder", ["require", "exports", "ol3-lab/labs/mapmaker", "node_modules/ol3-input/index"], function (require, exports, MapMaker, index_10) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     function run() {
         MapMaker.run().then(function (map) {
-            var searchProvider = new index_5.OsmSearchProvider();
+            var searchProvider = new index_10.OsmSearchProvider();
             var changeHandler = function (args) {
                 if (!args.value)
                     return;
@@ -3942,25 +4247,25 @@ define("ol3-lab/labs/geocoder", ["require", "exports", "ol3-lab/labs/mapmaker", 
                     console.error("geocoder failed");
                 });
             };
-            index_5.Input.create({
+            index_10.Input.create({
                 map: map,
                 closedText: "+",
                 openedText: "−",
                 placeholderText: "Bottom Left Search"
             }).on("change", changeHandler);
-            index_5.Input.create({
+            index_10.Input.create({
                 map: map,
                 position: "bottom right",
                 expanded: true,
                 placeholderText: "Bottom Right Search"
             }).on("change", changeHandler);
-            index_5.Input.create({
+            index_10.Input.create({
                 map: map,
                 position: "top right",
                 expanded: false,
                 placeholderText: "Top Right"
             }).on("change", changeHandler);
-            index_5.Input.create({
+            index_10.Input.create({
                 map: map,
                 position: "top left",
                 expanded: false,
@@ -4134,7 +4439,7 @@ define("ol3-lab/labs/index", ["require", "exports"], function (require, exports)
     exports.run = run;
     ;
 });
-define("node_modules/ol3-draw/ol3-draw/ol3-button", ["require", "exports", "openlayers", "node_modules/ol3-fun/ol3-fun/common", "node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer"], function (require, exports, ol, common_9, ol3_symbolizer_3) {
+define("node_modules/ol3-draw/ol3-draw/ol3-button", ["require", "exports", "openlayers", "node_modules/ol3-fun/index", "node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer"], function (require, exports, ol, index_11, ol3_symbolizer_3) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var Button = (function (_super) {
@@ -4146,7 +4451,7 @@ define("node_modules/ol3-draw/ol3-draw/ol3-button", ["require", "exports", "open
             _this.symbolizer = new ol3_symbolizer_3.StyleConverter();
             _this.cssin();
             options.element.className = options.className + " " + options.position;
-            var button = common_9.html("<input type=\"button\" value=\"" + options.label + "\" />");
+            var button = index_11.html("<input type=\"button\" value=\"" + options.label + "\" />");
             _this.handlers.push(function () { return options.element.remove(); });
             button.title = options.title;
             options.element.appendChild(button);
@@ -4165,9 +4470,9 @@ define("node_modules/ol3-draw/ol3-draw/ol3-button", ["require", "exports", "open
             return _this;
         }
         Button.create = function (options) {
-            options = common_9.mixin(common_9.mixin({}, Button.DEFAULT_OPTIONS), options || {});
+            options = index_11.mixin(index_11.mixin({}, Button.DEFAULT_OPTIONS), options || {});
             options.element = options.element || document.createElement("DIV");
-            var button = new (options.buttonType)(options);
+            var button = new options.buttonType(options);
             if (options.map) {
                 options.map.addControl(button);
             }
@@ -4175,10 +4480,8 @@ define("node_modules/ol3-draw/ol3-draw/ol3-button", ["require", "exports", "open
         };
         Button.prototype.setPosition = function (position) {
             var _this = this;
-            this.options.position.split(' ')
-                .forEach(function (k) { return _this.options.element.classList.remove(k); });
-            position.split(' ')
-                .forEach(function (k) { return _this.options.element.classList.add(k); });
+            this.options.position.split(" ").forEach(function (k) { return _this.options.element.classList.remove(k); });
+            position.split(" ").forEach(function (k) { return _this.options.element.classList.add(k); });
             this.options.position = position;
         };
         Button.prototype.destroy = function () {
@@ -4187,9 +4490,8 @@ define("node_modules/ol3-draw/ol3-draw/ol3-button", ["require", "exports", "open
         };
         Button.prototype.cssin = function () {
             var className = this.options.className;
-            var positions = common_9.pair("top left right bottom".split(" "), common_9.range(24))
-                .map(function (pos) { return "." + className + "." + (pos[0] + (-pos[1] || '')) + " { " + pos[0] + ":" + (0.5 + pos[1]) + "em; }"; });
-            this.handlers.push(common_9.cssin(className, "\n            ." + className + " {\n                position: absolute;\n                background-color: rgba(255,255,255,.4);\n            }\n            ." + className + ".active {\n                background-color: white;\n            }\n            ." + className + ":hover {\n                background-color: white;\n            }\n            ." + className + " input[type=\"button\"] {\n                color: rgba(0,60,136,1);\n                background: transparent;\n                border: none;\n                width: 2em;\n                height: 2em;\n            }\n            " + positions.join('\n') + "\n        "));
+            var positions = index_11.pair("top left right bottom".split(" "), index_11.range(24)).map(function (pos) { return "." + className + "." + (pos[0] + (-pos[1] || "")) + " { " + pos[0] + ":" + (0.5 + pos[1]) + "em; }"; });
+            this.handlers.push(index_11.cssin(className, "\n            ." + className + " {\n                position: absolute;\n                background-color: rgba(255,255,255,.4);\n            }\n            ." + className + ".active {\n                background-color: white;\n            }\n            ." + className + ":hover {\n                background-color: white;\n            }\n            ." + className + " input[type=\"button\"] {\n                color: rgba(0,60,136,1);\n                background: transparent;\n                border: none;\n                width: 2em;\n                height: 2em;\n            }\n            " + positions.join("\n") + "\n        "));
         };
         Button.prototype.setMap = function (map) {
             var options = this.options;
@@ -4212,7 +4514,7 @@ define("node_modules/ol3-draw/ol3-draw/ol3-button", ["require", "exports", "open
     }(ol.control.Control));
     exports.Button = Button;
 });
-define("node_modules/ol3-draw/ol3-draw/ol3-draw", ["require", "exports", "openlayers", "node_modules/ol3-draw/ol3-draw/ol3-button", "node_modules/ol3-fun/ol3-fun/common"], function (require, exports, ol, ol3_button_1, common_10) {
+define("node_modules/ol3-draw/ol3-draw/ol3-draw", ["require", "exports", "openlayers", "node_modules/ol3-draw/ol3-draw/ol3-button", "node_modules/ol3-fun/index"], function (require, exports, ol, ol3_button_1, index_12) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var Draw = (function (_super) {
@@ -4220,11 +4522,13 @@ define("node_modules/ol3-draw/ol3-draw/ol3-draw", ["require", "exports", "openla
         function Draw(options) {
             var _this = _super.call(this, options) || this;
             _this.interactions = {};
-            _this.handlers.push(function () { return Object.keys(_this.interactions).forEach(function (k) {
-                var interaction = _this.interactions[k];
-                interaction.setActive(false);
-                options.map.removeInteraction(interaction);
-            }); });
+            _this.handlers.push(function () {
+                return Object.keys(_this.interactions).forEach(function (k) {
+                    var interaction = _this.interactions[k];
+                    interaction.setActive(false);
+                    options.map.removeInteraction(interaction);
+                });
+            });
             _this.on("change:active", function () {
                 var active = _this.get("active");
                 var interaction = _this.interactions[options.geometryType];
@@ -4250,7 +4554,7 @@ define("node_modules/ol3-draw/ol3-draw/ol3-draw", ["require", "exports", "openla
             return _this;
         }
         Draw.create = function (options) {
-            options = common_10.mixin(common_10.mixin({}, Draw.DEFAULT_OPTIONS), options || {});
+            options = index_12.mixin(index_12.mixin({}, Draw.DEFAULT_OPTIONS), options || {});
             return ol3_button_1.Button.create(options);
         };
         Draw.prototype.createInteraction = function () {
@@ -4268,9 +4572,7 @@ define("node_modules/ol3-draw/ol3-draw/ol3-draw", ["require", "exports", "openla
             ["drawstart", "drawend"].forEach(function (eventName) {
                 draw.on(eventName, function (args) { return _this.dispatchEvent(args); });
             });
-            draw.on("change:active", function () {
-                return _this.options.element.classList.toggle("active", draw.getActive());
-            });
+            draw.on("change:active", function () { return _this.options.element.classList.toggle("active", draw.getActive()); });
             options.map.addInteraction(draw);
             return draw;
         };
@@ -4318,14 +4620,14 @@ define("node_modules/ol3-draw/ol3-draw/ol3-draw", ["require", "exports", "openla
     }(ol3_button_1.Button));
     exports.Draw = Draw;
 });
-define("node_modules/ol3-draw/ol3-draw/ol3-edit", ["require", "exports", "openlayers", "node_modules/ol3-fun/ol3-fun/common", "node_modules/ol3-draw/ol3-draw/ol3-button"], function (require, exports, ol, common_11, ol3_button_2) {
+define("node_modules/ol3-draw/ol3-draw/ol3-edit", ["require", "exports", "openlayers", "node_modules/ol3-fun/index", "node_modules/ol3-draw/ol3-draw/ol3-button"], function (require, exports, ol, index_13, ol3_button_2) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var Modify = (function (_super) {
         __extends(Modify, _super);
         function Modify(options) {
             var _this = _super.call(this, options) || this;
-            var styles = common_11.defaults(options.style, Modify.DEFAULT_OPTIONS.style);
+            var styles = index_13.defaults(options.style, Modify.DEFAULT_OPTIONS.style);
             var select = new ol.interaction.Select({
                 style: function (feature, res) {
                     var featureType = feature.getGeometry().getType();
@@ -4367,8 +4669,9 @@ define("node_modules/ol3-draw/ol3-draw/ol3-edit", ["require", "exports", "openla
                 features: select.getFeatures(),
                 style: function (feature, res) {
                     var featureType = feature.getGeometry().getType();
-                    var style = (options.style[featureType] || Modify.DEFAULT_OPTIONS.style[featureType])
-                        .map(function (s) { return _this.symbolizer.fromJson(s); });
+                    var style = (options.style[featureType] || Modify.DEFAULT_OPTIONS.style[featureType]).map(function (s) {
+                        return _this.symbolizer.fromJson(s);
+                    });
                     return style;
                 }
             });
@@ -4399,7 +4702,7 @@ define("node_modules/ol3-draw/ol3-draw/ol3-edit", ["require", "exports", "openla
             return _this;
         }
         Modify.create = function (options) {
-            options = common_11.defaults({}, options, Modify.DEFAULT_OPTIONS);
+            options = index_13.defaults({}, options, Modify.DEFAULT_OPTIONS);
             return ol3_button_2.Button.create(options);
         };
         Modify.DEFAULT_OPTIONS = {
@@ -4408,7 +4711,8 @@ define("node_modules/ol3-draw/ol3-draw/ol3-edit", ["require", "exports", "openla
             title: "Edit",
             eventName: "modify-feature",
             style: {
-                "Point": [{
+                Point: [
+                    {
                         circle: {
                             radius: 2,
                             fill: {
@@ -4420,8 +4724,10 @@ define("node_modules/ol3-draw/ol3-draw/ol3-edit", ["require", "exports", "openla
                             },
                             opacity: 1
                         }
-                    }],
-                "EditPoints": [{
+                    }
+                ],
+                EditPoints: [
+                    {
                         circle: {
                             radius: 5,
                             fill: {
@@ -4429,14 +4735,18 @@ define("node_modules/ol3-draw/ol3-draw/ol3-edit", ["require", "exports", "openla
                             },
                             opacity: 0.2
                         }
-                    }],
-                "MultiLineString": [{
+                    }
+                ],
+                MultiLineString: [
+                    {
                         stroke: {
                             color: "rgba(0, 0, 0, 0.5)",
                             width: 3
                         }
-                    }],
-                "Circle": [{
+                    }
+                ],
+                Circle: [
+                    {
                         fill: {
                             color: "blue"
                         },
@@ -4444,8 +4754,10 @@ define("node_modules/ol3-draw/ol3-draw/ol3-edit", ["require", "exports", "openla
                             color: "red",
                             width: 2
                         }
-                    }],
-                "Polygon": [{
+                    }
+                ],
+                Polygon: [
+                    {
                         fill: {
                             color: "rgba(0, 0, 0, 0.1)"
                         },
@@ -4453,8 +4765,10 @@ define("node_modules/ol3-draw/ol3-draw/ol3-edit", ["require", "exports", "openla
                             color: "rgba(0, 0, 0, 1)",
                             width: 1
                         }
-                    }],
-                "MultiPolygon": [{
+                    }
+                ],
+                MultiPolygon: [
+                    {
                         fill: {
                             color: "rgba(0, 0, 0, 0.1)"
                         },
@@ -4462,7 +4776,8 @@ define("node_modules/ol3-draw/ol3-draw/ol3-edit", ["require", "exports", "openla
                             color: "rgba(0, 0, 0, 1)",
                             width: 1
                         }
-                    }]
+                    }
+                ]
             },
             buttonType: Modify
         };
@@ -4470,16 +4785,16 @@ define("node_modules/ol3-draw/ol3-draw/ol3-edit", ["require", "exports", "openla
     }(ol3_button_2.Button));
     exports.Modify = Modify;
 });
-define("ol3-lab/labs/common/map-maker", ["require", "exports", "openlayers", "node_modules/ol3-fun/ol3-fun/common"], function (require, exports, ol, common_12) {
+define("ol3-lab/labs/common/map-maker", ["require", "exports", "openlayers", "node_modules/ol3-fun/index"], function (require, exports, ol, index_14) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var MapMaker = (function () {
         function MapMaker() {
         }
         MapMaker.create = function (options) {
-            options = common_12.mixin(common_12.mixin({}, MapMaker.DEFAULT_OPTIONS), options);
+            options = index_14.mixin(index_14.mixin({}, MapMaker.DEFAULT_OPTIONS), options);
             options.target.classList.add("ol-map");
-            common_12.cssin("mapmaker", "\n        .ol-map {\n            top: 0;\n            left: 0;\n            right: 0;\n            bottom:0;\n            position: absolute;\n        }\n        ");
+            index_14.cssin("mapmaker", "\n        .ol-map {\n            top: 0;\n            left: 0;\n            right: 0;\n            bottom:0;\n            position: absolute;\n        }\n        ");
             var map = new ol.Map({
                 target: options.target,
                 keyboardEventTarget: document,
@@ -4518,7 +4833,7 @@ define("ol3-lab/labs/common/map-maker", ["require", "exports", "openlayers", "no
     }());
     exports.MapMaker = MapMaker;
 });
-define("ol3-lab/labs/ol-draw", ["require", "exports", "openlayers", "node_modules/ol3-fun/ol3-fun/common", "node_modules/ol3-draw/ol3-draw/ol3-draw", "node_modules/ol3-draw/ol3-draw/ol3-edit", "ol3-lab/labs/common/map-maker"], function (require, exports, ol, common_13, ol3_draw_1, ol3_edit_1, map_maker_1) {
+define("ol3-lab/labs/ol-draw", ["require", "exports", "openlayers", "node_modules/ol3-fun/index", "node_modules/ol3-draw/ol3-draw/ol3-draw", "node_modules/ol3-draw/ol3-draw/ol3-edit", "ol3-lab/labs/common/map-maker"], function (require, exports, ol, index_15, ol3_draw_1, ol3_edit_1, map_maker_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     function stopInteraction(map, type) {
@@ -4551,14 +4866,14 @@ define("ol3-lab/labs/ol-draw", ["require", "exports", "openlayers", "node_module
         {
             var element_1 = document.createElement("div");
             element_1.className = "gmlOut";
-            common_13.cssin("gmlOut", "\n.myMousePos {\n    position:absolute;\n    top: auto;\n    left: auto;\n    bottom: 0;\n    right: 0;    \n}\n.gmlOut {\n    position: absolute;\n    bottom: 0;\n    left: 20%;\n    width: 60%;\n    height: 200px;\n    border: 1px solid black;\n    overflow-y: auto;\n    overflow-x: auto;\n    font-size: 12px;\n    font-family: monospace;\n    background: rgba(160, 160, 60, 0.5);\n}        \n        ");
+            index_15.cssin("gmlOut", "\n.myMousePos {\n    position:absolute;\n    top: auto;\n    left: auto;\n    bottom: 0;\n    right: 0;    \n}\n.gmlOut {\n    position: absolute;\n    bottom: 0;\n    left: 20%;\n    width: 60%;\n    height: 200px;\n    border: 1px solid black;\n    overflow-y: auto;\n    overflow-x: auto;\n    font-size: 12px;\n    font-family: monospace;\n    background: rgba(160, 160, 60, 0.5);\n}        \n        ");
             var esriFormatter_1 = new ol.format.EsriJSON({
                 geometryName: "geom"
             });
             var kmlFormatter = new ol.format.KML({});
             var gmlOut = new ol.control.Control({
                 element: element_1,
-                render: common_13.debounce(function (args) {
+                render: index_15.debounce(function (args) {
                     console.log(args.map.getView().getCenter());
                     polyLayer.getSource().forEachFeature(function (f) {
                         element_1.innerText = esriFormatter_1.writeFeatures([f.clone()], {
@@ -4640,10 +4955,10 @@ define("node_modules/ol3-fun/ol3-fun/snapshot", ["require", "exports", "openlaye
             var _b = [ol.extent.getWidth(extent), ol.extent.getHeight(extent)], w = _b[0], h = _b[1];
             var isPoint = w === 0 || h === 0;
             var ff = 1 / (window.devicePixelRatio || 1);
-            var scale = isPoint ? 1 : Math.min(ff * canvas.width / w, ff * canvas.height / h);
+            var scale = isPoint ? 1 : Math.min((ff * canvas.width) / w, (ff * canvas.height) / h);
             geom.translate(-cx, -cy);
             geom.scale(scale, -scale);
-            geom.translate(Math.ceil(ff * canvas.width / 2), Math.ceil(ff * canvas.height / 2));
+            geom.translate(Math.ceil((ff * canvas.width) / 2), Math.ceil((ff * canvas.height) / 2));
             console.log(scale, cx, cy, w, h, geom.getCoordinates());
             var vtx = ol.render.toContext(canvas.getContext("2d"));
             var styles = getStyle(feature);
@@ -4662,7 +4977,7 @@ define("node_modules/ol3-fun/ol3-fun/snapshot", ["require", "exports", "openlaye
     }());
     return Snapshot;
 });
-define("node_modules/ol3-grid/ol3-grid/ol3-grid", ["require", "exports", "openlayers", "node_modules/ol3-fun/index", "node_modules/ol3-fun/ol3-fun/snapshot", "node_modules/ol3-fun/ol3-fun/navigation"], function (require, exports, ol, index_6, Snapshot, navigation_3) {
+define("node_modules/ol3-grid/ol3-grid/ol3-grid", ["require", "exports", "openlayers", "node_modules/ol3-fun/index", "node_modules/ol3-fun/ol3-fun/snapshot", "node_modules/ol3-fun/ol3-fun/navigation"], function (require, exports, ol, index_16, Snapshot, navigation_3) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var grid_html = "\n<div class='ol-grid-container'>\n    <table class='ol-grid-table'>\n        <tbody><tr><td/></tr></tbody>\n    </table>\n</div>\n";
@@ -4701,7 +5016,7 @@ define("node_modules/ol3-grid/ol3-grid/ol3-grid", ["require", "exports", "openla
             if (options.hideButton) {
                 button.style.display = "none";
             }
-            var grid = index_6.html(grid_html.trim());
+            var grid = index_16.html(grid_html.trim());
             _this.grid = grid.getElementsByClassName("ol-grid-table")[0];
             options.element.appendChild(grid);
             if (_this.options.autoCollapse) {
@@ -4719,11 +5034,11 @@ define("node_modules/ol3-grid/ol3-grid/ol3-grid", ["require", "exports", "openla
                 options.expanded ? _this.collapse() : _this.expand();
             });
             options.expanded ? _this.expand() : _this.collapse();
-            _this.features.on(["addfeature", "addfeatures"], index_6.debounce(function () { return _this.redraw(); }));
+            _this.features.on(["addfeature", "addfeatures"], index_16.debounce(function () { return _this.redraw(); }));
             if (_this.options.currentExtent) {
                 if (!_this.options.map)
                     throw "must provide a map when currentExtent is true";
-                _this.options.map.getView().on(["change:center", "change:resolution"], index_6.debounce(function () { return _this.redraw(); }));
+                _this.options.map.getView().on(["change:center", "change:resolution"], index_16.debounce(function () { return _this.redraw(); }));
             }
             if (_this.options.layers) {
                 _this.options.layers.forEach(function (l) {
@@ -4739,13 +5054,13 @@ define("node_modules/ol3-grid/ol3-grid/ol3-grid", ["require", "exports", "openla
             return _this;
         }
         Grid.create = function (options) {
-            options = index_6.defaults(index_6.mixin({
+            options = index_16.defaults(index_16.mixin({
                 openedText: (options && options.position && -1 < options.position.indexOf("left")) ? expando.left : expando.right,
                 closedText: (options && options.position && -1 < options.position.indexOf("left")) ? expando.right : expando.left,
             }, options || {}), Grid.DEFAULT_OPTIONS);
             var element = document.createElement('div');
             element.className = options.className + " " + options.position + " " + olcss.CLASS_UNSELECTABLE + " " + olcss.CLASS_CONTROL;
-            var gridOptions = index_6.mixin({
+            var gridOptions = index_16.mixin({
                 map: options.map,
                 element: element,
                 expanded: false
@@ -4771,9 +5086,9 @@ define("node_modules/ol3-grid/ol3-grid/ol3-grid", ["require", "exports", "openla
         };
         Grid.prototype.cssin = function () {
             var className = this.options.className;
-            var positions = index_6.pair("top left right bottom".split(" "), index_6.range(24))
+            var positions = index_16.pair("top left right bottom".split(" "), index_16.range(24))
                 .map(function (pos) { return "." + className + "." + (pos[0] + (-pos[1] || '')) + " { " + pos[0] + ":" + (0.5 + pos[1]) + "em; }"; });
-            this.handlers.push(index_6.cssin(className, "\n." + className + " {\n    position: absolute;\n}\n." + className + " ." + className + "-container {\n    max-height: 16em;\n    overflow-y: auto;\n}\n." + className + " ." + className + "-container.ol-hidden {\n    display: none;\n}\n." + className + " .feature-row {\n    cursor: pointer;\n}\n." + className + " .feature-row:hover {\n    background: black;\n    color: white;\n}\n." + className + " .feature-row:focus {\n    background: #ccc;\n    color: black;\n}\n" + positions.join('\n') + "\n"));
+            this.handlers.push(index_16.cssin(className, "\n." + className + " {\n    position: absolute;\n}\n." + className + " ." + className + "-container {\n    max-height: 16em;\n    overflow-y: auto;\n}\n." + className + " ." + className + "-container.ol-hidden {\n    display: none;\n}\n." + className + " .feature-row {\n    cursor: pointer;\n}\n." + className + " .feature-row:hover {\n    background: black;\n    color: white;\n}\n." + className + " .feature-row:focus {\n    background: #ccc;\n    color: black;\n}\n" + positions.join('\n') + "\n"));
         };
         Grid.prototype.redraw = function () {
             var _this = this;
@@ -4808,7 +5123,7 @@ define("node_modules/ol3-grid/ol3-grid/ol3-grid", ["require", "exports", "openla
                 }
                 if (_this.options.labelAttributeName) {
                     var td = document.createElement("td");
-                    var label = index_6.html("<label class=\"label\">" + feature.get(_this.options.labelAttributeName) + "</label>");
+                    var label = index_16.html("<label class=\"label\">" + feature.get(_this.options.labelAttributeName) + "</label>");
                     td.appendChild(label);
                     tr.appendChild(td);
                 }
@@ -4842,7 +5157,7 @@ define("node_modules/ol3-grid/ol3-grid/ol3-grid", ["require", "exports", "openla
                 var originalFeature_1 = feature;
                 feature = originalFeature_1.clone();
                 feature.setStyle(style);
-                originalFeature_1.on("change", index_6.debounce(function () {
+                originalFeature_1.on("change", index_16.debounce(function () {
                     feature.setGeometry(originalFeature_1.getGeometry());
                     _this.redraw();
                 }));
@@ -4904,7 +5219,7 @@ define("node_modules/ol3-grid/index", ["require", "exports", "node_modules/ol3-g
     "use strict";
     return Grid;
 });
-define("ol3-lab/labs/ol-grid", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/common/common", "node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", "node_modules/ol3-symbolizer/examples/styles/star/flower", "node_modules/ol3-popup/index", "node_modules/ol3-grid/index", "ol3-lab/labs/common/map-maker"], function (require, exports, $, ol, common_14, ol3_symbolizer_4, pointStyle, index_7, index_8, map_maker_2) {
+define("ol3-lab/labs/ol-grid", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/common/common", "node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", "node_modules/ol3-symbolizer/examples/styles/star/flower", "node_modules/ol3-popup/index", "node_modules/ol3-grid/index", "ol3-lab/labs/common/map-maker"], function (require, exports, $, ol, common_6, ol3_symbolizer_4, pointStyle, index_17, index_18, map_maker_2) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var styler = new ol3_symbolizer_4.StyleConverter();
@@ -4942,7 +5257,7 @@ define("ol3-lab/labs/ol-grid", ["require", "exports", "jquery", "openlayers", "o
         {
             var opts_5 = options;
             Object.keys(opts_5).forEach(function (k) {
-                common_14.doif(common_14.getParameterByName(k), function (v) {
+                common_6.doif(common_6.getParameterByName(k), function (v) {
                     var value = parse(v, opts_5[k]);
                     if (value !== undefined)
                         opts_5[k] = value;
@@ -4964,7 +5279,7 @@ define("ol3-lab/labs/ol-grid", ["require", "exports", "jquery", "openlayers", "o
             source: source
         });
         map.addLayer(layer);
-        var popup = index_7.Popup.create({
+        var popup = index_17.Popup.create({
             map: map,
             dockContainer: $(".popup-container")[0],
             pointerPosition: 10,
@@ -4991,13 +5306,13 @@ define("ol3-lab/labs/ol-grid", ["require", "exports", "jquery", "openlayers", "o
             source.addFeature(feature);
             setTimeout(function () { return popup.show(event.coordinate, "<div>You clicked on " + location + "</div>"); }, 50);
         });
-        var grid = index_8.Grid.create({
+        var grid = index_18.Grid.create({
             currentExtent: false,
             labelAttributeName: "text",
             map: map,
             layers: [layer]
         });
-        index_8.Grid.create({
+        index_18.Grid.create({
             map: map,
             className: "ol-grid",
             position: "top left-2",
@@ -5007,7 +5322,7 @@ define("ol3-lab/labs/ol-grid", ["require", "exports", "jquery", "openlayers", "o
             showIcon: true,
             layers: [layer]
         });
-        index_8.Grid.create({
+        index_18.Grid.create({
             map: map,
             className: "ol-grid",
             position: "bottom left",
@@ -5021,7 +5336,7 @@ define("ol3-lab/labs/ol-grid", ["require", "exports", "jquery", "openlayers", "o
             labelAttributeName: "",
             layers: [layer]
         });
-        index_8.Grid.create({
+        index_18.Grid.create({
             map: map,
             className: "ol-grid",
             position: "bottom right",
@@ -5032,7 +5347,7 @@ define("ol3-lab/labs/ol-grid", ["require", "exports", "jquery", "openlayers", "o
         });
         map.getControls()
             .getArray()
-            .filter(function (c) { return c instanceof index_8.Grid; })
+            .filter(function (c) { return c instanceof index_18.Grid; })
             .forEach(function (grid) {
             return grid.on("feature-click", function (args) {
                 var center = args.feature.getGeometry().getClosestPoint(map.getView().getCenter());
@@ -5109,7 +5424,7 @@ define("ol3-lab/labs/ol-hidden-fit", ["require", "exports", "openlayers"], funct
     }
     exports.run = run;
 });
-define("ol3-lab/labs/ol-input", ["require", "exports", "openlayers", "jquery", "node_modules/ol3-input/ol3-input/ol3-input", "node_modules/ol3-input/ol3-input/providers/osm", "node_modules/ol3-fun/index", "node_modules/ol3-symbolizer/ol3-symbolizer/ags/ags-source"], function (require, exports, ol, $, ol3_input_2, osm_3, index_9, ags_source_2) {
+define("ol3-lab/labs/ol-input", ["require", "exports", "openlayers", "jquery", "node_modules/ol3-input/ol3-input/ol3-input", "node_modules/ol3-input/ol3-input/providers/osm", "node_modules/ol3-fun/index", "node_modules/ol3-symbolizer/ol3-symbolizer/ags/ags-source"], function (require, exports, ol, $, ol3_input_2, osm_3, index_19, ags_source_2) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var css = "\nhtml,body,.map {\n    position: absolute;\n    top: 0;\n    bottom: 0;\n    left: 0;\n    right: 0;\n}\n\n.ol-input input {\n    height: 1.75em !important;\n}\n\n.ol-input.statecode > input {\n    text-transform: uppercase;\n    width: 2em;\n    text-align: center;\n}\n";
@@ -5128,7 +5443,7 @@ define("ol3-lab/labs/ol-input", ["require", "exports", "openlayers", "jquery", "
         })
     });
     function run() {
-        index_9.cssin("examples/ol3-input", css);
+        index_19.cssin("examples/ol3-input", css);
         var searchProvider = new osm_3.OpenStreet();
         var center = ol.proj.transform([-85, 35], "EPSG:4326", "EPSG:3857");
         var mapContainer = document.getElementsByClassName("map")[0];
@@ -5178,7 +5493,7 @@ define("ol3-lab/labs/ol-input", ["require", "exports", "openlayers", "jquery", "
                         }
                     });
                     if (feature) {
-                        index_9.navigation.zoomToFeature(map, feature);
+                        index_19.navigation.zoomToFeature(map, feature);
                     }
                     else {
                         changeHandler({ value: value });
@@ -5226,14 +5541,14 @@ define("ol3-lab/labs/ol-input", ["require", "exports", "openlayers", "jquery", "
                         ]));
                         feature.set("text", r.original.display_name);
                         source.addFeature(feature);
-                        index_9.navigation.zoomToFeature(map, feature);
+                        index_19.navigation.zoomToFeature(map, feature);
                     }
                     else {
                         var _d = ol.proj.transform([r.lon, r.lat], "EPSG:4326", "EPSG:3857"), lon = _d[0], lat = _d[1];
                         var feature = new ol.Feature(new ol.geom.Point([lon, lat]));
                         feature.set("text", r.original.display_name);
                         source.addFeature(feature);
-                        index_9.navigation.zoomToFeature(map, feature);
+                        index_19.navigation.zoomToFeature(map, feature);
                     }
                     return true;
                 });
@@ -5295,7 +5610,7 @@ define("node_modules/ol3-panzoom/ol3-panzoom/zoomslidercontrol", ["require", "ex
     }(ol.control.ZoomSlider));
     return ZoomSlider;
 });
-define("node_modules/ol3-panzoom/ol3-panzoom/ol3-panzoom", ["require", "exports", "openlayers", "node_modules/ol3-panzoom/ol3-panzoom/zoomslidercontrol", "node_modules/ol3-fun/index"], function (require, exports, ol, ZoomSlider, index_10) {
+define("node_modules/ol3-panzoom/ol3-panzoom/ol3-panzoom", ["require", "exports", "openlayers", "node_modules/ol3-panzoom/ol3-panzoom/zoomslidercontrol", "node_modules/ol3-fun/index"], function (require, exports, ol, ZoomSlider, index_20) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     function on(element, event, listener) {
@@ -5318,12 +5633,12 @@ define("node_modules/ol3-panzoom/ol3-panzoom/ol3-panzoom", ["require", "exports"
         function PanZoom(options) {
             if (options === void 0) { options = DEFAULT_OPTIONS; }
             var _this = this;
-            options = index_10.defaults({}, options, DEFAULT_OPTIONS);
+            options = index_20.defaults({}, options, DEFAULT_OPTIONS);
             _this = _super.call(this, options) || this;
             _this.options = options;
-            index_10.cssin("ol3-panzoom", ".ol-panzoom {\n\t\t\t\ttop: 0.5em;\n\t\t\t\tleft: 0.5em;\n\t\t\t\tbackground-color: transparent;\n\t\t\t}\n\t\t\t.ol-panzoom:hover {\n\t\t\t\tbackground-color: transparent;\n\t\t\t}\n\t\t\t.ol-panzoom .action {\n\t\t\t\tposition:absolute;\n\t\t\t\twidth:18px;\n\t\t\t\theight:18px;\n\t\t\t\tcursor:pointer;\t\n\t\t\t\tbackground-position: center;\n\t\t\t\tbackground-repeat: no-repeat;\n\t\t\t}\n\t\t\t.ol-panzoom .action.pan.west {\n\t\t\t\ttop: 22px;\n\t\t\t\tleft: 4px;\n\t\t\t}\n\t\t\t.ol-panzoom .action.pan.east {\n\t\t\t\ttop: 22px;\n\t\t\t\tleft: 22px;\n\t\t\t}\n\t\t\t.ol-panzoom .action.pan.north {\n\t\t\t\ttop: 4px;\n\t\t\t\tleft: 13px;\n\t\t\t}\n\t\t\t.ol-panzoom .action.pan.south {\n\t\t\t\ttop: 40px;\n\t\t\t\tleft: 13px;\n\t\t\t}\n\t\t\t.ol-panzoom .action.zoom.in {\n\t\t\t\ttop: 63px;\n\t\t\t\tleft: 13px;\n\t\t\t}\n\t\t\t.ol-panzoom .action img {\n\t\t\t\twidth:18px;\n\t\t\t\theight:18px;\n\t\t\t\tvertical-align:top;\n\t\t\t}\n\t\t\t.ol-panzoom .ol-zoomslider {\n\t\t\t\tborder:0;\n\t\t\t\tborderRadius:0;\n\t\t\t\tleft :13px;\n\t\t\t\tpadding:0;\n\t\t\t\ttop:81px;\n\t\t\t\twidth:18px\";\n\t\t\t}\n\t\t\t.ol-panzoom .ol-zoomslider .ol-zoomslider-thumb {\n\t\t\t\tborder:none;\n\t\t\t\theight:9px;\n\t\t\t\tmargin:0 -1px;\n\t\t\t\twidth:20px;\n\t\t\t}\n\t\t\t.ol-panzoom .action.zoom.out {\n\t\t\t\ttop: " + (_this.options.slider ? _this.getSliderSize() + 81 : _this.options.maxExtent ? 99 : 81) + "px;\n\t\t\t\tleft: 13px;\n\t\t\t}\n\t\t\t.ol-panzoom .action.zoom.max {\n\t\t\t\ttop:81px;\n\t\t\t\tleft:13px;\n\t\t\t}\n\t\t\t");
+            index_20.cssin("ol3-panzoom", ".ol-panzoom {\n\t\t\t\ttop: 0.5em;\n\t\t\t\tleft: 0.5em;\n\t\t\t\tbackground-color: transparent;\n\t\t\t}\n\t\t\t.ol-panzoom:hover {\n\t\t\t\tbackground-color: transparent;\n\t\t\t}\n\t\t\t.ol-panzoom .action {\n\t\t\t\tposition:absolute;\n\t\t\t\twidth:18px;\n\t\t\t\theight:18px;\n\t\t\t\tcursor:pointer;\t\n\t\t\t\tbackground-position: center;\n\t\t\t\tbackground-repeat: no-repeat;\n\t\t\t}\n\t\t\t.ol-panzoom .action.pan.west {\n\t\t\t\ttop: 22px;\n\t\t\t\tleft: 4px;\n\t\t\t}\n\t\t\t.ol-panzoom .action.pan.east {\n\t\t\t\ttop: 22px;\n\t\t\t\tleft: 22px;\n\t\t\t}\n\t\t\t.ol-panzoom .action.pan.north {\n\t\t\t\ttop: 4px;\n\t\t\t\tleft: 13px;\n\t\t\t}\n\t\t\t.ol-panzoom .action.pan.south {\n\t\t\t\ttop: 40px;\n\t\t\t\tleft: 13px;\n\t\t\t}\n\t\t\t.ol-panzoom .action.zoom.in {\n\t\t\t\ttop: 63px;\n\t\t\t\tleft: 13px;\n\t\t\t}\n\t\t\t.ol-panzoom .action img {\n\t\t\t\twidth:18px;\n\t\t\t\theight:18px;\n\t\t\t\tvertical-align:top;\n\t\t\t}\n\t\t\t.ol-panzoom .ol-zoomslider {\n\t\t\t\tborder:0;\n\t\t\t\tborderRadius:0;\n\t\t\t\tleft :13px;\n\t\t\t\tpadding:0;\n\t\t\t\ttop:81px;\n\t\t\t\twidth:18px\";\n\t\t\t}\n\t\t\t.ol-panzoom .ol-zoomslider .ol-zoomslider-thumb {\n\t\t\t\tborder:none;\n\t\t\t\theight:9px;\n\t\t\t\tmargin:0 -1px;\n\t\t\t\twidth:20px;\n\t\t\t}\n\t\t\t.ol-panzoom .action.zoom.out {\n\t\t\t\ttop: " + (_this.options.slider ? _this.getSliderSize() + 81 : _this.options.maxExtent ? 99 : 81) + "px;\n\t\t\t\tleft: 13px;\n\t\t\t}\n\t\t\t.ol-panzoom .action.zoom.max {\n\t\t\t\ttop:81px;\n\t\t\t\tleft:13px;\n\t\t\t}\n\t\t\t");
             ["ol2img", "zoombar_black"].forEach(function (theme) {
-                return index_10.cssin("ol2-popup-" + theme, ".ol-panzoom." + theme + " .action.pan.north {\n\t\t\tbackground-image:url(" + _this.options.imgPath + "/" + theme + "/north-mini.png);\n\t\t}\n\t\t.ol-panzoom." + theme + " .action.pan.south {\n\t\t\tbackground-image:url(" + _this.options.imgPath + "/" + theme + "/south-mini.png);\n\t\t}\n\t\t.ol-panzoom." + theme + " .action.pan.west {\n\t\t\tbackground-image:url(" + _this.options.imgPath + "/" + theme + "/west-mini.png);\n\t\t}\n\t\t.ol-panzoom." + theme + " .action.pan.east {\n\t\t\tbackground-image:url(" + _this.options.imgPath + "/" + theme + "/east-mini.png);\n\t\t}\n\t\t.ol-panzoom." + theme + " .action.zoom.in {\n\t\t\tbackground-image:url(" + _this.options.imgPath + "/" + theme + "/zoom-plus-mini.png);\n\t\t}\n\t\t.ol-panzoom." + theme + " .action.zoom.out {\n\t\t\tbackground-image:url(" + _this.options.imgPath + "/" + theme + "/zoom-minus-mini.png);\n\t\t}\n\t\t.ol-panzoom." + theme + " .action.zoom.max {\n\t\t\tbackground-image:url(" + _this.options.imgPath + "/" + theme + "/zoom-world-mini.png);\n\t\t}\n\t\t.ol-panzoom." + theme + " .ol-zoomslider {\n\t\t\tbackground: url(" + _this.options.imgPath + "/" + theme + "/zoombar.png);\n\t\t}\n\t\t.ol-panzoom." + theme + " .ol-zoomslider .ol-zoomslider-thumb {\n\t\t\tbackground:url(" + _this.options.imgPath + "/" + theme + "/slider.png);\n\t\t}\n");
+                return index_20.cssin("ol2-popup-" + theme, ".ol-panzoom." + theme + " .action.pan.north {\n\t\t\tbackground-image:url(" + _this.options.imgPath + "/" + theme + "/north-mini.png);\n\t\t}\n\t\t.ol-panzoom." + theme + " .action.pan.south {\n\t\t\tbackground-image:url(" + _this.options.imgPath + "/" + theme + "/south-mini.png);\n\t\t}\n\t\t.ol-panzoom." + theme + " .action.pan.west {\n\t\t\tbackground-image:url(" + _this.options.imgPath + "/" + theme + "/west-mini.png);\n\t\t}\n\t\t.ol-panzoom." + theme + " .action.pan.east {\n\t\t\tbackground-image:url(" + _this.options.imgPath + "/" + theme + "/east-mini.png);\n\t\t}\n\t\t.ol-panzoom." + theme + " .action.zoom.in {\n\t\t\tbackground-image:url(" + _this.options.imgPath + "/" + theme + "/zoom-plus-mini.png);\n\t\t}\n\t\t.ol-panzoom." + theme + " .action.zoom.out {\n\t\t\tbackground-image:url(" + _this.options.imgPath + "/" + theme + "/zoom-minus-mini.png);\n\t\t}\n\t\t.ol-panzoom." + theme + " .action.zoom.max {\n\t\t\tbackground-image:url(" + _this.options.imgPath + "/" + theme + "/zoom-world-mini.png);\n\t\t}\n\t\t.ol-panzoom." + theme + " .ol-zoomslider {\n\t\t\tbackground: url(" + _this.options.imgPath + "/" + theme + "/zoombar.png);\n\t\t}\n\t\t.ol-panzoom." + theme + " .ol-zoomslider .ol-zoomslider-thumb {\n\t\t\tbackground:url(" + _this.options.imgPath + "/" + theme + "/slider.png);\n\t\t}\n");
             });
             _this.createUx();
             return _this;
@@ -5509,7 +5824,7 @@ define("node_modules/ol3-panzoom/index", ["require", "exports", "node_modules/ol
     "use strict";
     return Panzoom;
 });
-define("ol3-lab/labs/ol-layerswitcher", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/common/common", "node_modules/ol3-layerswitcher/index", "node_modules/ol3-popup/index", "node_modules/ol3-panzoom/index", "node_modules/ol3-symbolizer/ol3-symbolizer/ags/ags-source"], function (require, exports, $, ol, common_15, index_11, index_12, index_13, ags_source_3) {
+define("ol3-lab/labs/ol-layerswitcher", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/common/common", "node_modules/ol3-layerswitcher/index", "node_modules/ol3-popup/index", "node_modules/ol3-panzoom/index", "node_modules/ol3-symbolizer/ol3-symbolizer/ags/ags-source"], function (require, exports, $, ol, common_7, index_21, index_22, index_23, ags_source_3) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     function loadCss(url) {
@@ -5541,7 +5856,6 @@ define("ol3-lab/labs/ol-layerswitcher", ["require", "exports", "jquery", "openla
     function run() {
         $(html).appendTo(".map");
         $(css).appendTo("head");
-        loadCss("../static/css/ol3-layerswitcher.css");
         loadCss("../static/css/ol3-popup.css");
         var options = {
             srs: "EPSG:4326",
@@ -5551,7 +5865,7 @@ define("ol3-lab/labs/ol-layerswitcher", ["require", "exports", "jquery", "openla
         {
             var opts_6 = options;
             Object.keys(opts_6).forEach(function (k) {
-                common_15.doif(common_15.getParameterByName(k), function (v) {
+                common_7.doif(common_7.getParameterByName(k), function (v) {
                     var value = parse(v, opts_6[k]);
                     if (value !== undefined)
                         opts_6[k] = value;
@@ -5569,7 +5883,7 @@ define("ol3-lab/labs/ol-layerswitcher", ["require", "exports", "jquery", "openla
                 zoom: false
             })
                 .extend([
-                new index_13.PanZoom({
+                new index_23.PanZoom({
                     minZoom: 5,
                     maxZoom: 21,
                     imgPath: "https://raw.githubusercontent.com/ca0v/ol3-panzoom/master/ol3-panzoom/resources/zoombar_black",
@@ -5615,9 +5929,8 @@ define("ol3-lab/labs/ol-layerswitcher", ["require", "exports", "jquery", "openla
                 agsLayer.setVisible(false);
                 map.addLayer(agsLayer);
             });
-            var layerSwitcher = new index_11.LayerSwitcher({});
-            layerSwitcher.setMap(map);
-            var popup = index_12.Popup.create({
+            var layerSwitcher = index_21.LayerSwitcher.create({ map: map });
+            var popup = index_22.Popup.create({
                 map: map,
                 css: "\n            .ol-popup {\n                background-color: white;\n            }\n            .ol-popup .page {\n                max-height: 200px;\n                overflow-y: auto;\n            }\n            "
             });
@@ -5650,11 +5963,11 @@ define("ol3-lab/labs/ol-layerswitcher", ["require", "exports", "jquery", "openla
     }
     exports.run = run;
 });
-define("ol3-lab/labs/ol-panzoom", ["require", "exports", "openlayers", "node_modules/ol3-panzoom/index"], function (require, exports, ol, index_14) {
+define("ol3-lab/labs/ol-panzoom", ["require", "exports", "openlayers", "node_modules/ol3-panzoom/index"], function (require, exports, ol, index_24) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     function run() {
-        var panZoom = new index_14.PanZoom({
+        var panZoom = new index_24.PanZoom({
             imgPath: "../static/css/ol2img"
         });
         var map = new ol.Map({
@@ -5677,7 +5990,7 @@ define("ol3-lab/labs/ol-panzoom", ["require", "exports", "openlayers", "node_mod
     }
     exports.run = run;
 });
-define("ol3-lab/labs/ol-popup", ["require", "exports", "openlayers", "ol3-lab/labs/common/common", "node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", "node_modules/ol3-symbolizer/examples/styles/star/flower", "node_modules/ol3-popup/index"], function (require, exports, ol, common_16, ol3_symbolizer_5, pointStyle, index_15) {
+define("ol3-lab/labs/ol-popup", ["require", "exports", "openlayers", "ol3-lab/labs/common/common", "node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", "node_modules/ol3-symbolizer/examples/styles/star/flower", "node_modules/ol3-popup/index"], function (require, exports, ol, common_8, ol3_symbolizer_5, pointStyle, index_25) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var styler = new ol3_symbolizer_5.StyleConverter();
@@ -5705,8 +6018,8 @@ define("ol3-lab/labs/ol-popup", ["require", "exports", "openlayers", "ol3-lab/la
     var css_popup = "\n.ol-popup {\n    color: white;\n    background-color: rgba(77,77,77,1);\n    border: 1px solid white;\n    min-width: 200px;\n    padding: 12px;\n}\n\n.ol-popup:after {\n    border-top-color: white;\n}\n\n.simple-popup-down-arrow {\n    color: rgba(77,77,77,1);\n}\n\n.simple-popup-up-arrow {\n    color: white;\n}\n";
     function run() {
         var mapDom = document.getElementById("map");
-        mapDom.appendChild(common_16.html(html));
-        common_16.cssin("ol-popup", css);
+        mapDom.appendChild(common_8.html(html));
+        common_8.cssin("ol-popup", css);
         var options = {
             srs: "EPSG:4326",
             center: [-82.4, 34.85],
@@ -5716,7 +6029,7 @@ define("ol3-lab/labs/ol-popup", ["require", "exports", "openlayers", "ol3-lab/la
         {
             var opts_7 = options;
             Object.keys(opts_7).forEach(function (k) {
-                common_16.doif(common_16.getParameterByName(k), function (v) {
+                common_8.doif(common_8.getParameterByName(k), function (v) {
                     var value = parse(v, opts_7[k]);
                     if (value !== undefined)
                         opts_7[k] = value;
@@ -5754,7 +6067,7 @@ define("ol3-lab/labs/ol-popup", ["require", "exports", "openlayers", "ol3-lab/la
             source: source
         });
         map.addLayer(layer);
-        var popup = index_15.Popup.create({
+        var popup = index_25.Popup.create({
             dockContainer: document.getElementsByClassName("popup-container").item(0),
             autoPositioning: true,
             pointerPosition: 20,
@@ -5785,7 +6098,7 @@ define("ol3-lab/labs/ol-popup", ["require", "exports", "openlayers", "ol3-lab/la
     }
     exports.run = run;
 });
-define("node_modules/ol3-search/ol3-search/ol3-search", ["require", "exports", "openlayers", "node_modules/ol3-fun/index"], function (require, exports, ol, index_16) {
+define("node_modules/ol3-search/ol3-search/ol3-search", ["require", "exports", "openlayers", "node_modules/ol3-fun/index"], function (require, exports, ol, index_26) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var olcss = {
@@ -5835,7 +6148,7 @@ define("node_modules/ol3-search/ol3-search/ol3-search", ["require", "exports", "
             if (options.hideButton) {
                 button.style.display = "none";
             }
-            var form = _this.form = index_16.html(("\n        <form>\n            " + (options.title ? "<label class=\"title\">" + options.title + "</label>" : "") + "\n            <section class=\"header\"></section>\n            <section class=\"body\">\n            <table class=\"fields\">\n            " + (options.showLabels ? "<thead><tr><td>Field</td><td>Value</td></tr></thead>" : "") + "\n                <tbody>\n                    <tr><td>Field</td><td>Value</td></tr>\n                </tbody>\n            </table>\n            </section>\n            <section class=\"footer\"></section>\n        </form>\n        ").trim());
+            var form = _this.form = index_26.html(("\n        <form>\n            " + (options.title ? "<label class=\"title\">" + options.title + "</label>" : "") + "\n            <section class=\"header\"></section>\n            <section class=\"body\">\n            <table class=\"fields\">\n            " + (options.showLabels ? "<thead><tr><td>Field</td><td>Value</td></tr></thead>" : "") + "\n                <tbody>\n                    <tr><td>Field</td><td>Value</td></tr>\n                </tbody>\n            </table>\n            </section>\n            <section class=\"footer\"></section>\n        </form>\n        ").trim());
             options.element.appendChild(form);
             {
                 var body_1 = form.getElementsByTagName("tbody")[0];
@@ -5871,17 +6184,17 @@ define("node_modules/ol3-search/ol3-search/ol3-search", ["require", "exports", "
                     else {
                         switch (field.type) {
                             case "boolean":
-                                input = index_16.html("<input class=\"input " + field.name + "\" name=\"" + field.name + "\" type=\"checkbox\" " + (field.default ? "checked" : "") + " />");
+                                input = index_26.html("<input class=\"input " + field.name + "\" name=\"" + field.name + "\" type=\"checkbox\" " + (field.default ? "checked" : "") + " />");
                                 break;
                             case "integer":
-                                input = index_16.html("<input class=\"input " + field.name + "\" name=\"" + field.name + "\" type=\"number\" min=\"0\" step=\"1\" " + (field.default ? "value=\"" + field.default + "\"" : "") + " />");
+                                input = index_26.html("<input class=\"input " + field.name + "\" name=\"" + field.name + "\" type=\"number\" min=\"0\" step=\"1\" " + (field.default ? "value=\"" + field.default + "\"" : "") + " />");
                                 break;
                             case "number":
-                                input = index_16.html("<input class=\"input " + field.name + "\" name=\"" + field.name + "\" type=\"number\" min=\"0\" max=\"" + Array(field.length || 3).join("9") + "\" />");
+                                input = index_26.html("<input class=\"input " + field.name + "\" name=\"" + field.name + "\" type=\"number\" min=\"0\" max=\"" + Array(field.length || 3).join("9") + "\" />");
                                 break;
                             case "string":
                             default:
-                                input = index_16.html("<input class=\"input " + field.name + "\" name=\"" + field.name + "\" type=\"text\" " + (field.default ? "value=\"" + field.default + "\"" : "") + " />");
+                                input = index_26.html("<input class=\"input " + field.name + "\" name=\"" + field.name + "\" type=\"text\" " + (field.default ? "value=\"" + field.default + "\"" : "") + " />");
                                 input.maxLength = field.length || 20;
                                 break;
                         }
@@ -5897,7 +6210,7 @@ define("node_modules/ol3-search/ol3-search/ol3-search", ["require", "exports", "
             {
                 var footer = form.getElementsByClassName("footer")[0];
                 if (!_this.options.searchButton) {
-                    var searchButton_1 = index_16.html("<input type=\"button\" class=\"ol-search-button\" value=\"Search\"/>");
+                    var searchButton_1 = index_26.html("<input type=\"button\" class=\"ol-search-button\" value=\"Search\"/>");
                     footer.appendChild(searchButton_1);
                     _this.options.searchButton = searchButton_1;
                     form.addEventListener("keydown", function (args) {
@@ -5935,7 +6248,7 @@ define("node_modules/ol3-search/ol3-search/ol3-search", ["require", "exports", "
                 });
             }
             if (options.autoChange) {
-                form.addEventListener("keypress", index_16.debounce(function () {
+                form.addEventListener("keypress", index_26.debounce(function () {
                     _this.dispatchEvent({
                         type: "change",
                         value: _this.value
@@ -5946,14 +6259,14 @@ define("node_modules/ol3-search/ol3-search/ol3-search", ["require", "exports", "
             return _this;
         }
         SearchForm.create = function (options) {
-            options = index_16.mixin({
+            options = index_26.mixin({
                 openedText: options && options.className && -1 < options.className.indexOf("left") ? expando.left : expando.right,
                 closedText: options && options.className && -1 < options.className.indexOf("left") ? expando.right : expando.left,
             }, options || {});
-            options = index_16.mixin(index_16.mixin({}, defaults), options);
+            options = index_26.mixin(index_26.mixin({}, defaults), options);
             var element = document.createElement('div');
             element.className = options.className + " " + options.position + " " + olcss.CLASS_UNSELECTABLE + " " + olcss.CLASS_CONTROL;
-            var geocoderOptions = index_16.mixin({
+            var geocoderOptions = index_26.mixin({
                 element: element,
                 target: options.target,
                 expanded: false
@@ -5974,9 +6287,9 @@ define("node_modules/ol3-search/ol3-search/ol3-search", ["require", "exports", "
         };
         SearchForm.prototype.cssin = function () {
             var className = this.options.className;
-            var positions = index_16.pair("top left right bottom".split(" "), index_16.range(24))
+            var positions = index_26.pair("top left right bottom".split(" "), index_26.range(24))
                 .map(function (pos) { return "." + className + "." + (pos[0] + (-pos[1] || '')) + " { " + pos[0] + ":" + (0.5 + pos[1]) + "em; }"; });
-            this.handlers.push(index_16.cssin(className, "\n." + className + " {\n    position: absolute;\n}\n\n." + className + " button {\n    min-height: 1.375em;\n    min-width: 1.375em;\n    width: auto;\n    display: inline;\n}\n\n." + className + ".left button {\n    float:right;\n}\n\n." + className + ".right button {\n    float:left;\n}\n\n." + className + " form {\n    width: 16em;\n    border: none;\n    padding: 0;\n    margin: 0;\n    margin-left: 2px;\n    margin-top: 2px;\n    vertical-align: top;\n}\n." + className + " form.ol-hidden {\n    display: none;\n}\n" + positions.join('\n')));
+            this.handlers.push(index_26.cssin(className, "\n." + className + " {\n    position: absolute;\n}\n\n." + className + " button {\n    min-height: 1.375em;\n    min-width: 1.375em;\n    width: auto;\n    display: inline;\n}\n\n." + className + ".left button {\n    float:right;\n}\n\n." + className + ".right button {\n    float:left;\n}\n\n." + className + " form {\n    width: 16em;\n    border: none;\n    padding: 0;\n    margin: 0;\n    margin-left: 2px;\n    margin-top: 2px;\n    vertical-align: top;\n}\n." + className + " form.ol-hidden {\n    display: none;\n}\n" + positions.join('\n')));
         };
         SearchForm.prototype.collapse = function (options) {
             if (options === void 0) { options = this.options; }
@@ -6039,12 +6352,12 @@ define("node_modules/ol3-search/index", ["require", "exports", "node_modules/ol3
     "use strict";
     return Input;
 });
-define("node_modules/ol3-search/ol3-search/providers/osm", ["require", "exports", "jquery", "openlayers", "node_modules/ol3-fun/index"], function (require, exports, $, ol, index_17) {
+define("node_modules/ol3-search/ol3-search/providers/osm", ["require", "exports", "jquery", "openlayers", "node_modules/ol3-fun/index"], function (require, exports, $, ol, index_27) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var OpenStreetGeocode = (function () {
         function OpenStreetGeocode(options) {
-            this.options = index_17.defaults(options || {}, OpenStreetGeocode.DEFAULT_OPTIONS);
+            this.options = index_27.defaults(options || {}, OpenStreetGeocode.DEFAULT_OPTIONS);
         }
         Object.defineProperty(OpenStreetGeocode.prototype, "fields", {
             get: function () {
@@ -6084,8 +6397,8 @@ define("node_modules/ol3-search/ol3-search/providers/osm", ["require", "exports"
         };
         OpenStreetGeocode.prototype.getParameters = function (options, map) {
             var _a, _b;
-            index_17.defaults(options, this.options);
-            index_17.defaults(options.params, {
+            index_27.defaults(options, this.options);
+            index_27.defaults(options.params, {
                 q: options.params.query,
                 limit: options.count,
             }, this.options.params);
@@ -6152,7 +6465,7 @@ define("node_modules/ol3-search/ol3-search/providers/osm", ["require", "exports"
     }());
     exports.OpenStreetGeocode = OpenStreetGeocode;
 });
-define("ol3-lab/labs/ol-search", ["require", "exports", "openlayers", "node_modules/ol3-popup/index", "node_modules/ol3-grid/index", "node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", "node_modules/ol3-search/index", "node_modules/ol3-search/ol3-search/providers/osm", "node_modules/ol3-fun/ol3-fun/common", "node_modules/ol3-symbolizer/ol3-symbolizer/ags/ags-source"], function (require, exports, ol, index_18, index_19, ol3_symbolizer_6, index_20, osm_4, common_17, ags_source_4) {
+define("ol3-lab/labs/ol-search", ["require", "exports", "openlayers", "node_modules/ol3-popup/index", "node_modules/ol3-grid/index", "node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", "node_modules/ol3-search/index", "node_modules/ol3-search/ol3-search/providers/osm", "node_modules/ol3-fun/index", "node_modules/ol3-symbolizer/ol3-symbolizer/ags/ags-source"], function (require, exports, ol, index_28, index_29, ol3_symbolizer_6, index_30, osm_4, index_31, ags_source_4) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     function zoomToFeature(map, feature) {
@@ -6169,7 +6482,7 @@ define("ol3-lab/labs/ol-search", ["require", "exports", "openlayers", "node_modu
         });
     }
     function run() {
-        common_17.cssin("examples/ol3-search", "\n\n.map {\n    position: absolute;\n    top: 0;\n    bottom: 0;\n    left: 0;\n    right: 0;\n}\n\n.ol-popup {\n    background-color: white;\n}\n\n.ol-popup .pages {\n    max-height: 10em;\n    min-width: 20em;\n    overflow: auto;\n}\n\n.ol-grid.statecode .ol-grid-container {\n    background-color: white;\n    width: 10em;\n}\n\n.ol-grid .ol-grid-container.ol-hidden {\n}\n\n.ol-grid .ol-grid-container {\n    width: 15em;\n}\n\n.ol-grid .ol-grid-table {\n    width: 100%;\n}\n\n.ol-grid table.ol-grid-table {\n    border-collapse: collapse;\n    width: 100%;\n}\n\n.ol-grid table.ol-grid-table > td {\n    padding: 8px;\n    text-align: left;\n    border-bottom: 1px solid #ddd;\n}\n\n.ol-search.nominatim form {\n    width: 20em;\n}\n\n.ol-search tr.focus {\n    background: white;\n}\n\n.ol-search:hover {\n    background: white;\n}\n\n.ol-search label.ol-search-label {\n    white-space: nowrap;\n}\n\n    ");
+        index_31.cssin("examples/ol3-search", "\n\n.map {\n    position: absolute;\n    top: 0;\n    bottom: 0;\n    left: 0;\n    right: 0;\n}\n\n.ol-popup {\n    background-color: white;\n}\n\n.ol-popup .pages {\n    max-height: 10em;\n    min-width: 20em;\n    overflow: auto;\n}\n\n.ol-grid.statecode .ol-grid-container {\n    background-color: white;\n    width: 10em;\n}\n\n.ol-grid .ol-grid-container.ol-hidden {\n}\n\n.ol-grid .ol-grid-container {\n    width: 15em;\n}\n\n.ol-grid .ol-grid-table {\n    width: 100%;\n}\n\n.ol-grid table.ol-grid-table {\n    border-collapse: collapse;\n    width: 100%;\n}\n\n.ol-grid table.ol-grid-table > td {\n    padding: 8px;\n    text-align: left;\n    border-bottom: 1px solid #ddd;\n}\n\n.ol-search.nominatim form {\n    width: 20em;\n}\n\n.ol-search tr.focus {\n    background: white;\n}\n\n.ol-search:hover {\n    background: white;\n}\n\n.ol-search label.ol-search-label {\n    white-space: nowrap;\n}\n\n    ");
         var center = ol.proj.transform([-120, 35], "EPSG:4326", "EPSG:3857");
         var mapContainer = document.getElementsByClassName("map")[0];
         var map = new ol.Map({
@@ -6186,7 +6499,7 @@ define("ol3-lab/labs/ol-search", ["require", "exports", "openlayers", "node_modu
                 zoom: 6
             })
         });
-        var popup = index_18.Popup.create({
+        var popup = index_28.Popup.create({
             map: map,
             positioning: "bottom-center"
         });
@@ -6271,7 +6584,7 @@ define("ol3-lab/labs/ol-search", ["require", "exports", "openlayers", "node_modu
                     feature.setStyle(style);
                 });
                 map.addLayer(layer);
-                var grid = index_19.Grid.create({
+                var grid = index_29.Grid.create({
                     className: "ol-grid statecode top left-2",
                     expanded: true,
                     currentExtent: true,
@@ -6291,7 +6604,7 @@ define("ol3-lab/labs/ol-search", ["require", "exports", "openlayers", "node_modu
             .then(function () {
             map.addLayer(vector);
         });
-        var form = index_20.SearchForm.create({
+        var form = index_30.SearchForm.create({
             className: "nominatim",
             position: "top right",
             expanded: true,
@@ -6349,7 +6662,7 @@ define("ol3-lab/labs/ol-search", ["require", "exports", "openlayers", "node_modu
                 return;
             var searchProvider = new osm_4.OpenStreetGeocode({
                 map: map,
-                params: common_17.defaults({ limit: 1 }, osm_4.OpenStreetGeocode.DEFAULT_OPTIONS.params)
+                params: index_31.defaults({ limit: 1 }, osm_4.OpenStreetGeocode.DEFAULT_OPTIONS.params)
             });
             searchProvider
                 .execute({ params: args.value })
@@ -6396,7 +6709,7 @@ define("ol3-lab/labs/ol-search", ["require", "exports", "openlayers", "node_modu
     }
     exports.run = run;
 });
-define("ol3-lab/labs/ol-symbolizer", ["require", "exports", "openlayers", "node_modules/ol3-popup/index", "node_modules/ol3-symbolizer/ol3-symbolizer/ags/ags-source", "node_modules/ol3-fun/ol3-fun/common"], function (require, exports, ol, index_21, ags_source_5, common_18) {
+define("ol3-lab/labs/ol-symbolizer", ["require", "exports", "openlayers", "node_modules/ol3-popup/index", "node_modules/ol3-symbolizer/ol3-symbolizer/ags/ags-source", "node_modules/ol3-fun/index"], function (require, exports, ol, index_32, ags_source_5, index_33) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     function parse(v, type) {
@@ -6420,8 +6733,8 @@ define("ol3-lab/labs/ol-symbolizer", ["require", "exports", "openlayers", "node_
     };
     function run() {
         var target = document.getElementsByClassName("map")[0];
-        target.appendChild(common_18.html(html));
-        document.head.appendChild(common_18.html(css));
+        target.appendChild(index_33.html(html));
+        document.head.appendChild(index_33.html(css));
         var options = {
             srs: "EPSG:4326",
             center: center.vegas,
@@ -6435,7 +6748,7 @@ define("ol3-lab/labs/ol-symbolizer", ["require", "exports", "openlayers", "node_
         {
             var opts_8 = options;
             Object.keys(opts_8).forEach(function (k) {
-                common_18.doif(common_18.getParameterByName(k), function (v) {
+                index_33.doif(index_33.getParameterByName(k), function (v) {
                     var value = parse(v, opts_8[k]);
                     if (value !== undefined)
                         opts_8[k] = value;
@@ -6473,7 +6786,7 @@ define("ol3-lab/labs/ol-symbolizer", ["require", "exports", "openlayers", "node_
             layers: options.layers.reverse()
         }).then(function (agsLayers) {
             agsLayers.forEach(function (agsLayer) { return map.addLayer(agsLayer); });
-            var popup = index_21.Popup.create({
+            var popup = index_32.Popup.create({
                 map: map,
                 pointerPosition: 0,
                 css: "\n            .ol-popup-element {\n                height: 6em;\n                width: 12em;\n                margin: 1em;\n                padding: 1em;\n                background-color: white;\n            }\n            .ol-popup .page {\n                overflow-y: auto;\n            }\n            "
@@ -6790,11 +7103,11 @@ define("ol3-lab/labs/polyline-encoder", ["require", "exports", "jquery", "openla
     }
     exports.run = run;
 });
-define("ol3-lab/labs/route-editor", ["require", "exports", "openlayers", "node_modules/ol3-symbolizer/index", "ol3-lab/labs/common/common"], function (require, exports, ol, index_22, common_19) {
+define("ol3-lab/labs/route-editor", ["require", "exports", "openlayers", "node_modules/ol3-symbolizer/index", "ol3-lab/labs/common/common"], function (require, exports, ol, index_34, common_9) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var delta = 16;
-    var formatter = new index_22.StyleConverter();
+    var formatter = new index_34.StyleConverter();
     function fromJson(styles) {
         return styles.map(function (style) { return formatter.fromJson(style); });
     }
@@ -6817,7 +7130,7 @@ define("ol3-lab/labs/route-editor", ["require", "exports", "openlayers", "node_m
     ]; };
     var Route = (function () {
         function Route(options) {
-            this.options = common_19.defaults(options, {
+            this.options = common_9.defaults(options, {
                 color: "black",
                 delta: delta,
                 stops: [],
@@ -7178,9 +7491,9 @@ define("node_modules/ol3-symbolizer/examples/styles/basic", ["require", "exports
         x: [{ star: x }]
     };
 });
-define("ol3-lab/labs/common/style-generator", ["require", "exports", "openlayers", "node_modules/ol3-symbolizer/examples/styles/basic", "node_modules/ol3-symbolizer/index", "node_modules/ol3-fun/ol3-fun/common"], function (require, exports, ol, basic_styles, index_23, common_20) {
+define("ol3-lab/labs/common/style-generator", ["require", "exports", "openlayers", "node_modules/ol3-symbolizer/examples/styles/basic", "node_modules/ol3-symbolizer/index", "node_modules/ol3-fun/index"], function (require, exports, ol, basic_styles, index_35, index_36) {
     "use strict";
-    var converter = new index_23.StyleConverter();
+    var converter = new index_35.StyleConverter();
     var orientations = "forward,backward,diagonal,horizontal,vertical,cross".split(",");
     var randint = function (n) { return Math.round(n * Math.random()); };
     var StyleGenerator = (function () {
@@ -7240,7 +7553,7 @@ define("ol3-lab/labs/common/style-generator", ["require", "exports", "openlayers
             }
             stops = stops.sort(function (a, b) { return a.stop - b.stop; });
             stops.forEach(function (stop) { return gradient.addColorStop(stop.stop, stop.color); });
-            common_20.mixin(gradient, {
+            index_36.mixin(gradient, {
                 stops: stops.map(function (stop) { return stop.color + " " + Math.round(100 * stop.stop) + "%"; }).join(";")
             });
         };
@@ -7255,7 +7568,7 @@ define("ol3-lab/labs/common/style-generator", ["require", "exports", "openlayers
                 0
             ], x0 = _a[0], y0 = _a[1], r0 = _a[2], x1 = _a[3], y1 = _a[4], r1 = _a[5];
             var gradient = context.createRadialGradient(x0, y0, r0, x1, y1, r1);
-            return common_20.mixin(gradient, {
+            return index_36.mixin(gradient, {
                 type: "radial(" + [x0, y0, r0, x1, y1, r1].join(",") + ")"
             });
         };
@@ -7267,7 +7580,7 @@ define("ol3-lab/labs/common/style-generator", ["require", "exports", "openlayers
                 2 * radius
             ], x0 = _a[0], y0 = _a[1], x1 = _a[2], y1 = _a[3];
             var gradient = context.createLinearGradient(x0, y0, x1, y1);
-            return common_20.mixin(gradient, { type: "linear(" + [x0, y0, x1, y1].join(",") + ")" });
+            return index_36.mixin(gradient, { type: "linear(" + [x0, y0, x1, y1].join(",") + ")" });
         };
         StyleGenerator.prototype.asGradient = function () {
             var radius = this.asRadius();
@@ -7366,7 +7679,7 @@ define("ol3-lab/labs/common/style-generator", ["require", "exports", "openlayers
                 default:
                     throw "invalid orientation";
             }
-            common_20.mixin(pattern, {
+            index_36.mixin(pattern, {
                 orientation: orientation,
                 color: color,
                 spacing: spacing,
@@ -7455,7 +7768,7 @@ define("ol3-lab/labs/common/style-generator", ["require", "exports", "openlayers
                 function () { return _this.asPattern(); }
             ];
             feature.setGeometry(this.asPoint());
-            var styles = common_20.range(styleCount).map(function (x) {
+            var styles = index_36.range(styleCount).map(function (x) {
                 return new ol.style.Style({
                     image: gens[Math.round((gens.length - 1) * Math.random())](),
                     text: null && _this.asText()
@@ -7484,7 +7797,7 @@ define("ol3-lab/labs/common/style-generator", ["require", "exports", "openlayers
             var layer = new ol.layer.Vector();
             var source = new ol.source.Vector();
             layer.setSource(source);
-            var features = common_20.range(10).map(function (i) { return _this.asLineFeature(); });
+            var features = index_36.range(10).map(function (i) { return _this.asLineFeature(); });
             source.addFeatures(features);
             return layer;
         };
@@ -7493,7 +7806,7 @@ define("ol3-lab/labs/common/style-generator", ["require", "exports", "openlayers
             var layer = new ol.layer.Vector();
             var source = new ol.source.Vector();
             layer.setSource(source);
-            var features = common_20.range(args.markerCount || 100).map(function (i) { return _this.asPointFeature(args.styleCount || 1); });
+            var features = index_36.range(args.markerCount || 100).map(function (i) { return _this.asPointFeature(args.styleCount || 1); });
             source.addFeatures(features);
             return layer;
         };
@@ -7501,11 +7814,11 @@ define("ol3-lab/labs/common/style-generator", ["require", "exports", "openlayers
     }());
     return StyleGenerator;
 });
-define("ol3-lab/labs/style-lab", ["require", "exports", "openlayers", "jquery", "node_modules/ol3-symbolizer/index", "ol3-lab/labs/common/style-generator"], function (require, exports, ol, $, index_24, StyleGenerator) {
+define("ol3-lab/labs/style-lab", ["require", "exports", "openlayers", "jquery", "node_modules/ol3-symbolizer/index", "ol3-lab/labs/common/style-generator"], function (require, exports, ol, $, index_37, StyleGenerator) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var center = [-82.4, 34.85];
-    var formatter = new index_24.StyleConverter();
+    var formatter = new index_37.StyleConverter();
     var generator = new StyleGenerator({
         center: center,
         fromJson: function (json) { return formatter.fromJson(json); }
@@ -7515,7 +7828,7 @@ define("ol3-lab/labs/style-lab", ["require", "exports", "openlayers", "jquery", 
     function run() {
         $(ux).appendTo(".map");
         $(css).appendTo("head");
-        var formatter = new index_24.StyleConverter();
+        var formatter = new index_37.StyleConverter();
         var map = new ol.Map({
             target: "map",
             view: new ol.View({
@@ -7698,7 +8011,7 @@ define("node_modules/ol3-symbolizer/examples/styles/fill/gradient", ["require", 
         }
     ];
 });
-define("ol3-lab/labs/style-viewer", ["require", "exports", "openlayers", "jquery", "ol3-lab/labs/common/snapshot", "ol3-lab/labs/common/common", "node_modules/ol3-symbolizer/index", "node_modules/ol3-symbolizer/examples/styles/icon/png"], function (require, exports, ol, $, Snapshot, common_21, index_25, pointStyle) {
+define("ol3-lab/labs/style-viewer", ["require", "exports", "openlayers", "jquery", "ol3-lab/labs/common/snapshot", "ol3-lab/labs/common/common", "node_modules/ol3-symbolizer/index", "node_modules/ol3-symbolizer/examples/styles/icon/png"], function (require, exports, ol, $, Snapshot, common_10, index_38, pointStyle) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var html = "\n<div class='style-to-canvas'>\n    <h3>Renders a feature on a canvas</h3>\n    <div class=\"area\">\n        <label>256 x 256 Canvas</label>\n        <div id='canvas-collection'></div>\n    </div>\n    <div class=\"area\">\n        <label>Style</label>\n        <textarea class='style'></textarea>\n    </div>\n    <div class=\"area\">\n        <label>Potential control for setting linear gradient start/stop locations</label>\n        <div class=\"colorramp\">\n            <input class=\"top\" type=\"range\" min=\"0\" max=\"100\" value=\"20\"/>\n            <input class=\"bottom\" type=\"range\" min=\"0\" max=\"100\" value=\"80\"/>\n        </div>\n    </div>\n</div>\n";
@@ -7738,7 +8051,7 @@ define("ol3-lab/labs/style-viewer", ["require", "exports", "openlayers", "jquery
     var styles = {
         point: pointStyle
     };
-    var serializer = new index_25.StyleConverter();
+    var serializer = new index_38.StyleConverter();
     var Renderer = (function () {
         function Renderer(geom) {
             this.feature = new ol.Feature(geom);
@@ -7764,8 +8077,8 @@ define("ol3-lab/labs/style-viewer", ["require", "exports", "openlayers", "jquery
         $(html).appendTo("body");
         $(svg).appendTo("body");
         $(css).appendTo("head");
-        var geom = common_21.getParameterByName("geom") || "polygon-with-holes";
-        var style = common_21.getParameterByName("style") || "fill/gradient";
+        var geom = common_10.getParameterByName("geom") || "polygon-with-holes";
+        var style = common_10.getParameterByName("style") || "fill/gradient";
         var save = function () {
             var style = JSON.stringify(JSON.parse($(".style").val() + ""));
             var loc = window.location;
@@ -7942,7 +8255,7 @@ define("ol3-lab/labs/common/ajax", ["require", "exports", "jquery"], function (r
     }
     exports.mapquest = mapquest;
 });
-define("ol3-lab/labs/common/ol3-patch", ["require", "exports", "openlayers", "ol3-lab/labs/common/common"], function (require, exports, ol3, common_22) {
+define("ol3-lab/labs/common/ol3-patch", ["require", "exports", "openlayers", "ol3-lab/labs/common/common"], function (require, exports, ol3, common_11) {
     "use strict";
     if (!ol3.geom.SimpleGeometry.prototype.scale) {
         var scale_1 = function (flatCoordinates, offset, end, stride, deltaX, deltaY, opt_dest) {
@@ -7961,7 +8274,7 @@ define("ol3-lab/labs/common/ol3-patch", ["require", "exports", "openlayers", "ol
             }
             return dest;
         };
-        common_22.mixin(ol3.geom.SimpleGeometry.prototype, {
+        common_11.mixin(ol3.geom.SimpleGeometry.prototype, {
             scale: function (deltaX, deltaY) {
                 var it = this;
                 it.applyTransform(function (flatCoordinates, output, stride) {
@@ -7974,7 +8287,7 @@ define("ol3-lab/labs/common/ol3-patch", ["require", "exports", "openlayers", "ol
     }
     return ol3;
 });
-define("node_modules/ol3-draw/ol3-draw/ol3-delete", ["require", "exports", "openlayers", "node_modules/ol3-draw/ol3-draw/ol3-button", "node_modules/ol3-fun/ol3-fun/common"], function (require, exports, ol, ol3_button_3, common_23) {
+define("node_modules/ol3-draw/ol3-draw/ol3-delete", ["require", "exports", "openlayers", "node_modules/ol3-draw/ol3-draw/ol3-button", "node_modules/ol3-fun/index"], function (require, exports, ol, ol3_button_3, index_39) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var Delete = (function (_super) {
@@ -7983,49 +8296,58 @@ define("node_modules/ol3-draw/ol3-draw/ol3-delete", ["require", "exports", "open
             var _this = _super.call(this, options) || this;
             var map = options.map;
             var featureLayers = [];
-            var selection = options.selection = options.selection || new ol.interaction.Select({
-                condition: ol.events.condition.click,
-                multi: false,
-                style: function (feature, res) {
-                    var index = selection.getFeatures().getArray().indexOf(feature);
-                    var fillColor = "rgba(0,0,0,0.2)";
-                    var strokeColor = "red";
-                    var textTemplate = {
-                        text: "X" + (index + 1),
-                        fill: {
-                            color: strokeColor
-                        },
-                        stroke: {
-                            color: fillColor,
-                            width: 2
-                        },
-                        scale: 3
-                    };
-                    var style = options.style[feature.getGeometry().getType()]
-                        .map(function (s) { return _this.symbolizer.fromJson(common_23.defaults({ text: textTemplate }, s)); });
-                    return style;
-                }
-            });
+            var selection = (options.selection =
+                options.selection ||
+                    new ol.interaction.Select({
+                        condition: ol.events.condition.click,
+                        multi: false,
+                        style: function (feature, res) {
+                            var index = selection
+                                .getFeatures()
+                                .getArray()
+                                .indexOf(feature);
+                            var fillColor = "rgba(0,0,0,0.2)";
+                            var strokeColor = "red";
+                            var textTemplate = {
+                                text: "X" + (index + 1),
+                                fill: {
+                                    color: strokeColor
+                                },
+                                stroke: {
+                                    color: fillColor,
+                                    width: 2
+                                },
+                                scale: 3
+                            };
+                            var style = options.style[feature.getGeometry().getType()].map(function (s) {
+                                return _this.symbolizer.fromJson(index_39.defaults({ text: textTemplate }, s));
+                            });
+                            return style;
+                        }
+                    }));
             var boxSelect = new ol.interaction.DragBox({
                 condition: options.boxSelectCondition
             });
             boxSelect.on("boxend", function (args) {
                 var extent = boxSelect.getGeometry().getExtent();
                 var features = selection.getFeatures().getArray();
-                options.map.getLayers()
+                options.map
+                    .getLayers()
                     .getArray()
                     .filter(function (l) { return l instanceof ol.layer.Vector; })
                     .map(function (l) { return l; })
-                    .forEach(function (l) { return l.getSource().forEachFeatureIntersectingExtent(extent, function (feature) {
-                    if (-1 === features.indexOf(feature)) {
-                        selection.getFeatures().push(feature);
-                        _this.addFeatureLayerAssociation(feature, l);
-                    }
-                    else {
-                        selection.getFeatures().remove(feature);
-                        _this.addFeatureLayerAssociation(feature, null);
-                    }
-                }); });
+                    .forEach(function (l) {
+                    return l.getSource().forEachFeatureIntersectingExtent(extent, function (feature) {
+                        if (-1 === features.indexOf(feature)) {
+                            selection.getFeatures().push(feature);
+                            _this.addFeatureLayerAssociation(feature, l);
+                        }
+                        else {
+                            selection.getFeatures().remove(feature);
+                            _this.addFeatureLayerAssociation(feature, null);
+                        }
+                    });
+                });
             });
             _this.once("change:active", function () {
                 [selection, boxSelect].forEach(function (i) {
@@ -8046,7 +8368,7 @@ define("node_modules/ol3-draw/ol3-draw/ol3-delete", ["require", "exports", "open
             return _this;
         }
         Delete.create = function (options) {
-            options = common_23.defaults({}, options, Delete.DEFAULT_OPTIONS);
+            options = index_39.defaults({}, options, Delete.DEFAULT_OPTIONS);
             return ol3_button_3.Button.create(options);
         };
         Delete.prototype.addFeatureLayerAssociation = function (feature, layer) {
@@ -8078,7 +8400,8 @@ define("node_modules/ol3-draw/ol3-draw/ol3-delete", ["require", "exports", "open
             eventName: "delete-feature",
             boxSelectCondition: ol.events.condition.shiftKeyOnly,
             style: {
-                "Point": [{
+                Point: [
+                    {
                         circle: {
                             radius: 20,
                             fill: {
@@ -8090,14 +8413,18 @@ define("node_modules/ol3-draw/ol3-draw/ol3-delete", ["require", "exports", "open
                             },
                             opacity: 1
                         }
-                    }],
-                "MultiLineString": [{
+                    }
+                ],
+                MultiLineString: [
+                    {
                         stroke: {
                             color: "red",
                             width: 2
                         }
-                    }],
-                "Circle": [{
+                    }
+                ],
+                Circle: [
+                    {
                         fill: {
                             color: "blue"
                         },
@@ -8105,8 +8432,10 @@ define("node_modules/ol3-draw/ol3-draw/ol3-delete", ["require", "exports", "open
                             color: "red",
                             width: 2
                         }
-                    }],
-                "Polygon": [{
+                    }
+                ],
+                Polygon: [
+                    {
                         fill: {
                             color: "blue"
                         },
@@ -8114,8 +8443,10 @@ define("node_modules/ol3-draw/ol3-draw/ol3-delete", ["require", "exports", "open
                             color: "red",
                             width: 2
                         }
-                    }],
-                "MultiPolygon": [{
+                    }
+                ],
+                MultiPolygon: [
+                    {
                         fill: {
                             color: "blue"
                         },
@@ -8123,14 +8454,15 @@ define("node_modules/ol3-draw/ol3-draw/ol3-delete", ["require", "exports", "open
                             color: "red",
                             width: 2
                         }
-                    }]
+                    }
+                ]
             }
         };
         return Delete;
     }(ol3_button_3.Button));
     exports.Delete = Delete;
 });
-define("node_modules/ol3-draw/ol3-draw/ol3-translate", ["require", "exports", "openlayers", "node_modules/ol3-draw/ol3-draw/ol3-button", "node_modules/ol3-fun/ol3-fun/common"], function (require, exports, ol, ol3_button_4, common_24) {
+define("node_modules/ol3-draw/ol3-draw/ol3-translate", ["require", "exports", "openlayers", "node_modules/ol3-draw/ol3-draw/ol3-button", "node_modules/ol3-fun/index"], function (require, exports, ol, ol3_button_4, index_40) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var Translate = (function (_super) {
@@ -8140,8 +8472,7 @@ define("node_modules/ol3-draw/ol3-draw/ol3-translate", ["require", "exports", "o
             var map = options.map;
             var select = new ol.interaction.Select({
                 style: function (feature, res) {
-                    var style = options.style[feature.getGeometry().getType()]
-                        .map(function (s) { return _this.symbolizer.fromJson(s); });
+                    var style = options.style[feature.getGeometry().getType()].map(function (s) { return _this.symbolizer.fromJson(s); });
                     return style;
                 }
             });
@@ -8173,7 +8504,7 @@ define("node_modules/ol3-draw/ol3-draw/ol3-translate", ["require", "exports", "o
             return _this;
         }
         Translate.create = function (options) {
-            options = common_24.defaults({}, options, Translate.DEFAULT_OPTIONS);
+            options = index_40.defaults({}, options, Translate.DEFAULT_OPTIONS);
             return ol3_button_4.Button.create(options);
         };
         Translate.DEFAULT_OPTIONS = {
@@ -8183,7 +8514,8 @@ define("node_modules/ol3-draw/ol3-draw/ol3-translate", ["require", "exports", "o
             title: "Translate",
             eventName: "translate-feature",
             style: {
-                "Point": [{
+                Point: [
+                    {
                         circle: {
                             radius: 2,
                             fill: {
@@ -8195,14 +8527,18 @@ define("node_modules/ol3-draw/ol3-draw/ol3-translate", ["require", "exports", "o
                             },
                             opacity: 1
                         }
-                    }],
-                "MultiLineString": [{
+                    }
+                ],
+                MultiLineString: [
+                    {
                         stroke: {
                             color: "rgba(0, 0, 0, 0.5)",
                             width: 3
                         }
-                    }],
-                "Circle": [{
+                    }
+                ],
+                Circle: [
+                    {
                         fill: {
                             color: "blue"
                         },
@@ -8210,8 +8546,10 @@ define("node_modules/ol3-draw/ol3-draw/ol3-translate", ["require", "exports", "o
                             color: "red",
                             width: 2
                         }
-                    }],
-                "Polygon": [{
+                    }
+                ],
+                Polygon: [
+                    {
                         fill: {
                             color: "rgba(0, 0, 0, 0.1)"
                         },
@@ -8219,8 +8557,10 @@ define("node_modules/ol3-draw/ol3-draw/ol3-translate", ["require", "exports", "o
                             color: "rgba(0, 0, 0, 1)",
                             width: 1
                         }
-                    }],
-                "MultiPolygon": [{
+                    }
+                ],
+                MultiPolygon: [
+                    {
                         fill: {
                             color: "rgba(0, 0, 0, 0.1)"
                         },
@@ -8228,7 +8568,8 @@ define("node_modules/ol3-draw/ol3-draw/ol3-translate", ["require", "exports", "o
                             color: "rgba(0, 0, 0, 1)",
                             width: 1
                         }
-                    }]
+                    }
+                ]
             },
             buttonType: Translate
         };
@@ -8236,7 +8577,7 @@ define("node_modules/ol3-draw/ol3-draw/ol3-translate", ["require", "exports", "o
     }(ol3_button_4.Button));
     exports.Translate = Translate;
 });
-define("node_modules/ol3-draw/ol3-draw/ol3-select", ["require", "exports", "openlayers", "node_modules/ol3-draw/ol3-draw/ol3-button", "node_modules/ol3-fun/ol3-fun/common"], function (require, exports, ol, ol3_button_5, common_25) {
+define("node_modules/ol3-draw/ol3-draw/ol3-select", ["require", "exports", "openlayers", "node_modules/ol3-draw/ol3-draw/ol3-button", "node_modules/ol3-fun/index"], function (require, exports, ol, ol3_button_5, index_41) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var Select = (function (_super) {
@@ -8249,7 +8590,12 @@ define("node_modules/ol3-draw/ol3-draw/ol3-select", ["require", "exports", "open
                 style: function (feature, res) {
                     var style = options.style[feature.getGeometry().getType()].map(function (s) { return _this.symbolizer.fromJson(s); });
                     style.filter(function (s) { return s.getText(); }).forEach(function (s) {
-                        style[0].getText().setText(selection.getFeatures().getArray().indexOf(feature) + 1 + "");
+                        style[0].getText().setText(selection
+                            .getFeatures()
+                            .getArray()
+                            .indexOf(feature) +
+                            1 +
+                            "");
                     });
                     return style;
                 }
@@ -8260,18 +8606,21 @@ define("node_modules/ol3-draw/ol3-draw/ol3-select", ["require", "exports", "open
             boxSelect.on("boxend", function (args) {
                 var extent = boxSelect.getGeometry().getExtent();
                 var features = selection.getFeatures().getArray();
-                options.map.getLayers()
+                options.map
+                    .getLayers()
                     .getArray()
                     .filter(function (l) { return l instanceof ol.layer.Vector; })
                     .map(function (l) { return l; })
-                    .forEach(function (l) { return l.getSource().forEachFeatureIntersectingExtent(extent, function (feature) {
-                    if (-1 === features.indexOf(feature)) {
-                        selection.getFeatures().push(feature);
-                    }
-                    else {
-                        selection.getFeatures().remove(feature);
-                    }
-                }); });
+                    .forEach(function (l) {
+                    return l.getSource().forEachFeatureIntersectingExtent(extent, function (feature) {
+                        if (-1 === features.indexOf(feature)) {
+                            selection.getFeatures().push(feature);
+                        }
+                        else {
+                            selection.getFeatures().remove(feature);
+                        }
+                    });
+                });
             });
             _this.once("change:active", function () {
                 [boxSelect, selection].forEach(function (i) {
@@ -8294,7 +8643,7 @@ define("node_modules/ol3-draw/ol3-draw/ol3-select", ["require", "exports", "open
             return _this;
         }
         Select.create = function (options) {
-            options = common_25.defaults({}, options, Select.DEFAULT_OPTIONS);
+            options = index_41.defaults({}, options, Select.DEFAULT_OPTIONS);
             return ol3_button_5.Button.create(options);
         };
         Select.DEFAULT_OPTIONS = {
@@ -8307,7 +8656,8 @@ define("node_modules/ol3-draw/ol3-draw/ol3-select", ["require", "exports", "open
             buttonType: Select,
             boxSelectCondition: ol.events.condition.shiftKeyOnly,
             style: {
-                "Point": [{
+                Point: [
+                    {
                         circle: {
                             radius: 20,
                             fill: {
@@ -8329,8 +8679,10 @@ define("node_modules/ol3-draw/ol3-draw/ol3-select", ["require", "exports", "open
                             },
                             scale: 3
                         }
-                    }],
-                "MultiLineString": [{
+                    }
+                ],
+                MultiLineString: [
+                    {
                         stroke: {
                             color: "red",
                             width: 2
@@ -8345,8 +8697,10 @@ define("node_modules/ol3-draw/ol3-draw/ol3-select", ["require", "exports", "open
                             },
                             scale: 3
                         }
-                    }],
-                "Circle": [{
+                    }
+                ],
+                Circle: [
+                    {
                         fill: {
                             color: "blue"
                         },
@@ -8364,8 +8718,10 @@ define("node_modules/ol3-draw/ol3-draw/ol3-select", ["require", "exports", "open
                             },
                             scale: 3
                         }
-                    }],
-                "MultiPolygon": [{
+                    }
+                ],
+                MultiPolygon: [
+                    {
                         fill: {
                             color: "blue"
                         },
@@ -8383,8 +8739,10 @@ define("node_modules/ol3-draw/ol3-draw/ol3-select", ["require", "exports", "open
                             },
                             scale: 3
                         }
-                    }],
-                "Polygon": [{
+                    }
+                ],
+                Polygon: [
+                    {
                         fill: {
                             color: "blue"
                         },
@@ -8402,14 +8760,15 @@ define("node_modules/ol3-draw/ol3-draw/ol3-select", ["require", "exports", "open
                             },
                             scale: 3
                         }
-                    }]
+                    }
+                ]
             }
         };
         return Select;
     }(ol3_button_5.Button));
     exports.Select = Select;
 });
-define("node_modules/ol3-draw/ol3-draw/ol3-note", ["require", "exports", "openlayers", "node_modules/ol3-draw/ol3-draw/ol3-button", "node_modules/ol3-fun/ol3-fun/common"], function (require, exports, ol, ol3_button_6, common_26) {
+define("node_modules/ol3-draw/ol3-draw/ol3-note", ["require", "exports", "openlayers", "node_modules/ol3-draw/ol3-draw/ol3-button", "node_modules/ol3-fun/index"], function (require, exports, ol, ol3_button_6, index_42) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var Note = (function (_super) {
@@ -8483,7 +8842,7 @@ define("node_modules/ol3-draw/ol3-draw/ol3-note", ["require", "exports", "openla
             return _this;
         }
         Note.create = function (options) {
-            options = common_26.defaults({}, options, Note.DEFAULT_OPTIONS);
+            options = index_42.defaults({}, options, Note.DEFAULT_OPTIONS);
             return ol3_button_6.Button.create(options);
         };
         Note.prototype.forceOverlay = function (feature) {
@@ -8499,7 +8858,7 @@ define("node_modules/ol3-draw/ol3-draw/ol3-note", ["require", "exports", "openla
             var options = this.options;
             var map = options.map;
             var note = feature.get(options.noteFieldName) || "";
-            var textarea = common_26.html("<div class=\"contentEditableDiv hidden\"><p class=\"editableP\" contentEditable=\"true\" placeholder=\"[TYPE YOUR MESSAGE HERE]\">" + note + "</p></div>");
+            var textarea = index_42.html("<div class=\"contentEditableDiv hidden\"><p class=\"editableP\" contentEditable=\"true\" placeholder=\"[TYPE YOUR MESSAGE HERE]\">" + note + "</p></div>");
             var input = textarea.getElementsByClassName("editableP")[0];
             input.addEventListener("input", function () { return feature.set(options.noteFieldName, input.textContent); });
             var overlay = new ol.Overlay({
@@ -8514,7 +8873,7 @@ define("node_modules/ol3-draw/ol3-draw/ol3-note", ["require", "exports", "openla
         };
         Note.prototype.cssin = function () {
             _super.prototype.cssin.call(this);
-            this.handlers.push(common_26.cssin(this.options.className + "-input", "\n[contenteditable=true]:empty:before{\n  content: attr(placeholder);\n  display: block;\n  opacity: 0.5;\n}\n\n.contentEditableDiv {\n    width:200px;\n    height:60px;\n    position:relative;\n    overflow:auto;\n    margin-bottom: 8px;\n}\n\n.contentEditableDiv.hidden {\n    display: none;\n}\n\n.editableP{\n    min-height:10px;\n    position:absolute;   \n    bottom:0;\n    left:0;\n    right:0;\n    margin: 0;\n    text-align: center;\n    font-family: cursive;\n    rgba(240,240,240,0.6);\n}"));
+            this.handlers.push(index_42.cssin(this.options.className + "-input", "\n[contenteditable=true]:empty:before{\n  content: attr(placeholder);\n  display: block;\n  opacity: 0.5;\n}\n\n.contentEditableDiv {\n    width:200px;\n    height:60px;\n    position:relative;\n    overflow:auto;\n    margin-bottom: 8px;\n}\n\n.contentEditableDiv.hidden {\n    display: none;\n}\n\n.editableP{\n    min-height:10px;\n    position:absolute;   \n    bottom:0;\n    left:0;\n    right:0;\n    margin: 0;\n    text-align: center;\n    font-family: cursive;\n    rgba(240,240,240,0.6);\n}"));
         };
         Note.DEFAULT_OPTIONS = {
             className: "ol-note",
@@ -8547,7 +8906,7 @@ define("node_modules/ol3-draw/ol3-draw/ol3-note", ["require", "exports", "openla
     }(ol3_button_6.Button));
     exports.Note = Note;
 });
-define("node_modules/ol3-draw/ol3-draw/ol3-history", ["require", "exports", "node_modules/ol3-fun/ol3-fun/common"], function (require, exports, common_27) {
+define("node_modules/ol3-draw/ol3-draw/ol3-history", ["require", "exports", "node_modules/ol3-fun/index"], function (require, exports, index_43) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var NavHistory = (function () {
@@ -8566,7 +8925,7 @@ define("node_modules/ol3-draw/ol3-draw/ol3-history", ["require", "exports", "nod
             };
             push();
             var stopped = false;
-            var resume = common_27.debounce(function () {
+            var resume = index_43.debounce(function () {
                 stopped = false;
                 console.log("allow capture");
             }, this.options.delay);
@@ -8581,7 +8940,7 @@ define("node_modules/ol3-draw/ol3-draw/ol3-history", ["require", "exports", "nod
                     duration: _this.options.delay / 10
                 }, resume);
             };
-            var capture = common_27.debounce(function () {
+            var capture = index_43.debounce(function () {
                 if (stopped) {
                     console.log("capture suspended");
                     return;
@@ -8609,7 +8968,7 @@ define("node_modules/ol3-draw/ol3-draw/ol3-history", ["require", "exports", "nod
             });
         }
         NavHistory.create = function (options) {
-            options = common_27.defaults({}, options || {}, NavHistory.DEFAULT_OPTIONS);
+            options = index_43.defaults({}, options || {}, NavHistory.DEFAULT_OPTIONS);
             return new NavHistory(options);
         };
         NavHistory.DEFAULT_OPTIONS = {
@@ -8619,7 +8978,7 @@ define("node_modules/ol3-draw/ol3-draw/ol3-history", ["require", "exports", "nod
     }());
     exports.NavHistory = NavHistory;
 });
-define("node_modules/ol3-draw/ol3-draw/services/wfs-sync", ["require", "exports", "openlayers", "jquery", "node_modules/ol3-fun/index"], function (require, exports, ol, $, index_26) {
+define("node_modules/ol3-draw/ol3-draw/services/wfs-sync", ["require", "exports", "openlayers", "jquery", "node_modules/ol3-fun/index"], function (require, exports, ol, $, index_44) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var serializer = new XMLSerializer();
@@ -8631,7 +8990,7 @@ define("node_modules/ol3-draw/ol3-draw/services/wfs-sync", ["require", "exports"
             this.watch();
         }
         WfsSync.create = function (options) {
-            options = index_26.defaults(options || {}, WfsSync.DEFAULT_OPTIONS);
+            options = index_44.defaults(options || {}, WfsSync.DEFAULT_OPTIONS);
             if (!options.formatter) {
                 options.formatter = new ol.format.WFS();
             }
@@ -8657,7 +9016,7 @@ define("node_modules/ol3-draw/ol3-draw/services/wfs-sync", ["require", "exports"
         };
         WfsSync.prototype.watch = function () {
             var _this = this;
-            var save = index_26.debounce(function () {
+            var save = index_44.debounce(function () {
                 try {
                     _this.trigger("before-save");
                     _this.saveDrawings({
@@ -8773,7 +9132,7 @@ define("node_modules/ol3-draw/ol3-draw/services/wfs-sync", ["require", "exports"
     }());
     exports.WfsSync = WfsSync;
 });
-define("node_modules/ol3-draw/ol3-draw/measure-extension", ["require", "exports", "openlayers", "node_modules/ol3-fun/index"], function (require, exports, ol, index_27) {
+define("node_modules/ol3-draw/ol3-draw/measure-extension", ["require", "exports", "openlayers", "node_modules/ol3-fun/index"], function (require, exports, ol, index_45) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var wgs84Sphere = ol.sphere;
@@ -8786,11 +9145,11 @@ define("node_modules/ol3-draw/ol3-draw/measure-extension", ["require", "exports"
     var Measurement = (function () {
         function Measurement(options) {
             this.options = options;
-            index_27.cssin("measure", "\n\n.tooltip {\n    position: relative;\n    background: rgba(0, 0, 0, 0.5);\n    border-radius: 4px;\n    color: white;\n    padding: 4px 8px;\n    opacity: 0.7;\n    white-space: nowrap;\n}\n.tooltip-measure {\n    opacity: 1;\n    font-weight: bold;\n}\n.tooltip-static {\n    background-color: #ffcc33;\n    color: black;\n    border: 1px solid white;\n}\n.tooltip-measure:before,\n.tooltip-static:before {\n    border-top: 6px solid rgba(0, 0, 0, 0.5);\n    border-right: 6px solid transparent;\n    border-left: 6px solid transparent;\n    content: \"\";\n    position: absolute;\n    bottom: -6px;\n    margin-left: -7px;\n    left: 50%;\n}\n.tooltip-static:before {\n    border-top-color: #ffcc33;\n}\n\n    ");
+            index_45.cssin("measure", "\n\n.tooltip {\n    position: relative;\n    background: rgba(0, 0, 0, 0.5);\n    border-radius: 4px;\n    color: white;\n    padding: 4px 8px;\n    opacity: 0.7;\n    white-space: nowrap;\n}\n.tooltip-measure {\n    opacity: 1;\n    font-weight: bold;\n}\n.tooltip-static {\n    background-color: #ffcc33;\n    color: black;\n    border: 1px solid white;\n}\n.tooltip-measure:before,\n.tooltip-static:before {\n    border-top: 6px solid rgba(0, 0, 0, 0.5);\n    border-right: 6px solid transparent;\n    border-left: 6px solid transparent;\n    content: \"\";\n    position: absolute;\n    bottom: -6px;\n    margin-left: -7px;\n    left: 50%;\n}\n.tooltip-static:before {\n    border-top-color: #ffcc33;\n}\n\n    ");
             this.createMeasureTooltip();
         }
         Measurement.create = function (options) {
-            options = index_27.defaults({}, options || {}, Measurement.DEFAULT_OPTIONS);
+            options = index_45.defaults({}, options || {}, Measurement.DEFAULT_OPTIONS);
             return new Measurement(options);
         };
         Measurement.prototype.createMeasureTooltip = function () {
@@ -8896,7 +9255,7 @@ define("node_modules/ol3-draw/index", ["require", "exports", "node_modules/ol3-d
     exports.WfsSync = wfs_sync_1.WfsSync;
     exports.Measurement = measure_extension_1.Measurement;
 });
-define("ol3-lab/labs/geoserver/services", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/mapmaker", "node_modules/ol3-symbolizer/index", "node_modules/ol3-popup/index", "node_modules/ol3-draw/index", "node_modules/ol3-draw/ol3-draw/ol3-edit", "node_modules/ol3-draw/ol3-draw/ol3-delete", "node_modules/ol3-draw/ol3-draw/ol3-translate", "node_modules/ol3-draw/ol3-draw/services/wfs-sync"], function (require, exports, $, ol, MapMaker, Symbolizer, index_28, index_29, ol3_edit_3, ol3_delete_2, ol3_translate_2, wfs_sync_2) {
+define("ol3-lab/labs/geoserver/services", ["require", "exports", "jquery", "openlayers", "ol3-lab/labs/mapmaker", "node_modules/ol3-symbolizer/index", "node_modules/ol3-popup/index", "node_modules/ol3-draw/index", "node_modules/ol3-draw/ol3-draw/ol3-edit", "node_modules/ol3-draw/ol3-draw/ol3-delete", "node_modules/ol3-draw/ol3-draw/ol3-translate", "node_modules/ol3-draw/ol3-draw/services/wfs-sync"], function (require, exports, $, ol, MapMaker, Symbolizer, index_46, index_47, ol3_edit_3, ol3_delete_2, ol3_translate_2, wfs_sync_2) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var symbolizer = new Symbolizer.StyleConverter();
@@ -8964,7 +9323,7 @@ define("ol3-lab/labs/geoserver/services", ["require", "exports", "jquery", "open
                 });
             }
             {
-                var popup_1 = index_28.Popup.create({
+                var popup_1 = index_46.Popup.create({
                     map: map,
                     css: "\n            .ol-popup {\n                background-color: white;\n            }\n            .ol-popup .page {\n                max-height: 200px;\n                overflow-y: auto;\n            }\n            ",
                     dockContainer: map.getViewport()
@@ -9004,9 +9363,9 @@ define("ol3-lab/labs/geoserver/services", ["require", "exports", "jquery", "open
                     popup_1.pages.goto(0);
                 });
             }
-            map.addControl(index_29.Draw.create({ geometryType: "MultiPolygon", label: "▧", position: "right-4 top", layers: [layer] }));
-            map.addControl(index_29.Draw.create({ geometryType: "MultiLineString", label: "▬", position: "right-2 top", layers: [layer] }));
-            map.addControl(index_29.Draw.create({ geometryType: "Point", label: "●", position: "right top", layers: [layer] }));
+            map.addControl(index_47.Draw.create({ geometryType: "MultiPolygon", label: "▧", position: "right-4 top", layers: [layer] }));
+            map.addControl(index_47.Draw.create({ geometryType: "MultiLineString", label: "▬", position: "right-2 top", layers: [layer] }));
+            map.addControl(index_47.Draw.create({ geometryType: "Point", label: "●", position: "right top", layers: [layer] }));
             map.addControl(ol3_translate_2.Translate.create({ position: "right-4 top-2" }));
             map.addControl(ol3_edit_3.Modify.create({ label: "Δ", position: "right-2 top-2" }));
             map.addControl(ol3_delete_2.Delete.create({ label: "X", position: "right top-2" }));
@@ -12828,7 +13187,7 @@ define("ol3-lab/tests/canvas", ["require", "exports"], function (require, export
     }
     exports.run = run;
 });
-define("ol3-lab/tests/drop-vertex-on-marker-detection", ["require", "exports", "openlayers", "ol3-lab/labs/mapmaker", "ol3-lab/labs/route-editor", "node_modules/ol3-fun/ol3-fun/common"], function (require, exports, ol, mapmaker_1, route_editor_1, common_28) {
+define("ol3-lab/tests/drop-vertex-on-marker-detection", ["require", "exports", "openlayers", "ol3-lab/labs/mapmaker", "ol3-lab/labs/route-editor", "node_modules/ol3-fun/index"], function (require, exports, ol, mapmaker_1, route_editor_1, index_48) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     function midpoint(points) {
@@ -12849,8 +13208,8 @@ define("ol3-lab/tests/drop-vertex-on-marker-detection", ["require", "exports", "
         });
         var layer = new ol.layer.Vector({
             source: new ol.source.Vector({
-                features: features,
-            }),
+                features: features
+            })
         });
         var colors = ["229966", "cc6633", "cc22cc", "331199"].map(function (v) { return "#" + v; });
         mapmaker_1.run().then(function (map) {
@@ -12859,7 +13218,7 @@ define("ol3-lab/tests/drop-vertex-on-marker-detection", ["require", "exports", "
             var routes = [];
             var shift = [-0.001, -0.005];
             while (colors.length) {
-                var stops = common_28.range(8).map(function (v) {
+                var stops = index_48.range(8).map(function (v) {
                     return ([a + (c - a) * Math.random(), b + (d - b) * Math.random()].map(function (v, i) { return v + shift[i]; }));
                 });
                 var startstop = ([a + (c - a) * Math.random(), b + (d - b) * Math.random()].map(function (v, i) { return v + shift[i]; }));
@@ -12867,7 +13226,7 @@ define("ol3-lab/tests/drop-vertex-on-marker-detection", ["require", "exports", "
                     color: colors.pop(),
                     start: startstop,
                     finish: startstop,
-                    stops: stops,
+                    stops: stops
                 });
                 shift = shift.map(function (v) { return v + 0.005; });
                 routes.push(route);
@@ -12875,7 +13234,7 @@ define("ol3-lab/tests/drop-vertex-on-marker-detection", ["require", "exports", "
             var redRoute = new route_editor_1.Route({
                 color: "red",
                 showLines: false,
-                modifyRoute: true,
+                modifyRoute: true
             });
             routes.push(redRoute);
             routes.forEach(function (r) {
@@ -12895,7 +13254,7 @@ define("ol3-lab/tests/drop-vertex-on-marker-detection", ["require", "exports", "
                         return false;
                     return true;
                 },
-                features: editFeatures,
+                features: editFeatures
             });
             map.addInteraction(modify);
             modify.on("modifyend", function (args) {
@@ -12904,11 +13263,11 @@ define("ol3-lab/tests/drop-vertex-on-marker-detection", ["require", "exports", "
                 console.log("drop-location", dropLocation);
                 var dropInfo = {
                     route: null,
-                    stops: null,
+                    stops: null
                 };
                 var targetInfo = {
                     route: null,
-                    vertexIndex: null,
+                    vertexIndex: null
                 };
                 targetInfo.route = routes.filter(function (route) { return route.owns(activeFeature); })[0];
                 console.log("target-route", targetInfo.route);
@@ -14441,110 +14800,6 @@ define("ol3-lab/ux/serializers/ags-simplemarkersymbol", ["require", "exports", "
     }());
     exports.SimpleMarkerConverter = SimpleMarkerConverter;
 });
-define("node_modules/ol3-draw/tests/base", ["require", "exports"], function (require, exports) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    function describe(title, cb) {
-        console.log(title || "undocumented test group");
-        return window.describe(title, cb);
-    }
-    exports.describe = describe;
-    function it(title, cb) {
-        console.log(title || "undocumented test");
-        return window.it(title, cb);
-    }
-    exports.it = it;
-    function should(result, message) {
-        console.log(message || "undocumented assertion");
-        if (!result)
-            throw message;
-    }
-    exports.should = should;
-    function shouldEqual(a, b, message) {
-        if (a != b)
-            console.warn("\"" + a + "\" <> \"" + b + "\"");
-        should(a == b, message);
-    }
-    exports.shouldEqual = shouldEqual;
-    function stringify(o) {
-        return JSON.stringify(o, null, "\t");
-    }
-    exports.stringify = stringify;
-});
-define("node_modules/ol3-draw/tests/spec/draw", ["require", "exports", "node_modules/ol3-draw/tests/base", "mocha", "node_modules/ol3-draw/ol3-draw/ol3-draw"], function (require, exports, base_1, mocha_1, ol3_draw_3) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    mocha_1.describe("Draw Tests", function () {
-        mocha_1.it("Draw", function () {
-            base_1.should(!!ol3_draw_3.Draw, "Draw");
-        });
-        mocha_1.it("DEFAULT_OPTIONS", function () {
-            var options = ol3_draw_3.Draw.DEFAULT_OPTIONS;
-            checkDefaultInputOptions(options);
-        });
-        mocha_1.it("options of an Input instance", function () {
-            var input = ol3_draw_3.Draw.create();
-            checkDefaultInputOptions(input.options);
-        });
-    });
-    function checkDefaultInputOptions(options) {
-        base_1.should(!!options, "options");
-        base_1.shouldEqual(options.className, "ol-draw", "className");
-        base_1.shouldEqual(options.map, undefined, "map");
-        base_1.shouldEqual(options.position, "top left", "position");
-    }
-});
-define("node_modules/ol3-draw/tests/spec/wfs-sync", ["require", "exports", "openlayers", "node_modules/ol3-draw/tests/base", "mocha", "node_modules/ol3-draw/ol3-draw/services/wfs-sync"], function (require, exports, ol, base_2, mocha_2, wfs_sync_3) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    var WFS_INFO = {
-        srsName: "EPSG:3857",
-        wfsUrl: location.protocol + "//" + location.hostname + ":8080/geoserver/cite/wfs",
-        featureNS: "http://www.opengeospatial.net/cite",
-        featurePrefix: "cite",
-    };
-    mocha_2.describe("wfs-sync", function () {
-        mocha_2.it("WfsSync", function () {
-            base_2.should(!!wfs_sync_3.WfsSync, "WfsSync");
-        });
-        mocha_2.it("DEFAULT_OPTIONS", function () {
-            var options = wfs_sync_3.WfsSync.DEFAULT_OPTIONS;
-            checkDefaultInputOptions(options);
-        });
-        mocha_2.it("should invoke a POST request", function (done) {
-            var source = new ol.source.Vector();
-            var service = wfs_sync_3.WfsSync.create({
-                wfsUrl: WFS_INFO.wfsUrl,
-                featureNS: WFS_INFO.featureNS,
-                featurePrefix: WFS_INFO.featurePrefix,
-                srsName: WFS_INFO.srsName,
-                sourceSrs: WFS_INFO.srsName,
-                source: source,
-                targets: {
-                    "Point": "point_layer"
-                }
-            });
-            service.on("after-save", function (args) {
-                console.warn(args);
-                done();
-            });
-            service.on("error", function (args) {
-                base_2.shouldEqual(args, "Feature type 'point_layer' is not available: ", "point_layer not available error message");
-                done();
-            });
-            source.addFeature(new ol.Feature(new ol.geom.Point([0, 0])));
-        });
-    });
-    function checkDefaultInputOptions(options) {
-        base_2.should(!!options, "options");
-        base_2.shouldEqual(options.featureIdFieldName, "gid", "featureIdFieldName");
-        base_2.shouldEqual(options.lastUpdateFieldName, "touched", "lastUpdateFieldName");
-    }
-});
-define("node_modules/ol3-draw/tests/index", ["require", "exports", "node_modules/ol3-draw/tests/spec/draw", "node_modules/ol3-draw/tests/spec/wfs-sync"], function (require, exports) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-});
 define("node_modules/ol3-fun/tests/base", ["require", "exports", "node_modules/ol3-fun/ol3-fun/slowloop"], function (require, exports, slowloop_2) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
@@ -14566,22 +14821,36 @@ define("node_modules/ol3-fun/tests/base", ["require", "exports", "node_modules/o
     }
     exports.should = should;
     function shouldEqual(a, b, message) {
-        if (a != b)
-            console.warn("\"" + a + "\" <> \"" + b + "\"");
+        if (a != b) {
+            var msg = "\"" + a + "\" <> \"" + b + "\"";
+            message = (message ? message + ": " : "") + msg;
+            console.warn(msg);
+        }
         should(a == b, message);
     }
     exports.shouldEqual = shouldEqual;
+    function shouldThrow(fn, message) {
+        try {
+            fn();
+        }
+        catch (ex) {
+            should(!!ex, ex);
+            return ex;
+        }
+        should(false, "expected an exception" + (message ? ": " + message : ""));
+    }
+    exports.shouldThrow = shouldThrow;
     function stringify(o) {
         return JSON.stringify(o, null, "\t");
     }
     exports.stringify = stringify;
 });
-define("node_modules/ol3-fun/tests/spec/api", ["require", "exports", "node_modules/ol3-fun/tests/base", "node_modules/ol3-fun/index"], function (require, exports, base_3, API) {
+define("node_modules/ol3-fun/tests/spec/api", ["require", "exports", "node_modules/ol3-fun/tests/base", "node_modules/ol3-fun/index"], function (require, exports, base_1, API) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    base_3.describe("API", function () {
-        base_3.it("full api exists", function () {
-            base_3.shouldEqual([
+    base_1.describe("API", function () {
+        base_1.it("full api exists", function () {
+            base_1.shouldEqual([
                 API.asArray,
                 API.cssin,
                 API.debounce,
@@ -14604,7 +14873,7 @@ define("node_modules/ol3-fun/tests/spec/api", ["require", "exports", "node_modul
         });
     });
 });
-define("node_modules/ol3-fun/tests/spec/common", ["require", "exports", "node_modules/ol3-fun/tests/base", "node_modules/ol3-fun/ol3-fun/common"], function (require, exports, base_4, common_29) {
+define("node_modules/ol3-fun/tests/spec/common", ["require", "exports", "node_modules/ol3-fun/tests/base", "node_modules/ol3-fun/ol3-fun/common"], function (require, exports, base_2, common_12) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     function sum(list) {
@@ -14616,244 +14885,235 @@ define("node_modules/ol3-fun/tests/spec/common", ["require", "exports", "node_mo
                 return;
             document.body.appendChild(document.createElement("div"));
             var list = document.getElementsByTagName("div");
-            var result = common_29.asArray(list);
-            base_4.should(result.length === list.length, "array size matches list size");
+            var result = common_12.asArray(list);
+            base_2.should(result.length === list.length, "array size matches list size");
             done();
         });
     });
     describe("uuid tests", function () {
         it("uuid", function () {
-            base_4.should(common_29.uuid().length === 36, "uuid has 36 characters");
+            base_2.should(common_12.uuid().length === 36, "uuid has 36 characters");
         });
     });
     describe("pair tests", function () {
         it("empty test", function () {
-            base_4.should(0 === common_29.pair([], []).length, "empty result");
-            base_4.should(0 === common_29.pair([1], []).length, "empty result");
-            base_4.should(0 === common_29.pair([], [1]).length, "empty result");
+            base_2.should(0 === common_12.pair([], []).length, "empty result");
+            base_2.should(0 === common_12.pair([1], []).length, "empty result");
+            base_2.should(0 === common_12.pair([], [1]).length, "empty result");
         });
         it("ensures all combinations", function () {
-            var A = [1, 3, 5], B = [7, 11, 13], result = common_29.pair(A, B);
-            base_4.should((A.length * sum(B) + B.length * sum(A)) === sum(result.map(function (v) { return v[0] + v[1]; })), "create product from two vectors");
+            var A = [1, 3, 5], B = [7, 11, 13], result = common_12.pair(A, B);
+            base_2.should(A.length * sum(B) + B.length * sum(A) === sum(result.map(function (v) { return v[0] + v[1]; })), "create product from two vectors");
         });
     });
     describe("range tests", function () {
         it("empty test", function () {
-            base_4.should(0 === common_29.range(0).length, "empty result");
+            base_2.should(0 === common_12.range(0).length, "empty result");
         });
         it("size tests", function () {
-            base_4.should(1 === common_29.range(1).length, "single item");
-            base_4.should(10 === common_29.range(10).length, "ten items");
+            base_2.should(1 === common_12.range(1).length, "single item");
+            base_2.should(10 === common_12.range(10).length, "ten items");
         });
         it("content tests", function () {
-            base_4.should(45 === sum(common_29.range(10)), "range '10' contains 0..9");
+            base_2.should(45 === sum(common_12.range(10)), "range '10' contains 0..9");
         });
     });
     describe("shuffle tests", function () {
         it("empty test", function () {
-            base_4.should(0 === common_29.shuffle([]).length, "empty result");
+            base_2.should(0 === common_12.shuffle([]).length, "empty result");
         });
         it("size tests", function () {
-            base_4.should(1 === common_29.shuffle(common_29.range(1)).length, "single item");
-            base_4.should(10 === common_29.shuffle(common_29.range(10)).length, "ten items");
+            base_2.should(1 === common_12.shuffle(common_12.range(1)).length, "single item");
+            base_2.should(10 === common_12.shuffle(common_12.range(10)).length, "ten items");
         });
         it("content tests", function () {
-            base_4.should(45 === sum(common_29.shuffle(common_29.range(10))), "range '10' contains 0..9");
+            base_2.should(45 === sum(common_12.shuffle(common_12.range(10))), "range '10' contains 0..9");
         });
     });
     describe("toggle tests", function () {
         it("toggle", function () {
             var div = document.createElement("div");
-            base_4.should(div.className === "", "div contains no className");
-            common_29.toggle(div, "foo");
-            base_4.should(div.className === "foo", "toggle adds");
-            common_29.toggle(div, "foo");
-            base_4.should(div.className === "", "second toggles removes");
-            common_29.toggle(div, "foo", true);
-            base_4.should(div.className === "foo", "forces foo to exist when it does not exist");
-            common_29.toggle(div, "foo", true);
-            base_4.should(div.className === "foo", "forces foo to exist when it already exists");
-            common_29.toggle(div, "foo", false);
-            base_4.should(div.className === "", "forces foo to not exist");
-            common_29.toggle(div, "foo", false);
-            base_4.should(div.className === "", "forces foo to not exist");
+            base_2.should(div.className === "", "div contains no className");
+            common_12.toggle(div, "foo");
+            base_2.should(div.className === "foo", "toggle adds");
+            common_12.toggle(div, "foo");
+            base_2.should(div.className === "", "second toggles removes");
+            common_12.toggle(div, "foo", true);
+            base_2.should(div.className === "foo", "forces foo to exist when it does not exist");
+            common_12.toggle(div, "foo", true);
+            base_2.should(div.className === "foo", "forces foo to exist when it already exists");
+            common_12.toggle(div, "foo", false);
+            base_2.should(div.className === "", "forces foo to not exist");
+            common_12.toggle(div, "foo", false);
+            base_2.should(div.className === "", "forces foo to not exist");
         });
     });
     describe("parse tests", function () {
         it("parse", function () {
             var num = 0;
             var bool = false;
-            base_4.should(common_29.parse("", "").toString() === "", "empty string");
-            base_4.should(common_29.parse("1", "").toString() === "1", "numeric string");
-            base_4.should(common_29.parse("1", num) === 1, "numeric string as number returns number");
-            base_4.should(common_29.parse("0", bool) === false, "0 as boolean is false");
-            base_4.should(common_29.parse("1", bool) === true, "1 as boolean is true");
-            base_4.should(common_29.parse("false", bool) === false, "'false' as boolean is false");
-            base_4.should(common_29.parse("true", bool) === true, "'true' as boolean is true");
-            base_4.should(common_29.parse("1", num) === 1, "numeric string as number returns number");
-            base_4.should(common_29.parse("1", num) === 1, "numeric string as number returns number");
-            base_4.should(common_29.parse("1,2,3", [num])[1] === 2, "parse into numeric array");
+            base_2.should(common_12.parse("", "").toString() === "", "empty string");
+            base_2.should(common_12.parse("1", "").toString() === "1", "numeric string");
+            base_2.should(common_12.parse("1", num) === 1, "numeric string as number returns number");
+            base_2.should(common_12.parse("0", bool) === false, "0 as boolean is false");
+            base_2.should(common_12.parse("1", bool) === true, "1 as boolean is true");
+            base_2.should(common_12.parse("false", bool) === false, "'false' as boolean is false");
+            base_2.should(common_12.parse("true", bool) === true, "'true' as boolean is true");
+            base_2.should(common_12.parse("1", num) === 1, "numeric string as number returns number");
+            base_2.should(common_12.parse("1", num) === 1, "numeric string as number returns number");
+            base_2.should(common_12.parse("1,2,3", [num])[1] === 2, "parse into numeric array");
         });
     });
     describe("getQueryParameters tests", function () {
         it("getQueryParameters", function () {
             var options = { a: "" };
-            common_29.getQueryParameters(options, "foo?a=1&b=2");
-            base_4.shouldEqual(options.a, "1", "a=1 extracted");
-            base_4.shouldEqual(options.b, undefined, "b not assigned");
+            common_12.getQueryParameters(options, "foo?a=1&b=2");
+            base_2.shouldEqual(options.a, "1", "a=1 extracted");
+            base_2.shouldEqual(options.b, undefined, "b not assigned");
             options = { b: "" };
-            common_29.getQueryParameters(options, "foo?a=1&b=2");
-            base_4.shouldEqual(options.b, "2", "b=2 extracted");
-            base_4.shouldEqual(options.a, undefined, "a not assigned");
+            common_12.getQueryParameters(options, "foo?a=1&b=2");
+            base_2.shouldEqual(options.b, "2", "b=2 extracted");
+            base_2.shouldEqual(options.a, undefined, "a not assigned");
             options.a = options.b = options.c = "<null>";
-            common_29.getQueryParameters(options, "foo?a=1&b=2");
-            base_4.shouldEqual(options.a, "1", "a=1 extracted");
-            base_4.shouldEqual(options.b, "2", "b=2 extracted");
-            base_4.shouldEqual(options.c, "<null>", "c not assigned, original value untouched");
+            common_12.getQueryParameters(options, "foo?a=1&b=2");
+            base_2.shouldEqual(options.a, "1", "a=1 extracted");
+            base_2.shouldEqual(options.b, "2", "b=2 extracted");
+            base_2.shouldEqual(options.c, "<null>", "c not assigned, original value untouched");
         });
     });
     describe("getParameterByName tests", function () {
         it("getParameterByName", function () {
-            base_4.shouldEqual(common_29.getParameterByName("a", "foo?a=1"), "1", "a=1");
-            base_4.shouldEqual(common_29.getParameterByName("b", "foo?a=1"), null, "b does not exist");
+            base_2.shouldEqual(common_12.getParameterByName("a", "foo?a=1"), "1", "a=1");
+            base_2.shouldEqual(common_12.getParameterByName("b", "foo?a=1"), null, "b does not exist");
         });
     });
     describe("doif tests", function () {
-        var die = function (n) { throw "doif callback not expected to execute: " + n; };
+        var die = function (n) {
+            throw "doif callback not expected to execute: " + n;
+        };
         var spawn = function () {
             var v = true;
-            return function () { return v = !v; };
+            return function () { return (v = !v); };
         };
         it("doif false tests", function () {
-            common_29.doif(undefined, die);
-            common_29.doif(null, die);
+            common_12.doif(undefined, die);
+            common_12.doif(null, die);
         });
         it("doif empty tests", function () {
             var c = spawn();
-            common_29.doif(0, c);
-            base_4.shouldEqual(c(), true, "0 invokes doif");
-            common_29.doif(false, c);
-            base_4.shouldEqual(c(), true, "false invokes doif");
-            common_29.doif({}, c);
-            base_4.shouldEqual(c(), true, "{} invokes doif");
+            common_12.doif(0, c);
+            base_2.shouldEqual(c(), true, "0 invokes doif");
+            common_12.doif(false, c);
+            base_2.shouldEqual(c(), true, "false invokes doif");
+            common_12.doif({}, c);
+            base_2.shouldEqual(c(), true, "{} invokes doif");
         });
         it("doif value tests", function () {
-            common_29.doif(0, function (v) { return base_4.shouldEqual(v, 0, "0"); });
-            common_29.doif({ a: 100 }, function (v) { return base_4.shouldEqual(v.a, 100, "a = 100"); });
+            common_12.doif(0, function (v) { return base_2.shouldEqual(v, 0, "0"); });
+            common_12.doif({ a: 100 }, function (v) { return base_2.shouldEqual(v.a, 100, "a = 100"); });
         });
     });
     describe("mixin tests", function () {
         it("simple mixins", function () {
-            base_4.shouldEqual(common_29.mixin({ a: 1 }, { b: 2 }).a, 1, "a=1");
-            base_4.shouldEqual(common_29.mixin({ a: 1 }, { b: 2 }).b, 2, "b=2");
-            base_4.shouldEqual(common_29.mixin({ a: 1 }, { b: 2 }).c, undefined, "c undefined");
-            base_4.shouldEqual(common_29.mixin({ a: 1 }, {}).a, 1, "a=1");
-            base_4.shouldEqual(common_29.mixin({}, { b: 2 }).b, 2, "b=2");
+            base_2.shouldEqual(common_12.mixin({ a: 1 }, { b: 2 }).a, 1, "a=1");
+            base_2.shouldEqual(common_12.mixin({ a: 1 }, { b: 2 }).b, 2, "b=2");
+            base_2.shouldEqual(common_12.mixin({ a: 1 }, { b: 2 }).c, undefined, "c undefined");
+            base_2.shouldEqual(common_12.mixin({ a: 1 }, {}).a, 1, "a=1");
+            base_2.shouldEqual(common_12.mixin({}, { b: 2 }).b, 2, "b=2");
         });
         it("nested mixins", function () {
             var _a;
-            base_4.shouldEqual(common_29.mixin({ vermont: { burlington: true } }, (_a = {}, _a["south carolina"] = { greenville: true }, _a))["south carolina"].greenville, true, "greenville is in south carolina");
-            base_4.shouldEqual(common_29.mixin({ vermont: { burlington: true } }, { vermont: { greenville: false } }).vermont.greenville, false, "greenville is not in vermont");
-            base_4.shouldEqual(common_29.mixin({ vermont: { burlington: true } }, { vermont: { greenville: false } }).vermont.burlington, undefined, "second vermont completely wipes out 1st");
+            base_2.shouldEqual(common_12.mixin({ vermont: { burlington: true } }, (_a = {}, _a["south carolina"] = { greenville: true }, _a))["south carolina"]
+                .greenville, true, "greenville is in south carolina");
+            base_2.shouldEqual(common_12.mixin({ vermont: { burlington: true } }, { vermont: { greenville: false } }).vermont.greenville, false, "greenville is not in vermont");
+            base_2.shouldEqual(common_12.mixin({ vermont: { burlington: true } }, { vermont: { greenville: false } }).vermont.burlington, undefined, "second vermont completely wipes out 1st");
         });
     });
     describe("defaults tests", function () {
         it("defaults", function () {
-            base_4.shouldEqual(common_29.defaults({ a: 1 }, { a: 2, b: 3 }).a, 1, "a = 1");
-            base_4.shouldEqual(common_29.defaults({ a: 1 }, { a: 2, b: 3 }).b, 3, "b = 3");
-            base_4.shouldEqual(common_29.defaults({}, { a: 2, b: 3 }).a, 2, "a = 2");
-        });
-    });
-    describe("cssin tests", function () {
-        it("hides the body", function () {
-            var handles = [];
-            handles.push(common_29.cssin("css1", "body {display: none}"));
-            handles.push(common_29.cssin("css1", "body {display: block}"));
-            base_4.shouldEqual(getComputedStyle(document.body).display, "none", "body is hidden, 1st css1 wins");
-            handles.shift()();
-            base_4.shouldEqual(getComputedStyle(document.body).display, "none", "body is still hidden, 1st css1 still registered");
-            handles.shift()();
-            base_4.shouldEqual(getComputedStyle(document.body).display, "block", "body is no longer hidden, css1 destroyed");
+            base_2.shouldEqual(common_12.defaults({ a: 1 }, { a: 2, b: 3 }).a, 1, "a = 1");
+            base_2.shouldEqual(common_12.defaults({ a: 1 }, { a: 2, b: 3 }).b, 3, "b = 3");
+            base_2.shouldEqual(common_12.defaults({}, { a: 2, b: 3 }).a, 2, "a = 2");
         });
     });
     describe("html tests", function () {
         it("tableless tr test", function () {
             var markup = "<tr>A<td>B</td></tr>";
-            var tr = common_29.html(markup);
-            base_4.should(tr.nodeValue === "AB", "setting innerHTML on a 'div' will not assign tr elements");
+            var tr = common_12.html(markup);
+            base_2.should(tr.nodeValue === "AB", "setting innerHTML on a 'div' will not assign tr elements");
         });
         it("table tr test", function () {
             var markup = "<table><tbody><tr><td>Test</td></tr></tbody></table>";
-            var table = common_29.html(markup);
-            base_4.should(table.outerHTML === markup, "preserves tr when within a table");
+            var table = common_12.html(markup);
+            base_2.should(table.outerHTML === markup, "preserves tr when within a table");
         });
         it("canvas test", function () {
             var markup = "<canvas width=\"100\" height=\"100\"></canvas>";
-            var canvas = common_29.html(markup);
-            base_4.should(canvas.outerHTML === markup, "canvas markup preserved");
-            base_4.should(!!canvas.getContext("2d"), "cnvas has 2d context");
+            var canvas = common_12.html(markup);
+            base_2.should(canvas.outerHTML === markup, "canvas markup preserved");
+            base_2.should(!!canvas.getContext("2d"), "cnvas has 2d context");
         });
     });
 });
-define("node_modules/ol3-fun/tests/spec/slowloop", ["require", "exports", "node_modules/ol3-fun/tests/base", "node_modules/ol3-fun/ol3-fun/common"], function (require, exports, base_5, common_30) {
+define("node_modules/ol3-fun/tests/spec/slowloop", ["require", "exports", "node_modules/ol3-fun/tests/base", "node_modules/ol3-fun/ol3-fun/common"], function (require, exports, base_3, common_13) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    base_5.describe("slowloop", function () {
-        base_5.it("slowloop empty", function (done) {
+    base_3.describe("slowloop", function () {
+        base_3.it("slowloop empty", function (done) {
             try {
-                base_5.slowloop(null);
-                base_5.should(false, "slowloop requires an array");
+                base_3.slowloop(null);
+                base_3.should(false, "slowloop requires an array");
             }
             catch (_a) {
                 done();
             }
         });
-        base_5.it("slowloop with progress", function () {
+        base_3.it("slowloop with progress", function () {
             var progressCount = 0;
-            return base_5.slowloop(common_30.range(7).map(function (n) { return function () { }; }), 0, 5)
+            return base_3.slowloop(common_13.range(7).map(function (n) { return function () { }; }), 0, 5)
                 .progress(function (args) {
                 console.log(args);
                 progressCount++;
             })
                 .then(function () {
-                base_5.shouldEqual(progressCount, 7 * 5, "progress callbacks");
+                base_3.shouldEqual(progressCount, 7 * 5, "progress callbacks");
             });
         });
-        base_5.it("slowloop with exceptions", function () {
-            return base_5.slowloop([
+        base_3.it("slowloop with exceptions", function () {
+            return base_3.slowloop([
                 function () {
                     throw "exception occured in slowloop";
                 }
             ])
-                .then(function () { return base_5.should(false, "failure expected"); })
-                .catch(function (ex) { return base_5.should(!!ex, ex); });
+                .then(function () { return base_3.should(false, "failure expected"); })
+                .catch(function (ex) { return base_3.should(!!ex, ex); });
         });
-        base_5.it("slowloop with abort", function () {
-            return base_5.slowloop([
+        base_3.it("slowloop with abort", function () {
+            return base_3.slowloop([
                 function () {
-                    base_5.should(false, "aborted from inside");
+                    base_3.should(false, "aborted from inside");
                 }
             ], 10)
                 .reject("aborted from outside")
-                .catch(function (ex) { return base_5.shouldEqual(ex, "aborted from outside", "aborted from outside"); });
+                .catch(function (ex) { return base_3.shouldEqual(ex, "aborted from outside", "aborted from outside"); });
         });
-        base_5.it("slowloop fast", function (done) {
+        base_3.it("slowloop fast", function (done) {
             var count = 0;
             var inc = function () { return count++; };
-            base_5.slowloop([inc, inc, inc], 0, 100).then(function () {
-                base_5.shouldEqual(count, 300, "0 ms * 100 iterations * 3 functions => 300 invocations");
+            base_3.slowloop([inc, inc, inc], 0, 100).then(function () {
+                base_3.shouldEqual(count, 300, "0 ms * 100 iterations * 3 functions => 300 invocations");
                 done();
             });
         }).timeout(2000);
-        base_5.it("slowloop iterations", function (done) {
+        base_3.it("slowloop iterations", function (done) {
             var count = 0;
             var inc = function () { return count++; };
-            base_5.slowloop([inc]).then(function () {
-                base_5.shouldEqual(count, 1, "defaults to a single iteration");
-                base_5.slowloop([inc], 0, 2).then(function () {
-                    base_5.shouldEqual(count, 3, "performs two iterations");
-                    base_5.slowloop([inc], 0, 0).then(function () {
-                        base_5.shouldEqual(count, 3, "performs 0 iterations");
+            base_3.slowloop([inc]).then(function () {
+                base_3.shouldEqual(count, 1, "defaults to a single iteration");
+                base_3.slowloop([inc], 0, 2).then(function () {
+                    base_3.shouldEqual(count, 3, "performs two iterations");
+                    base_3.slowloop([inc], 0, 0).then(function () {
+                        base_3.shouldEqual(count, 3, "performs 0 iterations");
                         done();
                     });
                 });
@@ -14861,25 +15121,452 @@ define("node_modules/ol3-fun/tests/spec/slowloop", ["require", "exports", "node_
         });
     });
 });
-define("node_modules/ol3-fun/tests/spec/openlayers-test", ["require", "exports", "node_modules/ol3-fun/tests/base", "openlayers"], function (require, exports, base_6, ol) {
+define("node_modules/ol3-fun/tests/spec/deep-extend", ["require", "exports", "node_modules/ol3-fun/tests/base", "node_modules/ol3-fun/ol3-fun/deep-extend", "node_modules/ol3-fun/ol3-fun/common"], function (require, exports, base_4, deep_extend_2, common_14) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    describe("utils/deep-extend", function () {
+        it("trivial merges", function () {
+            base_4.shouldEqual(base_4.stringify(deep_extend_2.extend({}, {})), base_4.stringify({}), "empty objects");
+            base_4.shouldEqual(base_4.stringify(deep_extend_2.extend([], [])), base_4.stringify([]), "empty arrays");
+            base_4.shouldEqual(base_4.stringify(deep_extend_2.extend([,], [, ,])), base_4.stringify([,]), "arrays with empty items");
+            var o = { a: 1 };
+            base_4.shouldEqual(o, deep_extend_2.extend(o, o), "merges same object");
+            base_4.should(o !== deep_extend_2.extend(o), "clones when second argument not provided");
+        });
+        it("invalid merges", function () {
+            base_4.shouldThrow(function () { return deep_extend_2.extend({}, []); }, "{} and []");
+            base_4.shouldThrow(function () { return deep_extend_2.extend([], {}); }, "[] and {}");
+            base_4.shouldThrow(function () { return deep_extend_2.extend(1, 2); }, "primitives");
+            base_4.shouldThrow(function () { return deep_extend_2.extend(new Date(2000, 1, 1), new Date(2000, 1, 2)); }, "clonable primitives");
+            var a = { a: 1 };
+            var b = { b: a };
+            a.b = b;
+            base_4.shouldEqual(base_4.shouldThrow(function () { return deep_extend_2.extend(b); }, "b->a->b"), "circular reference detected");
+        });
+        it("merges with duplicate objects that might be detected as recursive", function () {
+            var o = { a: { date: new Date(Date.now() - 1000), address: { street: "main" } } };
+            var p = { o1: o, o2: o };
+            base_4.shouldEqual(base_4.stringify(deep_extend_2.extend(p)), base_4.stringify(p), "two children pointing to the same object");
+            var q = { p1: p, p2: [p], p3: [{ id: "P", value: p }] };
+            var actual = base_4.stringify(deep_extend_2.extend(q, deep_extend_2.extend(p, o)));
+            base_4.should(!!actual, "complex linked");
+        });
+        it("simple data merges", function () {
+            var o = deep_extend_2.extend({ v1: 1 });
+            base_4.shouldEqual(o.v1, 1, "adds v1");
+            deep_extend_2.extend(o, { v1: 2 });
+            base_4.shouldEqual(o.v1, 2, "updates v1");
+        });
+        it("simple array merges", function () {
+            base_4.shouldEqual(base_4.stringify(deep_extend_2.extend([1], [])), base_4.stringify([1]), "[1] + []");
+            base_4.shouldEqual(base_4.stringify(deep_extend_2.extend([1], [2])), base_4.stringify([2]), "[1] + [2]");
+            base_4.shouldEqual(base_4.stringify(deep_extend_2.extend([1, 2, 3], [2])), base_4.stringify([2, 2, 3]), "[1,2,3] + [2]");
+            base_4.shouldEqual(base_4.stringify(deep_extend_2.extend([2], [1, 2, 3])), base_4.stringify([1, 2, 3]), "[2] + [1,2,3]");
+            base_4.shouldEqual(base_4.stringify(deep_extend_2.extend([, , , 4], [1, 2, 3])), base_4.stringify([1, 2, 3, 4]), "array can have empty items");
+            base_4.shouldEqual(base_4.stringify(deep_extend_2.extend([{ id: 1 }], [{ id: 2 }])), base_4.stringify([{ id: 1 }, { id: 2 }]), "[1] + [2] with ids");
+        });
+        it("preserves array ordering", function () {
+            base_4.shouldEqual(deep_extend_2.extend([{ id: 1 }], [{ id: 1 }, { id: 2 }])[0].id, 1, "first item id");
+            base_4.shouldEqual(deep_extend_2.extend([{ id: 2 }], [{ id: 1 }, { id: 2 }])[0].id, 2, "first item id");
+            base_4.shouldEqual(deep_extend_2.extend([{ id: 1 }, { id: 3 }], [{ id: 2 }, { id: 1, v: 1 }])[0].v, 1, "first item id");
+        });
+        it("clones objects with primitives", function () {
+            var source = { v1: { v2: { v3: 1 } } };
+            var o = deep_extend_2.extend(source);
+            base_4.shouldEqual(o.v1.v2.v3, 1, "properly extends {}");
+            base_4.should(source.v1 !== o.v1, "properly clones objects");
+        });
+        it("clones dates", function () {
+            var source = { date: new Date() };
+            var o = deep_extend_2.extend(source);
+            base_4.should(source.date !== o.date, "dates are clones");
+            base_4.shouldEqual(source.date.getUTCDate(), o.date.getUTCDate(), "date values are preserved");
+        });
+        it("clones nested objects", function () {
+            var source = { v1: { v2: { v3: 1 } } };
+            var o = deep_extend_2.extend(source);
+            base_4.should(source !== o, "clones source");
+            base_4.shouldEqual(source.v1.v2.v3, o.v1.v2.v3, "properly extends v3");
+            base_4.should(source.v1 !== o.v1, "properly clones v1");
+            base_4.should(source.v1.v2 !== o.v1.v2, "properly clones v1.v2");
+        });
+        it("clones arrays", function () {
+            var source = { v1: common_14.range(1).map(function (i) { return ({ id: i + 1, value: i }); }) };
+            var o = deep_extend_2.extend(source);
+            base_4.should(source !== o, "clones source");
+            base_4.should(source.v1 !== o.v1, "clones v1");
+            base_4.should(source.v1[0].value === o.v1[0].value, "extends v1[1].value");
+            base_4.should(source.v1[0] !== o.v1[0], "clones v1[1]");
+        });
+        it("confirms references are preserved", function () {
+            var x = { foo: { bar: "foo" }, array: [{ id: "a", value: "ax" }] };
+            var y = { foo: { bar: "bar" }, array: [{ id: "a", value: "ay" }] };
+            var xfoo = x.foo;
+            var xarray = x.array[0];
+            var z = deep_extend_2.extend(x, y);
+            base_4.shouldEqual(x, z, "returns x");
+            base_4.shouldEqual(xfoo, z.foo, "reference foo preserved");
+            base_4.shouldEqual(xarray.value, "ay", "existing array references are preserved");
+        });
+        it("confirms array merge is 'id' aware", function () {
+            var o1 = {
+                values: [
+                    {
+                        id: "v1",
+                        value: { v1: 1 }
+                    },
+                    {
+                        id: "v2",
+                        value: { v2: 1 }
+                    },
+                    {
+                        id: "v9",
+                        value: { v9: 1 }
+                    }
+                ]
+            };
+            var o2 = {
+                values: [
+                    {
+                        id: "v1",
+                        value: { v1: 2 }
+                    },
+                    {
+                        id: "v9",
+                        value: { v9: 2 }
+                    }
+                ]
+            };
+            var o = deep_extend_2.extend(o1);
+            base_4.shouldEqual(o.values[0].value.v1, 1, "object is clone of o1, v1");
+            base_4.shouldEqual(o.values[1].value.v2, 1, "object is clone of o1, v2");
+            base_4.shouldEqual(o.values[2].value.v9, 1, "object is clone of o1, v9");
+            deep_extend_2.extend(o, o2);
+            base_4.shouldEqual(o.values[0].value.v1, 2, "merge replaces v1");
+            base_4.shouldEqual(o.values[1].value.v2, 1, "merge preserves v2");
+            base_4.shouldEqual(o.values[2].value.v9, 2, "merge replaces v9");
+        });
+        it("confirms array references are preserved", function () {
+            var x = { foo: { bar: "foo" } };
+            var y = { foo: { bar: "bar" } };
+            var xfoo = x.foo;
+            var z = deep_extend_2.extend(x, y);
+            base_4.shouldEqual(x, z, "returns x");
+            base_4.shouldEqual(xfoo, z.foo, "reference foo preserved");
+        });
+        it("confirms trace is empty when merging duplicate objects", function () {
+            var trace = [];
+            deep_extend_2.extend({}, {}, trace);
+            base_4.shouldEqual(trace.length, 0, "no activity 0");
+            deep_extend_2.extend({ a: 1 }, { a: 1 }, trace);
+            base_4.shouldEqual(trace.length, 0, "no activity 1");
+            deep_extend_2.extend({ a: 1, b: [1] }, { a: 1, b: [1] }, trace);
+            base_4.shouldEqual(trace.length, 0, "no activity 2");
+            deep_extend_2.extend({ a: 1, b: [1], c: {} }, { a: 1, b: [1], c: {} }, trace);
+            base_4.shouldEqual(trace.length, 0, "no activity 3");
+            deep_extend_2.extend({ a: 1, b: [1], c: { d: 1 } }, { a: 1, b: [1], c: { d: 1 } }, trace);
+            base_4.shouldEqual(trace.length, 0, "no activity 4");
+            deep_extend_2.extend({ a: [1, 2, 3] }, { a: [1, 2, 3] }, (trace = []));
+            base_4.shouldEqual(trace.length, 0, "no activity 5");
+            deep_extend_2.extend({ a: [1, 2, [3]] }, { a: [1, 2, [3]] }, (trace = []));
+            base_4.shouldEqual(trace.length, 0, "no activity 6");
+        });
+        it("confirms trace count is 1 when exactly one change is merged", function () {
+            var trace = [];
+            deep_extend_2.extend({ a: 1, b: [1], c: { d: 1 } }, { a: 2, b: [1], c: { d: 1 } }, (trace = []));
+            base_4.shouldEqual(trace.length, 1, "a:1->2");
+            deep_extend_2.extend({ a: 1, b: [1], c: { d: 1 } }, { a: 1, b: [2], c: { d: 1 } }, (trace = []));
+            base_4.shouldEqual(trace.length, 1, "b:1->2");
+            deep_extend_2.extend({ a: 1, b: [1], c: { d: 1 } }, { a: 1, b: [1], c: { d: 2 } }, (trace = []));
+            base_4.shouldEqual(trace.length, 1, "d:1->2");
+            deep_extend_2.extend({ a: [1, 2, 3] }, { a: [1, 2, 30] }, (trace = []));
+            base_4.shouldEqual(trace.length, 1, "3->30");
+            deep_extend_2.extend({ a: [1, 2, [3]] }, { a: [1, 2, [3, 4]] }, (trace = []));
+            base_4.shouldEqual(trace.length, 1, "[3]->[3,4]");
+        });
+        it("confirms trace count is 2 when exactly two changes is merged", function () {
+            var trace = [];
+            deep_extend_2.extend({ a: 1, b: [1], c: { d: 1 } }, { a: 2, b: [1, 2], c: { d: 1 } }, (trace = []));
+            base_4.shouldEqual(trace.length, 2, "a:1->2, b:adds 2");
+            deep_extend_2.extend({ a: 1, b: [1], c: { d: 1 } }, { a: 1, b: [2, 1], c: { d: 1 } }, (trace = []));
+            base_4.shouldEqual(trace.length, 2, "b:1->2,adds 1");
+            deep_extend_2.extend({ a: 1, b: [1], c: { d: 1 } }, { a: 1, b: [1], c: { d: 2, e: 3 } }, (trace = []));
+            base_4.shouldEqual(trace.length, 2, "c.d:1->2, c.e:added");
+            deep_extend_2.extend({ a: [1, 2, 3] }, { a: [10, 2, 30] }, (trace = []));
+            base_4.shouldEqual(trace.length, 2, "1->10, 3->30");
+            deep_extend_2.extend({ a: [1, 2, [3]] }, { a: [1, 2, [3, 4], 5] }, (trace = []));
+            base_4.shouldEqual(trace.length, 2, "[3]->[3,4], 4 added");
+        });
+        it("confirms trace content", function () {
+            var trace = [];
+            var target = deep_extend_2.extend({
+                foo: 1,
+                bar: 2
+            }, {
+                foo: 1,
+                property: "should fire 'add' event with this object and string path to it",
+                object: {
+                    p1: "p1",
+                    p2: 2,
+                    a1: [1, 2, 3],
+                    a2: [{ id: "v1", value: 1 }]
+                }
+            }, trace);
+            base_4.shouldEqual(trace.length, 2, "property added, object added");
+            base_4.shouldEqual(trace.length, trace.filter(function (t) { return t.value !== t.was; }).length, "no trivial trace elements");
+            base_4.shouldEqual(trace.map(function (t) { return t.key; }).join(" "), "property object", "changes are depth first");
+            var t = trace.shift();
+            base_4.shouldEqual(t.key, "property", "property");
+            base_4.shouldEqual(t.value, target.property, "target.property");
+            t = trace.shift();
+            base_4.shouldEqual(t.key, "object", "object");
+            base_4.shouldEqual(t.value, target.object, "target.object");
+        });
+        it("generates empty diff from the trace", function () {
+            var trace = [];
+            var a = {
+                personalInfo: {
+                    email: "aliceames@email.org",
+                    lastName: "Ames",
+                    firstName: "Alice"
+                },
+                name: "name"
+            };
+            var b = {
+                name: "name",
+                personalInfo: {
+                    firstName: "Alice",
+                    lastName: "Ames",
+                    email: "aliceames@email.org"
+                }
+            };
+            var expected = {};
+            deep_extend_2.extend(a, b, (trace = []));
+            console.log("trace", base_4.stringify(trace));
+            base_4.shouldEqual(base_4.stringify(diff(trace)), base_4.stringify(expected));
+        });
+        it("generates a diff from the trace", function () {
+            var trace = [];
+            var a = {
+                name: "name",
+                personalInfo: {
+                    firstName: "Alice",
+                    lastName: "Ames"
+                }
+            };
+            var b = {
+                name: "name",
+                personalInfo: {
+                    firstName: "Alice",
+                    lastName: "Ames",
+                    email: "aliceames@email.org"
+                }
+            };
+            var expected = {
+                personalInfo: {
+                    email: "aliceames@email.org"
+                }
+            };
+            deep_extend_2.extend(a, b, (trace = []));
+            console.log("trace", base_4.stringify(trace));
+            base_4.shouldEqual(base_4.stringify(diff(trace)), base_4.stringify(expected));
+        });
+    });
+    function forcePath(o, path) {
+        var node = o;
+        path.forEach(function (n) { return (node = node[n] = node[n] || {}); });
+        return node;
+    }
+    function diff(trace) {
+        var result = {};
+        trace.forEach(function (t) {
+            var path = t.path.reverse();
+            var key = path.pop();
+            forcePath(result, path)[key] = t.value;
+        });
+        return result;
+    }
+});
+define("node_modules/ol3-fun/ol3-fun/extensions", ["require", "exports"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    var Extensions = (function () {
+        function Extensions() {
+            this.hash = new WeakMap(null);
+        }
+        Extensions.prototype.isExtended = function (o) {
+            return this.hash.has(o);
+        };
+        Extensions.prototype.extend = function (o, ext) {
+            var hashData = this.hash.get(o);
+            if (!hashData) {
+                hashData = {};
+                this.hash.set(o, hashData);
+            }
+            ext && Object.keys(ext).forEach(function (k) { return (hashData[k] = ext[k]); });
+            return hashData;
+        };
+        Extensions.prototype.bind = function (o1, o2) {
+            if (this.isExtended(o1)) {
+                if (this.isExtended(o2)) {
+                    if (this.hash.get(o1) === this.hash.get(o2))
+                        return;
+                    throw "both objects already bound";
+                }
+                else {
+                    this.hash.set(o2, this.extend(o1));
+                }
+            }
+            else {
+                this.hash.set(o1, this.extend(o2));
+            }
+        };
+        return Extensions;
+    }());
+    exports.Extensions = Extensions;
+});
+define("node_modules/ol3-fun/tests/spec/extensions", ["require", "exports", "node_modules/ol3-fun/tests/base", "node_modules/ol3-fun/ol3-fun/extensions", "node_modules/ol3-fun/ol3-fun/common"], function (require, exports, base_5, extensions_1, common_15) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    base_5.describe("data/extensions", function () {
+        base_5.it("ensures the api", function () {
+            var x = new extensions_1.Extensions();
+            base_5.shouldEqual(typeof x.extend, "function", "extend method");
+            base_5.shouldEqual(typeof x.bind, "function", "bind method");
+        });
+        base_5.it("ensures no side-effects on the object", function () {
+            var x = new extensions_1.Extensions();
+            var o = {};
+            var expected = JSON.stringify(o);
+            x.extend(o, { custom: "data" });
+            var actual = JSON.stringify(o);
+            base_5.shouldEqual(expected, actual, "no side-effects");
+        });
+        base_5.it("ensures two objects can be bound to same extension data", function () {
+            var x = new extensions_1.Extensions();
+            var math = x.extend(Math, { sqrt2: Math.sqrt(2) });
+            base_5.should(!!x.extend(Math).sqrt2, "Math.sqrt2");
+            x.bind(Number, Math);
+            base_5.shouldEqual(Math.round(math.sqrt2 * x.extend(Number).sqrt2), 2, "sqrt2*sqrt2 = 2");
+        });
+        base_5.it("ensures two extensions can bind data to the same object", function () {
+            var ext1 = new extensions_1.Extensions();
+            var ext2 = new extensions_1.Extensions();
+            var o = {};
+            ext1.extend(o, { ext: 1 });
+            ext2.extend(o, { ext: 2 });
+            base_5.shouldEqual(ext1.extend(o).ext, 1, "ext1");
+            base_5.shouldEqual(ext2.extend(o).ext, 2, "ext2");
+        });
+        base_5.it("ensures two extended objects cannot be bound", function () {
+            var x = new extensions_1.Extensions();
+            var o = {};
+            var p = {};
+            x.extend(o);
+            x.extend(p);
+            base_5.shouldThrow(function () { return x.bind(o, p); }, "cannot bind extended objects");
+        });
+        base_5.it("extension references are preserved", function () {
+            var x = new extensions_1.Extensions();
+            var o = {};
+            var p = x.extend(o);
+            x.extend(o, { name: "P" });
+            base_5.shouldEqual(p.name, "P", "extension references are preserved");
+        });
+        base_5.it("binds two objects to the same extension", function () {
+            var x = new extensions_1.Extensions();
+            var o1 = { id: 1 };
+            var o2 = Object.create({ id: 2 });
+            x.bind(o1, o2);
+            x.extend(o1, { foo: "foo1" });
+            base_5.shouldEqual(x.extend(o1).foo, "foo1");
+            x.extend(o2, { foo: "foo2" });
+            base_5.shouldEqual(x.extend(o1).foo, "foo2");
+        });
+        base_5.it("extension integrity testing (100 objects X 10 extensions)", function () {
+            var x = common_15.range(10).map(function (n) { return new extensions_1.Extensions(); });
+            var data = common_15.range(1000).map(function (n) { return Object.create({ id: n }); });
+            data.map(function (d, i) { return x[i % 10].extend(d, { data: common_15.shuffle(common_15.range(1000)) }); });
+            data.forEach(function (d, i) {
+                var data = x[i % 10].extend(d).data;
+                data = data.filter(function (v) { return v <= d.id; });
+                x[i % 10].extend(d, { data: data });
+            });
+            var sums = data.map(function (d, i) {
+                var ext = x[i % 10].extend(d);
+                base_5.shouldEqual(ext.data.length, i + 1, "extension data has " + (i + 1) + " items");
+                return ext.data.reduce(function (a, b) { return a + b; }, 0);
+            });
+            console.log(sums);
+            base_5.shouldEqual(sums.reduce(function (a, b) { return a + b; }, 0), 166666500);
+        });
+        base_5.it("extensions performance testing (1 million accesses)", function () {
+            var x = new extensions_1.Extensions();
+            var data = common_15.range(500000).map(function (n) { return ({ id: n }); });
+            var counter = { count: 0 };
+            data.forEach(function (d) { return x.extend(d, { counter: counter }); });
+            data.forEach(function (d) { return x.extend(d).counter.count++; });
+            base_5.shouldEqual(counter.count, data.length, "accessed " + data.length + " items");
+        }).timeout(600);
+    });
+});
+define("node_modules/ol3-fun/tests/spec/is-primitive", ["require", "exports", "node_modules/ol3-fun/tests/base", "node_modules/ol3-fun/ol3-fun/is-primitive"], function (require, exports, base_6, is_primitive_3) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    base_6.describe("is-primitive", function () {
+        base_6.it("true tests", function () {
+            ["A", 1, true, null, undefined, Symbol(0)].forEach(function (v) {
+                return base_6.should(is_primitive_3.isPrimitive(v), (v && v.toString ? v.toString() : v) + " is primitive");
+            });
+        });
+        base_6.it("false tests", function () {
+            [new Date(), new RegExp(""), {}, []].forEach(function (v) {
+                return base_6.should(!is_primitive_3.isPrimitive(v), (v && v.toString ? v.toString() : v) + " is primitive");
+            });
+        });
+    });
+});
+define("node_modules/ol3-fun/tests/spec/is-cycle", ["require", "exports", "node_modules/ol3-fun/tests/base", "node_modules/ol3-fun/ol3-fun/is-cyclic"], function (require, exports, base_7, is_cyclic_2) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    base_7.describe("is-cycle", function () {
+        base_7.it("false tests", function () {
+            var a = {};
+            var b = { a: a };
+            base_7.should(!is_cyclic_2.isCyclic({
+                a: a,
+                b: b
+            }), "nothing in this graph refers back to an ancestor of itself");
+        });
+        base_7.it("true tests", function () {
+            var a = { b: "" };
+            var b = { a: a };
+            a.b = b;
+            base_7.should(is_cyclic_2.isCyclic(b), "b->a->b");
+            base_7.should(is_cyclic_2.isCyclic({ b: b }), "{}->b->a->b");
+            base_7.shouldThrow(function () { return base_7.stringify(b); }, "cycles cannot be serialized");
+        });
+    });
+});
+define("node_modules/ol3-fun/tests/spec/openlayers-test", ["require", "exports", "node_modules/ol3-fun/tests/base", "openlayers"], function (require, exports, base_8, ol) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     describe("ol/Map", function () {
         it("ol/Map", function () {
-            base_6.should(!!ol.Map, "Map");
+            base_8.should(!!ol.Map, "Map");
         });
     });
 });
-define("node_modules/ol3-fun/tests/spec/parse-dms", ["require", "exports", "node_modules/ol3-fun/tests/base", "node_modules/ol3-fun/ol3-fun/parse-dms"], function (require, exports, base_7, parse_dms_2) {
+define("node_modules/ol3-fun/tests/spec/parse-dms", ["require", "exports", "node_modules/ol3-fun/tests/base", "node_modules/ol3-fun/ol3-fun/parse-dms"], function (require, exports, base_9, parse_dms_2) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    base_7.describe("parse-dms", function () {
-        base_7.it("parse", function () {
+    base_9.describe("parse-dms", function () {
+        base_9.it("parse", function () {
             var dms = parse_dms_2.parse("10 5'2\" 10");
             if (typeof dms === "number")
                 throw "lat-lon expected";
-            base_7.should(dms.lat === 10.08388888888889, "10 degrees 5 minutes 2 seconds");
-            base_7.should(dms.lon === 10, "10 degrees 0 minutes 0 seconds");
+            base_9.should(dms.lat === 10.08388888888889, "10 degrees 5 minutes 2 seconds");
+            base_9.should(dms.lon === 10, "10 degrees 0 minutes 0 seconds");
         });
     });
 });
@@ -14944,44 +15631,44 @@ define("node_modules/ol3-fun/ol3-fun/google-polyline", ["require", "exports"], f
     }());
     return PolylineEncoder;
 });
-define("node_modules/ol3-fun/tests/spec/polyline", ["require", "exports", "node_modules/ol3-fun/tests/base", "node_modules/ol3-fun/ol3-fun/google-polyline", "node_modules/ol3-fun/ol3-fun/ol3-polyline", "node_modules/ol3-fun/ol3-fun/common"], function (require, exports, base_8, GooglePolylineEncoder, PolylineEncoder, common_31) {
+define("node_modules/ol3-fun/tests/spec/polyline", ["require", "exports", "node_modules/ol3-fun/tests/base", "node_modules/ol3-fun/ol3-fun/google-polyline", "node_modules/ol3-fun/ol3-fun/ol3-polyline", "node_modules/ol3-fun/ol3-fun/common"], function (require, exports, base_10, GooglePolylineEncoder, PolylineEncoder, common_16) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     describe("GooglePolylineEncoder", function () {
         it("GooglePolylineEncoder", function () {
-            base_8.should(!!GooglePolylineEncoder, "GooglePolylineEncoder");
+            base_10.should(!!GooglePolylineEncoder, "GooglePolylineEncoder");
         });
-        var points = common_31.pair(common_31.range(10), common_31.range(10));
+        var points = common_16.pair(common_16.range(10), common_16.range(10));
         var poly = new GooglePolylineEncoder();
         var encoded = poly.encode(points);
         var decoded = poly.decode(encoded);
-        base_8.shouldEqual(encoded.length, 533, "encoding is 533 characters");
-        base_8.shouldEqual(base_8.stringify(decoded), base_8.stringify(points), "encode->decode");
+        base_10.shouldEqual(encoded.length, 533, "encoding is 533 characters");
+        base_10.shouldEqual(base_10.stringify(decoded), base_10.stringify(points), "encode->decode");
     });
     describe("PolylineEncoder", function () {
         it("PolylineEncoder", function () {
-            base_8.should(!!PolylineEncoder, "PolylineEncoder");
+            base_10.should(!!PolylineEncoder, "PolylineEncoder");
         });
-        var points = common_31.pair(common_31.range(10), common_31.range(10));
+        var points = common_16.pair(common_16.range(10), common_16.range(10));
         var poly = new PolylineEncoder();
         var encoded = poly.encode(points);
         var decoded = poly.decode(encoded);
-        base_8.shouldEqual(encoded.length, 533, "encoding is 533 characters");
-        base_8.shouldEqual(base_8.stringify(decoded), base_8.stringify(points), "encode->decode");
+        base_10.shouldEqual(encoded.length, 533, "encoding is 533 characters");
+        base_10.shouldEqual(base_10.stringify(decoded), base_10.stringify(points), "encode->decode");
         poly = new PolylineEncoder(6);
         encoded = poly.encode(points);
         decoded = poly.decode(encoded);
-        base_8.shouldEqual(encoded.length, 632, "encoding is 632 characters");
-        base_8.shouldEqual(base_8.stringify(decoded), base_8.stringify(points), "encode->decode");
+        base_10.shouldEqual(encoded.length, 632, "encoding is 632 characters");
+        base_10.shouldEqual(base_10.stringify(decoded), base_10.stringify(points), "encode->decode");
     });
 });
-define("node_modules/ol3-fun/tests/spec/snapshot", ["require", "exports", "node_modules/ol3-fun/tests/base", "node_modules/ol3-fun/ol3-fun/snapshot", "openlayers", "node_modules/ol3-fun/ol3-fun/common"], function (require, exports, base_9, Snapshot, ol, common_32) {
+define("node_modules/ol3-fun/tests/spec/snapshot", ["require", "exports", "node_modules/ol3-fun/tests/base", "node_modules/ol3-fun/ol3-fun/snapshot", "openlayers", "node_modules/ol3-fun/ol3-fun/common"], function (require, exports, base_11, Snapshot, ol, common_17) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var pointData = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAFdUlEQVR4Xu1aXUybVRh+3hiWxiX+ZNSMECvjJxiqyaROyq5M2MWUZGyDLEZg0WzhJ2QELharjmbWGgqOOTRxTMDIGHpBpIwE40Un3ujA0EmUYkhcRpoJRObfJkJG9Ji3+1gWoP2+rudrSvq9l/2e857nPOc5/yUkeVCStx+GAIYDklwBYwgkuQGMSdAYAsYQSHIFjCGQ5AYwVgFjCBhDIMkViPsQEEKkANgFIB2AGcCjAP4AsADgOoBxIlqJV7/ETQAhRCWAlwA8D+DBCA38G8DXAD4jok/1FkJ3AYQQVgDdAAruozHfAqgloh/uo6ymIroKIIQ4DOBjAA9oYrMx6F8AVUTEeaSHLgIIITjvOwBel8jYTURNEvOFUuklQDMAh2yyAJqJ6A2ZeaULIIR4GUCfTJJrch0ion5Z+aUKIIRIA/CzyiwfK/d/AGQQES+bMYdsAc4D4OVO7/iEiF6VUYk0AYQQvMyNyiClMUc+EX2vERsWJlOAqHp/enoaY2NjmJubQ1paGgoKCpCbmxtNe3qI6JVoCmyElSKAsuz9CiBVC6GzZ8+ioaEBt2/fvgvfsmUL2tvbUVNToyUFYxaI6DGt4HA4WQLw3v47LWQ6OjpQW1sbFnru3DlUVVVpScWYZ4hoQitYTwfwjq9HjQjbPTMzE8vLy2GhJpMJS0tLaqlWvzuIqEUrWE8BGgC8p0ZkYGAApaWlajAIIVQxCuArIirSCtZTgDcBuNWInDp1CsePH1eDRSPA70S0TTVhBICsOYAH9YdqRLxeLw4ePKgGi0aAL4noBdWEcRCAW/W5GpHZ2VlkZWXJnAP4qNyhVm+k77IckKVsgVW58Cwfaanr7OzE0aNHVfMogGwiuqoVrNscwImFEDMAntBCpr+/H/X19Zifn78LT09Px5kzZ1BWVqYlBWOuE9HjWsHhcFIcoAjQCUBz162srGB0dBRXrlxBfn4+7HY7UlL4ulBzfERE1ZrRYYAyBXgOwFishKIov4uIxqPAbwiVJoDigosA9sVKSkP5QSI6oAGnCpEtwJMAflKtNTbAfwDyiGg6tjR3SksVQHEBX4XxlZhe8RoRtcpKLl0AJjY+Pt5jMpn4fICtW7ciIyMjIt+ZmZkQzmzmd5KI0U5EvO2WFnoIwHvddT3Ep8Dq6vWT9tDQEEpKSkINunbt2jqxFhYW4Ha7MTg4OB8MBrMBLEprvR5DAMD7gUDgWF5e3l2efO5vaWnB7t27UVRUhMnJSRARrFYr+vr6sH37drALcnJyYLFYQuUWFxdDYjQ3Nwuz2Uw3b96E0+l8GsBkwgvg9/uPDQ8PM+He1NTUhzweT0lhYSFaW1tx48YN8DcOm82GiooKNDY2btgmi8XyZzAYfMTv94fKOJ1OP4BnN5MAfE2Grq6uwyyA3W7/y+v1Pswu4JiamkJxcTF/DzmAY//+/di27c4B79KlS6Hfjxw5glu3bqGurg69vb1Sh63UZErPrBsCq+TZ4nwbdPr06W+6u7t/GxkZ2Xf58uWQ1VcF2Lt3L5qamrw7duw4UF5ezlvmoMvlsigO4MliaDM5YJXrFwBGXC7Xu9zjNputgj/4fL4Lq4BVAViMPXv2VFRWVl5wOBxwOBxXT548maUIsOnmgHsJP+VyuX5kB3g8nom2trZfAoFA8VoHqAjwNgDnZnLA2h477/P5Ku+dA6xW64TP59sZzgEnTpyYcLvdO7Ozs0MridPp5JtgKa9CLKQecwCfBfhMwLY/tGbd5p0Ov/AeU3rxA+Uxhd8SAwB4m8ui2QHUKa9Mbyn/KHkxTM6YDKGHADERindhQ4B4K55o9RkOSLQeiTcfwwHxVjzR6jMckGg9Em8+hgPirXii1Zf0DvgfGiXvUAsr6xQAAAAASUVORK5CYII=";
     var circleData = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAHzUlEQVR4XuWbaWxVRRTHf+OGS1BRUQuCuICRRoMWFTRugEgCVo2IQqEgUAmpiCIgJuoHiAmgKEowBlsXwCLuEv2g0kaNti7RaBTFjaBScYtRq1FRueZ/79z75r32tfe9PmrpPclL+96dOzPnP+fMnG0MBSVvP2AUcIn9HFig7n8GNgBPAS+C+aNA/WIK05F3EFAJ3AAckr3Pb4Hv7ec74C9gJyDcDgeOsH+PbG1aPwLLgXvANLV3/u0EwDsMuA6YBbSw2l8EC8ZLwEYg7nyF5zBgJHABcFxLfP4CrACWgZGE5EV5AuB1A24HptvlcwbXyq4NFoiv8ppU85f6AtcCE62UpLX4HXgAmAdGIpUT5QGA1x94EjgpfaQvgaVAtRXtnOYRs7FwnwbcBByV+c4HwGVgPovZmd8sRwC8CcAq4ID0QaYCa4B/chm7HW33ttKghW8mDVPAPBG385gAeHsCd9uNzvYtZm8GlsQdaxe00/TnA7cBmmJEK4HZYP5ta9AYAHh7AOuBsanOGoFxQH1b/XfQ8zPtCalTJKJHgHIwOmayUhsA+MyvBspSPWg3vwL4qYOYiztMT6AGGJETCK0A0BLzDwHSdy/urDq4ndjRvjAlNghZAMjG/FUdzFC+wz0YG4RsAGhncXY3nXrS+VbVKd/Z7oL3pLmPBadiiuaDke2SRi0A4Mns+gjYJ2hZB1zYgUdcofDYy1qh54cd7gCKwXzujpABgC/6bwCnBY22AqcAeVuaheImz34OBt4FjgnffwsYAibaxDIBuBFYHLSWuA8B3s5z8M7y2ul2TSNW54JZFs7OAcA7EXgvJfoya4VHV6A7rKPq85KmCi4A8rcvCtiVFzfQtu0KAGg72wQcHzKzAczF+mIB8I4FtDnY7+cBr3QFzh0e5F7Xht+1B/QFsy0E4C7r19tGadZUFwJCJ1p0KiiOMNeAtz+wPRXQkGRIG7oiKVL3dMjYr0CRALjGRlaAbYFkdFpTt72LolNecYsoljBTAHwYGAiiOYC0oSvTPBu48Xl8XwA4no1icZKMrkwKXSqc6JPnAPAacHZX5tzh7XVAMQT/2AslQAagYm1JIBl5UoU0AGQDPZcE7gGddM9kAiDdiBu3391xOhRQfiWSAAU4FWlNEgV7v90DXrApvSQBIJ5HhgAo4uMEfROBg/Ksl4YAPJwZQ0sABErkTAwBUB5BFnGS6D5gRgiA4p8LksR9kFRmTgiAxKE8YQAocTQhBGCd/yVZ9Kif4bLH4Js2AJokCBTsHRwC8IMtTUkSAMpt9nCdIdXp/JkQBFIuseMNyhWWS5wEUlxQ8cE0b/B6W3yVBAAU+QpyI44EvAqcmwTuraSfFQGgMpI9gkCoqt46W+FDoddENYjfhCmQnZIAJ1g+w9ZAFXrQztTfTODecEJ1AkBcyzAGkuAWq8RneAhAhQDoAcgQsGVWJwCftmvJNm3axMCByi1CU1MTlZWVNDY2smLFChYvXsyaNTK9s1NVVRX9+vVjxIhCZ6gGAJ+EA0v1e4apscAw9kl+clplRU5giPnt27dHkxczo0aNory8nLq64Ohpi3YdAIoD+jlR0Vowk9zkqJbdSkGJLSxoa6rpzydNmsSCBQuYNWtWM2aHDRsWScDkyZMZNGgQ3bt3Z/369ehZ79692bFjB0uWLKFXr16RBGzcuJHhwwORra2tbYdUKAyucLhPWv0BYLa46fEqW4cKNERx81wgWLhwIaNHj6akRACmUyYAeioRF4NFRUUUFxejlR86dCgNDQ0+APX19ZSVlVFRUeEDKunSs+nTVaKcK70DnBq+tAqM9j63VNZTwmxLKjqqUjNFiuJTNgkQYzU1NWkSsHXrVp8RARD+H44UqoB+nzZNtcEpyk8K1IfW16e/gT5gVNWdWSvsqfzcCQ31tmdmfBBa2gPGjRvHypUrKS0t9TdBqYALQCgNkiCt+ObNm+nWrVszCYg/C7elkr1KiEa0HIzMXp8ya4RkJWgv6B48VoGRdCe3KvS2TgEXAKnG6tWrY+0BmlF1dXUOKqDqcrm9UWG7Ep/9wejWRksA6DdvdHqKaHcOlqh0dry7+mPAPO/+kK1QcpEtBbdtpRUKnO5ONDvTuVsE5tZMDrIBoN9118WxRK4G7t9NEKjINOll/o106wNbUYHwkX8RSmeHc2HnTmBuJ64gUQWIqmHl7kakkrcSMFFRQAwViEDQ0ajbF2ekXlIG+fJOGD3aF3gcGOPyp2DnWFWDZRPdOBcmVGSn3JnTs0qJh3aiahIJqy5vBP6HJdn048GoMDIrxQDAPxnUTlUFkn9LXwPSNXmQ/yepkFt7Ux93EkvBxCpzjQlApBLiWK6zlM3Ss/baoADpSDraXs0rdQeVjT8VjG65xKIcAfClQVdjdXPMgVzRZJ25qsn9ONbA+TdSSbNKebQPSe8zRdLkJJJ5AOCDoOLKW6xKqDDfIVmP8iF0ebJQ4TXdB5JBM9l1aMIxpeOKcC4Ek3NcP08AIpVQ9ETScE7zFZXPITBkQOlOozbOVvcjpwuZsFppmbC6mXsykIFz0FqRXIm8jrq8qJ0AREAo0K57rVcCko4WSGU4cjMEhi5/pzkoQD8r0mJauKbdA3T701VZXeNbA+blvLh2XioQABEQcqIkq9osB7d3chnvy6vRdr8OzG+F6vs/cM4xojBcMyUAAAAASUVORK5CYII=";
     function show(data) {
-        document.body.appendChild(common_32.html("<img src=\"" + data + "\" />"));
+        document.body.appendChild(common_17.html("<img src=\"" + data + "\" />"));
     }
     function circle(radius, points) {
         if (radius === void 0) { radius = 1; }
@@ -15002,9 +15689,9 @@ define("node_modules/ol3-fun/tests/spec/snapshot", ["require", "exports", "node_
     }
     describe("Snapshot", function () {
         it("Snapshot", function () {
-            base_9.should(!!Snapshot, "Snapshot");
-            base_9.should(!!Snapshot.render, "Snapshot.render");
-            base_9.should(!!Snapshot.snapshot, "Snapshot.snapshot");
+            base_11.should(!!Snapshot, "Snapshot");
+            base_11.should(!!Snapshot.render, "Snapshot.render");
+            base_11.should(!!Snapshot.snapshot, "Snapshot.snapshot");
         });
         it("Converts a point to image data", function () {
             var feature = new ol.Feature(new ol.geom.Point([0, 0]));
@@ -15034,7 +15721,7 @@ define("node_modules/ol3-fun/tests/spec/snapshot", ["require", "exports", "node_
             if (1 === window.devicePixelRatio) {
                 if (data !== pointData)
                     show(pointData);
-                base_9.shouldEqual(data, pointData, "point data as expected");
+                base_11.shouldEqual(data, pointData, "point data as expected");
             }
         });
         it("Converts a triangle to image data", function () {
@@ -15054,20 +15741,20 @@ define("node_modules/ol3-fun/tests/spec/snapshot", ["require", "exports", "node_
         it("Converts a polygon to image data", function () {
             var geom = new ol.geom.Polygon([circle(3 + 100 * Math.random())]);
             var feature = new ol.Feature(geom);
-            base_9.shouldEqual(feature.getGeometry(), geom, "geom still assigned");
+            base_11.shouldEqual(feature.getGeometry(), geom, "geom still assigned");
             feature.setStyle(createStyle("Circle"));
-            var originalCoordinates = base_9.stringify(geom.getCoordinates());
+            var originalCoordinates = base_11.stringify(geom.getCoordinates());
             var data = Snapshot.snapshot(feature, 64);
             console.log(data);
-            base_9.should(!!data, "snapshot returns data");
+            base_11.should(!!data, "snapshot returns data");
             show(data);
-            var finalCoordinates = base_9.stringify(geom.getCoordinates());
-            base_9.shouldEqual(originalCoordinates, finalCoordinates, "coordinates unchanged");
-            base_9.shouldEqual(feature.getGeometry(), geom, "geom still assigned");
+            var finalCoordinates = base_11.stringify(geom.getCoordinates());
+            base_11.shouldEqual(originalCoordinates, finalCoordinates, "coordinates unchanged");
+            base_11.shouldEqual(feature.getGeometry(), geom, "geom still assigned");
             if (1 === window.devicePixelRatio) {
                 if (data !== pointData)
                     show(circleData);
-                base_9.shouldEqual(data, circleData, "circle data as expected");
+                base_11.shouldEqual(data, circleData, "circle data as expected");
             }
         });
     });
@@ -15095,12 +15782,12 @@ define("node_modules/ol3-fun/tests/spec/snapshot", ["require", "exports", "node_
         });
     }
 });
-define("node_modules/ol3-fun/tests/spec/zoom-to-feature", ["require", "exports", "openlayers", "node_modules/ol3-fun/tests/base", "node_modules/ol3-fun/ol3-fun/navigation"], function (require, exports, ol, base_10, navigation_4) {
+define("node_modules/ol3-fun/tests/spec/zoom-to-feature", ["require", "exports", "openlayers", "node_modules/ol3-fun/tests/base", "node_modules/ol3-fun/ol3-fun/navigation"], function (require, exports, ol, base_12, navigation_4) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     describe("zoomToFeature", function () {
         it("zoomToFeature", function (done) {
-            base_10.should(!!navigation_4.zoomToFeature, "zoomToFeature");
+            base_12.should(!!navigation_4.zoomToFeature, "zoomToFeature");
             var map = new ol.Map({
                 view: new ol.View({
                     zoom: 0,
@@ -15118,16 +15805,91 @@ define("node_modules/ol3-fun/tests/spec/zoom-to-feature", ["require", "exports",
                     minResolution: res / 4,
                 }).then(function () {
                     var _a = map.getView().getCenter(), cx = _a[0], cy = _a[1];
-                    base_10.should(map.getView().getZoom() === zoom + 2, "zoom in two because minRes is 1/4 of initial res");
-                    base_10.should(cx === 100, "center-x");
-                    base_10.should(cy === 100, "center-y");
+                    base_12.should(map.getView().getZoom() === zoom + 2, "zoom in two because minRes is 1/4 of initial res");
+                    base_12.should(cx === 100, "center-x");
+                    base_12.should(cy === 100, "center-y");
                     done();
                 });
             });
         });
     });
 });
-define("node_modules/ol3-fun/tests/index", ["require", "exports", "node_modules/ol3-fun/tests/spec/api", "node_modules/ol3-fun/tests/spec/common", "node_modules/ol3-fun/tests/spec/slowloop", "node_modules/ol3-fun/tests/spec/openlayers-test", "node_modules/ol3-fun/tests/spec/parse-dms", "node_modules/ol3-fun/tests/spec/polyline", "node_modules/ol3-fun/tests/spec/snapshot", "node_modules/ol3-fun/tests/spec/zoom-to-feature"], function (require, exports) {
+define("node_modules/ol3-fun/tests/index", ["require", "exports", "node_modules/ol3-fun/tests/spec/api", "node_modules/ol3-fun/tests/spec/common", "node_modules/ol3-fun/tests/spec/slowloop", "node_modules/ol3-fun/tests/spec/deep-extend", "node_modules/ol3-fun/tests/spec/extensions", "node_modules/ol3-fun/tests/spec/is-primitive", "node_modules/ol3-fun/tests/spec/is-cycle", "node_modules/ol3-fun/tests/spec/openlayers-test", "node_modules/ol3-fun/tests/spec/parse-dms", "node_modules/ol3-fun/tests/spec/polyline", "node_modules/ol3-fun/tests/spec/snapshot", "node_modules/ol3-fun/tests/spec/zoom-to-feature"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+});
+define("node_modules/ol3-draw/tests/spec/draw", ["require", "exports", "node_modules/ol3-fun/tests/base", "node_modules/ol3-draw/ol3-draw/ol3-draw"], function (require, exports, base_13, ol3_draw_3) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    base_13.describe("Draw Tests", function () {
+        base_13.it("Draw", function () {
+            base_13.should(!!ol3_draw_3.Draw, "Draw");
+        });
+        base_13.it("DEFAULT_OPTIONS", function () {
+            var options = ol3_draw_3.Draw.DEFAULT_OPTIONS;
+            checkDefaultInputOptions(options);
+        });
+        base_13.it("options of an Input instance", function () {
+            var input = ol3_draw_3.Draw.create();
+            checkDefaultInputOptions(input.options);
+        });
+    });
+    function checkDefaultInputOptions(options) {
+        base_13.should(!!options, "options");
+        base_13.shouldEqual(options.className, "ol-draw", "className");
+        base_13.shouldEqual(options.map, undefined, "map");
+        base_13.shouldEqual(options.position, "top left", "position");
+    }
+});
+define("node_modules/ol3-draw/tests/spec/wfs-sync", ["require", "exports", "openlayers", "node_modules/ol3-fun/tests/base", "node_modules/ol3-draw/ol3-draw/services/wfs-sync"], function (require, exports, ol, base_14, wfs_sync_3) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    var WFS_INFO = {
+        srsName: "EPSG:3857",
+        wfsUrl: location.protocol + "//" + location.hostname + ":8080/geoserver/cite/wfs",
+        featureNS: "http://www.opengeospatial.net/cite",
+        featurePrefix: "cite"
+    };
+    base_14.describe("wfs-sync", function () {
+        base_14.it("WfsSync", function () {
+            base_14.should(!!wfs_sync_3.WfsSync, "WfsSync");
+        });
+        base_14.it("DEFAULT_OPTIONS", function () {
+            var options = wfs_sync_3.WfsSync.DEFAULT_OPTIONS;
+            checkDefaultInputOptions(options);
+        });
+        location.hostname === "127.0.0.1" &&
+            base_14.it("should invoke a POST request", function (done) {
+                var source = new ol.source.Vector();
+                var service = wfs_sync_3.WfsSync.create({
+                    wfsUrl: WFS_INFO.wfsUrl,
+                    featureNS: WFS_INFO.featureNS,
+                    featurePrefix: WFS_INFO.featurePrefix,
+                    srsName: WFS_INFO.srsName,
+                    sourceSrs: WFS_INFO.srsName,
+                    source: source,
+                    targets: {
+                        Point: "point_layer"
+                    }
+                });
+                service.on("after-save", function (args) {
+                    console.warn(args);
+                    done();
+                });
+                service.on("error", function (args) {
+                    base_14.shouldEqual(args, "Feature type 'point_layer' is not available: ", "point_layer not available error message");
+                    done();
+                });
+                source.addFeature(new ol.Feature(new ol.geom.Point([0, 0])));
+            });
+    });
+    function checkDefaultInputOptions(options) {
+        base_14.should(!!options, "options");
+        base_14.shouldEqual(options.featureIdFieldName, "gid", "featureIdFieldName");
+        base_14.shouldEqual(options.lastUpdateFieldName, "touched", "lastUpdateFieldName");
+    }
+});
+define("node_modules/ol3-draw/tests/index", ["require", "exports", "node_modules/ol3-draw/tests/spec/draw", "node_modules/ol3-draw/tests/spec/wfs-sync"], function (require, exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
 });
@@ -15161,36 +15923,36 @@ define("node_modules/ol3-grid/tests/base", ["require", "exports"], function (req
     }
     exports.stringify = stringify;
 });
-define("node_modules/ol3-grid/tests/spec/grid", ["require", "exports", "node_modules/ol3-grid/tests/base", "mocha", "node_modules/ol3-grid/ol3-grid/ol3-grid"], function (require, exports, base_11, mocha_3, ol3_grid_1) {
+define("node_modules/ol3-grid/tests/spec/grid", ["require", "exports", "node_modules/ol3-grid/tests/base", "mocha", "node_modules/ol3-grid/ol3-grid/ol3-grid"], function (require, exports, base_15, mocha_1, ol3_grid_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    mocha_3.describe("Grid Tests", function () {
-        mocha_3.it("Grid", function () {
-            base_11.should(!!ol3_grid_1.Grid, "Grid");
+    mocha_1.describe("Grid Tests", function () {
+        mocha_1.it("Grid", function () {
+            base_15.should(!!ol3_grid_1.Grid, "Grid");
         });
-        mocha_3.it("DEFAULT_OPTIONS", function () {
+        mocha_1.it("DEFAULT_OPTIONS", function () {
             var options = ol3_grid_1.Grid.DEFAULT_OPTIONS;
             checkDefaultInputOptions(options);
         });
-        mocha_3.it("options of an Input instance", function () {
+        mocha_1.it("options of an Input instance", function () {
             var grid = ol3_grid_1.Grid.create();
-            base_11.shouldEqual(grid.getMap(), null, "no map");
+            base_15.shouldEqual(grid.getMap(), null, "no map");
             grid.destroy();
         });
     });
     function checkDefaultInputOptions(options) {
-        base_11.should(!!options, "options");
-        base_11.shouldEqual(options.autoCollapse, true, "autoCollapse");
-        base_11.shouldEqual(options.canCollapse, true, "canCollapse");
-        base_11.shouldEqual(options.className, "ol-grid", "className");
-        base_11.should(options.closedText.length > 0, "closedText");
-        base_11.shouldEqual(options.expanded, false, "expanded");
-        base_11.shouldEqual(options.hideButton, false, "hideButton");
-        base_11.shouldEqual(options.map, undefined, "map");
-        base_11.shouldEqual(!!options.openedText, true, "openedText");
-        base_11.shouldEqual(!!options.placeholderText, true, "placeholderText");
-        base_11.shouldEqual(options.position, "top right", "position");
-        base_11.shouldEqual(options.target, undefined, "target");
+        base_15.should(!!options, "options");
+        base_15.shouldEqual(options.autoCollapse, true, "autoCollapse");
+        base_15.shouldEqual(options.canCollapse, true, "canCollapse");
+        base_15.shouldEqual(options.className, "ol-grid", "className");
+        base_15.should(options.closedText.length > 0, "closedText");
+        base_15.shouldEqual(options.expanded, false, "expanded");
+        base_15.shouldEqual(options.hideButton, false, "hideButton");
+        base_15.shouldEqual(options.map, undefined, "map");
+        base_15.shouldEqual(!!options.openedText, true, "openedText");
+        base_15.shouldEqual(!!options.placeholderText, true, "placeholderText");
+        base_15.shouldEqual(options.position, "top right", "position");
+        base_15.shouldEqual(options.target, undefined, "target");
     }
 });
 define("node_modules/ol3-grid/tests/index", ["require", "exports", "node_modules/ol3-grid/tests/spec/grid"], function (require, exports) {
@@ -15227,85 +15989,190 @@ define("node_modules/ol3-input/tests/base", ["require", "exports"], function (re
     }
     exports.stringify = stringify;
 });
-define("node_modules/ol3-input/tests/spec/input", ["require", "exports", "node_modules/ol3-input/tests/base", "mocha", "node_modules/ol3-input/index"], function (require, exports, base_12, mocha_4, index_30) {
+define("node_modules/ol3-input/tests/spec/input", ["require", "exports", "node_modules/ol3-input/tests/base", "mocha", "node_modules/ol3-input/index"], function (require, exports, base_16, mocha_2, index_49) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    mocha_4.describe("Input Tests", function () {
-        mocha_4.it("Input", function () {
-            base_12.should(!!index_30.Input, "Input");
+    mocha_2.describe("Input Tests", function () {
+        mocha_2.it("Input", function () {
+            base_16.should(!!index_49.Input, "Input");
         });
-        mocha_4.it("OsmSearchProvider", function () {
-            base_12.should(!!index_30.OsmSearchProvider, "OsmSearchProvider");
+        mocha_2.it("OsmSearchProvider", function () {
+            base_16.should(!!index_49.OsmSearchProvider, "OsmSearchProvider");
         });
-        mocha_4.it("DEFAULT_OPTIONS", function () {
-            var options = index_30.Input.DEFAULT_OPTIONS;
+        mocha_2.it("DEFAULT_OPTIONS", function () {
+            var options = index_49.Input.DEFAULT_OPTIONS;
             checkDefaultInputOptions(options);
         });
-        mocha_4.it("options of an Input instance", function () {
-            var input = index_30.Input.create();
+        mocha_2.it("options of an Input instance", function () {
+            var input = index_49.Input.create();
             checkDefaultInputOptions(input.options);
         });
-        mocha_4.it("input dom", function (done) {
-            var input = index_30.Input.create({});
+        mocha_2.it("input dom", function (done) {
+            var input = index_49.Input.create({});
             var target = document.createElement("div");
             input.on("change", function (args) {
-                base_12.should(args.value === "hello", "change to hello");
+                base_16.should(args.value === "hello", "change to hello");
                 done();
             });
-            base_12.shouldEqual(target.innerHTML, "", "innerHTML");
+            base_16.shouldEqual(target.innerHTML, "", "innerHTML");
             input.setValue("hello");
         });
     });
     function checkDefaultInputOptions(options) {
-        base_12.should(!!options, "options");
-        base_12.shouldEqual(options.autoChange, false, "autoChange");
-        base_12.shouldEqual(options.autoClear, false, "autoClear");
-        base_12.shouldEqual(options.autoCollapse, true, "autoCollapse");
-        base_12.shouldEqual(options.autoSelect, true, "autoSelect");
-        base_12.shouldEqual(options.canCollapse, true, "canCollapse");
-        base_12.shouldEqual(options.changeDelay, 2000, "changeDelay");
-        base_12.shouldEqual(options.className, "ol-input", "className");
-        base_12.should(options.closedText.length > 0, "closedText");
-        base_12.shouldEqual(options.expanded, false, "expanded");
-        base_12.shouldEqual(options.hideButton, false, "hideButton");
-        base_12.shouldEqual(options.map, undefined, "map");
-        base_12.shouldEqual(!!options.openedText, true, "openedText");
-        base_12.shouldEqual(!!options.placeholderText, true, "placeholderText");
-        base_12.shouldEqual(options.position, "bottom left", "position");
-        base_12.shouldEqual(!!options.provider, true, "provider");
-        base_12.should(!!options.regex, "regex");
-        base_12.shouldEqual(options.render, undefined, "render");
-        base_12.shouldEqual(options.source, undefined, "source");
-        base_12.shouldEqual(options.target, undefined, "target");
+        base_16.should(!!options, "options");
+        base_16.shouldEqual(options.autoChange, false, "autoChange");
+        base_16.shouldEqual(options.autoClear, false, "autoClear");
+        base_16.shouldEqual(options.autoCollapse, true, "autoCollapse");
+        base_16.shouldEqual(options.autoSelect, true, "autoSelect");
+        base_16.shouldEqual(options.canCollapse, true, "canCollapse");
+        base_16.shouldEqual(options.changeDelay, 2000, "changeDelay");
+        base_16.shouldEqual(options.className, "ol-input", "className");
+        base_16.should(options.closedText.length > 0, "closedText");
+        base_16.shouldEqual(options.expanded, false, "expanded");
+        base_16.shouldEqual(options.hideButton, false, "hideButton");
+        base_16.shouldEqual(options.map, undefined, "map");
+        base_16.shouldEqual(!!options.openedText, true, "openedText");
+        base_16.shouldEqual(!!options.placeholderText, true, "placeholderText");
+        base_16.shouldEqual(options.position, "bottom left", "position");
+        base_16.shouldEqual(!!options.provider, true, "provider");
+        base_16.should(!!options.regex, "regex");
+        base_16.shouldEqual(options.render, undefined, "render");
+        base_16.shouldEqual(options.source, undefined, "source");
+        base_16.shouldEqual(options.target, undefined, "target");
     }
 });
 define("node_modules/ol3-input/tests/index", ["require", "exports", "node_modules/ol3-input/tests/spec/input"], function (require, exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
 });
-define("node_modules/ol3-layerswitcher/tests/spec/layerswitcher", ["require", "exports", "openlayers", "node_modules/ol3-fun/tests/base", "node_modules/ol3-layerswitcher/index", "node_modules/ol3-fun/index"], function (require, exports, ol, base_13, index_31, index_32) {
+define("node_modules/ol3-layerswitcher/tests/extras/kill", ["require", "exports", "node_modules/ol3-fun/tests/base"], function (require, exports, base_17) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    base_13.describe("LayerSwitcher Tests", function () {
-        base_13.it("LayerSwitcher", function () {
-            base_13.should(!!index_31.LayerSwitcher, "LayerSwitcher");
+    function kill(target, delay) {
+        if (delay === void 0) { delay = 1000; }
+        var cancel = false;
+        var control = target;
+        var map = target;
+        if (control.getMap)
+            map = control.getMap();
+        else
+            control = null;
+        map.once("pointermove", function () {
+            cancel = true;
         });
-        base_13.it("DEFAULT_OPTIONS", function () {
-            var options = index_31.DEFAULT_OPTIONS;
+        return function () {
+            if (cancel)
+                throw "cancelled by user via pointermove";
+            return base_17.slowloop([
+                function () {
+                    if (cancel)
+                        throw "cancelled by user via pointermove";
+                    map.getTarget().remove();
+                    map.setTarget(null);
+                    control && control.destroy();
+                }
+            ], delay);
+        };
+    }
+    exports.kill = kill;
+});
+define("node_modules/ol3-layerswitcher/tests/extras/setText", ["require", "exports", "openlayers"], function (require, exports, ol) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    function setText(feature, text) {
+        feature.set("text", text);
+        var style = feature.getStyle();
+        style.getText().setText(text);
+    }
+    exports.setText = setText;
+    function createFeature(layer) {
+        var feature = new ol.Feature();
+        var geom = new ol.geom.Point([0, 0]);
+        feature.setGeometry(geom);
+        layer.getSource().addFeature(feature);
+        feature.setStyle(new ol.style.Style({
+            image: new ol.style.RegularShape({
+                points: 5,
+                radius1: 20,
+                radius2: 10,
+                stroke: new ol.style.Stroke({
+                    color: "white",
+                    width: 2
+                }),
+                fill: new ol.style.Fill({ color: "black" })
+            }),
+            text: new ol.style.Text({
+                stroke: new ol.style.Stroke({
+                    color: "white",
+                    width: 2
+                }),
+                fill: new ol.style.Fill({ color: "black" }),
+                text: "Click The Map"
+            })
+        }));
+        feature.set("layer", layer);
+        return feature;
+    }
+    exports.createFeature = createFeature;
+    function createVectorLayer(map) {
+        var layer = new ol.layer.Vector();
+        var source = new ol.source.Vector();
+        layer.setSource(source);
+        map.addLayer(layer);
+        return layer;
+    }
+    exports.createVectorLayer = createVectorLayer;
+    function createMap(target) {
+        return new ol.Map({
+            target: target,
+            view: new ol.View({
+                center: [0, 0],
+                zoom: 10
+            })
+        });
+    }
+    exports.createMap = createMap;
+    function createMapTarget() {
+        var target = document.createElement("map");
+        target.id = target.className = "map";
+        document.body.appendChild(target);
+        return target;
+    }
+    exports.createMapTarget = createMapTarget;
+});
+define("node_modules/ol3-layerswitcher/tests/spec/layerswitcher", ["require", "exports", "openlayers", "node_modules/ol3-fun/tests/base", "node_modules/ol3-layerswitcher/tests/extras/kill", "node_modules/ol3-layerswitcher/tests/extras/setText", "node_modules/ol3-layerswitcher/index", "node_modules/ol3-fun/index"], function (require, exports, ol, base_18, kill_1, setText_1, index_50, index_51) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    base_18.describe("LayerSwitcher Tests", function () {
+        base_18.it("LayerSwitcher", function () {
+            base_18.should(!!index_50.LayerSwitcher, "LayerSwitcher");
+        });
+        base_18.it("DEFAULT_OPTIONS", function () {
+            var options = index_50.DEFAULT_OPTIONS;
             checkDefaultInputOptions(options);
         });
-        base_13.it("Renders in DOM", function (done) {
-            var cssout = index_32.cssin("map", ".map {width:16em;height:12em;border:1pt solid}");
-            var target = document.createElement("div");
-            target.className = "map";
-            document.body.appendChild(target);
-            var map = new ol.Map({
-                controls: [],
-                interactions: [],
-                layers: [],
-                target: target,
+        base_18.it("Renders in DOM", function () {
+            var target = setText_1.createMapTarget();
+            var map = setText_1.createMap(target);
+            var layer = setText_1.createVectorLayer(map);
+            setText_1.createFeature(layer);
+            var switcher = index_50.LayerSwitcher.create({
+                position: "top-2 right-2",
+                map: map
             });
-            var switcher = new index_31.LayerSwitcher({});
+            var labelCount = document.getElementsByTagName("label").length;
+            switcher.addLayer(layer, "Vectors");
+            switcher.showPanel();
+            return index_51.slowloop([
+                function () {
+                    base_18.shouldEqual(document.getElementsByTagName("label").length, labelCount + 1, "Vectors label exists");
+                }
+            ]).then(kill_1.kill(switcher, 1000));
+        });
+        base_18.it("Renders in DOM (complex)", function () {
+            var target = setText_1.createMapTarget();
+            var map = setText_1.createMap(target);
+            var switcher = index_50.LayerSwitcher.create({ map: map, position: "top right" });
             var refresh = function (msg) {
                 console.log("refresh", msg);
                 switcher.hidePanel();
@@ -15316,20 +16183,25 @@ define("node_modules/ol3-layerswitcher/tests/spec/layerswitcher", ["require", "e
                     title: "Tile " + n,
                     visible: n === "Bing",
                     type: "base",
-                    source: new ol.source.Tile({ projection: "EPSG:3857" }),
+                    source: new ol.source.TileDebug({
+                        projection: "EPSG:3857",
+                        tileGrid: ol.tilegrid.createXYZ({
+                            tileSize: 256
+                        })
+                    })
                 });
             });
             var groupLayers = new ol.Collection();
             var group1 = new ol.layer.Group({
                 title: "Basemaps",
                 visible: true,
-                layers: groupLayers,
+                layers: groupLayers
             });
             var vectors = ["Parcel", "Addresses", "Streets"].map(function (n) {
                 return new ol.layer.Vector({
                     title: n,
                     visible: n === "Addresses",
-                    source: new ol.source.Vector({}),
+                    source: new ol.source.Vector({})
                 });
             });
             var mapLayers = map.getLayers();
@@ -15339,11 +16211,10 @@ define("node_modules/ol3-layerswitcher/tests/spec/layerswitcher", ["require", "e
             groupLayers.on("add", function (args) { return refresh("add " + args.target.get("title")); });
             mapLayers.on("add", function (args) { return refresh("add " + args.target.get("title")); });
             mapLayers.on("remove", function (args) { return refresh("remove " + args.target.get("title")); });
-            switcher.setMap(map);
-            index_32.slowloop([
+            return index_51.slowloop([
                 function () {
                     switcher.showPanel();
-                    base_13.shouldEqual(switcher.isVisible(), true, "Panel is visible");
+                    base_18.shouldEqual(switcher.isVisible(), true, "Panel is visible");
                 },
                 function () { return mapLayers.insertAt(0, group1); },
                 function () { return groupLayers.insertAt(0, tiles[0]); },
@@ -15365,31 +16236,32 @@ define("node_modules/ol3-layerswitcher/tests/spec/layerswitcher", ["require", "e
                 function () { return switcher.showPanel(); },
                 function () { return mapLayers.remove(vectors[2]); },
                 function () { return mapLayers.insertAt(0, vectors[2]); },
-                function () { return vectors[2].setVisible(true); },
-            ], 100).then(function () {
-                base_13.shouldEqual(vectors[0].getVisible(), false, "Parcel is hidden");
+                function () { return vectors[2].setVisible(true); }
+            ], 100)
+                .then(function () {
+                base_18.shouldEqual(vectors[0].getVisible(), false, "Parcel is hidden");
                 vectors[0].setVisible(true);
-                base_13.shouldEqual(vectors[1].getVisible(), true, "Address is visible");
-                base_13.shouldEqual(vectors[2].getVisible(), true, "Address is visible");
-                base_13.shouldEqual(tiles[0].getVisible(), true, "Bing is visible");
-                base_13.shouldEqual(tiles[1].getVisible(), false, "OSM is hidden");
+                base_18.shouldEqual(vectors[1].getVisible(), true, "Address is visible");
+                base_18.shouldEqual(vectors[2].getVisible(), true, "Address is visible");
+                base_18.shouldEqual(tiles[0].getVisible(), true, "Bing is visible");
+                base_18.shouldEqual(tiles[1].getVisible(), false, "OSM is hidden");
                 tiles[1].setVisible(true);
-                base_13.shouldEqual(tiles[1].getVisible(), true, "OSM is now visible");
-                base_13.shouldEqual(tiles[0].getVisible(), true, "Bing is still visible");
-                base_13.shouldEqual(switcher.isVisible(), true, "Panel is visible");
-                done();
-            });
-        }).timeout(20 * 200);
+                base_18.shouldEqual(tiles[1].getVisible(), true, "OSM is now visible");
+                base_18.shouldEqual(tiles[0].getVisible(), true, "Bing is still visible");
+                base_18.shouldEqual(switcher.isVisible(), true, "Panel is visible");
+            })
+                .then(kill_1.kill(switcher));
+        }).timeout(5000);
     });
     function checkDefaultInputOptions(options) {
-        base_13.should(!!options, "options");
-        base_13.shouldEqual(options.className, "layer-switcher", "className");
-        base_13.shouldEqual(options.closeOnClick, true, "closeOnClick");
-        base_13.shouldEqual(options.closeOnMouseOut, false, "closeOnMouseOut");
-        base_13.shouldEqual(options.openOnClick, true, "openOnClick");
-        base_13.shouldEqual(options.openOnMouseOver, false, "openOnMouseOver");
-        base_13.shouldEqual(options.target, undefined, "target");
-        base_13.shouldEqual(options.tipLabel, "Layers", "tipLabel");
+        base_18.should(!!options, "options");
+        base_18.shouldEqual(options.className, "layer-switcher", "className");
+        base_18.shouldEqual(options.closeOnClick, true, "closeOnClick");
+        base_18.shouldEqual(options.closeOnMouseOut, false, "closeOnMouseOut");
+        base_18.shouldEqual(options.openOnClick, true, "openOnClick");
+        base_18.shouldEqual(options.openOnMouseOver, false, "openOnMouseOver");
+        base_18.shouldEqual(options.target, undefined, "target");
+        base_18.shouldEqual(options.tipLabel, "Layers", "tipLabel");
     }
 });
 define("node_modules/ol3-layerswitcher/tests/index", ["require", "exports", "node_modules/ol3-layerswitcher/tests/spec/layerswitcher"], function (require, exports) {
@@ -15434,10 +16306,10 @@ define("node_modules/ol3-panzoom/examples/utils/MapMaker", ["require", "exports"
     }
     exports.MapMaker = MapMaker;
 });
-define("node_modules/ol3-panzoom/tests/index", ["require", "exports", "node_modules/ol3-fun/tests/base", "node_modules/ol3-panzoom/index", "node_modules/ol3-panzoom/examples/utils/MapMaker"], function (require, exports, base_14, index_33, MapMaker_1) {
+define("node_modules/ol3-panzoom/tests/index", ["require", "exports", "node_modules/ol3-fun/tests/base", "node_modules/ol3-panzoom/index", "node_modules/ol3-panzoom/examples/utils/MapMaker"], function (require, exports, base_19, index_52, MapMaker_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    base_14.describe("ol3-panzoom", function () {
+    base_19.describe("ol3-panzoom", function () {
         function mapDiv() {
             var mapDiv = document.getElementById("map");
             if (!mapDiv) {
@@ -15447,25 +16319,25 @@ define("node_modules/ol3-panzoom/tests/index", ["require", "exports", "node_modu
             }
             return mapDiv;
         }
-        base_14.it("ol3-panzoom", function () {
-            base_14.should(!!index_33.PanZoom, "PanZoom exists");
+        base_19.it("ol3-panzoom", function () {
+            base_19.should(!!index_52.PanZoom, "PanZoom exists");
         });
-        base_14.it("creates", function (done) {
+        base_19.it("creates", function (done) {
             mapDiv();
-            var panzoom = new index_33.PanZoom({ duration: 20 });
+            var panzoom = new index_52.PanZoom({ duration: 20 });
             var map = MapMaker_1.MapMaker(panzoom);
             map.once("postrender", function () {
                 var c1 = map.getView().getCenter();
                 var c = function () { return map.getView().getCenter(); };
-                base_14.slowloop([
+                base_19.slowloop([
                     function () { return panzoom.pan("east"); },
-                    function () { return base_14.should(c()[0] > c1[0], "pan east"); },
+                    function () { return base_19.should(c()[0] > c1[0], "pan east"); },
                     function () { return panzoom.pan("north"); },
-                    function () { return base_14.should(c()[1] > c1[1], "pan north"); },
+                    function () { return base_19.should(c()[1] > c1[1], "pan north"); },
                     function () { return panzoom.pan("west"); },
-                    function () { return base_14.should(c()[0] === c1[0], "pan west"); },
+                    function () { return base_19.should(c()[0] === c1[0], "pan west"); },
                     function () { return panzoom.pan("south"); },
-                    function () { return base_14.should(c()[1] === c1[1], "south north"); },
+                    function () { return base_19.should(c()[1] === c1[1], "south north"); },
                     function () { return panzoom.zoom("in"); }
                 ], panzoom.options.duration + 50, 2).then(function () {
                     map.setTarget(null);
@@ -15473,9 +16345,9 @@ define("node_modules/ol3-panzoom/tests/index", ["require", "exports", "node_modu
                 });
             });
         });
-        base_14.it("cycles through the themes", function (done) {
+        base_19.it("cycles through the themes", function (done) {
             mapDiv();
-            var panzoom = new index_33.PanZoom({
+            var panzoom = new index_52.PanZoom({
                 slider: true,
                 duration: 20,
                 minZoom: 6,
@@ -15502,7 +16374,7 @@ define("node_modules/ol3-panzoom/tests/index", ["require", "exports", "node_modu
                 panzoom.redraw();
             });
             map.once("postrender", function () {
-                base_14.slowloop([
+                base_19.slowloop([
                     function () { return panzoom.set("theme", panzoom.get("theme") == "dark" ? "light" : "dark"); },
                     function () { return panzoom.set("slider", !panzoom.options.slider); },
                     function () { return panzoom.set("maxextent", panzoom.get("maxextent") ? null : [-1000, -1000, 1000, 1000]); }
@@ -15514,7 +16386,7 @@ define("node_modules/ol3-panzoom/tests/index", ["require", "exports", "node_modu
         }).timeout(10000);
     });
 });
-define("node_modules/ol3-popup/examples/extras/once", ["require", "exports"], function (require, exports) {
+define("node_modules/ol3-popup/examples/extras/once", ["require", "exports", "jquery"], function (require, exports, $) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     function once(map, event, cb) {
@@ -15533,7 +16405,7 @@ define("node_modules/ol3-popup/examples/extras/once", ["require", "exports"], fu
     }
     exports.once = once;
 });
-define("node_modules/ol3-popup/tests/extras/kill", ["require", "exports", "node_modules/ol3-fun/tests/base"], function (require, exports, base_15) {
+define("node_modules/ol3-popup/tests/extras/kill", ["require", "exports", "node_modules/ol3-fun/tests/base"], function (require, exports, base_20) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     function kill(popup, delay) {
@@ -15543,7 +16415,7 @@ define("node_modules/ol3-popup/tests/extras/kill", ["require", "exports", "node_
             cancel = true;
         });
         return function () {
-            return base_15.slowloop([
+            return base_20.slowloop([
                 function () {
                     if (cancel)
                         throw "cancelled by user via pointermove";
@@ -15556,7 +16428,7 @@ define("node_modules/ol3-popup/tests/extras/kill", ["require", "exports", "node_
     }
     exports.kill = kill;
 });
-define("node_modules/ol3-popup/tests/spec/popup", ["require", "exports", "openlayers", "node_modules/ol3-fun/tests/base", "node_modules/ol3-fun/index", "node_modules/ol3-popup/index", "node_modules/ol3-popup/examples/extras/once", "node_modules/ol3-popup/tests/extras/kill"], function (require, exports, ol, base_16, index_34, index_35, once_1, kill_1) {
+define("node_modules/ol3-popup/tests/spec/popup", ["require", "exports", "openlayers", "node_modules/ol3-fun/tests/base", "node_modules/ol3-fun/index", "node_modules/ol3-popup/index", "node_modules/ol3-popup/examples/extras/once", "node_modules/ol3-popup/tests/extras/kill"], function (require, exports, ol, base_21, index_53, index_54, once_1, kill_2) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     function createMapDiv() {
@@ -15565,54 +16437,54 @@ define("node_modules/ol3-popup/tests/spec/popup", ["require", "exports", "openla
         document.body.appendChild(div);
         return div;
     }
-    base_16.describe("spec/popup", function () {
-        base_16.it("Popup", function () {
-            base_16.should(!!index_35.Popup, "Popup");
+    base_21.describe("spec/popup", function () {
+        base_21.it("Popup", function () {
+            base_21.should(!!index_54.Popup, "Popup");
         });
-        base_16.it("DEFAULT_OPTIONS", function () {
-            checkDefaultInputOptions(index_35.DEFAULT_OPTIONS);
-            base_16.should(!index_35.DEFAULT_OPTIONS.pagingStyle, "pagingStyle");
-            var p1 = index_35.Popup.create({ autoPopup: false });
+        base_21.it("DEFAULT_OPTIONS", function () {
+            checkDefaultInputOptions(index_54.DEFAULT_OPTIONS);
+            base_21.should(!index_54.DEFAULT_OPTIONS.pagingStyle, "pagingStyle");
+            var p1 = index_54.Popup.create({ autoPopup: false });
             p1.options.autoPopup = true;
             checkDefaultInputOptions(p1.options);
-            base_16.should(!!p1.options.pagingStyle, "pagingStyle");
+            base_21.should(!!p1.options.pagingStyle, "pagingStyle");
         });
-        base_16.it("Ensures options do not leak into other instances", function () {
-            var p1 = index_35.Popup.create({ autoPopup: false });
-            var p2 = index_35.Popup.create({ autoPopup: false });
+        base_21.it("Ensures options do not leak into other instances", function () {
+            var p1 = index_54.Popup.create({ autoPopup: false });
+            var p2 = index_54.Popup.create({ autoPopup: false });
             var expected = p1.options.indicatorOffsets["top-center"][0];
             p1.options.indicatorOffsets["top-center"][0] += 200;
             var actual = p2.options.indicatorOffsets["top-center"][0];
-            base_16.shouldEqual(actual, expected, "default did not change");
+            base_21.shouldEqual(actual, expected, "default did not change");
             p1.destroy();
             p2.destroy();
         });
-        base_16.it("Ensures global options can be tweaked", function () {
-            var originalDefaultValue = index_35.DEFAULT_OPTIONS.indicatorOffsets["top-center"][0];
-            var expected = (index_35.DEFAULT_OPTIONS.indicatorOffsets["top-center"][0] += 200);
+        base_21.it("Ensures global options can be tweaked", function () {
+            var originalDefaultValue = index_54.DEFAULT_OPTIONS.indicatorOffsets["top-center"][0];
+            var expected = (index_54.DEFAULT_OPTIONS.indicatorOffsets["top-center"][0] += 200);
             try {
-                var p1 = index_35.Popup.create({ autoPopup: false });
+                var p1 = index_54.Popup.create({ autoPopup: false });
                 var actual = p1.options.indicatorOffsets["top-center"][0];
-                base_16.shouldEqual(actual, expected, "default did change");
+                base_21.shouldEqual(actual, expected, "default did change");
                 p1.destroy();
             }
             finally {
-                index_35.DEFAULT_OPTIONS.indicatorOffsets["top-center"][0] = originalDefaultValue;
+                index_54.DEFAULT_OPTIONS.indicatorOffsets["top-center"][0] = originalDefaultValue;
             }
         });
-        base_16.it("Constructors", function () {
+        base_21.it("Constructors", function () {
             var map = new ol.Map({});
             try {
-                index_35.Popup.create({ id: "constructor-test" }).destroy();
+                index_54.Popup.create({ id: "constructor-test" }).destroy();
             }
             catch (_a) {
-                base_16.should(true, "empty constructor throws, either map or autoPopup=false necessary");
+                base_21.should(true, "empty constructor throws, either map or autoPopup=false necessary");
             }
-            index_35.Popup.create({ autoPopup: false }).destroy();
-            index_35.Popup.create({ map: map }).destroy();
+            index_54.Popup.create({ autoPopup: false }).destroy();
+            index_54.Popup.create({ map: map }).destroy();
             map.setTarget(null);
         });
-        base_16.it("Paging", function () {
+        base_21.it("Paging", function () {
             var target = createMapDiv();
             var map = new ol.Map({
                 target: target,
@@ -15623,57 +16495,57 @@ define("node_modules/ol3-popup/tests/spec/popup", ["require", "exports", "openla
                     zoom: 24
                 })
             });
-            var popup = index_35.Popup.create({ id: "paging-test", map: map });
+            var popup = index_54.Popup.create({ id: "paging-test", map: map });
             return once_1.once(map, "postrender", function () {
                 var c = map.getView().getCenter();
-                var points = index_34.pair(index_34.range(3), index_34.range(3)).map(function (n) { return new ol.geom.Point([c[0] + n[0], c[1] + n[1]]); });
+                var points = index_53.pair(index_53.range(3), index_53.range(3)).map(function (n) { return new ol.geom.Point([c[0] + n[0], c[1] + n[1]]); });
                 var count = 0;
                 points.forEach(function (p, i) {
                     popup.pages.add(function () { return "Page " + (i + 1) + ": visit counter: " + ++count; }, p);
-                    base_16.shouldEqual(popup.pages.count, i + 1, i + 1 + " pages");
+                    base_21.shouldEqual(popup.pages.count, i + 1, i + 1 + " pages");
                 });
                 var i = 0;
-                return base_16.slowloop([function () { return popup.pages.goto(i++); }], 100, popup.pages.count).then(function () {
-                    base_16.shouldEqual(popup.getElement().getElementsByClassName("ol-popup-content")[0].textContent, "Page 9: visit counter: 9", "last page contains correct text");
+                return base_21.slowloop([function () { return popup.pages.goto(i++); }], 100, popup.pages.count).then(function () {
+                    base_21.shouldEqual(popup.getElement().getElementsByClassName("ol-popup-content")[0].textContent, "Page 9: visit counter: 9", "last page contains correct text");
                 });
-            }).then(kill_1.kill(popup));
+            }).then(kill_2.kill(popup));
         });
     });
     function checkDefaultInputOptions(options) {
-        base_16.should(!!options, "options");
-        base_16.shouldEqual(typeof options.asContent, "function", "asContent");
-        base_16.shouldEqual(options.autoPan, true, "autoPan");
-        base_16.shouldEqual(!options.autoPanAnimation, true, "autoPanAnimation");
-        base_16.shouldEqual(options.autoPanMargin, 20, "autoPanMargin");
-        base_16.shouldEqual(options.autoPopup, true, "autoPopup");
-        base_16.shouldEqual(options.autoPositioning, true, "autoPositioning");
-        base_16.shouldEqual(options.className, "ol-popup", "className");
-        base_16.shouldEqual(typeof options.css, "string", "css");
-        base_16.shouldEqual(!options.dockContainer, true, "dockContainer");
-        base_16.shouldEqual(!options.element, true, "element");
-        base_16.shouldEqual(!!options.id, true, "id");
-        base_16.shouldEqual(options.insertFirst, true, "insertFirst");
-        base_16.shouldEqual(!options.layers, true, "layers");
-        base_16.shouldEqual(!options.map, true, "map");
-        base_16.shouldEqual(!options.multi, true, "multi");
-        base_16.shouldEqual(base_16.stringify(options.offset), base_16.stringify([0, -10]), "offset");
-        base_16.shouldEqual(options.pointerPosition, 20, "pointerPosition");
-        base_16.shouldEqual(!options.position, true, "position");
-        base_16.shouldEqual(options.positioning, "bottom-center", "positioning");
-        base_16.shouldEqual(!options.showCoordinates, true, "showCoordinates");
-        base_16.shouldEqual(options.stopEvent, true, "stopEvent");
+        base_21.should(!!options, "options");
+        base_21.shouldEqual(typeof options.asContent, "function", "asContent");
+        base_21.shouldEqual(options.autoPan, true, "autoPan");
+        base_21.shouldEqual(!options.autoPanAnimation, true, "autoPanAnimation");
+        base_21.shouldEqual(options.autoPanMargin, 20, "autoPanMargin");
+        base_21.shouldEqual(options.autoPopup, true, "autoPopup");
+        base_21.shouldEqual(options.autoPositioning, true, "autoPositioning");
+        base_21.shouldEqual(options.className, "ol-popup", "className");
+        base_21.shouldEqual(typeof options.css, "string", "css");
+        base_21.shouldEqual(!options.dockContainer, true, "dockContainer");
+        base_21.shouldEqual(!options.element, true, "element");
+        base_21.shouldEqual(!!options.id, true, "id");
+        base_21.shouldEqual(options.insertFirst, true, "insertFirst");
+        base_21.shouldEqual(!options.layers, true, "layers");
+        base_21.shouldEqual(!options.map, true, "map");
+        base_21.shouldEqual(!options.multi, true, "multi");
+        base_21.shouldEqual(base_21.stringify(options.offset), base_21.stringify([0, -10]), "offset");
+        base_21.shouldEqual(options.pointerPosition, 20, "pointerPosition");
+        base_21.shouldEqual(!options.position, true, "position");
+        base_21.shouldEqual(options.positioning, "bottom-center", "positioning");
+        base_21.shouldEqual(!options.showCoordinates, true, "showCoordinates");
+        base_21.shouldEqual(options.stopEvent, true, "stopEvent");
     }
 });
-define("node_modules/ol3-popup/tests/spec/popup-content", ["require", "exports", "openlayers", "node_modules/ol3-fun/tests/base", "node_modules/ol3-popup/index"], function (require, exports, ol, base_17, index_36) {
+define("node_modules/ol3-popup/tests/spec/popup-content", ["require", "exports", "openlayers", "node_modules/ol3-fun/tests/base", "node_modules/ol3-popup/index"], function (require, exports, ol, base_22, index_55) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    base_17.describe("spec/popup-content", function () {
-        base_17.it("asContent returns a DOM node with content", function () {
-            var popup = index_36.Popup.create({ autoPopup: false });
+    base_22.describe("spec/popup-content", function () {
+        base_22.it("asContent returns a DOM node with content", function () {
+            var popup = index_55.Popup.create({ autoPopup: false });
             var feature = new ol.Feature({ name: "Feature Name" });
             var html = popup.options.asContent(feature);
-            base_17.should(0 < html.outerHTML.indexOf("Feature Name"), "Feature Name");
-            base_17.shouldEqual("<table><tbody><tr><td>name</td><td>Feature Name</td></tr></tbody></table>", html.innerHTML, "popup markup");
+            base_22.should(0 < html.outerHTML.indexOf("Feature Name"), "Feature Name");
+            base_22.shouldEqual("<table><tbody><tr><td>name</td><td>Feature Name</td></tr></tbody></table>", html.innerHTML, "popup markup");
         });
     });
 });
@@ -15692,7 +16564,7 @@ define("node_modules/ol3-popup/examples/extras/map-maker", ["require", "exports"
     }
     exports.MapMaker = MapMaker;
 });
-define("node_modules/ol3-popup/tests/spec/popup-css", ["require", "exports", "openlayers", "node_modules/ol3-fun/tests/base", "node_modules/ol3-fun/ol3-fun/common", "node_modules/ol3-popup/index", "node_modules/ol3-popup/examples/extras/map-maker", "node_modules/ol3-popup/examples/extras/once", "node_modules/ol3-popup/tests/extras/kill"], function (require, exports, ol, base_18, common_33, index_37, map_maker_3, once_2, kill_2) {
+define("node_modules/ol3-popup/tests/spec/popup-css", ["require", "exports", "openlayers", "node_modules/ol3-fun/tests/base", "node_modules/ol3-fun/index", "node_modules/ol3-popup/index", "node_modules/ol3-popup/examples/extras/map-maker", "node_modules/ol3-popup/examples/extras/once", "node_modules/ol3-popup/tests/extras/kill"], function (require, exports, ol, base_23, index_56, index_57, map_maker_3, once_2, kill_3) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     function createMapDiv() {
@@ -15755,25 +16627,25 @@ define("node_modules/ol3-popup/tests/spec/popup-css", ["require", "exports", "op
         points.splice(index + 1, 0, b0, b, b1);
         return points;
     }
-    base_18.describe("ol3-popup/popup-css", function () {
-        base_18.it("Ensures css is destroyed with popup", function () {
-            var popup = index_37.Popup.create({
+    base_23.describe("ol3-popup/popup-css", function () {
+        base_23.it("Ensures css is destroyed with popup", function () {
+            var popup = index_57.Popup.create({
                 id: "my-popup",
                 autoPopup: false
             });
             var styleNode = document.getElementById("style-my-popup_options");
-            base_18.should(!!styleNode, "css node exists");
+            base_23.should(!!styleNode, "css node exists");
             popup.destroy();
             styleNode = document.getElementById("style-my-popup_options");
-            base_18.should(!styleNode, "css node does not exist");
+            base_23.should(!styleNode, "css node does not exist");
         });
-        base_18.it("DIAMONDS", function () {
+        base_23.it("DIAMONDS", function () {
             var div = createMapDiv();
             var map = map_maker_3.MapMaker(div);
-            var popup = index_37.Popup.create({
+            var popup = index_57.Popup.create({
                 id: "diamonds-test",
                 map: map,
-                indicators: index_37.DIAMONDS,
+                indicators: index_57.DIAMONDS,
                 indicatorOffsets: {
                     "bottom-left": [15, 16],
                     "bottom-center": [0, 16],
@@ -15788,7 +16660,7 @@ define("node_modules/ol3-popup/tests/spec/popup-css", ["require", "exports", "op
                 pointerPosition: 1,
                 positioning: "bottom-center",
                 autoPositioning: false,
-                css: index_37.DEFAULT_OPTIONS.css +
+                css: index_57.DEFAULT_OPTIONS.css +
                     "\n\t\t\t\t.ol-popup {\n\t\t\t\t\tbackground: silver;\n\t\t\t\t\tcolor: black;\n\t\t\t\t\tborder-radius: 1em;\n\t\t\t\t\tpadding: 1em;\n\t\t\t\t\tborder-color: silver;\n\t\t\t\t}\n\t\t\t\t.ol-popup.top.right {\n\t\t\t\t\tborder-top-right-radius: 0em;\n\t\t\t\t}\t\n\t\t\t\t.ol-popup.top.left {\n\t\t\t\t\tborder-top-left-radius: 0em;\n\t\t\t\t}\t\n\t\t\t\t.ol-popup.bottom.right {\n\t\t\t\t\tborder-bottom-right-radius: 0em;\n\t\t\t\t}\t\n\t\t\t\t.ol-popup.bottom.left {\n\t\t\t\t\tborder-bottom-left-radius: 0em;\n\t\t\t\t}\t\n\t\t\t\t.ol-popup.center.left {\n\t\t\t\t\tborder-top-left-radius: 0em;\n\t\t\t\t\tborder-bottom-left-radius: 0em;\n\t\t\t\t}\t\n\t\t\t\t.ol-popup.center.right {\n\t\t\t\t\tborder-top-right-radius: 0em;\n\t\t\t\t\tborder-bottom-right-radius: 0em;\n\t\t\t\t}\t\n\t\t\t\t.popup-indicator { \n\t\t\t\tcolor: silver;\n\t\t\t\tfont-weight: 900;\n\t\t\t}\n"
             });
             var vectorLayer = new ol.layer.Vector({
@@ -15796,21 +16668,21 @@ define("node_modules/ol3-popup/tests/spec/popup-css", ["require", "exports", "op
             });
             map.addLayer(vectorLayer);
             return once_2.once(map, "postrender", function () {
-                return base_18.slowloop(Object.keys(popup.options.indicators).map(function (k) { return function () {
+                return base_23.slowloop(Object.keys(popup.options.indicators).map(function (k) { return function () {
                     popup.setPositioning(k);
                     popup.show(map.getView().getCenter(), "Popup with " + k);
-                    base_18.shouldEqual(popup.indicator.getElement().textContent, popup.options.indicators[k], k);
+                    base_23.shouldEqual(popup.indicator.getElement().textContent, popup.options.indicators[k], k);
                 }; }), 200)
-                    .then(kill_2.kill(popup))
+                    .then(kill_3.kill(popup))
                     .catch(function (ex) {
-                    base_18.should(!ex, ex);
+                    base_23.should(!ex, ex);
                 });
             });
         });
-        base_18.it("renders a tooltip on a canvas", function () {
+        base_23.it("renders a tooltip on a canvas", function () {
             var div = document.createElement("div");
             div.className = "canvas-container";
-            var cssRemove = common_33.cssin("canvas-test", ".canvas-container {\n            display: inline-block;\n            position: absolute;\n            top: 20px;\n            width: 200px;\n\t\t\theight: 200px;\n\t\t\tbackground: blue;\n            border: 1px solid white;\n        }");
+            var cssRemove = index_56.cssin("canvas-test", ".canvas-container {\n            display: inline-block;\n            position: absolute;\n            top: 20px;\n            width: 200px;\n\t\t\theight: 200px;\n\t\t\tbackground: blue;\n            border: 1px solid white;\n        }");
             div.innerHTML = "DIV CONTENT";
             var canvas = document.createElement("canvas");
             canvas.width = canvas.height = 200;
@@ -15834,7 +16706,7 @@ define("node_modules/ol3-popup/tests/spec/popup-css", ["require", "exports", "op
                 }
             ];
             {
-                var points = common_33.range(4).map(function (index) {
+                var points = index_56.range(4).map(function (index) {
                     return callout(rect([25, 25, 175, 175]), { index: index, size: 25, width: 25, skew: 10, offset: 20 });
                 });
                 loop = loop.concat(points.map(function (points) { return function () {
@@ -15846,11 +16718,11 @@ define("node_modules/ol3-popup/tests/spec/popup-css", ["require", "exports", "op
                     ctx.stroke();
                 }; }));
             }
-            return $.when(base_18.slowloop(common_33.range(100).map(function (n) { return function () {
+            return $.when(base_23.slowloop(index_56.range(100).map(function (n) { return function () {
                 div.style.left = div.style.top = 10 * Math.sin((n * Math.PI) / 100) * n + "px";
-            }; }), 50), base_18.slowloop(loop, 200).then(function () {
+            }; }), 50), base_23.slowloop(loop, 200).then(function () {
                 loop = [];
-                var points = common_33.range(70).map(function (index) {
+                var points = index_56.range(70).map(function (index) {
                     return callout(rect([20, 20, 180, 180]), {
                         index: 0,
                         size: 10,
@@ -15859,7 +16731,7 @@ define("node_modules/ol3-popup/tests/spec/popup-css", ["require", "exports", "op
                         offset: 2 * index - 70
                     });
                 });
-                points = points.concat(common_33.range(140).map(function (index) {
+                points = points.concat(index_56.range(140).map(function (index) {
                     return callout(rect([20, 20, 180, 180]), {
                         index: 1,
                         size: 10,
@@ -15868,7 +16740,7 @@ define("node_modules/ol3-popup/tests/spec/popup-css", ["require", "exports", "op
                         offset: index - 70
                     });
                 }));
-                points = points.concat(common_33.range(140)
+                points = points.concat(index_56.range(140)
                     .reverse()
                     .map(function (index) {
                     return callout(rect([20, 20, 180, 180]), {
@@ -15879,7 +16751,7 @@ define("node_modules/ol3-popup/tests/spec/popup-css", ["require", "exports", "op
                         offset: index - 70
                     });
                 }));
-                points = points.concat(common_33.range(140)
+                points = points.concat(index_56.range(140)
                     .reverse()
                     .map(function (index) {
                     return callout(rect([20, 20, 180, 180]), {
@@ -15898,16 +16770,16 @@ define("node_modules/ol3-popup/tests/spec/popup-css", ["require", "exports", "op
                     ctx.closePath();
                     ctx.stroke();
                 }; }));
-                return base_18.slowloop(loop, 0).then(function () { return base_18.slowloop(loop.reverse(), 0).then(function () { return div.remove(); }); });
+                return base_23.slowloop(loop, 0).then(function () { return base_23.slowloop(loop.reverse(), 0).then(function () { return div.remove(); }); });
             })).then(function () { return cssRemove(); });
         }).timeout(6000);
     });
 });
-define("node_modules/ol3-popup/tests/spec/smartpick", ["require", "exports", "openlayers", "node_modules/ol3-fun/tests/base", "node_modules/ol3-popup/ol3-popup/commands/smartpick", "node_modules/ol3-popup/examples/extras/map-maker", "node_modules/ol3-popup/index", "node_modules/ol3-popup/examples/extras/once", "node_modules/ol3-popup/tests/extras/kill"], function (require, exports, ol, base_19, smartpick_2, map_maker_4, index_38, once_3, kill_3) {
+define("node_modules/ol3-popup/tests/spec/smartpick", ["require", "exports", "openlayers", "node_modules/ol3-fun/tests/base", "node_modules/ol3-popup/ol3-popup/commands/smartpick", "node_modules/ol3-popup/examples/extras/map-maker", "node_modules/ol3-popup/index", "node_modules/ol3-popup/examples/extras/once", "node_modules/ol3-popup/tests/extras/kill"], function (require, exports, ol, base_24, smartpick_2, map_maker_4, index_58, once_3, kill_4) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     function PopupMaker(map) {
-        var popup = index_38.Popup.create({
+        var popup = index_58.Popup.create({
             id: "spec-smartpicker-test",
             map: map,
             autoPanAnimation: {
@@ -15971,8 +16843,8 @@ define("node_modules/ol3-popup/tests/spec/smartpick", ["require", "exports", "op
         });
         return vectorLayer;
     }
-    base_19.describe("smartpick", function () {
-        base_19.it("places 9 popups on the map", function () {
+    base_24.describe("smartpick", function () {
+        base_24.it("places 9 popups on the map", function () {
             var _a = GridMapMaker(), map = _a.map, points = _a.points, div = _a.div;
             div.style.width = div.style.height = "480px";
             div.style.border = "1px solid white";
@@ -15993,24 +16865,24 @@ define("node_modules/ol3-popup/tests/spec/smartpick", ["require", "exports", "op
                 return popup;
             });
             return once_3.once(map, "postrender", function () {
-                return base_19.slowloop(points.map(function (p, i) { return function () {
+                return base_24.slowloop(points.map(function (p, i) { return function () {
                     var popup = popups[i];
                     popup.show(p, smartpick_2.smartpick(popup, p));
                 }; }), 0);
             })
-                .then(kill_3.kill(popups[0]))
+                .then(kill_4.kill(popups[0]))
                 .then(function () { return popups.map(function (p) { return p.destroy(); }); });
         });
-        base_19.it("configures a map with popup and points in strategic locations to ensure the positioning is correct", function () {
+        base_24.it("configures a map with popup and points in strategic locations to ensure the positioning is correct", function () {
             var _a = GridMapMaker(), map = _a.map, points = _a.points;
             return once_3.once(map, "postrender", function () {
                 var popup = PopupMaker(map);
-                return base_19.slowloop(points.map(function (p) { return function () {
+                return base_24.slowloop(points.map(function (p) { return function () {
                     var expected = smartpick_2.smartpick(popup, p);
                     popup.show(p, "" + expected);
                     var actual = popup.getPositioning();
-                    base_19.shouldEqual(expected, actual, "positioning");
-                }; }), 400, 1).then(kill_3.kill(popup, 0));
+                    base_24.shouldEqual(expected, actual, "positioning");
+                }; }), 400, 1).then(kill_4.kill(popup, 0));
             });
         });
     });
@@ -16019,111 +16891,81 @@ define("node_modules/ol3-popup/tests/index", ["require", "exports", "node_module
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
 });
-define("node_modules/ol3-search/tests/spec/search", ["require", "exports", "node_modules/ol3-fun/tests/base", "mocha", "node_modules/ol3-search/index"], function (require, exports, base_20, mocha_5, index_39) {
+define("node_modules/ol3-search/tests/spec/search", ["require", "exports", "node_modules/ol3-fun/tests/base", "mocha", "node_modules/ol3-search/index"], function (require, exports, base_25, mocha_3, index_59) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    mocha_5.describe("SearchForm Tests", function () {
-        mocha_5.it("SearchForm", function () {
-            base_20.should(!!index_39.SearchForm, "SearchForm");
+    mocha_3.describe("SearchForm Tests", function () {
+        mocha_3.it("SearchForm", function () {
+            base_25.should(!!index_59.SearchForm, "SearchForm");
         });
-        mocha_5.it("DEFAULT_OPTIONS", function () {
-            var options = index_39.SearchForm.DEFAULT_OPTIONS;
+        mocha_3.it("DEFAULT_OPTIONS", function () {
+            var options = index_59.SearchForm.DEFAULT_OPTIONS;
             checkDefaultInputOptions(options);
         });
-        mocha_5.it("options of an Input instance", function () {
-            var input = index_39.SearchForm.create();
+        mocha_3.it("options of an Input instance", function () {
+            var input = index_59.SearchForm.create();
             checkDefaultInputOptions(input.options);
         });
     });
     function checkDefaultInputOptions(options) {
-        base_20.should(!!options, "options");
-        base_20.shouldEqual(options.autoChange, false, "autoChange");
-        base_20.shouldEqual(options.autoClear, false, "autoClear");
-        base_20.shouldEqual(options.autoCollapse, true, "autoCollapse");
-        base_20.shouldEqual(options.canCollapse, true, "canCollapse");
-        base_20.shouldEqual(options.className, "ol-search", "className");
-        base_20.should(options.closedText.length > 0, "closedText");
-        base_20.shouldEqual(options.expanded, false, "expanded");
-        base_20.shouldEqual(options.hideButton, false, "hideButton");
-        base_20.shouldEqual(!!options.openedText, true, "openedText");
-        base_20.shouldEqual(options.position, "bottom left", "position");
-        base_20.shouldEqual(options.render, undefined, "render");
-        base_20.shouldEqual(options.source, undefined, "source");
-        base_20.shouldEqual(options.target, undefined, "target");
+        base_25.should(!!options, "options");
+        base_25.shouldEqual(options.autoChange, false, "autoChange");
+        base_25.shouldEqual(options.autoClear, false, "autoClear");
+        base_25.shouldEqual(options.autoCollapse, true, "autoCollapse");
+        base_25.shouldEqual(options.canCollapse, true, "canCollapse");
+        base_25.shouldEqual(options.className, "ol-search", "className");
+        base_25.should(options.closedText.length > 0, "closedText");
+        base_25.shouldEqual(options.expanded, false, "expanded");
+        base_25.shouldEqual(options.hideButton, false, "hideButton");
+        base_25.shouldEqual(!!options.openedText, true, "openedText");
+        base_25.shouldEqual(options.position, "bottom left", "position");
+        base_25.shouldEqual(options.render, undefined, "render");
+        base_25.shouldEqual(options.source, undefined, "source");
+        base_25.shouldEqual(options.target, undefined, "target");
     }
 });
 define("node_modules/ol3-search/tests/index", ["require", "exports", "node_modules/ol3-search/tests/spec/search"], function (require, exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
 });
-define("node_modules/ol3-symbolizer/tests/base", ["require", "exports"], function (require, exports) {
+define("node_modules/ol3-symbolizer/tests/common", ["require", "exports", "node_modules/ol3-symbolizer/ol3-symbolizer/common/assign", "node_modules/ol3-fun/index", "node_modules/ol3-fun/tests/base"], function (require, exports, assign_2, index_60, base_26) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    function describe(title, cb) {
-        console.log(title || "undocumented test group");
-        return window.describe(title, cb);
-    }
-    exports.describe = describe;
-    function it(title, cb) {
-        console.log(title || "undocumented test");
-        return window.it(title, cb);
-    }
-    exports.it = it;
-    function should(result, message) {
-        console.log(message || "undocumented assertion");
-        if (!result)
-            throw message;
-    }
-    exports.should = should;
-    function shouldEqual(a, b, message) {
-        if (a != b)
-            console.warn(a, b);
-        should(a == b, message);
-    }
-    exports.shouldEqual = shouldEqual;
-    function stringify(o) {
-        return JSON.stringify(o, null, "\t");
-    }
-    exports.stringify = stringify;
-});
-define("node_modules/ol3-symbolizer/tests/common", ["require", "exports", "node_modules/ol3-symbolizer/ol3-symbolizer/common/assign", "node_modules/ol3-symbolizer/ol3-symbolizer/common/mixin", "node_modules/ol3-symbolizer/ol3-symbolizer/common/defaults", "node_modules/ol3-symbolizer/tests/base"], function (require, exports, assign_2, mixin_3, defaults_2, base_21) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    describe("assign tests", function () {
-        it("assign empty", function () {
+    base_26.describe("assign tests", function () {
+        base_26.it("assign empty", function () {
         });
-        it("assign number", function () {
+        base_26.it("assign number", function () {
             var target = {};
             assign_2.assign(target, "a", 100);
-            base_21.should(target.a === 100, "");
+            base_26.should(target.a === 100, "");
         });
-        it("assign object", function () {
+        base_26.it("assign object", function () {
             var target = {};
-            assign_2.assign(target, "a", { "a": 100 });
-            base_21.should(target.a.a === 100, "");
+            assign_2.assign(target, "a", { a: 100 });
+            base_26.should(target.a.a === 100, "");
         });
     });
-    describe("defaults tests", function () {
-        it("defaults number", function () {
-            base_21.should(defaults_2.defaults({}, { a: 100 }).a === 100, "");
-            base_21.should(defaults_2.defaults(defaults_2.defaults({}, { a: 100 }), { a: 200 }).a === 100, "");
-            var a = defaults_2.defaults({}, { a: 1 });
-            base_21.should(a === defaults_2.defaults(a, { a: 2 }), "");
+    base_26.describe("defaults tests", function () {
+        base_26.it("defaults number", function () {
+            base_26.should(index_60.defaults({}, { a: 100 }).a === 100, "");
+            base_26.should(index_60.defaults(index_60.defaults({}, { a: 100 }), { a: 200 }).a === 100, "");
+            var a = index_60.defaults({}, { a: 1 });
+            base_26.should(a === index_60.defaults(a, { a: 2 }), "");
         });
     });
-    describe("mixin tests", function () {
-        it("mixin number", function () {
-            base_21.should(mixin_3.mixin({}, { a: 100 }).a === 100, "");
-            base_21.should(mixin_3.mixin(mixin_3.mixin({}, { a: 100 }), { a: 200 }).a === 200, "");
-            var a = mixin_3.mixin({}, { a: 1 });
-            base_21.should(a === mixin_3.mixin(a, { a: 2 }), "");
+    base_26.describe("mixin tests", function () {
+        base_26.it("mixin number", function () {
+            base_26.should(index_60.mixin({}, { a: 100 }).a === 100, "");
+            base_26.should(index_60.mixin(index_60.mixin({}, { a: 100 }), { a: 200 }).a === 200, "");
+            var a = index_60.mixin({}, { a: 1 });
+            base_26.should(a === index_60.mixin(a, { a: 2 }), "");
         });
     });
-    describe("test accessing openlayers using amd", function () {
-        it("log ol.style.Style", function () {
+    base_26.describe("test accessing openlayers using amd", function () {
+        base_26.it("log ol.style.Style", function () {
             require(["openlayers"], function (ol) {
                 var style = ol.style.Style;
-                base_21.should(!!style, "");
+                base_26.should(!!style, "");
                 console.log(style.toString());
             });
         });
@@ -16146,12 +16988,12 @@ define("node_modules/ol3-symbolizer/ol3-symbolizer/styles/stroke/linedash", ["re
     };
     return dasharray;
 });
-define("node_modules/ol3-symbolizer/tests/ol3-symbolizer", ["require", "exports", "node_modules/ol3-symbolizer/ol3-symbolizer/styles/stroke/linedash", "node_modules/ol3-symbolizer/tests/base", "node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer"], function (require, exports, Dashes, base_22, ol3_symbolizer_7) {
+define("node_modules/ol3-symbolizer/tests/ol3-symbolizer", ["require", "exports", "node_modules/ol3-symbolizer/ol3-symbolizer/styles/stroke/linedash", "node_modules/ol3-fun/tests/base", "node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer"], function (require, exports, Dashes, base_27, ol3_symbolizer_7) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var converter = new ol3_symbolizer_7.StyleConverter();
-    base_22.describe("OL Format Tests", function () {
-        base_22.it("Ensures interface does not break", function () {
+    base_27.describe("OL Format Tests", function () {
+        base_27.it("Ensures interface does not break", function () {
             var circle = {};
             circle.fill;
             circle.opacity;
@@ -16191,223 +17033,223 @@ define("node_modules/ol3-symbolizer/tests/ol3-symbolizer", ["require", "exports"
             image.snapToPixel;
         });
     });
-    base_22.describe("OL StyleConverter API Tests", function () {
-        base_22.it("StyleConverter API", function () {
+    base_27.describe("OL StyleConverter API Tests", function () {
+        base_27.it("StyleConverter API", function () {
             var converter = new ol3_symbolizer_7.StyleConverter();
-            base_22.should(typeof converter.fromJson === "function", "fromJson exists");
-            base_22.should(typeof converter.toJson === "function", "toJson exists");
+            base_27.should(typeof converter.fromJson === "function", "fromJson exists");
+            base_27.should(typeof converter.toJson === "function", "toJson exists");
         });
     });
-    base_22.describe("OL StyleConverter Json Tests", function () {
-        base_22.it("Circle Tests", function () {
+    base_27.describe("OL StyleConverter Json Tests", function () {
+        base_27.it("Circle Tests", function () {
             var baseline = {
-                "circle": {
-                    "fill": {
-                        "color": "rgba(197,37,84,0.90)"
+                circle: {
+                    fill: {
+                        color: "rgba(197,37,84,0.90)"
                     },
-                    "opacity": 1,
-                    "stroke": {
-                        "color": "rgba(227,83,105,1)",
-                        "width": 4.4
+                    opacity: 1,
+                    stroke: {
+                        color: "rgba(227,83,105,1)",
+                        width: 4.4
                     },
-                    "radius": 7.3
+                    radius: 7.3
                 },
-                "text": {
-                    "fill": {
-                        "color": "rgba(205,86,109,0.9)"
+                text: {
+                    fill: {
+                        color: "rgba(205,86,109,0.9)"
                     },
-                    "stroke": {
-                        "color": "rgba(252,175,131,0.5)",
-                        "width": 2
+                    stroke: {
+                        color: "rgba(252,175,131,0.5)",
+                        width: 2
                     },
-                    "text": "Test",
+                    text: "Test",
                     "offset-x": 0,
                     "offset-y": 20,
-                    "font": "18px fantasy"
+                    font: "18px fantasy"
                 }
             };
             var style = converter.fromJson(baseline);
             var circleStyle = style.getImage();
-            base_22.should(circleStyle !== null, "getImage returns a style");
-            base_22.shouldEqual(circleStyle.getRadius(), baseline.circle.radius, "getImage is a circle and radius");
+            base_27.should(circleStyle !== null, "getImage returns a style");
+            base_27.shouldEqual(circleStyle.getRadius(), baseline.circle.radius, "getImage is a circle and radius");
             var circleJson = converter.toJson(style);
-            base_22.should(circleJson.circle !== null, "json contains a circle");
-            base_22.shouldEqual(circleJson.circle.radius, baseline.circle.radius, "circle radius");
+            base_27.should(circleJson.circle !== null, "json contains a circle");
+            base_27.shouldEqual(circleJson.circle.radius, baseline.circle.radius, "circle radius");
         });
-        base_22.it("Star Tests", function () {
+        base_27.it("Star Tests", function () {
             var baseline = {
-                "star": {
-                    "fill": {
-                        "color": "rgba(54,47,234,1)"
+                star: {
+                    fill: {
+                        color: "rgba(54,47,234,1)"
                     },
-                    "stroke": {
-                        "color": "rgba(75,92,105,0.85)",
-                        "width": 4
+                    stroke: {
+                        color: "rgba(75,92,105,0.85)",
+                        width: 4
                     },
-                    "radius": 9,
-                    "radius2": 0,
-                    "points": 6
+                    radius: 9,
+                    radius2: 0,
+                    points: 6
                 }
             };
             var style = converter.fromJson(baseline);
             var starStyle = style.getImage();
-            base_22.should(starStyle !== null, "getImage returns a style");
-            base_22.shouldEqual(starStyle.getRadius(), baseline.star.radius, "starStyle radius");
-            base_22.shouldEqual(starStyle.getRadius2(), baseline.star.radius2, "starStyle radius2");
-            base_22.shouldEqual(starStyle.getPoints(), baseline.star.points, "starStyle points");
+            base_27.should(starStyle !== null, "getImage returns a style");
+            base_27.shouldEqual(starStyle.getRadius(), baseline.star.radius, "starStyle radius");
+            base_27.shouldEqual(starStyle.getRadius2(), baseline.star.radius2, "starStyle radius2");
+            base_27.shouldEqual(starStyle.getPoints(), baseline.star.points, "starStyle points");
             var starJson = converter.toJson(style);
-            base_22.should(starJson.star !== null, "json contains a star");
-            base_22.shouldEqual(starJson.star.radius, baseline.star.radius, "starJson radius");
-            base_22.shouldEqual(starJson.star.radius2, baseline.star.radius2, "starJson radius2");
-            base_22.shouldEqual(starJson.star.points, baseline.star.points, "starJson point count");
+            base_27.should(starJson.star !== null, "json contains a star");
+            base_27.shouldEqual(starJson.star.radius, baseline.star.radius, "starJson radius");
+            base_27.shouldEqual(starJson.star.radius2, baseline.star.radius2, "starJson radius2");
+            base_27.shouldEqual(starJson.star.points, baseline.star.points, "starJson point count");
         });
-        base_22.it("Fill Test", function () {
+        base_27.it("Fill Test", function () {
             var baseline = {
-                "fill": {
-                    "gradient": {
-                        "type": "linear(200,0,201,0)",
-                        "stops": "rgba(255,0,0,.1) 0%;rgba(255,0,0,0.8) 100%"
+                fill: {
+                    gradient: {
+                        type: "linear(200,0,201,0)",
+                        stops: "rgba(255,0,0,.1) 0%;rgba(255,0,0,0.8) 100%"
                     }
                 }
             };
             var style = converter.fromJson(baseline);
             var fillStyle = style.getFill();
-            base_22.should(fillStyle !== null, "fillStyle exists");
+            base_27.should(fillStyle !== null, "fillStyle exists");
             var gradient = fillStyle.getColor();
-            base_22.shouldEqual(gradient.stops, baseline.fill.gradient.stops, "fillStyle color");
-            base_22.shouldEqual(gradient.type, baseline.fill.gradient.type, "fillStyle color");
+            base_27.shouldEqual(gradient.stops, baseline.fill.gradient.stops, "fillStyle color");
+            base_27.shouldEqual(gradient.type, baseline.fill.gradient.type, "fillStyle color");
         });
-        base_22.it("Stroke Test", function () {
+        base_27.it("Stroke Test", function () {
             var baseline = {
-                "stroke": {
-                    "color": "orange",
-                    "width": 2,
-                    "lineDash": Dashes.longdashdotdot
+                stroke: {
+                    color: "orange",
+                    width: 2,
+                    lineDash: Dashes.longdashdotdot
                 }
             };
             var style = converter.fromJson(baseline);
             var strokeStyle = style.getStroke();
-            base_22.should(strokeStyle !== null, "strokeStyle exists");
-            base_22.shouldEqual(strokeStyle.getColor(), baseline.stroke.color, "strokeStyle color");
-            base_22.shouldEqual(strokeStyle.getWidth(), baseline.stroke.width, "strokeStyle width");
-            base_22.shouldEqual(strokeStyle.getLineDash().join(), baseline.stroke.lineDash.join(), "strokeStyle lineDash");
+            base_27.should(strokeStyle !== null, "strokeStyle exists");
+            base_27.shouldEqual(strokeStyle.getColor(), baseline.stroke.color, "strokeStyle color");
+            base_27.shouldEqual(strokeStyle.getWidth(), baseline.stroke.width, "strokeStyle width");
+            base_27.shouldEqual(strokeStyle.getLineDash().join(), baseline.stroke.lineDash.join(), "strokeStyle lineDash");
         });
-        base_22.it("Text Test", function () {
+        base_27.it("Text Test", function () {
             var baseline = {
-                "text": {
-                    "fill": {
-                        "color": "rgba(75,92,85,0.85)"
+                text: {
+                    fill: {
+                        color: "rgba(75,92,85,0.85)"
                     },
-                    "stroke": {
-                        "color": "rgba(255,255,255,1)",
-                        "width": 5
+                    stroke: {
+                        color: "rgba(255,255,255,1)",
+                        width: 5
                     },
                     "offset-x": 5,
                     "offset-y": 10,
                     offsetX: 15,
                     offsetY: 20,
-                    "text": "fantasy light",
-                    "font": "18px serif"
+                    text: "fantasy light",
+                    font: "18px serif"
                 }
             };
             var style = converter.fromJson(baseline);
             var textStyle = style.getText();
-            base_22.should(textStyle !== null, "textStyle exists");
-            base_22.shouldEqual(textStyle.getFill().getColor(), baseline.text.fill.color, "textStyle text color");
-            base_22.shouldEqual(textStyle.getText(), baseline.text.text, "textStyle text");
-            base_22.shouldEqual(textStyle.getOffsetX(), baseline.text["offset-x"], "textStyle color");
-            base_22.shouldEqual(textStyle.getOffsetY(), baseline.text["offset-y"], "textStyle color");
-            base_22.shouldEqual(textStyle.getFont(), baseline.text.font, "textStyle font");
+            base_27.should(textStyle !== null, "textStyle exists");
+            base_27.shouldEqual(textStyle.getFill().getColor(), baseline.text.fill.color, "textStyle text color");
+            base_27.shouldEqual(textStyle.getText(), baseline.text.text, "textStyle text");
+            base_27.shouldEqual(textStyle.getOffsetX(), baseline.text["offset-x"], "textStyle color");
+            base_27.shouldEqual(textStyle.getOffsetY(), baseline.text["offset-y"], "textStyle color");
+            base_27.shouldEqual(textStyle.getFont(), baseline.text.font, "textStyle font");
         });
     });
-    base_22.describe("OL Basic shapes", function () {
-        base_22.it("cross, square, diamond, star, triangle, x", function () {
+    base_27.describe("OL Basic shapes", function () {
+        base_27.it("cross, square, diamond, star, triangle, x", function () {
             var cross = {
-                "star": {
-                    "opacity": 0.5,
-                    "fill": {
-                        "color": "red"
+                star: {
+                    opacity: 0.5,
+                    fill: {
+                        color: "red"
                     },
-                    "stroke": {
-                        "color": "black",
-                        "width": 2
+                    stroke: {
+                        color: "black",
+                        width: 2
                     },
-                    "points": 4,
-                    "radius": 10,
-                    "radius2": 0,
-                    "angle": 0
+                    points: 4,
+                    radius: 10,
+                    radius2: 0,
+                    angle: 0
                 }
             };
             var square = {
-                "star": {
-                    "fill": {
-                        "color": "red"
+                star: {
+                    fill: {
+                        color: "red"
                     },
-                    "stroke": {
-                        "color": "black",
-                        "width": 2
+                    stroke: {
+                        color: "black",
+                        width: 2
                     },
-                    "points": 4,
-                    "radius": 10,
-                    "angle": 0.7853981633974483
+                    points: 4,
+                    radius: 10,
+                    angle: 0.7853981633974483
                 }
             };
             var diamond = {
-                "star": {
-                    "fill": {
-                        "color": "red"
+                star: {
+                    fill: {
+                        color: "red"
                     },
-                    "stroke": {
-                        "color": "black",
-                        "width": 2
+                    stroke: {
+                        color: "black",
+                        width: 2
                     },
-                    "points": 4,
-                    "radius": 10,
-                    "angle": 0
+                    points: 4,
+                    radius: 10,
+                    angle: 0
                 }
             };
             var star = {
-                "star": {
-                    "fill": {
-                        "color": "red"
+                star: {
+                    fill: {
+                        color: "red"
                     },
-                    "stroke": {
-                        "color": "black",
-                        "width": 2
+                    stroke: {
+                        color: "black",
+                        width: 2
                     },
-                    "points": 5,
-                    "radius": 10,
-                    "radius2": 4,
-                    "angle": 0
+                    points: 5,
+                    radius: 10,
+                    radius2: 4,
+                    angle: 0
                 }
             };
             var triangle = {
-                "star": {
-                    "fill": {
-                        "color": "red"
+                star: {
+                    fill: {
+                        color: "red"
                     },
-                    "stroke": {
-                        "color": "black",
-                        "width": 2
+                    stroke: {
+                        color: "black",
+                        width: 2
                     },
-                    "points": 3,
-                    "radius": 10,
-                    "angle": 0
+                    points: 3,
+                    radius: 10,
+                    angle: 0
                 }
             };
             var x = {
-                "star": {
-                    "fill": {
-                        "color": "red"
+                star: {
+                    fill: {
+                        color: "red"
                     },
-                    "stroke": {
-                        "color": "black",
-                        "width": 2
+                    stroke: {
+                        color: "black",
+                        width: 2
                     },
-                    "points": 4,
-                    "radius": 10,
-                    "radius2": 0,
-                    "angle": 0.7853981633974483
+                    points: 4,
+                    radius: 10,
+                    radius2: 0,
+                    angle: 0.7853981633974483
                 }
             };
             var crossJson = converter.toJson(converter.fromJson(cross));
@@ -16416,28 +17258,27 @@ define("node_modules/ol3-symbolizer/tests/ol3-symbolizer", ["require", "exports"
             var starJson = converter.toJson(converter.fromJson(star));
             var triangleJson = converter.toJson(converter.fromJson(triangle));
             var xJson = converter.toJson(converter.fromJson(x));
-            base_22.should(!!crossJson.cross, "cross exists");
-            base_22.shouldEqual(crossJson.cross.size, cross.star.radius * 2, "cross size");
-            base_22.should(!!squareJson.square, "square exists");
-            base_22.shouldEqual(squareJson.square.size, square.star.radius * 2, "square size");
-            base_22.should(!!diamondJson.diamond, "diamond exists");
-            base_22.shouldEqual(diamondJson.diamond.size, diamond.star.radius * 2, "diamond size");
-            base_22.should(!!triangleJson.triangle, "triangle exists");
-            base_22.shouldEqual(triangleJson.triangle.size, triangle.star.radius * 2, "triangle size");
-            base_22.should(!!xJson.x, "x exists");
-            base_22.shouldEqual(xJson.x.size, x.star.radius * 2, "x size");
+            base_27.should(!!crossJson.cross, "cross exists");
+            base_27.shouldEqual(crossJson.cross.size, cross.star.radius * 2, "cross size");
+            base_27.should(!!squareJson.square, "square exists");
+            base_27.shouldEqual(squareJson.square.size, square.star.radius * 2, "square size");
+            base_27.should(!!diamondJson.diamond, "diamond exists");
+            base_27.shouldEqual(diamondJson.diamond.size, diamond.star.radius * 2, "diamond size");
+            base_27.should(!!triangleJson.triangle, "triangle exists");
+            base_27.shouldEqual(triangleJson.triangle.size, triangle.star.radius * 2, "triangle size");
+            base_27.should(!!xJson.x, "x exists");
+            base_27.shouldEqual(xJson.x.size, x.star.radius * 2, "x size");
             var items = { crossJson: crossJson, squareJson: squareJson, diamondJson: diamondJson, triangleJson: triangleJson, xJson: xJson };
             Object.keys(items).forEach(function (k) {
-                base_22.shouldEqual(base_22.stringify(converter.toJson(converter.fromJson(items[k]))), base_22.stringify(items[k]), k + " json->style->json");
+                base_27.shouldEqual(base_27.stringify(converter.toJson(converter.fromJson(items[k]))), base_27.stringify(items[k]), k + " json->style->json");
             });
         });
     });
-    base_22.describe("OL NEXT", function () {
-        base_22.it("NEXT", function () {
-        });
+    base_27.describe("OL NEXT", function () {
+        base_27.it("NEXT", function () { });
     });
 });
-define("node_modules/ol3-symbolizer/tests/ags-symbolizer", ["require", "exports", "node_modules/ol3-symbolizer/tests/base", "node_modules/ol3-symbolizer/ol3-symbolizer/format/ags-symbolizer", "node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer"], function (require, exports, base_23, ags_symbolizer_4, ol3_symbolizer_8) {
+define("node_modules/ol3-symbolizer/tests/ags-symbolizer", ["require", "exports", "node_modules/ol3-fun/tests/base", "node_modules/ol3-symbolizer/ol3-symbolizer/format/ags-symbolizer", "node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer"], function (require, exports, base_28, ags_symbolizer_4, ol3_symbolizer_8) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var fromJson = (function () {
@@ -16452,134 +17293,99 @@ define("node_modules/ol3-symbolizer/tests/ags-symbolizer", ["require", "exports"
         var r = _a[0], g = _a[1], b = _a[2], a = _a[3];
         return "rgba(" + r + "," + g + "," + b + "," + a / 255 + ")";
     }
-    base_23.describe("esriSMS Tests", function () {
-        base_23.it("esriSMSCircle", function () {
+    base_28.describe("esriSMS Tests", function () {
+        base_28.it("esriSMSCircle", function () {
             var baseline = {
-                "color": [
-                    255,
-                    255,
-                    255,
-                    64
-                ],
-                "size": 12,
-                "angle": 0,
-                "xoffset": 0,
-                "yoffset": 0,
-                "type": "esriSMS",
-                "style": "esriSMSCircle",
-                "outline": {
-                    "color": [
-                        0,
-                        0,
-                        0,
-                        255
-                    ],
-                    "width": 1,
-                    "type": "esriSLS",
-                    "style": "esriSLSSolid"
+                color: [255, 255, 255, 64],
+                size: 12,
+                angle: 0,
+                xoffset: 0,
+                yoffset: 0,
+                type: "esriSMS",
+                style: "esriSMSCircle",
+                outline: {
+                    color: [0, 0, 0, 255],
+                    width: 1,
+                    type: "esriSLS",
+                    style: "esriSLSSolid"
                 }
             };
             var style = fromJson(baseline);
             var circleJson = toJson(style);
-            var expectedRadius = (baseline.size * 4 / 3) / 2;
-            base_23.shouldEqual(circleJson.circle.radius, expectedRadius, "circleJson radius is 33% larger than specified in the ags style (see StyleConverter.asWidth)");
-            base_23.shouldEqual(circleJson.circle.fill.color, rgba(baseline.color), "circleJson fill color");
-            base_23.shouldEqual(circleJson.circle.fill.pattern, null, "circleJson fill pattern is solid");
-            base_23.shouldEqual(circleJson.circle.stroke.color, rgba(baseline.outline.color), "circleJson stroke color");
-            base_23.shouldEqual(circleJson.circle.stroke.width, baseline.outline.width * 4 / 3, "circleJson stroke width");
-            base_23.shouldEqual(circleJson.circle.stroke.lineCap, undefined, "circleJson stroke lineCap");
-            base_23.shouldEqual(circleJson.circle.stroke.lineDash, undefined, "circleJson stroke lineDash");
-            base_23.shouldEqual(circleJson.circle.stroke.lineJoin, undefined, "circleJson stroke lineJoin");
+            var expectedRadius = (baseline.size * 4) / 3 / 2;
+            base_28.shouldEqual(circleJson.circle.radius, expectedRadius, "circleJson radius is 33% larger than specified in the ags style (see StyleConverter.asWidth)");
+            base_28.shouldEqual(circleJson.circle.fill.color, rgba(baseline.color), "circleJson fill color");
+            base_28.shouldEqual(circleJson.circle.fill.pattern, null, "circleJson fill pattern is solid");
+            base_28.shouldEqual(circleJson.circle.stroke.color, rgba(baseline.outline.color), "circleJson stroke color");
+            base_28.shouldEqual(circleJson.circle.stroke.width, (baseline.outline.width * 4) / 3, "circleJson stroke width");
+            base_28.shouldEqual(circleJson.circle.stroke.lineCap, undefined, "circleJson stroke lineCap");
+            base_28.shouldEqual(circleJson.circle.stroke.lineDash, undefined, "circleJson stroke lineDash");
+            base_28.shouldEqual(circleJson.circle.stroke.lineJoin, undefined, "circleJson stroke lineJoin");
         });
-        base_23.it("esriSMSCross", function () {
+        base_28.it("esriSMSCross", function () {
             var baseline = {
-                "color": [
-                    255,
-                    255,
-                    255,
-                    64
-                ],
-                "size": 12,
-                "angle": 0,
-                "xoffset": 0,
-                "yoffset": 0,
-                "type": "esriSMS",
-                "style": "esriSMSCross",
-                "outline": {
-                    "color": [
-                        0,
-                        0,
-                        0,
-                        255
-                    ],
-                    "width": 1,
-                    "type": "esriSLS",
-                    "style": "esriSLSSolid"
+                color: [255, 255, 255, 64],
+                size: 12,
+                angle: 0,
+                xoffset: 0,
+                yoffset: 0,
+                type: "esriSMS",
+                style: "esriSMSCross",
+                outline: {
+                    color: [0, 0, 0, 255],
+                    width: 1,
+                    type: "esriSLS",
+                    style: "esriSLSSolid"
                 }
             };
             var json = toJson(fromJson(baseline));
-            base_23.should(!!json.cross, "cross");
-            base_23.shouldEqual(json.cross.opacity, 1, "opacity");
-            base_23.shouldEqual(json.cross.size, 22.62741699796952, "size");
+            base_28.should(!!json.cross, "cross");
+            base_28.shouldEqual(json.cross.opacity, 1, "opacity");
+            base_28.shouldEqual(json.cross.size, 22.62741699796952, "size");
         });
     });
-    base_23.describe("esriSLS Tests", function () {
-        base_23.it("esriSLSShortDash esriLCSSquare esriLJSRound", function () {
+    base_28.describe("esriSLS Tests", function () {
+        base_28.it("esriSLSShortDash esriLCSSquare esriLJSRound", function () {
             var baseline = {
-                "type": "esriSLS",
-                "style": "esriSLSShortDash",
-                "color": [
-                    152,
-                    230,
-                    0,
-                    255
-                ],
-                "width": 1,
-                "cap": "esriLCSSquare",
-                "join": "esriLJSRound",
-                "miterLimit": 9.75
+                type: "esriSLS",
+                style: "esriSLSShortDash",
+                color: [152, 230, 0, 255],
+                width: 1,
+                cap: "esriLCSSquare",
+                join: "esriLJSRound",
+                miterLimit: 9.75
             };
             var style = fromJson(baseline);
             var json = toJson(style);
-            base_23.shouldEqual(json.stroke.color, rgba(baseline.color), "stroke color");
+            base_28.shouldEqual(json.stroke.color, rgba(baseline.color), "stroke color");
         });
-        base_23.it("esriSLSDash esriLCSButt esriLJSBevel", function () {
+        base_28.it("esriSLSDash esriLCSButt esriLJSBevel", function () {
             var baseline = {
-                "type": "esriSLS",
-                "style": "esriSLSDash",
-                "color": [
-                    152,
-                    230,
-                    0,
-                    255
-                ],
-                "width": 1,
-                "cap": "esriLCSButt",
-                "join": "esriLJSBevel",
-                "miterLimit": 9.75
+                type: "esriSLS",
+                style: "esriSLSDash",
+                color: [152, 230, 0, 255],
+                width: 1,
+                cap: "esriLCSButt",
+                join: "esriLJSBevel",
+                miterLimit: 9.75
             };
             var style = fromJson(baseline);
             var json = toJson(style);
-            base_23.shouldEqual(json.stroke.color, rgba(baseline.color), "stroke color");
+            base_28.shouldEqual(json.stroke.color, rgba(baseline.color), "stroke color");
         });
-        base_23.it("esriSLSSolid esriLCSRound esriLJSMiter", function () {
+        base_28.it("esriSLSSolid esriLCSRound esriLJSMiter", function () {
             var baseline = {
-                "type": "esriSLS",
-                "style": "esriSLSSolid",
-                "color": [
-                    152,
-                    230,
-                    0,
-                    255
-                ],
-                "width": 1,
-                "cap": "esriLCSRound",
-                "join": "esriLJSMiter",
-                "miterLimit": 9.75
+                type: "esriSLS",
+                style: "esriSLSSolid",
+                color: [152, 230, 0, 255],
+                width: 1,
+                cap: "esriLCSRound",
+                join: "esriLJSMiter",
+                miterLimit: 9.75
             };
             var style = fromJson(baseline);
             var json = toJson(style);
-            base_23.shouldEqual(json.stroke.color, rgba(baseline.color), "stroke color");
+            base_28.shouldEqual(json.stroke.color, rgba(baseline.color), "stroke color");
         });
     });
 });
@@ -16587,7 +17393,7 @@ define("node_modules/ol3-symbolizer/tests/index", ["require", "exports", "node_m
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
 });
-define("tests/index", ["require", "exports", "node_modules/ol3-draw/tests/index", "node_modules/ol3-fun/tests/index", "node_modules/ol3-grid/tests/index", "node_modules/ol3-input/tests/index", "node_modules/ol3-layerswitcher/tests/index", "node_modules/ol3-panzoom/tests/index", "node_modules/ol3-popup/tests/index", "node_modules/ol3-search/tests/index", "node_modules/ol3-symbolizer/tests/index"], function (require, exports) {
+define("tests/index", ["require", "exports", "node_modules/ol3-fun/tests/index", "node_modules/ol3-draw/tests/index", "node_modules/ol3-grid/tests/index", "node_modules/ol3-input/tests/index", "node_modules/ol3-layerswitcher/tests/index", "node_modules/ol3-panzoom/tests/index", "node_modules/ol3-popup/tests/index", "node_modules/ol3-search/tests/index", "node_modules/ol3-symbolizer/tests/index"], function (require, exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
 });
