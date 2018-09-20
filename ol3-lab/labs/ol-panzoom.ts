@@ -2,7 +2,7 @@ import ol = require("openlayers");
 import { PanZoom } from "ol3-panzoom/index";
 
 export function run() {
-	let panZoom = new PanZoom({
+	let panZoom = PanZoom.create({
 		imgPath: "../static/css/ol2img"
 	});
 

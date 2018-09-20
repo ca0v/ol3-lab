@@ -85,7 +85,7 @@ export function run() {
 				zoom: false
 			})
 			.extend([
-				new PanZoom({
+				PanZoom.create({
 					minZoom: 5,
 					maxZoom: 21,
 					imgPath:

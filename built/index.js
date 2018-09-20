@@ -117,7 +117,7 @@ define("node_modules/ol3-fun/ol3-fun/common", ["require", "exports"], function (
                 args[_i] = arguments[_i];
             }
             var later = function () {
-                timeout = null;
+                timeout = NaN;
                 if (!immediate)
                     func.apply({}, args);
             };
@@ -188,12 +188,14 @@ define("node_modules/ol3-fun/ol3-fun/css", ["require", "exports"], function (req
     }
     exports.cssin = cssin;
     function loadCss(options) {
-        if (!options.url && !options.css)
-            throw "must provide either a url or css option";
+        if (!options.name)
+            throw "must provide a name to prevent css duplication";
         if (options.url && options.css)
             throw "cannot provide both a url and a css";
-        if (options.name && options.css)
+        if (options.css)
             return cssin(options.name, options.css);
+        if (!options.url)
+            throw "must provide either a url or css option";
         var id = "style-" + options.name;
         var head = document.getElementsByTagName("head")[0];
         var link = document.getElementById(id);
@@ -219,9 +221,9 @@ define("node_modules/ol3-fun/ol3-fun/css", ["require", "exports"], function (req
 define("node_modules/ol3-fun/ol3-fun/navigation", ["require", "exports", "openlayers", "jquery", "node_modules/ol3-fun/ol3-fun/common"], function (require, exports, ol, $, common_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    function zoomToFeature(map, feature, options) {
+    function zoomToFeature(map, feature, ops) {
         var promise = $.Deferred();
-        options = common_1.defaults(options || {}, {
+        var options = common_1.defaults(ops || {}, {
             duration: 1000,
             padding: 256,
             minResolution: 2 * map.getView().getMinResolution()
@@ -439,6 +441,10 @@ define("node_modules/ol3-fun/ol3-fun/is-cyclic", ["require", "exports", "node_mo
 define("node_modules/ol3-fun/ol3-fun/deep-extend", ["require", "exports", "node_modules/ol3-fun/ol3-fun/is-cyclic", "node_modules/ol3-fun/ol3-fun/is-primitive"], function (require, exports, is_cyclic_1, is_primitive_2) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
+    function isArrayLike(o) {
+        var keys = Object.keys(o);
+        return keys.every(function (k) { return k === parseInt(k, 10).toString(); });
+    }
     function extend(a, b, trace, history) {
         if (history === void 0) { history = []; }
         if (!b) {
@@ -481,7 +487,6 @@ define("node_modules/ol3-fun/ol3-fun/deep-extend", ["require", "exports", "node_
             if (this.traceItems) {
                 this.traceItems.push(item);
             }
-            return item.path;
         };
         Merger.prototype.deepExtend = function (target, source, path) {
             var _this = this;
@@ -505,9 +510,11 @@ define("node_modules/ol3-fun/ol3-fun/deep-extend", ["require", "exports", "node_
                 return target;
             }
             else if (isArray(target)) {
-                throw "attempting to merge a non-array into an array";
+                if (!isArrayLike(source)) {
+                    throw "attempting to merge a non-array into an array";
+                }
             }
-            Object.keys(source).forEach(function (k) { return _this.mergeChild(k, target, source[k], [k].concat(path)); });
+            Object.keys(source).forEach(function (k) { return _this.mergeChild(k, target, source[k], path.slice()); });
             return target;
         };
         Merger.prototype.cloneArray = function (val, path) {
@@ -541,7 +548,8 @@ define("node_modules/ol3-fun/ol3-fun/deep-extend", ["require", "exports", "node_
             if (sourceValue === targetValue)
                 return;
             if (is_primitive_2.isPrimitive(sourceValue)) {
-                path = this.trace({
+                path.push(key);
+                this.trace({
                     path: path,
                     key: key,
                     target: target,
@@ -553,7 +561,8 @@ define("node_modules/ol3-fun/ol3-fun/deep-extend", ["require", "exports", "node_
             }
             if (canClone(sourceValue)) {
                 sourceValue = clone(sourceValue);
-                path = this.trace({
+                path.push(key);
+                this.trace({
                     path: path,
                     key: key,
                     target: target,
@@ -565,11 +574,12 @@ define("node_modules/ol3-fun/ol3-fun/deep-extend", ["require", "exports", "node_
             }
             if (isArray(sourceValue)) {
                 if (isArray(targetValue)) {
-                    this.deepExtend(targetValue, sourceValue, path);
+                    this.deepExtendWithKey(targetValue, sourceValue, path, key);
                     return;
                 }
                 sourceValue = this.cloneArray(sourceValue, path);
-                path = this.trace({
+                path.push(key);
+                this.trace({
                     path: path,
                     key: key,
                     target: target,
@@ -585,7 +595,8 @@ define("node_modules/ol3-fun/ol3-fun/deep-extend", ["require", "exports", "node_
             if (!isHash(targetValue)) {
                 var merger = new Merger(null, this.history);
                 sourceValue = merger.deepExtend({}, sourceValue, path);
-                path = this.trace({
+                path.push(key);
+                this.trace({
                     path: path,
                     key: key,
                     target: target,
@@ -595,8 +606,14 @@ define("node_modules/ol3-fun/ol3-fun/deep-extend", ["require", "exports", "node_
                 target[key] = sourceValue;
                 return;
             }
-            this.deepExtend(targetValue, sourceValue, path);
+            this.deepExtendWithKey(targetValue, sourceValue, path, key);
             return;
+        };
+        Merger.prototype.deepExtendWithKey = function (targetValue, sourceValue, path, key) {
+            var index = path.push(key);
+            this.deepExtend(targetValue, sourceValue, path);
+            if (index === path.length)
+                path.pop();
         };
         Merger.prototype.mergeArray = function (key, target, source, path) {
             var _this = this;
@@ -619,14 +636,14 @@ define("node_modules/ol3-fun/ol3-fun/deep-extend", ["require", "exports", "node_
                     if (isHash(target[i]) && !!target[i][key]) {
                         throw "cannot replace an identified array item with a non-identified array item";
                     }
-                    _this.mergeChild(i, target, sourceItem, path);
+                    _this.mergeChild(i, target, sourceItem, path.slice());
                     return;
                 }
                 if (isUndefined(targetIndex)) {
-                    _this.mergeChild(target.length, target, sourceItem, path);
+                    _this.mergeChild(target.length, target, sourceItem, path.slice());
                     return;
                 }
-                _this.mergeChild(targetIndex, target, sourceItem, path);
+                _this.mergeChild(targetIndex, target, sourceItem, path.slice());
                 return;
             });
             return target;
@@ -634,7 +651,45 @@ define("node_modules/ol3-fun/ol3-fun/deep-extend", ["require", "exports", "node_
         return Merger;
     }());
 });
-define("node_modules/ol3-fun/index", ["require", "exports", "node_modules/ol3-fun/ol3-fun/common", "node_modules/ol3-fun/ol3-fun/css", "node_modules/ol3-fun/ol3-fun/navigation", "node_modules/ol3-fun/ol3-fun/parse-dms", "node_modules/ol3-fun/ol3-fun/slowloop", "node_modules/ol3-fun/ol3-fun/deep-extend"], function (require, exports, common_2, css_1, navigation_1, parse_dms_1, slowloop_1, deep_extend_1) {
+define("node_modules/ol3-fun/ol3-fun/extensions", ["require", "exports"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    var Extensions = (function () {
+        function Extensions() {
+            this.hash = new WeakMap(null);
+        }
+        Extensions.prototype.isExtended = function (o) {
+            return this.hash.has(o);
+        };
+        Extensions.prototype.extend = function (o, ext) {
+            var hashData = this.hash.get(o);
+            if (!hashData) {
+                hashData = {};
+                this.hash.set(o, hashData);
+            }
+            ext && Object.keys(ext).forEach(function (k) { return (hashData[k] = ext[k]); });
+            return hashData;
+        };
+        Extensions.prototype.bind = function (o1, o2) {
+            if (this.isExtended(o1)) {
+                if (this.isExtended(o2)) {
+                    if (this.hash.get(o1) === this.hash.get(o2))
+                        return;
+                    throw "both objects already bound";
+                }
+                else {
+                    this.hash.set(o2, this.extend(o1));
+                }
+            }
+            else {
+                this.hash.set(o1, this.extend(o2));
+            }
+        };
+        return Extensions;
+    }());
+    exports.Extensions = Extensions;
+});
+define("node_modules/ol3-fun/index", ["require", "exports", "node_modules/ol3-fun/ol3-fun/common", "node_modules/ol3-fun/ol3-fun/css", "node_modules/ol3-fun/ol3-fun/navigation", "node_modules/ol3-fun/ol3-fun/parse-dms", "node_modules/ol3-fun/ol3-fun/slowloop", "node_modules/ol3-fun/ol3-fun/deep-extend", "node_modules/ol3-fun/ol3-fun/extensions"], function (require, exports, common_2, css_1, navigation_1, parse_dms_1, slowloop_1, deep_extend_1, extensions_1) {
     "use strict";
     var index = {
         asArray: common_2.asArray,
@@ -662,7 +717,8 @@ define("node_modules/ol3-fun/index", ["require", "exports", "node_modules/ol3-fu
         },
         navigation: {
             zoomToFeature: navigation_1.zoomToFeature
-        }
+        },
+        Extensions: extensions_1.Extensions
     };
     return index;
 });
@@ -1451,13 +1507,13 @@ define("node_modules/ol3-symbolizer/ol3-symbolizer/format/plugins/as-cross", ["r
                 throw "star expected";
             var result = {
                 cross: {
-                    size: star.radius * 2,
+                    size: (star.radius || 24) * 2,
                     opacity: star.opacity,
                     rotateWithView: star.rotateWithView,
                     rotation: star.rotation,
                     scale: star.scale,
                     snapToPixel: star.snapToPixel,
-                    stroke: star.stroke,
+                    stroke: star.stroke
                 }
             };
             return result;
@@ -1477,7 +1533,7 @@ define("node_modules/ol3-symbolizer/ol3-symbolizer/format/plugins/as-cross", ["r
                     rotation: cross.rotation,
                     scale: cross.scale,
                     snapToPixel: cross.snapToPixel,
-                    stroke: cross.stroke,
+                    stroke: cross.stroke
                 }
             };
         };
@@ -1514,14 +1570,14 @@ define("node_modules/ol3-symbolizer/ol3-symbolizer/format/plugins/as-square", ["
                 throw "star expected";
             var result = {
                 square: {
-                    size: star.radius * 2,
+                    size: (star.radius || 24) * 2,
                     fill: star.fill,
                     opacity: star.opacity,
                     rotateWithView: star.rotateWithView,
                     rotation: star.rotation,
                     scale: star.scale,
                     snapToPixel: star.snapToPixel,
-                    stroke: star.stroke,
+                    stroke: star.stroke
                 }
             };
             return result;
@@ -1542,7 +1598,7 @@ define("node_modules/ol3-symbolizer/ol3-symbolizer/format/plugins/as-square", ["
                     rotation: square.rotation,
                     scale: square.scale,
                     snapToPixel: square.snapToPixel,
-                    stroke: square.stroke,
+                    stroke: square.stroke
                 }
             };
         };
@@ -1579,14 +1635,14 @@ define("node_modules/ol3-symbolizer/ol3-symbolizer/format/plugins/as-diamond", [
                 throw "star expected";
             var result = {
                 diamond: {
-                    size: style.star.radius * 2,
+                    size: (star.radius || 24) * 2,
                     fill: star.fill,
                     opacity: star.opacity,
                     rotateWithView: star.rotateWithView,
                     rotation: star.rotation,
                     scale: star.scale,
                     snapToPixel: star.snapToPixel,
-                    stroke: star.stroke,
+                    stroke: star.stroke
                 }
             };
             return result;
@@ -1607,7 +1663,7 @@ define("node_modules/ol3-symbolizer/ol3-symbolizer/format/plugins/as-diamond", [
                     rotation: diamond.rotation,
                     scale: diamond.scale,
                     snapToPixel: diamond.snapToPixel,
-                    stroke: diamond.stroke,
+                    stroke: diamond.stroke
                 }
             };
         };
@@ -1644,14 +1700,14 @@ define("node_modules/ol3-symbolizer/ol3-symbolizer/format/plugins/as-triangle", 
                 throw "star expected";
             var result = {
                 triangle: {
-                    size: star.radius * 2,
+                    size: (star.radius || 10) * 2,
                     fill: star.fill,
                     opacity: star.opacity,
                     rotateWithView: star.rotateWithView,
                     rotation: star.rotation,
                     scale: star.scale,
                     snapToPixel: star.snapToPixel,
-                    stroke: star.stroke,
+                    stroke: star.stroke
                 }
             };
             return result;
@@ -1672,7 +1728,7 @@ define("node_modules/ol3-symbolizer/ol3-symbolizer/format/plugins/as-triangle", 
                     rotation: triangle.rotation,
                     scale: triangle.scale,
                     snapToPixel: triangle.snapToPixel,
-                    stroke: triangle.stroke,
+                    stroke: triangle.stroke
                 }
             };
         };
@@ -1709,13 +1765,13 @@ define("node_modules/ol3-symbolizer/ol3-symbolizer/format/plugins/as-x", ["requi
                 throw "star expected";
             var result = {
                 x: {
-                    size: star.radius * 2,
+                    size: (star.radius || 24) * 2,
                     opacity: star.opacity,
                     rotateWithView: star.rotateWithView,
                     rotation: star.rotation,
                     scale: star.scale,
                     snapToPixel: star.snapToPixel,
-                    stroke: star.stroke,
+                    stroke: star.stroke
                 }
             };
             return result;
@@ -1735,7 +1791,7 @@ define("node_modules/ol3-symbolizer/ol3-symbolizer/format/plugins/as-x", ["requi
                     rotation: x.rotation,
                     scale: x.scale,
                     snapToPixel: x.snapToPixel,
-                    stroke: x.stroke,
+                    stroke: x.stroke
                 }
             };
         };
@@ -1746,6 +1802,12 @@ define("node_modules/ol3-symbolizer/ol3-symbolizer/format/plugins/as-x", ["requi
 define("node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", ["require", "exports", "openlayers", "node_modules/ol3-symbolizer/ol3-symbolizer/common/assign", "node_modules/ol3-fun/index", "node_modules/ol3-symbolizer/ol3-symbolizer/format/plugins/as-cross", "node_modules/ol3-symbolizer/ol3-symbolizer/format/plugins/as-square", "node_modules/ol3-symbolizer/ol3-symbolizer/format/plugins/as-diamond", "node_modules/ol3-symbolizer/ol3-symbolizer/format/plugins/as-triangle", "node_modules/ol3-symbolizer/ol3-symbolizer/format/plugins/as-x"], function (require, exports, ol, assign_1, index_2, as_cross_1, as_square_1, as_diamond_1, as_triangle_1, as_x_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
+    function getContext(canvas) {
+        var ctx = canvas.getContext("2d");
+        if (!ctx)
+            throw "unable to get 2d context";
+        return ctx;
+    }
     var StyleConverter = (function () {
         function StyleConverter() {
             this.converters = [];
@@ -1772,9 +1834,9 @@ define("node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", ["req
             return geom;
         };
         StyleConverter.prototype.serializeStyle = function (style) {
-            var s = {};
             if (!style)
-                return null;
+                throw "style require";
+            var s = {};
             if (typeof style === "string")
                 throw style;
             if (typeof style === "number")
@@ -1842,6 +1904,8 @@ define("node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", ["req
             return s;
         };
         StyleConverter.prototype.serializeImage = function (style) {
+            if (!style)
+                return null;
             if (typeof style === "string")
                 throw style;
             if (typeof style === "number")
@@ -1849,6 +1913,8 @@ define("node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", ["req
             return this.serializeStyle(style);
         };
         StyleConverter.prototype.serializeStroke = function (style) {
+            if (!style)
+                return null;
             if (typeof style === "string")
                 throw style;
             if (typeof style === "number")
@@ -1882,6 +1948,8 @@ define("node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", ["req
             throw "unknown color type";
         };
         StyleConverter.prototype.serializeFill = function (fill) {
+            if (!fill)
+                return null;
             return this.serializeStyle(fill);
         };
         StyleConverter.prototype.deserializeStyle = function (json) {
@@ -1947,14 +2015,14 @@ define("node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", ["req
                 fill: json.fill && this.deserializeFill(json.fill),
                 stroke: json.stroke && this.deserializeStroke(json.stroke)
             });
-            image.setOpacity(json.opacity);
+            image.setOpacity(json.opacity || 1);
             return image;
         };
         StyleConverter.prototype.deserializeStar = function (json) {
             var image = new ol.style.RegularShape({
-                radius: json.radius,
+                radius: json.radius || 10,
                 radius2: json.radius2,
-                points: json.points,
+                points: json.points || 5,
                 angle: json.angle,
                 fill: json.fill && this.deserializeFill(json.fill),
                 stroke: json.stroke && this.deserializeStroke(json.stroke)
@@ -1998,37 +2066,39 @@ define("node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", ["req
                     throw "unable to find svg element: " + json.img;
                 }
                 if (symbol) {
-                    var path = (symbol.getElementsByTagName("path")[0]);
+                    var path = symbol.getElementsByTagName("path")[0];
                     if (path) {
                         if (symbol.viewBox) {
                             if (!json.imgSize) {
                                 json.imgSize = [symbol.viewBox.baseVal.width, symbol.viewBox.baseVal.height];
                             }
                         }
-                        json.path = (json.path || "") + path.getAttribute('d');
+                        json.path = (json.path || "") + path.getAttribute("d");
                     }
                 }
             }
             var canvas = document.createElement("canvas");
             if (json.path) {
                 {
-                    _a = json.imgSize.map(function (v) { return v * json.scale; }), canvas.width = _a[0], canvas.height = _a[1];
+                    if (!json.imgSize)
+                        throw "imgSize require";
+                    _a = json.imgSize.map(function (v) { return v * (json.scale || 1); }), canvas.width = _a[0], canvas.height = _a[1];
                     if (json.stroke && json.stroke.width) {
                         var dx = 2 * json.stroke.width * json.scale;
                         canvas.width += dx;
                         canvas.height += dx;
                     }
                 }
-                var ctx = canvas.getContext('2d');
+                var ctx = getContext(canvas);
                 var path2d = new Path2D(json.path);
                 ctx.translate(canvas.width / 2, canvas.height / 2);
                 ctx.scale(json.scale, json.scale);
                 ctx.translate(-json.imgSize[0] / 2, -json.imgSize[1] / 2);
-                if (json.fill) {
+                if (json.fill && json.fill.color) {
                     ctx.fillStyle = json.fill.color;
                     ctx.fill(path2d);
                 }
-                if (json.stroke) {
+                if (json.stroke && json.stroke.color && json.stroke.width) {
                     ctx.strokeStyle = json.stroke.color;
                     ctx.lineWidth = json.stroke.width;
                     ctx.stroke(path2d);
@@ -2089,6 +2159,8 @@ define("node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", ["req
                 else if (0 === type.indexOf("radial(")) {
                     gradient_1 = this.deserializeRadialGradient(fill.gradient);
                 }
+                else
+                    throw "unknown gradient type: " + type;
                 if (fill.gradient.stops) {
                     index_2.mixin(gradient_1, {
                         stops: fill.gradient.stops
@@ -2096,18 +2168,20 @@ define("node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", ["req
                     var stops = fill.gradient.stops.split(";");
                     stops = stops.map(function (v) { return v.trim(); });
                     stops.forEach(function (colorstop) {
-                        var stop = colorstop.match(/ \d+%/m)[0];
-                        var color = colorstop.substr(0, colorstop.length - stop.length);
-                        gradient_1.addColorStop(parseInt(stop) / 100, color);
+                        var stop = colorstop.match(/ \d+%/m);
+                        if (stop && stop.length) {
+                            var color = colorstop.substr(0, colorstop.length - stop[0].length);
+                            gradient_1.addColorStop(parseInt(stop[0]) / 100, color);
+                        }
                     });
                 }
                 return gradient_1;
             }
             if (fill.pattern) {
                 var repitition = fill.pattern.repitition;
-                var canvas = document.createElement('canvas');
-                var spacing = canvas.width = canvas.height = fill.pattern.spacing | 6;
-                var context_1 = canvas.getContext('2d');
+                var canvas = document.createElement("canvas");
+                var spacing = (canvas.width = canvas.height = fill.pattern.spacing || 6);
+                var context_1 = getContext(canvas);
                 context_1.fillStyle = fill.pattern.color;
                 switch (fill.pattern.orientation) {
                     case "horizontal":
@@ -2143,13 +2217,16 @@ define("node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", ["req
                         }
                         break;
                 }
-                return index_2.mixin(context_1.createPattern(canvas, repitition), fill.pattern);
+                return index_2.mixin(context_1.createPattern(canvas, repitition || ""), fill.pattern);
             }
             if (fill.image) {
-                var canvas = document.createElement('canvas');
+                var canvas = document.createElement("canvas");
+                if (!fill.image.imgSize)
+                    throw "imgSize required";
+                if (!fill.image.imageData)
+                    throw "imageData required";
                 var _b = (_a = fill.image.imgSize, canvas.width = _a[0], canvas.height = _a[1], _a), w_1 = _b[0], h_2 = _b[1];
-                var context_2 = canvas.getContext('2d');
-                var _c = [0, 0], dx = _c[0], dy = _c[1];
+                var context_2 = getContext(canvas);
                 var image_1 = document.createElement("img");
                 image_1.src = fill.image.imageData;
                 image_1.onload = function () { return context_2.drawImage(image_1, 0, 0, w_1, h_2); };
@@ -2160,10 +2237,10 @@ define("node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", ["req
         StyleConverter.prototype.deserializeLinearGradient = function (json) {
             var rx = /\w+\((.*)\)/m;
             var _a = JSON.parse(json.type.replace(rx, "[$1]")), x0 = _a[0], y0 = _a[1], x1 = _a[2], y1 = _a[3];
-            var canvas = document.createElement('canvas');
+            var canvas = document.createElement("canvas");
             canvas.width = Math.max(x0, x1);
             canvas.height = Math.max(y0, y1);
-            var context = canvas.getContext('2d');
+            var context = getContext(canvas);
             var gradient = context.createLinearGradient(x0, y0, x1, y1);
             index_2.mixin(gradient, {
                 type: "linear(" + [x0, y0, x1, y1].join(",") + ")"
@@ -2173,10 +2250,10 @@ define("node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer", ["req
         StyleConverter.prototype.deserializeRadialGradient = function (json) {
             var rx = /radial\((.*)\)/m;
             var _a = JSON.parse(json.type.replace(rx, "[$1]")), x0 = _a[0], y0 = _a[1], r0 = _a[2], x1 = _a[3], y1 = _a[4], r1 = _a[5];
-            var canvas = document.createElement('canvas');
+            var canvas = document.createElement("canvas");
             canvas.width = 2 * Math.max(x0, x1);
             canvas.height = 2 * Math.max(y0, y1);
-            var context = canvas.getContext('2d');
+            var context = getContext(canvas);
             var gradient = context.createRadialGradient(x0, y0, r0, x1, y1, r1);
             index_2.mixin(gradient, {
                 type: "radial(" + [x0, y0, r0, x1, y1, r1].join(",") + ")"
@@ -2229,11 +2306,14 @@ define("node_modules/ol3-symbolizer/ol3-symbolizer/format/ags-symbolizer", ["req
             return (v * 4) / 3;
         };
         StyleConverter.prototype.asColor = function (color) {
-            if (color.length === 4)
-                return "rgba(" + color[0] + "," + color[1] + "," + color[2] + "," + color[3] / 255 + ")";
-            if (color.length === 3)
-                return "rgb(" + color[0] + "," + color[1] + "," + color[2] + "})";
-            return "#" + color.map(function (v) { return ("0" + v.toString(16)).substr(0, 2); }).join("");
+            if (Array.isArray(color)) {
+                if (color.length === 4)
+                    return "rgba(" + color[0] + "," + color[1] + "," + color[2] + "," + color[3] / 255 + ")";
+                if (color.length === 3)
+                    return "rgb(" + color[0] + "," + color[1] + "," + color[2] + "})";
+                return "#" + color.map(function (v) { return ("0" + v.toString(16)).substr(0, 2); }).join("");
+            }
+            return "rgba(0, 0, 0)";
         };
         StyleConverter.prototype.fromSFSSolid = function (symbol, style) {
             style.fill = {
@@ -2279,6 +2359,10 @@ define("node_modules/ol3-symbolizer/ol3-symbolizer/format/ags-symbolizer", ["req
             }
         };
         StyleConverter.prototype.fromSMSCircle = function (symbol, style) {
+            if (!symbol.size)
+                throw "symbol size require";
+            if (!symbol.outline)
+                throw "outline require";
             style.circle = {
                 opacity: 1,
                 radius: this.asWidth(symbol.size / 2),
@@ -2291,6 +2375,10 @@ define("node_modules/ol3-symbolizer/ol3-symbolizer/format/ags-symbolizer", ["req
             this.fromSLS(symbol.outline, style.circle);
         };
         StyleConverter.prototype.fromSMSCross = function (symbol, style) {
+            if (!symbol.size)
+                throw "symbol size require";
+            if (!symbol.outline)
+                throw "outline require";
             style.star = {
                 points: 4,
                 angle: 0,
@@ -2301,6 +2389,10 @@ define("node_modules/ol3-symbolizer/ol3-symbolizer/format/ags-symbolizer", ["req
             this.fromSLS(symbol.outline, style.star);
         };
         StyleConverter.prototype.fromSMSDiamond = function (symbol, style) {
+            if (!symbol.size)
+                throw "symbol size require";
+            if (!symbol.outline)
+                throw "outline require";
             style.star = {
                 points: 4,
                 angle: 0,
@@ -2311,6 +2403,10 @@ define("node_modules/ol3-symbolizer/ol3-symbolizer/format/ags-symbolizer", ["req
             this.fromSLS(symbol.outline, style.star);
         };
         StyleConverter.prototype.fromSMSPath = function (symbol, style) {
+            if (!symbol.size)
+                throw "symbol size require";
+            if (!symbol.outline)
+                throw "outline require";
             var size = 2 * this.asWidth(symbol.size);
             style.svg = {
                 imgSize: [size, size],
@@ -2321,6 +2417,10 @@ define("node_modules/ol3-symbolizer/ol3-symbolizer/format/ags-symbolizer", ["req
             this.fromSLS(symbol.outline, style.svg);
         };
         StyleConverter.prototype.fromSMSSquare = function (symbol, style) {
+            if (!symbol.size)
+                throw "symbol size require";
+            if (!symbol.outline)
+                throw "outline require";
             style.star = {
                 points: 4,
                 angle: Math.PI / 4,
@@ -2331,6 +2431,10 @@ define("node_modules/ol3-symbolizer/ol3-symbolizer/format/ags-symbolizer", ["req
             this.fromSLS(symbol.outline, style.star);
         };
         StyleConverter.prototype.fromSMSX = function (symbol, style) {
+            if (!symbol.size)
+                throw "symbol size require";
+            if (!symbol.outline)
+                throw "outline require";
             style.star = {
                 points: 4,
                 angle: Math.PI / 4,
@@ -2365,16 +2469,22 @@ define("node_modules/ol3-symbolizer/ol3-symbolizer/format/ags-symbolizer", ["req
             }
         };
         StyleConverter.prototype.fromPMS = function (symbol, style) {
+            if (!symbol.width)
+                throw "symbol width required";
+            if (!symbol.height)
+                throw "symbol height required";
             style.image = {};
             style.image.src = symbol.url;
             if (symbol.imageData) {
                 style.image.src = "data:image/png;base64," + symbol.imageData;
             }
-            style.image["anchor-x"] = this.asWidth(symbol.xoffset);
-            style.image["anchor-y"] = this.asWidth(symbol.yoffset);
+            style.image["anchor-x"] = this.asWidth(symbol.xoffset || 0);
+            style.image["anchor-y"] = this.asWidth(symbol.yoffset || 0);
             style.image.imgSize = [this.asWidth(symbol.width), this.asWidth(symbol.height)];
         };
         StyleConverter.prototype.fromSLSSolid = function (symbol, style) {
+            if (!symbol.width)
+                throw "symbol width required";
             style.stroke = {
                 color: this.asColor(symbol.color),
                 width: this.asWidth(symbol.width),
@@ -2384,6 +2494,8 @@ define("node_modules/ol3-symbolizer/ol3-symbolizer/format/ags-symbolizer", ["req
             };
         };
         StyleConverter.prototype.fromSLS = function (symbol, style) {
+            if (!symbol)
+                throw "symbol required";
             switch (symbol.style) {
                 case "esriSLSSolid":
                     this.fromSLSSolid(symbol, style);
@@ -2407,12 +2519,16 @@ define("node_modules/ol3-symbolizer/ol3-symbolizer/format/ags-symbolizer", ["req
             }
         };
         StyleConverter.prototype.fromPFS = function (symbol, style) {
+            if (!symbol.width)
+                throw "symbol width required";
+            if (!symbol.height)
+                throw "symbol height required";
             style.fill = {
                 image: {
                     src: symbol.url,
                     imageData: symbol.imageData && "data:image/png;base64," + symbol.imageData,
-                    "anchor-x": this.asWidth(symbol.xoffset),
-                    "anchor-y": this.asWidth(symbol.yoffset),
+                    "anchor-x": this.asWidth(symbol.xoffset || 0),
+                    "anchor-y": this.asWidth(symbol.yoffset || 0),
                     imgSize: [this.asWidth(symbol.width), this.asWidth(symbol.height)]
                 }
             };
@@ -2454,6 +2570,8 @@ define("node_modules/ol3-symbolizer/ol3-symbolizer/format/ags-symbolizer", ["req
             var _this = this;
             switch (renderer.type) {
                 case "simple": {
+                    if (!renderer.symbol)
+                        throw "simple renderer requires a symbol";
                     return this.fromJson(renderer.symbol);
                 }
                 case "uniqueValue": {
@@ -2461,10 +2579,14 @@ define("node_modules/ol3-symbolizer/ol3-symbolizer/format/ags-symbolizer", ["req
                     var defaultStyle_1 = renderer.defaultSymbol && this.fromJson(renderer.defaultSymbol);
                     if (renderer.uniqueValueInfos) {
                         renderer.uniqueValueInfos.forEach(function (info) {
-                            styles_1[info.value] = _this.fromJson(info.symbol);
+                            if (info.value) {
+                                styles_1[info.value] = _this.fromJson(info.symbol);
+                            }
                         });
                     }
-                    return function (feature) { return styles_1[feature.get(renderer.field1)] || defaultStyle_1; };
+                    return function (feature) {
+                        return (renderer.field1 && styles_1[feature.get(renderer.field1)]) || defaultStyle_1;
+                    };
                 }
                 case "classBreaks": {
                     var styles_2 = {};
@@ -2478,14 +2600,16 @@ define("node_modules/ol3-symbolizer/ol3-symbolizer/format/ags-symbolizer", ["req
                                         var steps_1 = range(classBreakRenderer_1.authoringInfo.visualVariables[0].minSliderValue, classBreakRenderer_1.authoringInfo.visualVariables[0].maxSliderValue);
                                         var dx_1 = (vars.maxSize - vars.minSize) / steps_1.length;
                                         var dataValue_1 = (vars.maxDataValue - vars.minDataValue) / steps_1.length;
-                                        classBreakRenderer_1.classBreakInfos.forEach(function (classBreakInfo) {
-                                            var icons = steps_1.map(function (step) {
-                                                var json = (JSON.parse(JSON.stringify(classBreakInfo.symbol)));
-                                                json.size = vars.minSize + dx_1 * (dataValue_1 - vars.minDataValue);
-                                                var style = _this.fromJson(json);
-                                                styles_2[dataValue_1] = style;
+                                        if (classBreakRenderer_1.classBreakInfos) {
+                                            classBreakRenderer_1.classBreakInfos.forEach(function (classBreakInfo) {
+                                                var icons = steps_1.map(function (step) {
+                                                    var json = (JSON.parse(JSON.stringify(classBreakInfo.symbol)));
+                                                    json.size = vars.minSize + dx_1 * (dataValue_1 - vars.minDataValue);
+                                                    var style = _this.fromJson(json);
+                                                    styles_2[dataValue_1] = style;
+                                                });
                                             });
-                                        });
+                                        }
                                         debugger;
                                         break;
                                     }
@@ -2496,11 +2620,10 @@ define("node_modules/ol3-symbolizer/ol3-symbolizer/format/ags-symbolizer", ["req
                             });
                         }
                     }
-                    return function (feature) {
-                        debugger;
-                        var value = feature.get(renderer.field1);
+                    return function () {
                         for (var key in styles_2) {
-                            return styles_2[key];
+                            if (styles_2[key])
+                                return styles_2[key];
                         }
                         return null;
                     };
@@ -3031,6 +3154,7 @@ define("node_modules/ol3-popup/index", ["require", "exports", "node_modules/ol3-
 });
 define("node_modules/ol3-symbolizer/ol3-symbolizer/common/ajax", ["require", "exports", "jquery"], function (require, exports, $) {
     "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
     var Ajax = (function () {
         function Ajax(url) {
             this.url = url;
@@ -3043,7 +3167,11 @@ define("node_modules/ol3-symbolizer/ol3-symbolizer/common/ajax", ["require", "ex
             if (url === void 0) { url = this.url; }
             var d = $.Deferred();
             args["callback"] = "define";
-            var uri = url + "?" + Object.keys(args).map(function (k) { return k + "=" + args[k]; }).join('&');
+            var uri = url +
+                "?" +
+                Object.keys(args)
+                    .map(function (k) { return k + "=" + args[k]; })
+                    .join("&");
             require([uri], function (data) { return d.resolve(data); });
             return d;
         };
@@ -3063,14 +3191,14 @@ define("node_modules/ol3-symbolizer/ol3-symbolizer/common/ajax", ["require", "ex
                     data = JSON.stringify(args);
                 }
                 else {
-                    uri += '?';
+                    uri += "?";
                     var argcount = 0;
                     for (var key in args) {
                         if (args.hasOwnProperty(key)) {
                             if (argcount++) {
-                                uri += '&';
+                                uri += "&";
                             }
-                            uri += encodeURIComponent(key) + '=' + encodeURIComponent(args[key]);
+                            uri += encodeURIComponent(key) + "=" + encodeURIComponent(args[key]);
                         }
                     }
                 }
@@ -3080,9 +3208,9 @@ define("node_modules/ol3-symbolizer/ol3-symbolizer/common/ajax", ["require", "ex
                 client.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
             client.send(data);
             client.onload = function () {
-                console.log("content-type", client.getResponseHeader("Content-Type"));
+                var contentType = client.getResponseHeader("Content-Type");
                 if (client.status >= 200 && client.status < 300) {
-                    isJson = isJson || 0 === client.getResponseHeader("Content-Type").indexOf("application/json");
+                    isJson = isJson || (!!contentType && 0 === contentType.indexOf("application/json"));
                     d.resolve(isJson ? JSON.parse(client.response) : client.response);
                 }
                 else {
@@ -3093,27 +3221,27 @@ define("node_modules/ol3-symbolizer/ol3-symbolizer/common/ajax", ["require", "ex
             return d;
         };
         Ajax.prototype.get = function (args) {
-            return this.ajax('GET', args);
+            return this.ajax("GET", args);
         };
         Ajax.prototype.post = function (args) {
-            return this.ajax('POST', args);
+            return this.ajax("POST", args);
         };
         Ajax.prototype.put = function (args) {
-            return this.ajax('PUT', args);
+            return this.ajax("PUT", args);
         };
         Ajax.prototype.delete = function (args) {
-            return this.ajax('DELETE', args);
+            return this.ajax("DELETE", args);
         };
         return Ajax;
     }());
-    return Ajax;
+    exports.Ajax = Ajax;
 });
-define("node_modules/ol3-symbolizer/ol3-symbolizer/ags/ags-catalog", ["require", "exports", "node_modules/ol3-symbolizer/ol3-symbolizer/common/ajax", "node_modules/ol3-fun/index"], function (require, exports, Ajax, index_4) {
+define("node_modules/ol3-symbolizer/ol3-symbolizer/ags/ags-catalog", ["require", "exports", "node_modules/ol3-symbolizer/ol3-symbolizer/common/ajax", "node_modules/ol3-fun/index"], function (require, exports, ajax_1, index_4) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var Catalog = (function () {
         function Catalog(url) {
-            this.ajax = new Ajax(url);
+            this.ajax = new ajax_1.Ajax(url);
         }
         Catalog.prototype.about = function (data) {
             var req = index_4.defaults({
@@ -3122,28 +3250,28 @@ define("node_modules/ol3-symbolizer/ol3-symbolizer/ags/ags-catalog", ["require",
             return this.ajax.jsonp(req);
         };
         Catalog.prototype.aboutFolder = function (folder) {
-            var ajax = new Ajax(this.ajax.url + "/" + folder);
+            var ajax = new ajax_1.Ajax(this.ajax.url + "/" + folder);
             var req = {
                 f: "pjson"
             };
             return ajax.jsonp(req);
         };
         Catalog.prototype.aboutFeatureServer = function (name) {
-            var ajax = new Ajax(this.ajax.url + "/" + name + "/FeatureServer");
+            var ajax = new ajax_1.Ajax(this.ajax.url + "/" + name + "/FeatureServer");
             var req = {
                 f: "pjson"
             };
             return index_4.defaults(ajax.jsonp(req), { url: ajax.url });
         };
         Catalog.prototype.aboutMapServer = function (name) {
-            var ajax = new Ajax(this.ajax.url + "/" + name + "/MapServer");
+            var ajax = new ajax_1.Ajax(this.ajax.url + "/" + name + "/MapServer");
             var req = {
                 f: "pjson"
             };
             return index_4.defaults(ajax.jsonp(req), { url: ajax.url });
         };
         Catalog.prototype.aboutLayer = function (layer) {
-            var ajax = new Ajax(this.ajax.url + "/" + layer);
+            var ajax = new ajax_1.Ajax(this.ajax.url + "/" + layer);
             var req = {
                 f: "pjson"
             };
@@ -3198,7 +3326,7 @@ define("node_modules/ol3-symbolizer/ol3-symbolizer/ags/ags-source", ["require", 
                         geometry: encodeURIComponent(JSON.stringify(box)),
                         geometryType: "esriGeometryEnvelope",
                         resultType: "tile",
-                        where: encodeURIComponent(options.where),
+                        where: options.where ? encodeURIComponent(options.where) : "",
                         inSR: srs,
                         outSR: srs,
                         outFields: "*"
@@ -3227,12 +3355,13 @@ define("node_modules/ol3-symbolizer/ol3-symbolizer/ags/ags-source", ["require", 
                                 }
                                 if (features.length) {
                                     if (options.uidFieldName) {
+                                        var uidFieldName_1 = options.uidFieldName;
                                         var featureIds_1 = source
                                             .getFeatures()
-                                            .map(function (f) { return f.get(options.uidFieldName); })
+                                            .map(function (f) { return f.get(uidFieldName_1); })
                                             .filter(function (v) { return !!v; })
                                             .sort();
-                                        var uniqueFeatures = features.filter(function (f) { return -1 === featureIds_1.indexOf(f.get(options.uidFieldName)); });
+                                        var uniqueFeatures = features.filter(function (f) { return -1 === featureIds_1.indexOf(f.get(uidFieldName_1)); });
                                         source.addFeatures(uniqueFeatures);
                                     }
                                     else {
@@ -4462,15 +4591,17 @@ define("node_modules/ol3-draw/ol3-draw/ol3-button", ["require", "exports", "open
             });
             _this.on("change:active", function () {
                 _this.options.element.classList.toggle("active", _this.get("active"));
-                options.map.dispatchEvent({
-                    type: options.eventName,
-                    control: _this
-                });
+                if (options.map) {
+                    options.map.dispatchEvent({
+                        type: options.eventName,
+                        control: _this
+                    });
+                }
             });
             return _this;
         }
-        Button.create = function (options) {
-            options = index_11.mixin(index_11.mixin({}, Button.DEFAULT_OPTIONS), options || {});
+        Button.create = function (opt) {
+            var options = index_11.mixin(index_11.mixin({}, Button.DEFAULT_OPTIONS), opt || {});
             options.element = options.element || document.createElement("DIV");
             var button = new options.buttonType(options);
             if (options.map) {
@@ -4521,16 +4652,19 @@ define("node_modules/ol3-draw/ol3-draw/ol3-draw", ["require", "exports", "openla
         __extends(Draw, _super);
         function Draw(options) {
             var _this = _super.call(this, options) || this;
+            _this.options = options;
             _this.interactions = {};
             _this.handlers.push(function () {
                 return Object.keys(_this.interactions).forEach(function (k) {
                     var interaction = _this.interactions[k];
                     interaction.setActive(false);
-                    options.map.removeInteraction(interaction);
+                    options.map && options.map.removeInteraction(interaction);
                 });
             });
             _this.on("change:active", function () {
                 var active = _this.get("active");
+                if (!options.geometryType)
+                    throw "geometryType is a required option";
                 var interaction = _this.interactions[options.geometryType];
                 if (active) {
                     if (!interaction) {
@@ -4553,13 +4687,17 @@ define("node_modules/ol3-draw/ol3-draw/ol3-draw", ["require", "exports", "openla
             }
             return _this;
         }
-        Draw.create = function (options) {
-            options = index_12.mixin(index_12.mixin({}, Draw.DEFAULT_OPTIONS), options || {});
+        Draw.create = function (opt) {
+            var options = index_12.mixin(index_12.mixin({}, Draw.DEFAULT_OPTIONS), opt || {});
             return ol3_button_1.Button.create(options);
         };
         Draw.prototype.createInteraction = function () {
             var _this = this;
             var options = this.options;
+            if (!options.geometryType)
+                throw "geometryType is a required option";
+            if (!options.layers || !options.layers.length)
+                throw "layers is a required option";
             var source = options.layers[0].getSource();
             var style = options.style.map(function (s) { return _this.symbolizer.fromJson(s); });
             var draw = new ol.interaction.Draw({
@@ -4573,7 +4711,7 @@ define("node_modules/ol3-draw/ol3-draw/ol3-draw", ["require", "exports", "openla
                 draw.on(eventName, function (args) { return _this.dispatchEvent(args); });
             });
             draw.on("change:active", function () { return _this.options.element.classList.toggle("active", draw.getActive()); });
-            options.map.addInteraction(draw);
+            options.map && options.map.addInteraction(draw);
             return draw;
         };
         Draw.DEFAULT_OPTIONS = {
@@ -4627,6 +4765,7 @@ define("node_modules/ol3-draw/ol3-draw/ol3-edit", ["require", "exports", "openla
         __extends(Modify, _super);
         function Modify(options) {
             var _this = _super.call(this, options) || this;
+            _this.options = options;
             var styles = index_13.defaults(options.style, Modify.DEFAULT_OPTIONS.style);
             var select = new ol.interaction.Select({
                 style: function (feature, res) {
@@ -4657,6 +4796,9 @@ define("node_modules/ol3-draw/ol3-draw/ol3-edit", ["require", "exports", "openla
                                     else if (geom instanceof ol.geom.Point) {
                                         points = [geom.getCoordinates()];
                                     }
+                                    else {
+                                        throw "could not find points for this geometry";
+                                    }
                                     return new ol.geom.MultiPoint(points);
                                 });
                                 style.push(otherStyle);
@@ -4669,10 +4811,8 @@ define("node_modules/ol3-draw/ol3-draw/ol3-edit", ["require", "exports", "openla
                 features: select.getFeatures(),
                 style: function (feature, res) {
                     var featureType = feature.getGeometry().getType();
-                    var style = (options.style[featureType] || Modify.DEFAULT_OPTIONS.style[featureType]).map(function (s) {
-                        return _this.symbolizer.fromJson(s);
-                    });
-                    return style;
+                    var json = options.style[featureType] || (Modify.DEFAULT_OPTIONS.style && Modify.DEFAULT_OPTIONS.style[featureType]);
+                    return json && json.map(function (s) { return _this.symbolizer.fromJson(s); });
                 }
             });
             ["modifystart", "modifyend"].forEach(function (eventName) {
@@ -4684,12 +4824,12 @@ define("node_modules/ol3-draw/ol3-draw/ol3-edit", ["require", "exports", "openla
             _this.once("change:active", function () {
                 [select, modify].forEach(function (i) {
                     i.setActive(false);
-                    options.map.addInteraction(i);
+                    options.map && options.map.addInteraction(i);
                 });
                 _this.handlers.push(function () {
                     [select, modify].forEach(function (i) {
                         i.setActive(false);
-                        options.map.removeInteraction(i);
+                        options.map && options.map.removeInteraction(i);
                     });
                 });
             });
@@ -4701,8 +4841,8 @@ define("node_modules/ol3-draw/ol3-draw/ol3-edit", ["require", "exports", "openla
             });
             return _this;
         }
-        Modify.create = function (options) {
-            options = index_13.defaults({}, options, Modify.DEFAULT_OPTIONS);
+        Modify.create = function (opt) {
+            var options = index_13.defaults({}, opt, Modify.DEFAULT_OPTIONS);
             return ol3_button_2.Button.create(options);
         };
         Modify.DEFAULT_OPTIONS = {
@@ -4959,8 +5099,10 @@ define("node_modules/ol3-fun/ol3-fun/snapshot", ["require", "exports", "openlaye
             geom.translate(-cx, -cy);
             geom.scale(scale, -scale);
             geom.translate(Math.ceil((ff * canvas.width) / 2), Math.ceil((ff * canvas.height) / 2));
-            console.log(scale, cx, cy, w, h, geom.getCoordinates());
-            var vtx = ol.render.toContext(canvas.getContext("2d"));
+            var ctx = canvas.getContext("2d");
+            if (!ctx)
+                throw "unable to get canvas context";
+            var vtx = ol.render.toContext(ctx);
             var styles = getStyle(feature);
             if (!Array.isArray(styles))
                 styles = [styles];
@@ -5632,10 +5774,20 @@ define("node_modules/ol3-panzoom/ol3-panzoom/ol3-panzoom", ["require", "exports"
         __extends(PanZoom, _super);
         function PanZoom(options) {
             if (options === void 0) { options = DEFAULT_OPTIONS; }
-            var _this = this;
-            options = index_20.defaults({}, options, DEFAULT_OPTIONS);
-            _this = _super.call(this, options) || this;
+            var _this = _super.call(this, options) || this;
+            _this.element_ = null;
+            _this.element = null;
             _this.options = options;
+            _this.listenerKeys_ = [];
+            _this.zoomDelta_ = options.zoomDelta !== undefined ? options.zoomDelta : 1;
+            _this.panEastEl_ = _this.createButton("pan-east");
+            _this.panNorthEl_ = _this.createButton("pan-north");
+            _this.panSouthEl_ = _this.createButton("pan-south");
+            _this.panWestEl_ = _this.createButton("pan-west");
+            _this.zoomInEl_ = _this.createButton("zoom-in");
+            _this.zoomOutEl_ = _this.createButton("zoom-out");
+            _this.zoomMaxEl_ = !_this.options.slider && _this.options.maxExtent ? _this.createButton("zoom-max") : null;
+            _this.zoomSliderCtrl_ = _this.options.slider ? new ZoomSlider() : null;
             index_20.cssin("ol3-panzoom", ".ol-panzoom {\n\t\t\t\ttop: 0.5em;\n\t\t\t\tleft: 0.5em;\n\t\t\t\tbackground-color: transparent;\n\t\t\t}\n\t\t\t.ol-panzoom:hover {\n\t\t\t\tbackground-color: transparent;\n\t\t\t}\n\t\t\t.ol-panzoom .action {\n\t\t\t\tposition:absolute;\n\t\t\t\twidth:18px;\n\t\t\t\theight:18px;\n\t\t\t\tcursor:pointer;\t\n\t\t\t\tbackground-position: center;\n\t\t\t\tbackground-repeat: no-repeat;\n\t\t\t}\n\t\t\t.ol-panzoom .action.pan.west {\n\t\t\t\ttop: 22px;\n\t\t\t\tleft: 4px;\n\t\t\t}\n\t\t\t.ol-panzoom .action.pan.east {\n\t\t\t\ttop: 22px;\n\t\t\t\tleft: 22px;\n\t\t\t}\n\t\t\t.ol-panzoom .action.pan.north {\n\t\t\t\ttop: 4px;\n\t\t\t\tleft: 13px;\n\t\t\t}\n\t\t\t.ol-panzoom .action.pan.south {\n\t\t\t\ttop: 40px;\n\t\t\t\tleft: 13px;\n\t\t\t}\n\t\t\t.ol-panzoom .action.zoom.in {\n\t\t\t\ttop: 63px;\n\t\t\t\tleft: 13px;\n\t\t\t}\n\t\t\t.ol-panzoom .action img {\n\t\t\t\twidth:18px;\n\t\t\t\theight:18px;\n\t\t\t\tvertical-align:top;\n\t\t\t}\n\t\t\t.ol-panzoom .ol-zoomslider {\n\t\t\t\tborder:0;\n\t\t\t\tborderRadius:0;\n\t\t\t\tleft :13px;\n\t\t\t\tpadding:0;\n\t\t\t\ttop:81px;\n\t\t\t\twidth:18px\";\n\t\t\t}\n\t\t\t.ol-panzoom .ol-zoomslider .ol-zoomslider-thumb {\n\t\t\t\tborder:none;\n\t\t\t\theight:9px;\n\t\t\t\tmargin:0 -1px;\n\t\t\t\twidth:20px;\n\t\t\t}\n\t\t\t.ol-panzoom .action.zoom.out {\n\t\t\t\ttop: " + (_this.options.slider ? _this.getSliderSize() + 81 : _this.options.maxExtent ? 99 : 81) + "px;\n\t\t\t\tleft: 13px;\n\t\t\t}\n\t\t\t.ol-panzoom .action.zoom.max {\n\t\t\t\ttop:81px;\n\t\t\t\tleft:13px;\n\t\t\t}\n\t\t\t");
             ["ol2img", "zoombar_black"].forEach(function (theme) {
                 return index_20.cssin("ol2-popup-" + theme, ".ol-panzoom." + theme + " .action.pan.north {\n\t\t\tbackground-image:url(" + _this.options.imgPath + "/" + theme + "/north-mini.png);\n\t\t}\n\t\t.ol-panzoom." + theme + " .action.pan.south {\n\t\t\tbackground-image:url(" + _this.options.imgPath + "/" + theme + "/south-mini.png);\n\t\t}\n\t\t.ol-panzoom." + theme + " .action.pan.west {\n\t\t\tbackground-image:url(" + _this.options.imgPath + "/" + theme + "/west-mini.png);\n\t\t}\n\t\t.ol-panzoom." + theme + " .action.pan.east {\n\t\t\tbackground-image:url(" + _this.options.imgPath + "/" + theme + "/east-mini.png);\n\t\t}\n\t\t.ol-panzoom." + theme + " .action.zoom.in {\n\t\t\tbackground-image:url(" + _this.options.imgPath + "/" + theme + "/zoom-plus-mini.png);\n\t\t}\n\t\t.ol-panzoom." + theme + " .action.zoom.out {\n\t\t\tbackground-image:url(" + _this.options.imgPath + "/" + theme + "/zoom-minus-mini.png);\n\t\t}\n\t\t.ol-panzoom." + theme + " .action.zoom.max {\n\t\t\tbackground-image:url(" + _this.options.imgPath + "/" + theme + "/zoom-world-mini.png);\n\t\t}\n\t\t.ol-panzoom." + theme + " .ol-zoomslider {\n\t\t\tbackground: url(" + _this.options.imgPath + "/" + theme + "/zoombar.png);\n\t\t}\n\t\t.ol-panzoom." + theme + " .ol-zoomslider .ol-zoomslider-thumb {\n\t\t\tbackground:url(" + _this.options.imgPath + "/" + theme + "/slider.png);\n\t\t}\n");
@@ -5648,20 +5800,15 @@ define("node_modules/ol3-panzoom/ol3-panzoom/ol3-panzoom", ["require", "exports"
             this.setMap(null);
             this.setMap(map);
         };
+        PanZoom.create = function (options) {
+            if (options === void 0) { options = DEFAULT_OPTIONS; }
+            options = index_20.defaults({}, options, DEFAULT_OPTIONS);
+            return new PanZoom(options);
+        };
         PanZoom.prototype.createUx = function () {
             var options = this.options;
             var element = (this.element = this.element_ = this.createDiv());
-            this.setTarget(options.target);
-            this.listenerKeys_ = [];
-            this.zoomDelta_ = options.zoomDelta !== undefined ? options.zoomDelta : 1;
-            this.panEastEl_ = this.createButton("pan-east");
-            this.panNorthEl_ = this.createButton("pan-north");
-            this.panSouthEl_ = this.createButton("pan-south");
-            this.panWestEl_ = this.createButton("pan-west");
-            this.zoomInEl_ = this.createButton("zoom-in");
-            this.zoomOutEl_ = this.createButton("zoom-out");
-            this.zoomMaxEl_ = !this.options.slider && this.options.maxExtent ? this.createButton("zoom-max") : null;
-            this.zoomSliderCtrl_ = this.options.slider ? new ZoomSlider() : null;
+            options.target && this.setTarget(options.target);
             element.appendChild(this.panNorthEl_);
             element.appendChild(this.panWestEl_);
             element.appendChild(this.panEastEl_);
@@ -5676,12 +5823,14 @@ define("node_modules/ol3-panzoom/ol3-panzoom/ol3-panzoom", ["require", "exports"
             var keys = this.listenerKeys_;
             var zoomSlider = this.zoomSliderCtrl_;
             var currentMap = this.getMap();
-            this.element.remove();
+            this.element && this.element.remove();
             if (currentMap && currentMap instanceof ol.Map) {
-                keys.forEach(function (k) { return k(); });
-                keys.length = 0;
+                if (keys) {
+                    keys.forEach(function (k) { return k(); });
+                    keys.length = 0;
+                }
                 if (zoomSlider) {
-                    zoomSlider.element.remove();
+                    zoomSlider.element && zoomSlider.element.remove();
                     zoomSlider.setTarget(null);
                     currentMap.removeControl(zoomSlider);
                 }
@@ -5700,12 +5849,16 @@ define("node_modules/ol3-panzoom/ol3-panzoom/ol3-panzoom", ["require", "exports"
                 keys.push(on(this.panWestEl_, "click", function (evt) { return _this.pan("west", evt); }));
                 keys.push(on(this.zoomInEl_, "click", function (evt) { return _this.zoom("in", evt); }));
                 keys.push(on(this.zoomOutEl_, "click", function (evt) { return _this.zoom("out", evt); }));
-                if (this.options.maxExtent && !this.options.slider) {
+                if (this.options.maxExtent && !this.options.slider && this.zoomMaxEl_) {
                     keys.push(on(this.zoomMaxEl_, "click", function (evt) { return _this.zoom("max", evt); }));
                 }
                 if (this.options.slider) {
                     map.once("postrender", function () {
                         var zoomSlider = _this.zoomSliderCtrl_;
+                        if (!zoomSlider)
+                            throw "zoom slider control not found";
+                        if (!_this.element_)
+                            throw "target element not found";
                         zoomSlider.setTarget(_this.element_);
                         map.addControl(zoomSlider);
                         _this.adjustZoomSlider();
@@ -5738,7 +5891,7 @@ define("node_modules/ol3-panzoom/ol3-panzoom/ol3-panzoom", ["require", "exports"
             console.assert(!!map, "map must be set");
             var view = map.getView();
             console.assert(!!view, "map must have view");
-            var mapUnitsDelta = view.getResolution() * this.options.pixelDelta;
+            var mapUnitsDelta = view.getResolution() * (this.options.pixelDelta || 128);
             var delta = [0, 0];
             switch (direction) {
                 case "north":
@@ -5810,11 +5963,13 @@ define("node_modules/ol3-panzoom/ol3-panzoom/ol3-panzoom", ["require", "exports"
                 return;
             }
             var zoomSliderEl = zoomSlider.element;
-            zoomSliderEl.classList.add(this.options.theme);
-            zoomSliderEl.style.height = this.getSliderSize() + "px";
+            if (zoomSliderEl) {
+                zoomSliderEl.classList.add(this.options.theme || "ol2img");
+                zoomSliderEl.style.height = this.getSliderSize() + "px";
+            }
         };
         PanZoom.prototype.getSliderSize = function () {
-            return (this.options.maxZoom - this.options.minZoom + 1) * 11;
+            return ((this.options.maxZoom || 20) - (this.options.minZoom || 0) + 1) * 11;
         };
         return PanZoom;
     }(ol.control.Control));
@@ -5883,7 +6038,7 @@ define("ol3-lab/labs/ol-layerswitcher", ["require", "exports", "jquery", "openla
                 zoom: false
             })
                 .extend([
-                new index_23.PanZoom({
+                index_23.PanZoom.create({
                     minZoom: 5,
                     maxZoom: 21,
                     imgPath: "https://raw.githubusercontent.com/ca0v/ol3-panzoom/master/ol3-panzoom/resources/zoombar_black",
@@ -5967,7 +6122,7 @@ define("ol3-lab/labs/ol-panzoom", ["require", "exports", "openlayers", "node_mod
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     function run() {
-        var panZoom = new index_24.PanZoom({
+        var panZoom = index_24.PanZoom.create({
             imgPath: "../static/css/ol2img"
         });
         var map = new ol.Map({
@@ -6102,18 +6257,18 @@ define("node_modules/ol3-search/ol3-search/ol3-search", ["require", "exports", "
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var olcss = {
-        CLASS_CONTROL: 'ol-control',
-        CLASS_UNSELECTABLE: 'ol-unselectable',
-        CLASS_UNSUPPORTED: 'ol-unsupported',
-        CLASS_HIDDEN: 'ol-hidden'
+        CLASS_CONTROL: "ol-control",
+        CLASS_UNSELECTABLE: "ol-unselectable",
+        CLASS_UNSUPPORTED: "ol-unsupported",
+        CLASS_HIDDEN: "ol-hidden"
     };
     var expando = {
-        right: '»',
-        left: '«'
+        right: "»",
+        left: "«"
     };
     var defaults = {
-        className: 'ol-search',
-        position: 'bottom left',
+        className: "ol-search",
+        position: "bottom left",
         expanded: false,
         autoChange: false,
         autoClear: false,
@@ -6122,8 +6277,8 @@ define("node_modules/ol3-search/ol3-search/ol3-search", ["require", "exports", "
         hideButton: false,
         closedText: expando.right,
         openedText: expando.left,
-        title: 'Search',
-        showLabels: false,
+        title: "Search",
+        showLabels: false
     };
     var SearchForm = (function (_super) {
         __extends(SearchForm, _super);
@@ -6141,76 +6296,77 @@ define("node_modules/ol3-search/ol3-search/ol3-search", ["require", "exports", "
             _this.options = options;
             _this.handlers = [];
             _this.cssin();
-            var button = _this.button = document.createElement('button');
-            button.setAttribute('type', 'button');
+            var button = (_this.button = document.createElement("button"));
+            button.setAttribute("type", "button");
             button.title = options.title;
             options.element.appendChild(button);
             if (options.hideButton) {
                 button.style.display = "none";
             }
-            var form = _this.form = index_26.html(("\n        <form>\n            " + (options.title ? "<label class=\"title\">" + options.title + "</label>" : "") + "\n            <section class=\"header\"></section>\n            <section class=\"body\">\n            <table class=\"fields\">\n            " + (options.showLabels ? "<thead><tr><td>Field</td><td>Value</td></tr></thead>" : "") + "\n                <tbody>\n                    <tr><td>Field</td><td>Value</td></tr>\n                </tbody>\n            </table>\n            </section>\n            <section class=\"footer\"></section>\n        </form>\n        ").trim());
+            var form = (_this.form = index_26.html(("\n        <form>\n            " + (options.title ? "<label class=\"title\">" + options.title + "</label>" : "") + "\n            <section class=\"header\"></section>\n            <section class=\"body\">\n            <table class=\"fields\">\n            " + (options.showLabels ? "<thead><tr><td>Field</td><td>Value</td></tr></thead>" : "") + "\n                <tbody>\n                    <tr><td>Field</td><td>Value</td></tr>\n                </tbody>\n            </table>\n            </section>\n            <section class=\"footer\"></section>\n        </form>\n        ").trim()));
             options.element.appendChild(form);
             {
                 var body_1 = form.getElementsByTagName("tbody")[0];
                 body_1.innerHTML = "";
-                options.fields && options.fields.forEach(function (field) {
-                    field.alias = field.alias || field.name;
-                    field.name = field.name || field.alias;
-                    var tr = document.createElement("tr");
-                    var value = document.createElement("td");
-                    if (!field.type && typeof field.default !== "undefined") {
-                        field.type = typeof field.default;
-                    }
-                    field.type = field.type || "string";
-                    if (options.showLabels) {
-                        var label = document.createElement("td");
-                        label.innerHTML = "<label for=\"" + field.name + "\" class=\"ol-search-label\">" + field.alias + "</label>";
-                        tr.appendChild(label);
-                    }
-                    tr.appendChild(value);
-                    var input;
-                    if (field.domain) {
-                        var select_1 = document.createElement("select");
-                        select_1.name = field.name;
-                        select_1.className = "input " + field.name;
-                        field.domain.codedValues.forEach(function (cv) {
-                            var option = document.createElement("option");
-                            select_1.appendChild(option);
-                            option.text = cv.name + " (" + cv.code + ")";
-                            option.value = cv.code;
-                        });
-                        input = select_1;
-                    }
-                    else {
-                        switch (field.type) {
-                            case "boolean":
-                                input = index_26.html("<input class=\"input " + field.name + "\" name=\"" + field.name + "\" type=\"checkbox\" " + (field.default ? "checked" : "") + " />");
-                                break;
-                            case "integer":
-                                input = index_26.html("<input class=\"input " + field.name + "\" name=\"" + field.name + "\" type=\"number\" min=\"0\" step=\"1\" " + (field.default ? "value=\"" + field.default + "\"" : "") + " />");
-                                break;
-                            case "number":
-                                input = index_26.html("<input class=\"input " + field.name + "\" name=\"" + field.name + "\" type=\"number\" min=\"0\" max=\"" + Array(field.length || 3).join("9") + "\" />");
-                                break;
-                            case "string":
-                            default:
-                                input = index_26.html("<input class=\"input " + field.name + "\" name=\"" + field.name + "\" type=\"text\" " + (field.default ? "value=\"" + field.default + "\"" : "") + " />");
-                                input.maxLength = field.length || 20;
-                                break;
+                options.fields &&
+                    options.fields.forEach(function (field) {
+                        field.alias = field.alias || field.name;
+                        field.name = field.name || field.alias;
+                        var tr = document.createElement("tr");
+                        var value = document.createElement("td");
+                        if (!field.type && typeof field.default !== "undefined") {
+                            field.type = typeof field.default;
                         }
-                    }
-                    input.title = field.alias;
-                    input.placeholder = field.placeholder || field.alias;
-                    input.addEventListener("focus", function () { return tr.classList.add("focus"); });
-                    input.addEventListener("blur", function () { return tr.classList.remove("focus"); });
-                    value.appendChild(input);
-                    body_1.appendChild(tr);
-                });
+                        field.type = field.type || "string";
+                        if (options.showLabels) {
+                            var label = document.createElement("td");
+                            label.innerHTML = "<label for=\"" + field.name + "\" class=\"ol-search-label\">" + field.alias + "</label>";
+                            tr.appendChild(label);
+                        }
+                        tr.appendChild(value);
+                        var input;
+                        if (field.domain) {
+                            var select_1 = document.createElement("select");
+                            select_1.name = field.name;
+                            select_1.className = "input " + field.name;
+                            field.domain.codedValues.forEach(function (cv) {
+                                var option = document.createElement("option");
+                                select_1.appendChild(option);
+                                option.text = cv.name + " (" + cv.code + ")";
+                                option.value = cv.code;
+                            });
+                            input = select_1;
+                        }
+                        else {
+                            switch (field.type) {
+                                case "boolean":
+                                    input = (index_26.html("<input class=\"input " + field.name + "\" name=\"" + field.name + "\" type=\"checkbox\" " + (field.default ? "checked" : "") + " />"));
+                                    break;
+                                case "integer":
+                                    input = (index_26.html("<input class=\"input " + field.name + "\" name=\"" + field.name + "\" type=\"number\" min=\"0\" step=\"1\" " + (field.default ? "value=\"" + field.default + "\"" : "") + " />"));
+                                    break;
+                                case "number":
+                                    input = (index_26.html("<input class=\"input " + field.name + "\" name=\"" + field.name + "\" type=\"number\" min=\"0\" max=\"" + Array(field.length || 3).join("9") + "\" />"));
+                                    break;
+                                case "string":
+                                default:
+                                    input = (index_26.html("<input class=\"input " + field.name + "\" name=\"" + field.name + "\" type=\"text\" " + (field.default ? "value=\"" + field.default + "\"" : "") + " />"));
+                                    input.maxLength = field.length || 20;
+                                    break;
+                            }
+                        }
+                        input.title = field.alias;
+                        input.placeholder = field.placeholder || field.alias;
+                        input.addEventListener("focus", function () { return tr.classList.add("focus"); });
+                        input.addEventListener("blur", function () { return tr.classList.remove("focus"); });
+                        value.appendChild(input);
+                        body_1.appendChild(tr);
+                    });
             }
             {
                 var footer = form.getElementsByClassName("footer")[0];
                 if (!_this.options.searchButton) {
-                    var searchButton_1 = index_26.html("<input type=\"button\" class=\"ol-search-button\" value=\"Search\"/>");
+                    var searchButton_1 = (index_26.html("<input type=\"button\" class=\"ol-search-button\" value=\"Search\"/>"));
                     footer.appendChild(searchButton_1);
                     _this.options.searchButton = searchButton_1;
                     form.addEventListener("keydown", function (args) {
@@ -6232,9 +6388,10 @@ define("node_modules/ol3-search/ol3-search/ol3-search", ["require", "exports", "
                             _this.collapse();
                         }
                         if (_this.options.autoClear) {
-                            _this.options.fields.forEach(function (f) {
-                                form[f.name].value = f.default === undefined ? "" : f.default;
-                            });
+                            _this.options.fields &&
+                                _this.options.fields.forEach(function (f) {
+                                    form[f.name].value = f.default === undefined ? "" : f.default;
+                                });
                         }
                     });
                 }
@@ -6260,11 +6417,15 @@ define("node_modules/ol3-search/ol3-search/ol3-search", ["require", "exports", "
         }
         SearchForm.create = function (options) {
             options = index_26.mixin({
-                openedText: options && options.className && -1 < options.className.indexOf("left") ? expando.left : expando.right,
-                closedText: options && options.className && -1 < options.className.indexOf("left") ? expando.right : expando.left,
+                openedText: options && options.className && -1 < options.className.indexOf("left")
+                    ? expando.left
+                    : expando.right,
+                closedText: options && options.className && -1 < options.className.indexOf("left")
+                    ? expando.right
+                    : expando.left
             }, options || {});
             options = index_26.mixin(index_26.mixin({}, defaults), options);
-            var element = document.createElement('div');
+            var element = document.createElement("div");
             element.className = options.className + " " + options.position + " " + olcss.CLASS_UNSELECTABLE + " " + olcss.CLASS_CONTROL;
             var geocoderOptions = index_26.mixin({
                 element: element,
@@ -6279,17 +6440,16 @@ define("node_modules/ol3-search/ol3-search/ol3-search", ["require", "exports", "
         };
         SearchForm.prototype.setPosition = function (position) {
             var _this = this;
-            this.options.position.split(' ')
-                .forEach(function (k) { return _this.options.element.classList.remove(k); });
-            position.split(' ')
-                .forEach(function (k) { return _this.options.element.classList.add(k); });
+            index_26.doif(this.options.element, function (e) {
+                _this.options.position && _this.options.position.split(" ").forEach(function (k) { return e.classList.remove(k); });
+                position.split(" ").forEach(function (k) { return e.classList.add(k); });
+            });
             this.options.position = position;
         };
         SearchForm.prototype.cssin = function () {
             var className = this.options.className;
-            var positions = index_26.pair("top left right bottom".split(" "), index_26.range(24))
-                .map(function (pos) { return "." + className + "." + (pos[0] + (-pos[1] || '')) + " { " + pos[0] + ":" + (0.5 + pos[1]) + "em; }"; });
-            this.handlers.push(index_26.cssin(className, "\n." + className + " {\n    position: absolute;\n}\n\n." + className + " button {\n    min-height: 1.375em;\n    min-width: 1.375em;\n    width: auto;\n    display: inline;\n}\n\n." + className + ".left button {\n    float:right;\n}\n\n." + className + ".right button {\n    float:left;\n}\n\n." + className + " form {\n    width: 16em;\n    border: none;\n    padding: 0;\n    margin: 0;\n    margin-left: 2px;\n    margin-top: 2px;\n    vertical-align: top;\n}\n." + className + " form.ol-hidden {\n    display: none;\n}\n" + positions.join('\n')));
+            var positions = index_26.pair("top left right bottom".split(" "), index_26.range(24)).map(function (pos) { return "." + className + "." + (pos[0] + (-pos[1] || "")) + " { " + pos[0] + ":" + (0.5 + pos[1]) + "em; }"; });
+            this.handlers.push(index_26.cssin(className, "\n." + className + " {\n    position: absolute;\n}\n\n." + className + " button {\n    min-height: 1.375em;\n    min-width: 1.375em;\n    width: auto;\n    display: inline;\n}\n\n." + className + ".left button {\n    float:right;\n}\n\n." + className + ".right button {\n    float:left;\n}\n\n." + className + " form {\n    width: 16em;\n    border: none;\n    padding: 0;\n    margin: 0;\n    margin-left: 2px;\n    margin-top: 2px;\n    vertical-align: top;\n}\n." + className + " form.ol-hidden {\n    display: none;\n}\n" + positions.join("\n")));
         };
         SearchForm.prototype.collapse = function (options) {
             if (options === void 0) { options = this.options; }
@@ -6315,29 +6475,30 @@ define("node_modules/ol3-search/ol3-search/ol3-search", ["require", "exports", "
             get: function () {
                 var _this = this;
                 var result = {};
-                this.options.fields.forEach(function (field) {
-                    var input = _this.form.querySelector("[name=\"" + field.name + "\"]");
-                    var value = input.value;
-                    switch (field.type) {
-                        case "integer":
-                            value = parseInt(value, 10);
-                            value = isNaN(value) ? null : value;
-                            break;
-                        case "number":
-                            value = parseFloat(value);
-                            value = isNaN(value) ? null : value;
-                            break;
-                        case "boolean":
-                            value = input.checked;
-                            break;
-                        case "string":
-                            value = value || null;
-                            break;
-                    }
-                    if (undefined !== value && null !== value) {
-                        result[input.name] = value;
-                    }
-                });
+                this.options.fields &&
+                    this.options.fields.forEach(function (field) {
+                        var input = _this.form.querySelector("[name=\"" + field.name + "\"]");
+                        var value = input.value;
+                        switch (field.type) {
+                            case "integer":
+                                value = parseInt(value, 10);
+                                value = isNaN(value) ? null : value;
+                                break;
+                            case "number":
+                                value = parseFloat(value);
+                                value = isNaN(value) ? null : value;
+                                break;
+                            case "boolean":
+                                value = input.checked;
+                                break;
+                            case "string":
+                                value = value || null;
+                                break;
+                        }
+                        if (undefined !== value && null !== value) {
+                            result[input.name] = value;
+                        }
+                    });
                 return result;
             },
             enumerable: true,
@@ -6400,7 +6561,7 @@ define("node_modules/ol3-search/ol3-search/providers/osm", ["require", "exports"
             index_27.defaults(options, this.options);
             index_27.defaults(options.params, {
                 q: options.params.query,
-                limit: options.count,
+                limit: options.count
             }, this.options.params);
             if (!options.params.viewbox && map) {
                 var extent = map.getView().calculateExtent(map.getSize());
@@ -6423,9 +6584,14 @@ define("node_modules/ol3-search/ol3-search/providers/osm", ["require", "exports"
                 var x = options.params.viewbox;
                 options.params.viewbox = [x.left, x.top, x.right, x.bottom].map(function (v) { return v.toFixed(5); }).join(",");
             }
-            Object.keys(options.params).filter(function (k) { return typeof options.params[k] === "boolean"; }).forEach(function (k) {
-                options.params[k] = options.params[k] ? "1" : "0";
-            });
+            if (options.params) {
+                var params_1 = options.params;
+                Object.keys(params_1)
+                    .filter(function (k) { return typeof params_1[k] === "boolean"; })
+                    .forEach(function (k) {
+                    params_1[k] = params_1[k] ? "1" : "0";
+                });
+            }
             return options;
         };
         OpenStreetGeocode.prototype.handleResponse = function (response) {
@@ -6433,32 +6599,34 @@ define("node_modules/ol3-search/ol3-search/providers/osm", ["require", "exports"
                 var _a = r.boundingbox.map(function (v) { return parseFloat(v); }), lat1 = _a[0], lat2 = _a[1], lon1 = _a[2], lon2 = _a[3];
                 return ol.geom.Polygon.fromExtent([lon1, lat1, lon2, lat2]);
             };
-            return response.sort(function (v) { return v.importance || 1; }).map(function (result) { return ({
-                title: result.display_name,
-                lon: parseFloat(result.lon),
-                lat: parseFloat(result.lat),
-                extent: asExtent(result),
-                address: {
-                    name: result.address.neighbourhood || '',
-                    road: result.address.road || '',
-                    postcode: result.address.postcode,
-                    city: result.address.city || result.address.town,
-                    state: result.address.state,
-                    country: result.address.country
-                },
-                original: result
-            }); });
+            return response.sort(function (v) { return v.importance || 1; }).map(function (result) {
+                return ({
+                    title: result.display_name,
+                    lon: parseFloat(result.lon),
+                    lat: parseFloat(result.lat),
+                    extent: asExtent(result),
+                    address: {
+                        name: result.address.neighbourhood || "",
+                        road: result.address.road || "",
+                        postcode: result.address.postcode,
+                        city: result.address.city || result.address.town,
+                        state: result.address.state,
+                        country: result.address.country
+                    },
+                    original: result
+                });
+            });
         };
         OpenStreetGeocode.DEFAULT_OPTIONS = {
-            url: '//nominatim.openstreetmap.org/search/',
-            dataType: 'json',
-            method: 'GET',
+            url: "//nominatim.openstreetmap.org/search/",
+            dataType: "json",
+            method: "GET",
             params: {
-                format: 'json',
+                format: "json",
                 addressdetails: true,
                 limit: 10,
-                countrycodes: ['US'],
-                'accept-language': 'en-US'
+                countrycodes: ["US"],
+                "accept-language": "en-US"
             }
         };
         return OpenStreetGeocode;
@@ -8294,8 +8462,10 @@ define("node_modules/ol3-draw/ol3-draw/ol3-delete", ["require", "exports", "open
         __extends(Delete, _super);
         function Delete(options) {
             var _this = _super.call(this, options) || this;
+            _this.options = options;
+            if (!options.map)
+                throw "map is a require option";
             var map = options.map;
-            var featureLayers = [];
             var selection = (options.selection =
                 options.selection ||
                     new ol.interaction.Select({
@@ -8331,7 +8501,7 @@ define("node_modules/ol3-draw/ol3-draw/ol3-delete", ["require", "exports", "open
             boxSelect.on("boxend", function (args) {
                 var extent = boxSelect.getGeometry().getExtent();
                 var features = selection.getFeatures().getArray();
-                options.map
+                map
                     .getLayers()
                     .getArray()
                     .filter(function (l) { return l instanceof ol.layer.Vector; })
@@ -8379,20 +8549,23 @@ define("node_modules/ol3-draw/ol3-draw/ol3-delete", ["require", "exports", "open
         };
         Delete.prototype.clear = function () {
             var selection = this.options.selection;
-            selection.getFeatures().clear();
+            selection && selection.getFeatures().clear();
             this.featureLayerAssociation_ = [];
         };
         Delete.prototype.delete = function () {
             var _this = this;
-            var selection = this.options.selection;
-            selection.getFeatures().forEach(function (f) {
-                var l = selection.getLayer(f) || _this.featureLayerAssociation_[f.getId()];
-                l && l.getSource().removeFeature(f);
-            });
-            selection.getFeatures().clear();
+            if (this.options.selection) {
+                var selection_1 = this.options.selection;
+                selection_1.getFeatures().forEach(function (f) {
+                    var l = selection_1.getLayer(f) || _this.featureLayerAssociation_[f.getId()];
+                    l && l.getSource().removeFeature(f);
+                });
+                selection_1.getFeatures().clear();
+            }
             this.featureLayerAssociation_ = [];
         };
         Delete.DEFAULT_OPTIONS = {
+            multi: false,
             className: "ol-delete",
             label: "␡",
             title: "Delete",
@@ -8469,7 +8642,6 @@ define("node_modules/ol3-draw/ol3-draw/ol3-translate", ["require", "exports", "o
         __extends(Translate, _super);
         function Translate(options) {
             var _this = _super.call(this, options) || this;
-            var map = options.map;
             var select = new ol.interaction.Select({
                 style: function (feature, res) {
                     var style = options.style[feature.getGeometry().getType()].map(function (s) { return _this.symbolizer.fromJson(s); });
@@ -8503,8 +8675,8 @@ define("node_modules/ol3-draw/ol3-draw/ol3-translate", ["require", "exports", "o
             });
             return _this;
         }
-        Translate.create = function (options) {
-            options = index_40.defaults({}, options, Translate.DEFAULT_OPTIONS);
+        Translate.create = function (opt) {
+            var options = index_40.defaults({}, opt || {}, Translate.DEFAULT_OPTIONS);
             return ol3_button_4.Button.create(options);
         };
         Translate.DEFAULT_OPTIONS = {
@@ -8606,6 +8778,8 @@ define("node_modules/ol3-draw/ol3-draw/ol3-select", ["require", "exports", "open
             boxSelect.on("boxend", function (args) {
                 var extent = boxSelect.getGeometry().getExtent();
                 var features = selection.getFeatures().getArray();
+                if (!options.map)
+                    return;
                 options.map
                     .getLayers()
                     .getArray()
@@ -8625,12 +8799,12 @@ define("node_modules/ol3-draw/ol3-draw/ol3-select", ["require", "exports", "open
             _this.once("change:active", function () {
                 [boxSelect, selection].forEach(function (i) {
                     i.setActive(false);
-                    options.map.addInteraction(i);
+                    options.map && options.map.addInteraction(i);
                 });
                 _this.handlers.push(function () {
                     [boxSelect, selection].forEach(function (i) {
                         i.setActive(false);
-                        options.map.removeInteraction(i);
+                        options.map && options.map.removeInteraction(i);
                     });
                 });
             });
@@ -8642,8 +8816,8 @@ define("node_modules/ol3-draw/ol3-draw/ol3-select", ["require", "exports", "open
             });
             return _this;
         }
-        Select.create = function (options) {
-            options = index_41.defaults({}, options, Select.DEFAULT_OPTIONS);
+        Select.create = function (opt) {
+            var options = index_41.defaults({}, opt, Select.DEFAULT_OPTIONS);
             return ol3_button_5.Button.create(options);
         };
         Select.DEFAULT_OPTIONS = {
@@ -8775,7 +8949,10 @@ define("node_modules/ol3-draw/ol3-draw/ol3-note", ["require", "exports", "openla
         __extends(Note, _super);
         function Note(options) {
             var _this = _super.call(this, options) || this;
+            _this.options = options;
             _this.overlayMap = [];
+            if (!options.map)
+                throw "map is a required option";
             var map = options.map;
             map.getView().on("change:resolution", function () {
                 console.log(map.getView().getResolution());
@@ -8792,6 +8969,8 @@ define("node_modules/ol3-draw/ol3-draw/ol3-note", ["require", "exports", "openla
             }
             else {
                 _this.once("change:active", function () {
+                    if (!options.layer)
+                        return;
                     options.layer
                         .getSource()
                         .getFeatures()
@@ -8813,13 +8992,15 @@ define("node_modules/ol3-draw/ol3-draw/ol3-note", ["require", "exports", "openla
                             var note = feature.get(options.noteFieldName);
                             if (!note)
                                 return;
-                            if (!feature.getStyle())
-                                feature.setStyle(style);
-                            var overlay = _this.forceOverlay(feature);
-                            var wasVisible = !overlay.getElement().classList.contains("hidden");
-                            overlay.getElement().classList.toggle("hidden");
-                            overlay.setPosition(wasVisible ? null : ol.extent.getCenter(feature.getGeometry().getExtent()));
-                            return true;
+                            if (feature instanceof ol.Feature) {
+                                if (!feature.getStyle())
+                                    feature.setStyle(style);
+                                var overlay = _this.forceOverlay(feature);
+                                var wasVisible = !overlay.getElement().classList.contains("hidden");
+                                overlay.getElement().classList.toggle("hidden");
+                                overlay.setPosition(wasVisible ? undefined : ol.extent.getCenter(feature.getGeometry().getExtent()));
+                                return true;
+                            }
                         }
                     });
                     if (!_this.get("active"))
@@ -8834,15 +9015,15 @@ define("node_modules/ol3-draw/ol3-draw/ol3-note", ["require", "exports", "openla
                         feature.setGeometry(new ol.geom.Point(args.coordinate));
                         var overlay = _this.forceOverlay(feature);
                         overlay.getElement().classList.toggle("hidden");
-                        options.layer.getSource().addFeature(feature);
+                        options.layer && options.layer.getSource().addFeature(feature);
                     }
                 });
                 _this.handlers.push(function () { return ol.Observable.unByKey(h_3); });
             }
             return _this;
         }
-        Note.create = function (options) {
-            options = index_42.defaults({}, options, Note.DEFAULT_OPTIONS);
+        Note.create = function (opt) {
+            var options = index_42.defaults({}, opt, Note.DEFAULT_OPTIONS);
             return ol3_button_6.Button.create(options);
         };
         Note.prototype.forceOverlay = function (feature) {
@@ -8856,6 +9037,8 @@ define("node_modules/ol3-draw/ol3-draw/ol3-note", ["require", "exports", "openla
         };
         Note.prototype.createOverlay = function (feature) {
             var options = this.options;
+            if (!options.map)
+                throw "map is a require option";
             var map = options.map;
             var note = feature.get(options.noteFieldName) || "";
             var textarea = index_42.html("<div class=\"contentEditableDiv hidden\"><p class=\"editableP\" contentEditable=\"true\" placeholder=\"[TYPE YOUR MESSAGE HERE]\">" + note + "</p></div>");
@@ -8885,19 +9068,19 @@ define("node_modules/ol3-draw/ol3-draw/ol3-note", ["require", "exports", "openla
             noteFieldName: "note",
             style: [
                 {
-                    "star": {
-                        "fill": {
-                            "color": "red"
+                    star: {
+                        fill: {
+                            color: "red"
                         },
-                        "opacity": 1,
-                        "stroke": {
-                            "color": "black",
-                            "width": 2
+                        opacity: 1,
+                        stroke: {
+                            color: "black",
+                            width: 2
                         },
-                        "radius": 10,
-                        "radius2": 4,
-                        "points": 5,
-                        "scale": 1
+                        radius: 10,
+                        radius2: 4,
+                        points: 5,
+                        scale: 1
                     }
                 }
             ]
@@ -8913,6 +9096,8 @@ define("node_modules/ol3-draw/ol3-draw/ol3-history", ["require", "exports", "nod
         function NavHistory(options) {
             var _this = this;
             this.options = options;
+            if (!options.map)
+                throw "map is a required option";
             var map = options.map;
             var history = [];
             var history_index = 0;
@@ -8937,7 +9122,7 @@ define("node_modules/ol3-draw/ol3-draw/ol3-history", ["require", "exports", "nod
                 map.getView().animate({
                     zoom: extent.zoom,
                     center: extent.center,
-                    duration: _this.options.delay / 10
+                    duration: (_this.options.delay || 0) / 10
                 }, resume);
             };
             var capture = index_43.debounce(function () {
@@ -8989,8 +9174,8 @@ define("node_modules/ol3-draw/ol3-draw/services/wfs-sync", ["require", "exports"
             this.deletes = [];
             this.watch();
         }
-        WfsSync.create = function (options) {
-            options = index_44.defaults(options || {}, WfsSync.DEFAULT_OPTIONS);
+        WfsSync.create = function (opt) {
+            var options = index_44.defaults(opt || {}, WfsSync.DEFAULT_OPTIONS);
             if (!options.formatter) {
                 options.formatter = new ol.format.WFS();
             }
@@ -9016,11 +9201,12 @@ define("node_modules/ol3-draw/ol3-draw/services/wfs-sync", ["require", "exports"
         };
         WfsSync.prototype.watch = function () {
             var _this = this;
+            var lastUpdateFieldName = this.options.lastUpdateFieldName || "lastUpdate";
             var save = index_44.debounce(function () {
                 try {
                     _this.trigger("before-save");
                     _this.saveDrawings({
-                        features: _this.options.source.getFeatures().filter(function (f) { return !!f.get(_this.options.lastUpdateFieldName); })
+                        features: _this.options.source.getFeatures().filter(function (f) { return !!f.get(lastUpdateFieldName); })
                     }).then(function () { return _this.trigger("after-save"); });
                 }
                 catch (ex) {
@@ -9029,7 +9215,7 @@ define("node_modules/ol3-draw/ol3-draw/services/wfs-sync", ["require", "exports"
                 }
             }, 1000);
             var touch = function (f) {
-                f.set(_this.options.lastUpdateFieldName, Date.now());
+                f.set(lastUpdateFieldName, Date.now());
                 save();
             };
             var watch = function (f) {
@@ -9043,12 +9229,16 @@ define("node_modules/ol3-draw/ol3-draw/services/wfs-sync", ["require", "exports"
             var source = this.options.source;
             source.forEachFeature(function (f) { return watch(f); });
             source.on("addfeature", function (args) {
-                watch(args.feature);
-                touch(args.feature);
+                if (args instanceof ol.source.VectorEvent) {
+                    watch(args.feature);
+                    touch(args.feature);
+                }
             });
             source.on("removefeature", function (args) {
-                _this.deletes.push(args.feature);
-                touch(args.feature);
+                if (args instanceof ol.source.VectorEvent) {
+                    _this.deletes.push(args.feature);
+                    touch(args.feature);
+                }
             });
         };
         WfsSync.prototype.saveDrawings = function (args) {
@@ -9057,7 +9247,7 @@ define("node_modules/ol3-draw/ol3-draw/services/wfs-sync", ["require", "exports"
             var saveTo = function (featureType, geomType) {
                 var toSave = features.filter(function (f) { return f.getGeometry().getType() === geomType; });
                 var toDelete = _this.deletes.filter(function (f) { return !!f.get(_this.options.featureIdFieldName); });
-                if (0 === (toSave.length + toDelete.length)) {
+                if (0 === toSave.length + toDelete.length) {
                     console.info("nothing to save:", featureType, geomType);
                     return;
                 }
@@ -9071,8 +9261,11 @@ define("node_modules/ol3-draw/ol3-draw/services/wfs-sync", ["require", "exports"
                 var format = _this.options.formatter;
                 var toInsert = toSave.filter(function (f) { return !f.get(_this.options.featureIdFieldName); });
                 var toUpdate = toSave.filter(function (f) { return !!f.get(_this.options.featureIdFieldName); });
-                if (_this.options.converter && toInsert.length) {
-                    toInsert.forEach(function (f) { return f.setGeometry(_this.options.converter(f.getGeometry())); });
+                if (toInsert.length) {
+                    if (_this.options.converter) {
+                        var converter_1 = _this.options.converter;
+                        toInsert.forEach(function (f) { return f.setGeometry(converter_1(f.getGeometry())); });
+                    }
                 }
                 toInsert.forEach(function (f) { return f.set(_this.options.lastUpdateFieldName, undefined); });
                 toUpdate.forEach(function (f) { return f.set(_this.options.lastUpdateFieldName, undefined); });
@@ -9126,7 +9319,7 @@ define("node_modules/ol3-draw/ol3-draw/services/wfs-sync", ["require", "exports"
         };
         WfsSync.DEFAULT_OPTIONS = {
             featureIdFieldName: "gid",
-            lastUpdateFieldName: "touched",
+            lastUpdateFieldName: "touched"
         };
         return WfsSync;
     }());
@@ -9137,53 +9330,62 @@ define("node_modules/ol3-draw/ol3-draw/measure-extension", ["require", "exports"
     Object.defineProperty(exports, "__esModule", { value: true });
     var wgs84Sphere = ol.sphere;
     var MeterConvert = {
-        "m": 1,
-        "km": 1 / 1000,
-        "ft": 3.28084,
-        "mi": 0.000621371
+        m: 1,
+        km: 1 / 1000,
+        ft: 3.28084,
+        mi: 0.000621371
     };
     var Measurement = (function () {
         function Measurement(options) {
             this.options = options;
             index_45.cssin("measure", "\n\n.tooltip {\n    position: relative;\n    background: rgba(0, 0, 0, 0.5);\n    border-radius: 4px;\n    color: white;\n    padding: 4px 8px;\n    opacity: 0.7;\n    white-space: nowrap;\n}\n.tooltip-measure {\n    opacity: 1;\n    font-weight: bold;\n}\n.tooltip-static {\n    background-color: #ffcc33;\n    color: black;\n    border: 1px solid white;\n}\n.tooltip-measure:before,\n.tooltip-static:before {\n    border-top: 6px solid rgba(0, 0, 0, 0.5);\n    border-right: 6px solid transparent;\n    border-left: 6px solid transparent;\n    content: \"\";\n    position: absolute;\n    bottom: -6px;\n    margin-left: -7px;\n    left: 50%;\n}\n.tooltip-static:before {\n    border-top-color: #ffcc33;\n}\n\n    ");
+            this.measureTooltipElement = document.createElement("div");
+            this.measureTooltipElement.className = "tooltip tooltip-measure";
+            this.measureTooltip = new ol.Overlay({
+                element: this.measureTooltipElement,
+                offset: [0, -15],
+                positioning: "bottom-center"
+            });
             this.createMeasureTooltip();
         }
-        Measurement.create = function (options) {
-            options = index_45.defaults({}, options || {}, Measurement.DEFAULT_OPTIONS);
+        Measurement.create = function (opt) {
+            var options = index_45.defaults({}, opt || {}, Measurement.DEFAULT_OPTIONS);
             return new Measurement(options);
         };
         Measurement.prototype.createMeasureTooltip = function () {
             var _this = this;
             var options = this.options;
             if (this.measureTooltipElement) {
-                this.measureTooltipElement.parentNode.removeChild(this.measureTooltipElement);
+                this.measureTooltipElement.remove();
             }
-            this.measureTooltipElement = document.createElement('div');
-            this.measureTooltipElement.className = 'tooltip tooltip-measure';
-            this.measureTooltip = new ol.Overlay({
-                element: this.measureTooltipElement,
-                offset: [0, -15],
-                positioning: 'bottom-center'
-            });
-            options.map.addOverlay(this.measureTooltip);
-            options.draw.on('drawstart', function (evt) {
-                var listener = evt.feature.getGeometry().on('change', function (evt) {
+            if (!options.map)
+                throw "map option required for measurement tooltip";
+            if (!options.draw)
+                throw "draw option required for measurement tooltip";
+            if (!options.edit)
+                throw "edit option required for measurement tooltip";
+            var draw = options.draw;
+            var map = options.map;
+            var edit = options.edit;
+            map.addOverlay(this.measureTooltip);
+            draw.on("drawstart", function (evt) {
+                var listener = evt.feature.getGeometry().on("change", function (evt) {
                     var geom = evt.target;
                     var coordinates = _this.flatten({ geom: geom });
-                    var output = _this.formatLength({ map: options.map, coordinates: coordinates });
+                    var output = _this.formatLength({ map: map, coordinates: coordinates });
                     _this.measureTooltipElement.innerHTML = output;
                     _this.measureTooltip.setPosition(coordinates[coordinates.length - 1]);
                 });
-                options.draw.once('drawend', function () { return ol.Observable.unByKey(listener); });
+                draw.once("drawend", function () { return ol.Observable.unByKey(listener); });
             });
-            options.edit.on('modifystart', function (evt) {
+            edit.on("modifystart", function (evt) {
                 var feature = evt.features.getArray()[0];
                 var geom = feature.getGeometry();
                 var coordinates = _this.flatten({ geom: geom });
-                var originalDistances = _this.computeDistances({ map: options.map, coordinates: coordinates });
-                var listener = geom.on('change', function () {
+                var originalDistances = _this.computeDistances({ map: map, coordinates: coordinates });
+                var listener = geom.on("change", function () {
                     var coordinates = _this.flatten({ geom: geom });
-                    var distances = _this.computeDistances({ map: options.map, coordinates: coordinates });
+                    var distances = _this.computeDistances({ map: map, coordinates: coordinates });
                     distances.some(function (d, i) {
                         if (d === originalDistances[i])
                             return false;
@@ -9192,7 +9394,7 @@ define("node_modules/ol3-draw/ol3-draw/measure-extension", ["require", "exports"
                         return true;
                     });
                 });
-                options.edit.once('modifyend', function () { return ol.Observable.unByKey(listener); });
+                edit.once("modifyend", function () { return ol.Observable.unByKey(listener); });
             });
         };
         Measurement.prototype.flatten = function (args) {
@@ -9207,13 +9409,18 @@ define("node_modules/ol3-draw/ol3-draw/measure-extension", ["require", "exports"
                 coordinates = args.geom.getLinearRing(0).getCoordinates();
             }
             else if (args.geom instanceof ol.geom.MultiPolygon) {
-                coordinates = args.geom.getPolygon(0).getLinearRing(0).getCoordinates();
+                coordinates = args.geom
+                    .getPolygon(0)
+                    .getLinearRing(0)
+                    .getCoordinates();
             }
+            else
+                throw "unable to get coordinates from the geometry";
             return coordinates;
         };
         Measurement.prototype.computeDistances = function (args) {
             var sourceProj = args.map.getView().getProjection();
-            var coordinates = args.coordinates.map(function (c) { return ol.proj.transform(c, sourceProj, 'EPSG:4326'); });
+            var coordinates = args.coordinates.map(function (c) { return ol.proj.transform(c, sourceProj, "EPSG:4326"); });
             return coordinates.map(function (c, i) { return wgs84Sphere.getDistance(i ? coordinates[i - 1] : c, c); });
         };
         Measurement.prototype.formatLength = function (args) {
@@ -9228,10 +9435,12 @@ define("node_modules/ol3-draw/ol3-draw/measure-extension", ["require", "exports"
         };
         Measurement.prototype.formatLengths = function (lengths) {
             var options = this.options;
-            return lengths.map(function (l) {
-                var uom = l < 100 ? "m" : options.uom;
+            return lengths
+                .map(function (l) {
+                var uom = (l < 100 ? "m" : options.uom);
                 return (MeterConvert[uom] * l).toPrecision(5) + " " + uom;
-            }).join("<br/>");
+            })
+                .join("<br/>");
         };
         Measurement.DEFAULT_OPTIONS = {
             uom: "ft",
@@ -14800,10 +15009,1280 @@ define("ol3-lab/ux/serializers/ags-simplemarkersymbol", ["require", "exports", "
     }());
     exports.SimpleMarkerConverter = SimpleMarkerConverter;
 });
-define("node_modules/ol3-fun/tests/base", ["require", "exports", "node_modules/ol3-fun/ol3-fun/slowloop"], function (require, exports, slowloop_2) {
+define("node_modules/@ca0v/ceylon/ceylon/interfaces/expectation", ["require", "exports"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+});
+define("node_modules/@ca0v/ceylon/ceylon/interfaces/boolean-expectation", ["require", "exports"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+});
+define("node_modules/@ca0v/ceylon/ceylon/interfaces/number-expectation", ["require", "exports"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+});
+define("node_modules/@ca0v/ceylon/ceylon/interfaces/string-expectation", ["require", "exports"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+});
+define("node_modules/@ca0v/ceylon/ceylon/interfaces/array-expectation", ["require", "exports"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+});
+define("node_modules/@ca0v/ceylon/ceylon/interfaces/function-expectation", ["require", "exports"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+});
+define("node_modules/@ca0v/ceylon/ceylon/interfaces/object-expectation", ["require", "exports"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+});
+define("node_modules/@ca0v/ceylon/ceylon/interfaces/expect", ["require", "exports"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+});
+define("node_modules/@ca0v/ceylon/ceylon/fast-deep-equal", ["require", "exports"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    function equal(a, b) {
+        if (a === b)
+            return true;
+        if ([Object, Array, Date, RegExp].some(function (t) { return a instanceof t !== b instanceof t; }))
+            return false;
+        if (typeof a == "object" && typeof b == "object") {
+            if (Array.isArray(a) && Array.isArray(b)) {
+                if (a.length !== b.length)
+                    return false;
+                return a.every(function (v, i) { return equal(v, b[i]); });
+            }
+            if (a instanceof Date && b instanceof Date)
+                return a.getTime() === b.getTime();
+            if (a instanceof RegExp && b instanceof RegExp)
+                return a.toString() === b.toString();
+            var keys = Object.keys(a);
+            if (keys.length !== Object.keys(b).length)
+                return false;
+            return keys.every(function (key) { return b.hasOwnProperty(key) && equal(a[key], b[key]); });
+        }
+        return a !== a && b !== b;
+    }
+    exports.equal = equal;
+});
+define("node_modules/@ca0v/ceylon/ceylon/assertion-error", ["require", "exports"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    function default_1(_a) {
+        var message = _a.message, expected = _a.expected, actual = _a.actual, showDiff = _a.showDiff;
+        var error = new Error(message);
+        error["expected"] = expected;
+        error["actual"] = actual;
+        error["showDiff"] = showDiff;
+        error.name = "AssertionError";
+        return error;
+    }
+    exports.default = default_1;
+});
+define("node_modules/@ca0v/ceylon/ceylon/assert", ["require", "exports", "node_modules/@ca0v/ceylon/ceylon/assertion-error"], function (require, exports, assertion_error_1) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    var assert = function (_a) {
+        var assertion = _a.assertion, message = _a.message, actual = _a.actual, expected = _a.expected;
+        if (!assertion) {
+            var error = assertion_error_1.default({
+                actual: actual,
+                expected: expected,
+                message: message,
+                showDiff: typeof actual !== "undefined" && typeof expected !== "undefined"
+            });
+            throw error;
+        }
+    };
+    exports.default = assert;
+});
+define("node_modules/@ca0v/ceylon/ceylon/expectation", ["require", "exports", "node_modules/@ca0v/ceylon/ceylon/fast-deep-equal", "node_modules/@ca0v/ceylon/ceylon/assert"], function (require, exports, fast_deep_equal_1, assert_1) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    var Expectation = (function () {
+        function Expectation(actual) {
+            this.actual = actual;
+        }
+        Expectation.prototype.toExist = function (message) {
+            assert_1.default({
+                assertion: typeof message === "undefined" || typeof message === "string",
+                message: "[message] argument should be a string"
+            });
+            if (Array.isArray(this.actual)) {
+                assert_1.default({
+                    assertion: this.actual.length !== 0,
+                    message: message || "Expected array to exist"
+                });
+            }
+            else if (typeof this.actual === "object" && this.actual !== null) {
+                assert_1.default({
+                    assertion: Object.getOwnPropertyNames(this.actual).length !== 0,
+                    message: message || "Expected object to exist"
+                });
+            }
+            else {
+                assert_1.default({
+                    assertion: typeof this.actual !== "undefined" && this.actual !== null && this.actual !== "",
+                    message: message || "Expected item to exist"
+                });
+            }
+            return this;
+        };
+        Expectation.prototype.toNotExist = function (message) {
+            assert_1.default({
+                assertion: typeof message === "undefined" || typeof message === "string",
+                message: "[message] argument should be a string"
+            });
+            if (Array.isArray(this.actual)) {
+                assert_1.default({
+                    assertion: this.actual.length === 0,
+                    message: message || "Expected array to not exist"
+                });
+            }
+            else if (typeof this.actual === "object" && this.actual !== null) {
+                assert_1.default({
+                    assertion: Object.getOwnPropertyNames(this.actual).length === 0,
+                    message: message || "Expected object to not exist"
+                });
+            }
+            else {
+                assert_1.default({
+                    assertion: typeof this.actual === "undefined" || this.actual === null || this.actual === "",
+                    message: message || "Expected item to not exist"
+                });
+            }
+            return this;
+        };
+        Expectation.prototype.toBe = function (value, message) {
+            assert_1.default({
+                assertion: typeof message === "undefined" || typeof message === "string",
+                message: "[message] argument should be a string"
+            });
+            assert_1.default({
+                actual: this.actual,
+                assertion: this.actual === value,
+                expected: value,
+                message: message || "Expected " + JSON.stringify(this.actual) + " to be " + JSON.stringify(value)
+            });
+            return this;
+        };
+        Expectation.prototype.toNotBe = function (value, message) {
+            assert_1.default({
+                assertion: typeof message === "undefined" || typeof message === "string",
+                message: "[message] argument should be a string"
+            });
+            assert_1.default({
+                actual: this.actual,
+                assertion: this.actual !== value,
+                expected: value,
+                message: message || "Expected " + JSON.stringify(this.actual) + " to not be " + JSON.stringify(value)
+            });
+            return this;
+        };
+        Expectation.prototype.toEqual = function (value, message) {
+            assert_1.default({
+                assertion: typeof message === "undefined" || typeof message === "string",
+                message: "[message] argument should be a string"
+            });
+            assert_1.default({
+                actual: this.actual,
+                assertion: fast_deep_equal_1.equal(this.actual, value),
+                expected: value,
+                message: message || "Expected " + JSON.stringify(this.actual) + " to equal " + JSON.stringify(value)
+            });
+            return this;
+        };
+        Expectation.prototype.toNotEqual = function (value, message) {
+            assert_1.default({
+                assertion: typeof message === "undefined" || typeof message === "string",
+                message: "[message] argument should be a string"
+            });
+            assert_1.default({
+                actual: this.actual,
+                assertion: !fast_deep_equal_1.equal(this.actual, value),
+                expected: value,
+                message: message || "Expected " + JSON.stringify(this.actual) + " to not equal " + JSON.stringify(value)
+            });
+            return this;
+        };
+        Expectation.prototype.toBeTrue = function (message) {
+            return this.toBe(true, message);
+        };
+        Expectation.prototype.toBeFalse = function (message) {
+            return this.toBe(false, message);
+        };
+        Expectation.prototype.toBeLessThan = function (value, message) {
+            assert_1.default({
+                assertion: typeof value === "number",
+                message: "[value] argument should be a number"
+            });
+            assert_1.default({
+                assertion: typeof message === "undefined" || typeof message === "string",
+                message: "[message] argument should be a string"
+            });
+            if (typeof this.actual !== "number") {
+                assert_1.default({
+                    assertion: false,
+                    message: "Item being tested should be a number"
+                });
+            }
+            else {
+                assert_1.default({
+                    assertion: this.actual < value,
+                    message: message || "Expected " + this.actual + " to be less than " + value
+                });
+            }
+            return this;
+        };
+        Expectation.prototype.toBeFewerThan = function (value, message) {
+            return this.toBeLessThan(value, message);
+        };
+        Expectation.prototype.toBeLessThanOrEqualTo = function (value, message) {
+            assert_1.default({
+                assertion: typeof value === "number",
+                message: "[value] argument should be a number"
+            });
+            assert_1.default({
+                assertion: typeof message === "undefined" || typeof message === "string",
+                message: "[message] argument should be a string"
+            });
+            if (typeof this.actual !== "number") {
+                throw assert_1.default({
+                    assertion: false,
+                    message: "Item being tested should be a number"
+                });
+            }
+            assert_1.default({
+                assertion: this.actual <= value,
+                message: message || "Expected " + this.actual + " to be less than or equal to " + value
+            });
+            return this;
+        };
+        Expectation.prototype.toBeFewerThanOrEqualTo = function (value, message) {
+            return this.toBeLessThanOrEqualTo(value, message);
+        };
+        Expectation.prototype.toBeGreaterThan = function (value, message) {
+            assert_1.default({
+                assertion: typeof value === "number",
+                message: "[value] argument should be a number"
+            });
+            assert_1.default({
+                assertion: typeof message === "undefined" || typeof message === "string",
+                message: "[message] argument should be a string"
+            });
+            if (typeof this.actual !== "number") {
+                throw assert_1.default({
+                    assertion: false,
+                    message: "Item being tested should be a number"
+                });
+            }
+            assert_1.default({
+                assertion: this.actual > value,
+                message: message || "Expected " + this.actual + " to be greater than " + value
+            });
+            return this;
+        };
+        Expectation.prototype.toBeMoreThan = function (value, message) {
+            return this.toBeGreaterThan(value, message);
+        };
+        Expectation.prototype.toBeGreaterThanOrEqualTo = function (value, message) {
+            assert_1.default({
+                assertion: typeof value === "number",
+                message: "[value] argument should be a number"
+            });
+            assert_1.default({
+                assertion: typeof message === "undefined" || typeof message === "string",
+                message: "[message] argument should be a string"
+            });
+            if (typeof this.actual !== "number") {
+                throw assert_1.default({
+                    assertion: false,
+                    message: "Item being tested should be a number"
+                });
+            }
+            assert_1.default({
+                assertion: this.actual >= value,
+                message: message || "Expected " + this.actual + " to be greater than or equal to " + value
+            });
+            return this;
+        };
+        Expectation.prototype.toBeMoreThanOrEqualTo = function (value, message) {
+            return this.toBeGreaterThanOrEqualTo(value, message);
+        };
+        Expectation.prototype.toMatch = function (pattern, message) {
+            assert_1.default({
+                assertion: pattern instanceof RegExp,
+                message: "[pattern] argument should be a regular expression"
+            });
+            assert_1.default({
+                assertion: typeof message === "undefined" || typeof message === "string",
+                message: "[message] argument should be a string"
+            });
+            if (typeof this.actual !== "string") {
+                throw assert_1.default({
+                    assertion: false,
+                    message: "Item being tested should be a string"
+                });
+            }
+            assert_1.default({
+                assertion: pattern.test(this.actual),
+                message: message || "Expected " + this.actual + " to match " + pattern
+            });
+            return this;
+        };
+        Expectation.prototype.toNotMatch = function (pattern, message) {
+            assert_1.default({
+                assertion: pattern instanceof RegExp,
+                message: "[pattern] argument should be a regular expression"
+            });
+            assert_1.default({
+                assertion: typeof message === "undefined" || typeof message === "string",
+                message: "[message] argument should be a string"
+            });
+            if (typeof this.actual !== "string") {
+                throw assert_1.default({
+                    assertion: false,
+                    message: "Item being tested should be a string"
+                });
+            }
+            assert_1.default({
+                assertion: !pattern.test(this.actual),
+                message: message || "Expected " + this.actual + " to match " + pattern
+            });
+            return this;
+        };
+        Expectation.prototype.toInclude = function (value, message) {
+            assert_1.default({
+                assertion: typeof message === "undefined" || typeof message === "string",
+                message: "[message] argument should be a string"
+            });
+            assert_1.default({
+                assertion: typeof this.actual === "string" || Array.isArray(this.actual) || typeof this.actual === "object",
+                message: "Item being tested should be a string, array, or object"
+            });
+            if (typeof this.actual === "string") {
+                assert_1.default({
+                    assertion: this.actual.indexOf(value) >= 0,
+                    message: message || "Expected " + this.actual + " to contain " + value
+                });
+            }
+            else if (Array.isArray(this.actual)) {
+                var included = false;
+                for (var i = 0; i < this.actual.length; i++) {
+                    if (fast_deep_equal_1.equal(this.actual[i], value)) {
+                        included = true;
+                        break;
+                    }
+                }
+                assert_1.default({
+                    assertion: included,
+                    message: message || "Expected " + JSON.stringify(this.actual) + " to contain " + JSON.stringify(value)
+                });
+            }
+            else if (typeof this.actual === "object") {
+                var included = true;
+                var valueProperties = Object.getOwnPropertyNames(value);
+                for (var i = 0; i < valueProperties.length; i++) {
+                    if (!this.actual.hasOwnProperty(valueProperties[i])) {
+                        included = false;
+                        break;
+                    }
+                    if (!fast_deep_equal_1.equal(this.actual[valueProperties[i]], value[valueProperties[i]])) {
+                        included = false;
+                    }
+                }
+                assert_1.default({
+                    assertion: included,
+                    message: message || "Expected " + JSON.stringify(this.actual) + " to contain " + JSON.stringify(value)
+                });
+            }
+            return this;
+        };
+        Expectation.prototype.toContain = function (value, message) {
+            return this.toInclude(value, message);
+        };
+        Expectation.prototype.toExclude = function (value, message) {
+            assert_1.default({
+                assertion: typeof message === "undefined" || typeof message === "string",
+                message: "[message] argument should be a string"
+            });
+            assert_1.default({
+                assertion: typeof this.actual === "string" || Array.isArray(this.actual) || typeof this.actual === "object",
+                message: "Item being tested should be a string, array, or object"
+            });
+            if (typeof this.actual === "string") {
+                assert_1.default({
+                    assertion: this.actual.indexOf(value) === -1,
+                    message: message || "Expected " + this.actual + " to not contain " + value
+                });
+            }
+            else if (Array.isArray(this.actual)) {
+                var included = false;
+                for (var i = 0; i < this.actual.length; i++) {
+                    if (fast_deep_equal_1.equal(this.actual[i], value)) {
+                        included = true;
+                        break;
+                    }
+                }
+                assert_1.default({
+                    assertion: !included,
+                    message: message || "Expected " + JSON.stringify(this.actual) + " to not contain " + JSON.stringify(value)
+                });
+            }
+            else if (typeof this.actual === "object") {
+                var included = false;
+                var valueProperties = Object.getOwnPropertyNames(value);
+                for (var i = 0; i < valueProperties.length; i++) {
+                    if (this.actual.hasOwnProperty(valueProperties[i])) {
+                        if (fast_deep_equal_1.equal(this.actual[valueProperties[i]], value[valueProperties[i]])) {
+                            included = true;
+                            break;
+                        }
+                    }
+                }
+                assert_1.default({
+                    assertion: !included,
+                    message: message || "Expected " + JSON.stringify(this.actual) + " to not contain " + JSON.stringify(value)
+                });
+            }
+            return this;
+        };
+        Expectation.prototype.toNotInclude = function (value, message) {
+            return this.toExclude(value, message);
+        };
+        Expectation.prototype.toNotContain = function (value, message) {
+            return this.toExclude(value, message);
+        };
+        Expectation.prototype.toThrow = function (error, message) {
+            assert_1.default({
+                assertion: typeof error === "undefined" ||
+                    typeof error === "string" ||
+                    error instanceof RegExp ||
+                    typeof error === "function",
+                message: "[error] argument should be a string, regular expression, or function"
+            });
+            assert_1.default({
+                assertion: typeof message === "undefined" || typeof message === "string",
+                message: "[message] argument should be a string"
+            });
+            if (typeof this.actual !== "function") {
+                throw assert_1.default({
+                    assertion: false,
+                    message: "Item being tested should be a function"
+                });
+            }
+            if (typeof error === "undefined") {
+                var threw = false;
+                try {
+                    this.actual();
+                }
+                catch (e) {
+                    threw = true;
+                }
+                assert_1.default({
+                    assertion: threw,
+                    message: message || "Expected function to throw"
+                });
+            }
+            else if (typeof error === "string") {
+                try {
+                    this.actual();
+                }
+                catch (e) {
+                    assert_1.default({
+                        assertion: e.message === error,
+                        message: message || "Expected error message to be \"" + error + "\"\""
+                    });
+                }
+            }
+            else if (error instanceof RegExp) {
+                try {
+                    this.actual();
+                }
+                catch (e) {
+                    assert_1.default({
+                        assertion: error.test(e.message),
+                        message: message || "Expected error message to match " + error
+                    });
+                }
+            }
+            else if (typeof error === "function") {
+                try {
+                    this.actual();
+                }
+                catch (e) {
+                    assert_1.default({
+                        assertion: e instanceof error,
+                        message: message || "Expected error to be " + error
+                    });
+                }
+            }
+            return this;
+        };
+        Expectation.prototype.toNotThrow = function (message) {
+            assert_1.default({
+                assertion: typeof message === "undefined" || typeof message === "string",
+                message: "[message] argument should be a string"
+            });
+            if (typeof this.actual !== "function") {
+                throw assert_1.default({
+                    assertion: false,
+                    message: "Item being tested should be a function"
+                });
+            }
+            var threw = false;
+            try {
+                this.actual();
+            }
+            catch (e) {
+                threw = true;
+            }
+            assert_1.default({
+                assertion: !threw,
+                message: message || "Expected function to not throw"
+            });
+            return this;
+        };
+        Expectation.prototype.toBeA = function (constructor, message) {
+            assert_1.default({
+                assertion: typeof constructor === "function" || typeof constructor === "string",
+                message: "[constructor] argument should be a function or string"
+            });
+            assert_1.default({
+                assertion: typeof message === "undefined" || typeof message === "string",
+                message: "[message] argument should be a string"
+            });
+            if (typeof constructor === "string") {
+                assert_1.default({
+                    actual: typeof this.actual,
+                    assertion: typeof this.actual === constructor,
+                    expected: constructor,
+                    message: message || "Expected item to be a " + constructor
+                });
+            }
+            else if (typeof constructor === "function") {
+                assert_1.default({
+                    actual: typeof this.actual,
+                    assertion: this.actual instanceof constructor,
+                    expected: constructor,
+                    message: message || "Expected item to be a " + constructor
+                });
+            }
+            return this;
+        };
+        Expectation.prototype.toBeAn = function (constructor, message) {
+            return this.toBeA(constructor, message);
+        };
+        Expectation.prototype.toNotBeA = function (constructor, message) {
+            assert_1.default({
+                assertion: typeof constructor === "function" || typeof constructor === "string",
+                message: "[constructor] argument should be a function or string"
+            });
+            assert_1.default({
+                assertion: typeof message === "undefined" || typeof message === "string",
+                message: "[message] argument should be a string"
+            });
+            if (typeof constructor === "string") {
+                assert_1.default({
+                    assertion: !(typeof this.actual === constructor),
+                    message: message || "Expected item to not be a " + constructor
+                });
+            }
+            else if (typeof constructor === "function") {
+                assert_1.default({
+                    assertion: !(this.actual instanceof constructor),
+                    message: message || "Expected item to not be a " + constructor
+                });
+            }
+            return this;
+        };
+        Expectation.prototype.toNotBeAn = function (constructor, message) {
+            return this.toNotBeA(constructor, message);
+        };
+        Expectation.prototype.toIncludeKey = function (key, message) {
+            assert_1.default({
+                assertion: typeof key === "number" || typeof key === "string",
+                message: "[key] argument should be a number or string"
+            });
+            assert_1.default({
+                assertion: typeof message === "undefined" || typeof message === "string",
+                message: "[message] argument should be a string"
+            });
+            assert_1.default({
+                assertion: typeof this.actual === "function" || Array.isArray(this.actual) || typeof this.actual === "object",
+                message: "Tested item should be a function, array, or object"
+            });
+            if (typeof this.actual === "function") {
+                assert_1.default({
+                    assertion: this.actual.hasOwnProperty(key),
+                    message: message || "Expected function to have key " + key
+                });
+            }
+            else if (Array.isArray(this.actual)) {
+                assert_1.default({
+                    assertion: this.actual.hasOwnProperty(key),
+                    message: message || "Expected array to have key " + key
+                });
+            }
+            else if (typeof this.actual === "object") {
+                assert_1.default({
+                    assertion: this.actual.hasOwnProperty(key),
+                    message: message || "Expected object to have key " + key
+                });
+            }
+            return this;
+        };
+        Expectation.prototype.toContainKey = function (key, message) {
+            return this.toIncludeKey(key, message);
+        };
+        Expectation.prototype.toIncludeKeys = function (keys, message) {
+            assert_1.default({
+                assertion: Array.isArray(keys) && keys.length > 0 && (typeof keys[0] === "number" || typeof keys[0] === "string"),
+                message: "[keys] argument should be an array of numbers or strings"
+            });
+            assert_1.default({
+                assertion: typeof message === "undefined" || typeof message === "string",
+                message: "[message] argument should be a string"
+            });
+            assert_1.default({
+                assertion: typeof this.actual === "function" || Array.isArray(this.actual) || typeof this.actual === "object",
+                message: "Tested item should be a function, array, or object"
+            });
+            for (var i = 0; i < keys.length; i++) {
+                this.toIncludeKey(keys[i], message);
+            }
+            return this;
+        };
+        Expectation.prototype.toContainKeys = function (keys, message) {
+            return this.toIncludeKeys(keys, message);
+        };
+        Expectation.prototype.toExcludeKey = function (key, message) {
+            assert_1.default({
+                assertion: typeof key === "number" || typeof key === "string",
+                message: "[key] argument should be a number or string"
+            });
+            assert_1.default({
+                assertion: typeof message === "undefined" || typeof message === "string",
+                message: "[message] argument should be a string"
+            });
+            assert_1.default({
+                assertion: typeof this.actual === "function" || Array.isArray(this.actual) || typeof this.actual === "object",
+                message: "Tested item should be a function, array, or object"
+            });
+            if (typeof this.actual === "function") {
+                assert_1.default({
+                    assertion: !this.actual.hasOwnProperty(key),
+                    message: message || "Expected function to not have key " + key
+                });
+            }
+            else if (Array.isArray(this.actual)) {
+                assert_1.default({
+                    assertion: !this.actual.hasOwnProperty(key),
+                    message: message || "Expected array to not have key " + key
+                });
+            }
+            else if (typeof this.actual === "object") {
+                assert_1.default({
+                    assertion: !this.actual.hasOwnProperty(key),
+                    message: message || "Expected object to not have key " + key
+                });
+            }
+            return this;
+        };
+        Expectation.prototype.toNotIncludeKey = function (key, message) {
+            return this.toExcludeKey(key, message);
+        };
+        Expectation.prototype.toNotContainKey = function (key, message) {
+            return this.toExcludeKey(key, message);
+        };
+        Expectation.prototype.toExcludeKeys = function (keys, message) {
+            assert_1.default({
+                assertion: Array.isArray(keys) && keys.length > 0 && (typeof keys[0] === "number" || typeof keys[0] === "string"),
+                message: "[key] argument should be an array of numbers or strings"
+            });
+            assert_1.default({
+                assertion: typeof message === "undefined" || typeof message === "string",
+                message: "[message] argument should be a string"
+            });
+            assert_1.default({
+                assertion: typeof this.actual === "function" || Array.isArray(this.actual) || typeof this.actual === "object",
+                message: "Tested item should be a function, array, or object"
+            });
+            for (var i = 0; i < keys.length; i++) {
+                this.toExcludeKey(keys[i], message);
+            }
+            return this;
+        };
+        Expectation.prototype.toNotIncludeKeys = function (keys, message) {
+            return this.toExcludeKeys(keys, message);
+        };
+        Expectation.prototype.toNotContainKeys = function (keys, message) {
+            return this.toExcludeKeys(keys, message);
+        };
+        Expectation.prototype.toHaveLength = function (value, message) {
+            assert_1.default({
+                assertion: typeof value === "number",
+                message: "[value] argument should be a number"
+            });
+            assert_1.default({
+                assertion: typeof message === "undefined" || typeof message === "string",
+                message: "[message] argument should be a string"
+            });
+            assert_1.default({
+                assertion: typeof this.actual === "string" || Array.isArray(this.actual),
+                message: "Item being tested should be a string or an array"
+            });
+            if (typeof this.actual === "string") {
+                assert_1.default({
+                    assertion: this.actual.length === value,
+                    message: message || "Expected string to have length " + value
+                });
+            }
+            if (Array.isArray(this.actual)) {
+                assert_1.default({
+                    assertion: this.actual.length === value,
+                    message: message || "Expected array to have length " + value
+                });
+            }
+            return this;
+        };
+        return Expectation;
+    }());
+    exports.default = Expectation;
+});
+define("node_modules/@ca0v/ceylon/ceylon/index", ["require", "exports", "node_modules/@ca0v/ceylon/ceylon/expectation", "node_modules/@ca0v/ceylon/ceylon/assert"], function (require, exports, expectation_1, assert_2) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.assert = assert_2.default;
+    var expect = function (actual) {
+        return new expectation_1.default(actual);
+    };
+    exports.default = expect;
+});
+define("node_modules/@ca0v/ceylon/index", ["require", "exports", "node_modules/@ca0v/ceylon/ceylon/index", "node_modules/@ca0v/ceylon/ceylon/assert", "node_modules/@ca0v/ceylon/ceylon/fast-deep-equal", "node_modules/@ca0v/ceylon/ceylon/assertion-error", "node_modules/@ca0v/ceylon/ceylon/expectation"], function (require, exports, index_49, assert_3, fast_deep_equal_2, assertion_error_2, expectation_2) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.expect = index_49.default;
+    exports.assert = assert_3.default;
+    exports.deepEqual = fast_deep_equal_2.equal;
+    exports.AssertionError = assertion_error_2.default;
+    exports.Expectation = expectation_2.default;
+    exports.default = index_49.default;
+});
+define("node_modules/@ca0v/ceylon/tests/index.spec", ["require", "exports", "node_modules/@ca0v/ceylon/index"], function (require, exports, index_50) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    describe("expect", function () {
+        it("creates a new Expectation object", function () {
+            var sut = index_50.expect(true);
+            index_50.expect(sut).toExist();
+            index_50.expect(sut).toBeAn(index_50.Expectation);
+        });
+    });
+});
+define("node_modules/@ca0v/ceylon/tests/assert.spec", ["require", "exports", "node_modules/@ca0v/ceylon/index"], function (require, exports, index_51) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    describe("Assert", function () {
+        it("does not throw when assertion passes", function () {
+            index_51.assert({
+                assertion: true,
+                message: "This should not throw"
+            });
+        });
+        it("throws when the assertion fails", function () {
+            index_51.expect(function () {
+                return index_51.assert({
+                    assertion: false,
+                    message: "This should throw"
+                });
+            }).toThrow();
+        });
+        it("throws error with correct message property", function () {
+            index_51.expect(function () {
+                return index_51.assert({
+                    assertion: false,
+                    message: "This should throw"
+                });
+            }).toThrow("This should throw");
+        });
+        it("throws error with showDiff set to false", function () {
+            try {
+                index_51.assert({
+                    assertion: false,
+                    message: "This should throw"
+                });
+            }
+            catch (e) {
+                index_51.expect(e["showDiff"]).toBeFalse();
+            }
+        });
+        it("throws error with correct actual/expected/showDiff properties", function () {
+            try {
+                index_51.assert({
+                    actual: 1,
+                    assertion: false,
+                    expected: 2,
+                    message: "This should throw"
+                });
+            }
+            catch (e) {
+                index_51.expect(e["actual"]).toBe(1);
+                index_51.expect(e["expected"]).toBe(2);
+                index_51.expect(e["showDiff"]).toBeTrue();
+            }
+        });
+    });
+});
+define("node_modules/@ca0v/ceylon/tests/deep-equal.spec", ["require", "exports", "node_modules/@ca0v/ceylon/index"], function (require, exports, index_52) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    function func1() { }
+    function func2() { }
+    var tests = [
+        {
+            description: "scalars",
+            tests: [
+                {
+                    description: "equal numbers",
+                    value1: 1,
+                    value2: 1,
+                    equal: true
+                },
+                {
+                    description: "not equal numbers",
+                    value1: 1,
+                    value2: 2,
+                    equal: false
+                },
+                {
+                    description: "number and array are not equal",
+                    value1: 1,
+                    value2: [],
+                    equal: false
+                },
+                {
+                    description: "0 and null are not equal",
+                    value1: 0,
+                    value2: null,
+                    equal: false
+                },
+                {
+                    description: "equal strings",
+                    value1: "a",
+                    value2: "a",
+                    equal: true
+                },
+                {
+                    description: "not equal strings",
+                    value1: "a",
+                    value2: "b",
+                    equal: false
+                },
+                {
+                    description: "empty string and null are not equal",
+                    value1: "",
+                    value2: null,
+                    equal: false
+                },
+                {
+                    description: "null is equal to null",
+                    value1: null,
+                    value2: null,
+                    equal: true
+                },
+                {
+                    description: "equal booleans (true)",
+                    value1: true,
+                    value2: true,
+                    equal: true
+                },
+                {
+                    description: "equal booleans (false)",
+                    value1: false,
+                    value2: false,
+                    equal: true
+                },
+                {
+                    description: "not equal booleans",
+                    value1: true,
+                    value2: false,
+                    equal: false
+                },
+                {
+                    description: "1 and true are not equal",
+                    value1: 1,
+                    value2: true,
+                    equal: false
+                },
+                {
+                    description: "0 and false are not equal",
+                    value1: 0,
+                    value2: false,
+                    equal: false
+                },
+                {
+                    description: "NaN and NaN are equal",
+                    value1: NaN,
+                    value2: NaN,
+                    equal: true
+                },
+                {
+                    description: "0 and -0 are equal",
+                    value1: 0,
+                    value2: -0,
+                    equal: true
+                },
+                {
+                    description: "Infinity and Infinity are equal",
+                    value1: Infinity,
+                    value2: Infinity,
+                    equal: true
+                },
+                {
+                    description: "Infinity and -Infinity are not equal",
+                    value1: Infinity,
+                    value2: -Infinity,
+                    equal: false
+                }
+            ]
+        },
+        {
+            description: "objects",
+            tests: [
+                {
+                    description: "empty objects are equal",
+                    value1: {},
+                    value2: {},
+                    equal: true
+                },
+                {
+                    description: 'equal objects (same properties "order")',
+                    value1: { a: 1, b: "2" },
+                    value2: { a: 1, b: "2" },
+                    equal: true
+                },
+                {
+                    description: 'equal objects (different properties "order")',
+                    value1: { a: 1, b: "2" },
+                    value2: { b: "2", a: 1 },
+                    equal: true
+                },
+                {
+                    description: "not equal objects (extra property)",
+                    value1: { a: 1, b: "2" },
+                    value2: { a: 1, b: "2", c: [] },
+                    equal: false
+                },
+                {
+                    description: "not equal objects (different properties)",
+                    value1: { a: 1, b: "2", c: 3 },
+                    value2: { a: 1, b: "2", d: 3 },
+                    equal: false
+                },
+                {
+                    description: "not equal objects (different properties)",
+                    value1: { a: 1, b: "2", c: 3 },
+                    value2: { a: 1, b: "2", d: 3 },
+                    equal: false
+                },
+                {
+                    description: "equal objects (same sub-properties)",
+                    value1: { a: [{ b: "c" }] },
+                    value2: { a: [{ b: "c" }] },
+                    equal: true
+                },
+                {
+                    description: "not equal objects (different sub-property value)",
+                    value1: { a: [{ b: "c" }] },
+                    value2: { a: [{ b: "d" }] },
+                    equal: false
+                },
+                {
+                    description: "not equal objects (different sub-property)",
+                    value1: { a: [{ b: "c" }] },
+                    value2: { a: [{ c: "c" }] },
+                    equal: false
+                },
+                {
+                    description: "empty array and empty object are not equal",
+                    value1: {},
+                    value2: [],
+                    equal: false
+                },
+                {
+                    description: "object with extra undefined properties are not equal #1",
+                    value1: {},
+                    value2: { foo: undefined },
+                    equal: false
+                },
+                {
+                    description: "object with extra undefined properties are not equal #2",
+                    value1: { foo: undefined },
+                    value2: {},
+                    equal: false
+                },
+                {
+                    description: "object with extra undefined properties are not equal #3",
+                    value1: { foo: undefined },
+                    value2: { bar: undefined },
+                    equal: false
+                },
+                {
+                    description: "nulls are equal",
+                    value1: null,
+                    value2: null,
+                    equal: true
+                },
+                {
+                    description: "null and undefined are not equal",
+                    value1: null,
+                    value2: undefined,
+                    equal: false
+                },
+                {
+                    description: "null and empty object are not equal",
+                    value1: null,
+                    value2: {},
+                    equal: false
+                },
+                {
+                    description: "undefined and empty object are not equal",
+                    value1: undefined,
+                    value2: {},
+                    equal: false
+                }
+            ]
+        },
+        {
+            description: "arrays",
+            tests: [
+                {
+                    description: "two empty arrays are equal",
+                    value1: [],
+                    value2: [],
+                    equal: true
+                },
+                {
+                    description: "equal arrays",
+                    value1: [1, 2, 3],
+                    value2: [1, 2, 3],
+                    equal: true
+                },
+                {
+                    description: "not equal arrays (different item)",
+                    value1: [1, 2, 3],
+                    value2: [1, 2, 4],
+                    equal: false
+                },
+                {
+                    description: "not equal arrays (different length)",
+                    value1: [1, 2, 3],
+                    value2: [1, 2],
+                    equal: false
+                },
+                {
+                    description: "equal arrays of objects",
+                    value1: [{ a: "a" }, { b: "b" }],
+                    value2: [{ a: "a" }, { b: "b" }],
+                    equal: true
+                },
+                {
+                    description: "not equal arrays of objects",
+                    value1: [{ a: "a" }, { b: "b" }],
+                    value2: [{ a: "a" }, { b: "c" }],
+                    equal: false
+                },
+                {
+                    description: "pseudo array and equivalent array are not equal",
+                    value1: { "0": 0, "1": 1, length: 2 },
+                    value2: [0, 1],
+                    equal: false
+                }
+            ]
+        },
+        {
+            description: "Date objects",
+            tests: [
+                {
+                    description: "equal date objects",
+                    value1: new Date("2017-06-16T21:36:48.362Z"),
+                    value2: new Date("2017-06-16T21:36:48.362Z"),
+                    equal: true
+                },
+                {
+                    description: "not equal date objects",
+                    value1: new Date("2017-06-16T21:36:48.362Z"),
+                    value2: new Date("2017-01-01T00:00:00.000Z"),
+                    equal: false
+                },
+                {
+                    description: "date and string are not equal",
+                    value1: new Date("2017-06-16T21:36:48.362Z"),
+                    value2: "2017-06-16T21:36:48.362Z",
+                    equal: false
+                },
+                {
+                    description: "date and object are not equal",
+                    value1: new Date("2017-06-16T21:36:48.362Z"),
+                    value2: {},
+                    equal: false
+                }
+            ]
+        },
+        {
+            description: "RegExp objects",
+            tests: [
+                {
+                    description: "equal RegExp objects",
+                    value1: /foo/,
+                    value2: /foo/,
+                    equal: true
+                },
+                {
+                    description: "not equal RegExp objects (different pattern)",
+                    value1: /foo/,
+                    value2: /bar/,
+                    equal: false
+                },
+                {
+                    description: "not equal RegExp objects (different flags)",
+                    value1: /foo/,
+                    value2: /foo/i,
+                    equal: false
+                },
+                {
+                    description: "RegExp and string are not equal",
+                    value1: /foo/,
+                    value2: "foo",
+                    equal: false
+                },
+                {
+                    description: "RegExp and object are not equal",
+                    value1: /foo/,
+                    value2: {},
+                    equal: false
+                }
+            ]
+        },
+        {
+            description: "functions",
+            tests: [
+                {
+                    description: "same function is equal",
+                    value1: func1,
+                    value2: func1,
+                    equal: true
+                },
+                {
+                    description: "different functions are not equal",
+                    value1: func1,
+                    value2: func2,
+                    equal: false
+                }
+            ]
+        },
+        {
+            description: "sample objects",
+            tests: [
+                {
+                    description: "big object",
+                    value1: {
+                        prop1: "value1",
+                        prop2: "value2",
+                        prop3: "value3",
+                        prop4: {
+                            subProp1: "sub value1",
+                            subProp2: {
+                                subSubProp1: "sub sub value1",
+                                subSubProp2: [1, 2, { prop2: 1, prop: 2 }, 4, 5]
+                            }
+                        },
+                        prop5: 1000,
+                        prop6: new Date(2016, 2, 10)
+                    },
+                    value2: {
+                        prop5: 1000,
+                        prop3: "value3",
+                        prop1: "value1",
+                        prop2: "value2",
+                        prop6: new Date("2016/03/10"),
+                        prop4: {
+                            subProp2: {
+                                subSubProp1: "sub sub value1",
+                                subSubProp2: [1, 2, { prop2: 1, prop: 2 }, 4, 5]
+                            },
+                            subProp1: "sub value1"
+                        }
+                    },
+                    equal: true
+                }
+            ]
+        }
+    ];
+    describe("equal", function () {
+        tests.forEach(function (suite) {
+            describe(suite.description, function () {
+                suite.tests.forEach(function (test) {
+                    it(test.description, function () {
+                        index_52.expect(test.equal).toEqual(index_52.deepEqual(test.value1, test.value2));
+                    });
+                });
+            });
+        });
+    });
+});
+define("node_modules/@ca0v/ceylon/tests/assertion-error.spec", ["require", "exports", "node_modules/@ca0v/ceylon/index"], function (require, exports, index_53) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    describe("AssertionError", function () {
+        it("returns an Error object", function () {
+            var error = index_53.AssertionError({
+                message: "Error message"
+            });
+            index_53.expect(error).toBeAn(Error);
+        });
+        it("sets the error.message property", function () {
+            var error = index_53.AssertionError({
+                message: "Error message"
+            });
+            index_53.expect(error.message).toBe("Error message");
+        });
+        it("sets does not set the actual, expected, or showDiff properties when unspecified", function () {
+            var error = index_53.AssertionError({
+                message: "Error message"
+            });
+            index_53.expect(error["actual"]).toNotExist();
+            index_53.expect(error["expected"]).toNotExist();
+            index_53.expect(error["showDiff"]).toNotExist();
+        });
+        it("sets the actual, expected, and showDiff properties when specified", function () {
+            var error = index_53.AssertionError({
+                actual: "I ate an apple",
+                expected: "I ate an orange",
+                message: "Error message",
+                showDiff: true
+            });
+            index_53.expect(error["actual"]).toBe("I ate an apple");
+            index_53.expect(error["expected"]).toBe("I ate an orange");
+            index_53.expect(error["showDiff"]).toBeTrue();
+        });
+    });
+});
+define("node_modules/ol3-fun/tests/spec/packages", ["require", "exports", "node_modules/@ca0v/ceylon/tests/index.spec", "node_modules/@ca0v/ceylon/tests/assert.spec", "node_modules/@ca0v/ceylon/tests/deep-equal.spec", "node_modules/@ca0v/ceylon/tests/assertion-error.spec"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+});
+define("node_modules/ol3-fun/tests/base", ["require", "exports", "node_modules/ol3-fun/ol3-fun/slowloop", "node_modules/@ca0v/ceylon/index"], function (require, exports, slowloop_2, index_54) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.slowloop = slowloop_2.slowloop;
+    exports.expect = index_54.expect;
+    exports.assert = index_54.assert;
+    exports.deepEqual = index_54.deepEqual;
     function describe(title, fn) {
         console.log(title || "undocumented test group");
         return window.describe(title, fn);
@@ -14848,6 +16327,11 @@ define("node_modules/ol3-fun/tests/base", ["require", "exports", "node_modules/o
 define("node_modules/ol3-fun/tests/spec/api", ["require", "exports", "node_modules/ol3-fun/tests/base", "node_modules/ol3-fun/index"], function (require, exports, base_1, API) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
+    base_1.describe("Test Harness API", function () {
+        base_1.it("full api exists", function () {
+            base_1.shouldEqual([base_1.describe, base_1.it, base_1.should, base_1.shouldEqual, base_1.shouldThrow, base_1.assert, base_1.expect, base_1.slowloop, base_1.stringify].every(function (f) { return typeof f === "function"; }), true, "API functions exist");
+        });
+    });
     base_1.describe("API", function () {
         base_1.it("full api exists", function () {
             base_1.shouldEqual([
@@ -14868,7 +16352,7 @@ define("node_modules/ol3-fun/tests/spec/api", ["require", "exports", "node_modul
                 API.shuffle,
                 API.slowloop,
                 API.toggle,
-                API.uuid,
+                API.uuid
             ].every(function (f) { return typeof f === "function"; }), true, "API functions exist");
         });
     });
@@ -15128,14 +16612,16 @@ define("node_modules/ol3-fun/tests/spec/deep-extend", ["require", "exports", "no
         it("trivial merges", function () {
             base_4.shouldEqual(base_4.stringify(deep_extend_2.extend({}, {})), base_4.stringify({}), "empty objects");
             base_4.shouldEqual(base_4.stringify(deep_extend_2.extend([], [])), base_4.stringify([]), "empty arrays");
+            base_4.shouldEqual(base_4.stringify(deep_extend_2.extend([], {})), base_4.stringify([]), "empty arrays with empty object");
             base_4.shouldEqual(base_4.stringify(deep_extend_2.extend([,], [, ,])), base_4.stringify([,]), "arrays with empty items");
             var o = { a: 1 };
             base_4.shouldEqual(o, deep_extend_2.extend(o, o), "merges same object");
             base_4.should(o !== deep_extend_2.extend(o), "clones when second argument not provided");
         });
         it("invalid merges", function () {
-            base_4.shouldThrow(function () { return deep_extend_2.extend({}, []); }, "{} and []");
-            base_4.shouldThrow(function () { return deep_extend_2.extend([], {}); }, "[] and {}");
+            base_4.shouldThrow(function () { return deep_extend_2.extend({}, []); }, "array->object considered an error");
+            base_4.shouldThrow(function () { return deep_extend_2.extend({ a: 1 }, []); }, "{a:1} and []");
+            base_4.shouldThrow(function () { return deep_extend_2.extend([], { a: 1 }); }, "[] and {a:1}");
             base_4.shouldThrow(function () { return deep_extend_2.extend(1, 2); }, "primitives");
             base_4.shouldThrow(function () { return deep_extend_2.extend(new Date(2000, 1, 1), new Date(2000, 1, 2)); }, "clonable primitives");
             var a = { a: 1 };
@@ -15159,11 +16645,12 @@ define("node_modules/ol3-fun/tests/spec/deep-extend", ["require", "exports", "no
         });
         it("simple array merges", function () {
             base_4.shouldEqual(base_4.stringify(deep_extend_2.extend([1], [])), base_4.stringify([1]), "[1] + []");
-            base_4.shouldEqual(base_4.stringify(deep_extend_2.extend([1], [2])), base_4.stringify([2]), "[1] + [2]");
-            base_4.shouldEqual(base_4.stringify(deep_extend_2.extend([1, 2, 3], [2])), base_4.stringify([2, 2, 3]), "[1,2,3] + [2]");
-            base_4.shouldEqual(base_4.stringify(deep_extend_2.extend([2], [1, 2, 3])), base_4.stringify([1, 2, 3]), "[2] + [1,2,3]");
+            base_4.shouldEqual(base_4.stringify(deep_extend_2.extend([1], [2])), base_4.stringify([2]), "[1<-2]");
+            base_4.shouldEqual(base_4.stringify(deep_extend_2.extend([1, 2, 3], [2])), base_4.stringify([2, 2, 3]), "[1<-2,2,3]]");
+            base_4.shouldEqual(base_4.stringify(deep_extend_2.extend([2], [1, 2, 3])), base_4.stringify([1, 2, 3]), "[2<-1, 2, 3]");
             base_4.shouldEqual(base_4.stringify(deep_extend_2.extend([, , , 4], [1, 2, 3])), base_4.stringify([1, 2, 3, 4]), "array can have empty items");
-            base_4.shouldEqual(base_4.stringify(deep_extend_2.extend([{ id: 1 }], [{ id: 2 }])), base_4.stringify([{ id: 1 }, { id: 2 }]), "[1] + [2] with ids");
+            base_4.should(base_4.deepEqual(deep_extend_2.extend([1, 2, 3], { 1: 100 }), [1, 100, 3]), "array<-object");
+            base_4.should(base_4.deepEqual(deep_extend_2.extend([{ id: 1 }], [{ id: 2 }]), [{ id: 1 }, { id: 2 }]), "[1] + [2] with ids");
         });
         it("preserves array ordering", function () {
             base_4.shouldEqual(deep_extend_2.extend([{ id: 1 }], [{ id: 1 }, { id: 2 }])[0].id, 1, "first item id");
@@ -15254,6 +16741,26 @@ define("node_modules/ol3-fun/tests/spec/deep-extend", ["require", "exports", "no
             base_4.shouldEqual(x, z, "returns x");
             base_4.shouldEqual(xfoo, z.foo, "reference foo preserved");
         });
+        it("confirms trace on simple array merging", function () {
+            var trace = [];
+            var result = deep_extend_2.extend([1, 2, 5], [, 3], trace);
+            base_4.shouldEqual(base_4.stringify(result), base_4.stringify([1, 3, 5]), "confirm array extended");
+            base_4.shouldEqual(trace.length, 1, "length: 2<-3");
+            base_4.shouldEqual(base_4.stringify(trace[0].path), base_4.stringify([1]), "path: target[1]");
+            base_4.shouldEqual(trace[0].key, 1, "key: target[*1*] was 2 and is now 3");
+            base_4.shouldEqual(trace[0].was, 2, "was: target[1] was *2* and is now 3");
+            base_4.shouldEqual(trace[0].value, 3, "value: target[1] was 2 and is now *3*");
+        });
+        it("confirms trace diff on simple array", function () {
+            var trace = [];
+            deep_extend_2.extend([1, 2, 5], [, 3], trace);
+            base_4.shouldEqual(base_4.stringify(diff(trace)), base_4.stringify({ 1: 3 }), "simple array trace diff");
+        });
+        it("confirms trace diff on simple array against array-like object", function () {
+            var trace = [];
+            deep_extend_2.extend([1, 2, 5], { 1: 3 }, trace);
+            base_4.shouldEqual(base_4.stringify(diff(trace)), base_4.stringify({ 1: 3 }), "simple array trace diff");
+        });
         it("confirms trace is empty when merging duplicate objects", function () {
             var trace = [];
             deep_extend_2.extend({}, {}, trace);
@@ -15296,6 +16803,24 @@ define("node_modules/ol3-fun/tests/spec/deep-extend", ["require", "exports", "no
             base_4.shouldEqual(trace.length, 2, "1->10, 3->30");
             deep_extend_2.extend({ a: [1, 2, [3]] }, { a: [1, 2, [3, 4], 5] }, (trace = []));
             base_4.shouldEqual(trace.length, 2, "[3]->[3,4], 4 added");
+        });
+        it("confirms trace diff when exactly one change is made", function () {
+            var trace = [];
+            deep_extend_2.extend({ a: 1, b: [1], c: { d: 1 } }, { a: 2, b: [1], c: { d: 1 } }, (trace = []));
+            base_4.shouldEqual(base_4.stringify(diff(trace)), base_4.stringify({ a: 2 }), "a:1->2");
+            deep_extend_2.extend({ a: 1, b: [1], c: { d: 1 } }, { a: 1, b: [2], c: { d: 1 } }, (trace = []));
+            base_4.shouldEqual(base_4.stringify(diff(trace)), base_4.stringify({ b: { 0: 2 } }), "b:1->2");
+            deep_extend_2.extend({ a: 1, b: [1], c: { d: 1 } }, { a: 1, b: [1], c: { d: 2 } }, (trace = []));
+            base_4.shouldEqual(base_4.stringify(diff(trace)), base_4.stringify({ c: { d: 2 } }), "d:1->2");
+            deep_extend_2.extend({ a: [1, 2, 3] }, { a: [1, 2, 30] }, (trace = []));
+            base_4.shouldEqual(base_4.stringify(diff(trace)), base_4.stringify({ a: { 2: 30 } }), "a[2]:3->30");
+            deep_extend_2.extend({ a: [1, 2, [3]] }, { a: [1, 2, [3, 4]] }, (trace = []));
+            base_4.shouldEqual(base_4.stringify(diff(trace)), base_4.stringify({ a: { 2: { 1: 4 } } }), "[3]->[3,4]");
+        });
+        it("confirms trace diff when exactly two changes are made", function () {
+            var trace = [];
+            deep_extend_2.extend({ a: [1, 2, ["3"]] }, { a: [1, 2, ["A", "B"]] }, (trace = []));
+            base_4.shouldEqual(base_4.stringify(diff(trace)), base_4.stringify({ a: { 2: { 0: "A", 1: "B" } } }), "a[2]:[3]<-[A,B]");
         });
         it("confirms trace content", function () {
             var trace = [];
@@ -15380,62 +16905,26 @@ define("node_modules/ol3-fun/tests/spec/deep-extend", ["require", "exports", "no
     function diff(trace) {
         var result = {};
         trace.forEach(function (t) {
-            var path = t.path.reverse();
-            var key = path.pop();
+            var path = t.path.slice();
+            var key = t.key;
+            console.assert(key === path.pop());
             forcePath(result, path)[key] = t.value;
         });
         return result;
     }
 });
-define("node_modules/ol3-fun/ol3-fun/extensions", ["require", "exports"], function (require, exports) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    var Extensions = (function () {
-        function Extensions() {
-            this.hash = new WeakMap(null);
-        }
-        Extensions.prototype.isExtended = function (o) {
-            return this.hash.has(o);
-        };
-        Extensions.prototype.extend = function (o, ext) {
-            var hashData = this.hash.get(o);
-            if (!hashData) {
-                hashData = {};
-                this.hash.set(o, hashData);
-            }
-            ext && Object.keys(ext).forEach(function (k) { return (hashData[k] = ext[k]); });
-            return hashData;
-        };
-        Extensions.prototype.bind = function (o1, o2) {
-            if (this.isExtended(o1)) {
-                if (this.isExtended(o2)) {
-                    if (this.hash.get(o1) === this.hash.get(o2))
-                        return;
-                    throw "both objects already bound";
-                }
-                else {
-                    this.hash.set(o2, this.extend(o1));
-                }
-            }
-            else {
-                this.hash.set(o1, this.extend(o2));
-            }
-        };
-        return Extensions;
-    }());
-    exports.Extensions = Extensions;
-});
-define("node_modules/ol3-fun/tests/spec/extensions", ["require", "exports", "node_modules/ol3-fun/tests/base", "node_modules/ol3-fun/ol3-fun/extensions", "node_modules/ol3-fun/ol3-fun/common"], function (require, exports, base_5, extensions_1, common_15) {
+define("node_modules/ol3-fun/tests/spec/extensions", ["require", "exports", "node_modules/ol3-fun/tests/base", "node_modules/ol3-fun/index", "node_modules/ol3-fun/ol3-fun/common"], function (require, exports, base_5, index_55, common_15) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     base_5.describe("data/extensions", function () {
         base_5.it("ensures the api", function () {
-            var x = new extensions_1.Extensions();
+            var x = new index_55.Extensions();
             base_5.shouldEqual(typeof x.extend, "function", "extend method");
             base_5.shouldEqual(typeof x.bind, "function", "bind method");
+            base_5.shouldEqual(typeof x.isExtended, "function", "isExtended method");
         });
         base_5.it("ensures no side-effects on the object", function () {
-            var x = new extensions_1.Extensions();
+            var x = new index_55.Extensions();
             var o = {};
             var expected = JSON.stringify(o);
             x.extend(o, { custom: "data" });
@@ -15443,15 +16932,15 @@ define("node_modules/ol3-fun/tests/spec/extensions", ["require", "exports", "nod
             base_5.shouldEqual(expected, actual, "no side-effects");
         });
         base_5.it("ensures two objects can be bound to same extension data", function () {
-            var x = new extensions_1.Extensions();
+            var x = new index_55.Extensions();
             var math = x.extend(Math, { sqrt2: Math.sqrt(2) });
             base_5.should(!!x.extend(Math).sqrt2, "Math.sqrt2");
             x.bind(Number, Math);
             base_5.shouldEqual(Math.round(math.sqrt2 * x.extend(Number).sqrt2), 2, "sqrt2*sqrt2 = 2");
         });
         base_5.it("ensures two extensions can bind data to the same object", function () {
-            var ext1 = new extensions_1.Extensions();
-            var ext2 = new extensions_1.Extensions();
+            var ext1 = new index_55.Extensions();
+            var ext2 = new index_55.Extensions();
             var o = {};
             ext1.extend(o, { ext: 1 });
             ext2.extend(o, { ext: 2 });
@@ -15459,22 +16948,33 @@ define("node_modules/ol3-fun/tests/spec/extensions", ["require", "exports", "nod
             base_5.shouldEqual(ext2.extend(o).ext, 2, "ext2");
         });
         base_5.it("ensures two extended objects cannot be bound", function () {
-            var x = new extensions_1.Extensions();
+            var x = new index_55.Extensions();
             var o = {};
             var p = {};
             x.extend(o);
             x.extend(p);
             base_5.shouldThrow(function () { return x.bind(o, p); }, "cannot bind extended objects");
         });
+        base_5.it("ensures isExtended returns true iff it is extended", function () {
+            var x1 = new index_55.Extensions();
+            var x2 = new index_55.Extensions();
+            var o = {};
+            base_5.should(!x1.isExtended(o), "not extended in x1");
+            x1.extend(o);
+            base_5.should(x1.isExtended(o), "extended in x1");
+            base_5.should(!x2.isExtended(o), "not extended in x2");
+            x2.extend(o);
+            base_5.should(x2.isExtended(o), "extended in x2");
+        });
         base_5.it("extension references are preserved", function () {
-            var x = new extensions_1.Extensions();
+            var x = new index_55.Extensions();
             var o = {};
             var p = x.extend(o);
             x.extend(o, { name: "P" });
             base_5.shouldEqual(p.name, "P", "extension references are preserved");
         });
         base_5.it("binds two objects to the same extension", function () {
-            var x = new extensions_1.Extensions();
+            var x = new index_55.Extensions();
             var o1 = { id: 1 };
             var o2 = Object.create({ id: 2 });
             x.bind(o1, o2);
@@ -15484,7 +16984,7 @@ define("node_modules/ol3-fun/tests/spec/extensions", ["require", "exports", "nod
             base_5.shouldEqual(x.extend(o1).foo, "foo2");
         });
         base_5.it("extension integrity testing (100 objects X 10 extensions)", function () {
-            var x = common_15.range(10).map(function (n) { return new extensions_1.Extensions(); });
+            var x = common_15.range(10).map(function (n) { return new index_55.Extensions(); });
             var data = common_15.range(1000).map(function (n) { return Object.create({ id: n }); });
             data.map(function (d, i) { return x[i % 10].extend(d, { data: common_15.shuffle(common_15.range(1000)) }); });
             data.forEach(function (d, i) {
@@ -15501,13 +17001,13 @@ define("node_modules/ol3-fun/tests/spec/extensions", ["require", "exports", "nod
             base_5.shouldEqual(sums.reduce(function (a, b) { return a + b; }, 0), 166666500);
         });
         base_5.it("extensions performance testing (1 million accesses)", function () {
-            var x = new extensions_1.Extensions();
+            var x = new index_55.Extensions();
             var data = common_15.range(500000).map(function (n) { return ({ id: n }); });
             var counter = { count: 0 };
             data.forEach(function (d) { return x.extend(d, { counter: counter }); });
             data.forEach(function (d) { return x.extend(d).counter.count++; });
             base_5.shouldEqual(counter.count, data.length, "accessed " + data.length + " items");
-        }).timeout(600);
+        }).timeout(1000);
     });
 });
 define("node_modules/ol3-fun/tests/spec/is-primitive", ["require", "exports", "node_modules/ol3-fun/tests/base", "node_modules/ol3-fun/ol3-fun/is-primitive"], function (require, exports, base_6, is_primitive_3) {
@@ -15687,13 +17187,13 @@ define("node_modules/ol3-fun/tests/spec/snapshot", ["require", "exports", "node_
         result[result.length - 1] = result[0];
         return result;
     }
-    describe("Snapshot", function () {
-        it("Snapshot", function () {
+    base_11.describe("Snapshot", function () {
+        base_11.it("Snapshot", function () {
             base_11.should(!!Snapshot, "Snapshot");
             base_11.should(!!Snapshot.render, "Snapshot.render");
             base_11.should(!!Snapshot.snapshot, "Snapshot.snapshot");
         });
-        it("Converts a point to image data", function () {
+        base_11.it("Converts a point to image data", function () {
             var feature = new ol.Feature(new ol.geom.Point([0, 0]));
             feature.setStyle(new ol.style.Style({
                 image: new ol.style.Circle({
@@ -15711,7 +17211,7 @@ define("node_modules/ol3-fun/tests/spec/snapshot", ["require", "exports", "node_
                     }),
                     stroke: new ol.style.Stroke({
                         color: "black",
-                        width: 2,
+                        width: 2
                     }),
                     offsetY: 16
                 })
@@ -15724,21 +17224,21 @@ define("node_modules/ol3-fun/tests/spec/snapshot", ["require", "exports", "node_
                 base_11.shouldEqual(data, pointData, "point data as expected");
             }
         });
-        it("Converts a triangle to image data", function () {
+        base_11.it("Converts a triangle to image data", function () {
             var points = circle(50, 4);
             var feature = new ol.Feature(new ol.geom.Polygon([points]));
             feature.setStyle(createStyle("Triangle"));
             var data = Snapshot.snapshot(feature, 64);
             show(data);
         });
-        it("Converts a diamond to image data", function () {
+        base_11.it("Converts a diamond to image data", function () {
             var points = circle(50, 5);
             var feature = new ol.Feature(new ol.geom.Polygon([points]));
             feature.setStyle(createStyle("Diamond"));
             var data = Snapshot.snapshot(feature, 64);
             show(data);
         });
-        it("Converts a polygon to image data", function () {
+        base_11.it("Converts a polygon to image data", function () {
             var geom = new ol.geom.Polygon([circle(3 + 100 * Math.random())]);
             var feature = new ol.Feature(geom);
             base_11.shouldEqual(feature.getGeometry(), geom, "geom still assigned");
@@ -15775,7 +17275,7 @@ define("node_modules/ol3-fun/tests/spec/snapshot", ["require", "exports", "node_
                 }),
                 stroke: new ol.style.Stroke({
                     color: "black",
-                    width: 2,
+                    width: 2
                 }),
                 offsetY: 16
             })
@@ -15814,34 +17314,509 @@ define("node_modules/ol3-fun/tests/spec/zoom-to-feature", ["require", "exports",
         });
     });
 });
-define("node_modules/ol3-fun/tests/index", ["require", "exports", "node_modules/ol3-fun/tests/spec/api", "node_modules/ol3-fun/tests/spec/common", "node_modules/ol3-fun/tests/spec/slowloop", "node_modules/ol3-fun/tests/spec/deep-extend", "node_modules/ol3-fun/tests/spec/extensions", "node_modules/ol3-fun/tests/spec/is-primitive", "node_modules/ol3-fun/tests/spec/is-cycle", "node_modules/ol3-fun/tests/spec/openlayers-test", "node_modules/ol3-fun/tests/spec/parse-dms", "node_modules/ol3-fun/tests/spec/polyline", "node_modules/ol3-fun/tests/spec/snapshot", "node_modules/ol3-fun/tests/spec/zoom-to-feature"], function (require, exports) {
+define("node_modules/ol3-fun/tests/index", ["require", "exports", "node_modules/ol3-fun/tests/spec/packages", "node_modules/ol3-fun/tests/spec/api", "node_modules/ol3-fun/tests/spec/common", "node_modules/ol3-fun/tests/spec/slowloop", "node_modules/ol3-fun/tests/spec/deep-extend", "node_modules/ol3-fun/tests/spec/extensions", "node_modules/ol3-fun/tests/spec/is-primitive", "node_modules/ol3-fun/tests/spec/is-cycle", "node_modules/ol3-fun/tests/spec/openlayers-test", "node_modules/ol3-fun/tests/spec/parse-dms", "node_modules/ol3-fun/tests/spec/polyline", "node_modules/ol3-fun/tests/spec/snapshot", "node_modules/ol3-fun/tests/spec/zoom-to-feature"], function (require, exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
 });
-define("node_modules/ol3-draw/tests/spec/draw", ["require", "exports", "node_modules/ol3-fun/tests/base", "node_modules/ol3-draw/ol3-draw/ol3-draw"], function (require, exports, base_13, ol3_draw_3) {
+define("node_modules/ol3-symbolizer/tests/spec/packages", ["require", "exports", "node_modules/ol3-fun/tests/index"], function (require, exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    base_13.describe("Draw Tests", function () {
-        base_13.it("Draw", function () {
-            base_13.should(!!ol3_draw_3.Draw, "Draw");
+});
+define("node_modules/ol3-symbolizer/tests/spec/common", ["require", "exports", "node_modules/ol3-symbolizer/ol3-symbolizer/common/assign", "node_modules/ol3-fun/index", "node_modules/ol3-fun/tests/base"], function (require, exports, assign_2, index_56, base_13) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    base_13.describe("assign tests", function () {
+        base_13.it("assign empty", function () {
         });
-        base_13.it("DEFAULT_OPTIONS", function () {
+        base_13.it("assign number", function () {
+            var target = {};
+            assign_2.assign(target, "a", 100);
+            base_13.should(target.a === 100, "");
+        });
+        base_13.it("assign object", function () {
+            var target = {};
+            assign_2.assign(target, "a", { a: 100 });
+            base_13.should(target.a.a === 100, "");
+        });
+    });
+    base_13.describe("defaults tests", function () {
+        base_13.it("defaults number", function () {
+            base_13.should(index_56.defaults({}, { a: 100 }).a === 100, "");
+            base_13.should(index_56.defaults(index_56.defaults({}, { a: 100 }), { a: 200 }).a === 100, "");
+            var a = index_56.defaults({}, { a: 1 });
+            base_13.should(a === index_56.defaults(a, { a: 2 }), "");
+        });
+    });
+    base_13.describe("mixin tests", function () {
+        base_13.it("mixin number", function () {
+            base_13.should(index_56.mixin({}, { a: 100 }).a === 100, "");
+            base_13.should(index_56.mixin(index_56.mixin({}, { a: 100 }), { a: 200 }).a === 200, "");
+            var a = index_56.mixin({}, { a: 1 });
+            base_13.should(a === index_56.mixin(a, { a: 2 }), "");
+        });
+    });
+    base_13.describe("test accessing openlayers using amd", function () {
+        base_13.it("log ol.style.Style", function () {
+            require(["openlayers"], function (ol) {
+                var style = ol.style.Style;
+                base_13.should(!!style, "");
+                console.log(style.toString());
+            });
+        });
+    });
+});
+define("node_modules/ol3-symbolizer/ol3-symbolizer/styles/stroke/linedash", ["require", "exports"], function (require, exports) {
+    "use strict";
+    var dasharray = {
+        solid: "none",
+        shortdash: [4, 1],
+        shortdot: [1, 1],
+        shortdashdot: [4, 1, 1, 1],
+        shortdashdotdot: [4, 1, 1, 1, 1, 1],
+        dot: [1, 3],
+        dash: [4, 3],
+        longdash: [8, 3],
+        dashdot: [4, 3, 1, 3],
+        longdashdot: [8, 3, 1, 3],
+        longdashdotdot: [8, 3, 1, 3, 1, 3]
+    };
+    return dasharray;
+});
+define("node_modules/ol3-symbolizer/tests/spec/ol3-symbolizer", ["require", "exports", "node_modules/ol3-symbolizer/ol3-symbolizer/styles/stroke/linedash", "node_modules/ol3-fun/tests/base", "node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer"], function (require, exports, Dashes, base_14, ol3_symbolizer_7) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    base_14.describe("ol3-symbolizer", function () {
+        var converter = new ol3_symbolizer_7.StyleConverter();
+        base_14.describe("OL Format Tests", function () {
+            base_14.it("Ensures interface does not break", function () {
+                var circle = {};
+                circle.fill;
+                circle.opacity;
+                circle.radius;
+                circle.snapToPixel;
+                circle.stroke;
+                var color = {};
+                color === [1] || color == "";
+                var fill = {};
+                fill.color;
+                fill.gradient;
+                fill.image;
+                fill.pattern;
+                var icon = {};
+                icon["anchor-x"];
+                icon["anchor-y"];
+                icon.anchor;
+                icon.anchorOrigin;
+                icon.anchorXUnits;
+                icon.anchorYUnits;
+                icon.color;
+                icon.crossOrigin;
+                icon.offset;
+                icon.offsetOrigin;
+                icon.opacity;
+                icon.rotateWithView;
+                icon.rotation;
+                icon.scale;
+                icon.size;
+                icon.snapToPixel;
+                icon.src;
+                var image = {};
+                image.opacity;
+                image.rotateWithView;
+                image.rotation;
+                image.scale;
+                image.snapToPixel;
+            });
+        });
+        base_14.describe("OL StyleConverter API Tests", function () {
+            base_14.it("StyleConverter API", function () {
+                var converter = new ol3_symbolizer_7.StyleConverter();
+                base_14.should(typeof converter.fromJson === "function", "fromJson exists");
+                base_14.should(typeof converter.toJson === "function", "toJson exists");
+            });
+        });
+        base_14.describe("OL StyleConverter Json Tests", function () {
+            base_14.it("Circle Tests", function () {
+                var baseline = {
+                    circle: {
+                        fill: {
+                            color: "rgba(197,37,84,0.90)"
+                        },
+                        opacity: 1,
+                        stroke: {
+                            color: "rgba(227,83,105,1)",
+                            width: 4.4
+                        },
+                        radius: 7.3
+                    },
+                    text: {
+                        fill: {
+                            color: "rgba(205,86,109,0.9)"
+                        },
+                        stroke: {
+                            color: "rgba(252,175,131,0.5)",
+                            width: 2
+                        },
+                        text: "Test",
+                        "offset-x": 0,
+                        "offset-y": 20,
+                        font: "18px fantasy"
+                    }
+                };
+                var style = converter.fromJson(baseline);
+                var circleStyle = style.getImage();
+                base_14.should(circleStyle !== null, "getImage returns a style");
+                base_14.shouldEqual(circleStyle.getRadius(), baseline.circle.radius, "getImage is a circle and radius");
+                var circleJson = converter.toJson(style);
+                base_14.should(circleJson.circle !== null, "json contains a circle");
+                base_14.shouldEqual(circleJson.circle.radius, baseline.circle.radius, "circle radius");
+            });
+            base_14.it("Star Tests", function () {
+                var baseline = {
+                    star: {
+                        fill: {
+                            color: "rgba(54,47,234,1)"
+                        },
+                        stroke: {
+                            color: "rgba(75,92,105,0.85)",
+                            width: 4
+                        },
+                        radius: 9,
+                        radius2: 0,
+                        points: 6
+                    }
+                };
+                var style = converter.fromJson(baseline);
+                var starStyle = style.getImage();
+                base_14.should(starStyle !== null, "getImage returns a style");
+                base_14.shouldEqual(starStyle.getRadius(), baseline.star.radius, "starStyle radius");
+                base_14.shouldEqual(starStyle.getRadius2(), baseline.star.radius2, "starStyle radius2");
+                base_14.shouldEqual(starStyle.getPoints(), baseline.star.points, "starStyle points");
+                var starJson = converter.toJson(style);
+                base_14.should(starJson.star !== null, "json contains a star");
+                base_14.shouldEqual(starJson.star.radius, baseline.star.radius, "starJson radius");
+                base_14.shouldEqual(starJson.star.radius2, baseline.star.radius2, "starJson radius2");
+                base_14.shouldEqual(starJson.star.points, baseline.star.points, "starJson point count");
+            });
+            base_14.it("Fill Test", function () {
+                var baseline = {
+                    fill: {
+                        gradient: {
+                            type: "linear(200,0,201,0)",
+                            stops: "rgba(255,0,0,.1) 0%;rgba(255,0,0,0.8) 100%"
+                        }
+                    }
+                };
+                var style = converter.fromJson(baseline);
+                var fillStyle = style.getFill();
+                base_14.should(fillStyle !== null, "fillStyle exists");
+                var gradient = fillStyle.getColor();
+                base_14.shouldEqual(gradient.stops, baseline.fill.gradient.stops, "fillStyle color");
+                base_14.shouldEqual(gradient.type, baseline.fill.gradient.type, "fillStyle color");
+            });
+            base_14.it("Stroke Test", function () {
+                var baseline = {
+                    stroke: {
+                        color: "orange",
+                        width: 2,
+                        lineDash: Dashes.longdashdotdot
+                    }
+                };
+                var style = converter.fromJson(baseline);
+                var strokeStyle = style.getStroke();
+                base_14.should(strokeStyle !== null, "strokeStyle exists");
+                base_14.shouldEqual(strokeStyle.getColor(), baseline.stroke.color, "strokeStyle color");
+                base_14.shouldEqual(strokeStyle.getWidth(), baseline.stroke.width, "strokeStyle width");
+                base_14.shouldEqual(strokeStyle.getLineDash().join(), baseline.stroke.lineDash.join(), "strokeStyle lineDash");
+            });
+            base_14.it("Text Test", function () {
+                var baseline = {
+                    text: {
+                        fill: {
+                            color: "rgba(75,92,85,0.85)"
+                        },
+                        stroke: {
+                            color: "rgba(255,255,255,1)",
+                            width: 5
+                        },
+                        "offset-x": 5,
+                        "offset-y": 10,
+                        offsetX: 15,
+                        offsetY: 20,
+                        text: "fantasy light",
+                        font: "18px serif"
+                    }
+                };
+                var style = converter.fromJson(baseline);
+                var textStyle = style.getText();
+                base_14.should(textStyle !== null, "textStyle exists");
+                base_14.shouldEqual(textStyle.getFill().getColor(), baseline.text.fill.color, "textStyle text color");
+                base_14.shouldEqual(textStyle.getText(), baseline.text.text, "textStyle text");
+                base_14.shouldEqual(textStyle.getOffsetX(), baseline.text["offset-x"], "textStyle color");
+                base_14.shouldEqual(textStyle.getOffsetY(), baseline.text["offset-y"], "textStyle color");
+                base_14.shouldEqual(textStyle.getFont(), baseline.text.font, "textStyle font");
+            });
+        });
+        base_14.describe("OL Basic shapes", function () {
+            base_14.it("cross, square, diamond, star, triangle, x", function () {
+                var cross = {
+                    star: {
+                        opacity: 0.5,
+                        fill: {
+                            color: "red"
+                        },
+                        stroke: {
+                            color: "black",
+                            width: 2
+                        },
+                        points: 4,
+                        radius: 10,
+                        radius2: 0,
+                        angle: 0
+                    }
+                };
+                var square = {
+                    star: {
+                        fill: {
+                            color: "red"
+                        },
+                        stroke: {
+                            color: "black",
+                            width: 2
+                        },
+                        points: 4,
+                        radius: 10,
+                        angle: 0.7853981633974483
+                    }
+                };
+                var diamond = {
+                    star: {
+                        fill: {
+                            color: "red"
+                        },
+                        stroke: {
+                            color: "black",
+                            width: 2
+                        },
+                        points: 4,
+                        radius: 10,
+                        angle: 0
+                    }
+                };
+                var star = {
+                    star: {
+                        fill: {
+                            color: "red"
+                        },
+                        stroke: {
+                            color: "black",
+                            width: 2
+                        },
+                        points: 5,
+                        radius: 10,
+                        radius2: 4,
+                        angle: 0
+                    }
+                };
+                var triangle = {
+                    star: {
+                        fill: {
+                            color: "red"
+                        },
+                        stroke: {
+                            color: "black",
+                            width: 2
+                        },
+                        points: 3,
+                        radius: 10,
+                        angle: 0
+                    }
+                };
+                var x = {
+                    star: {
+                        fill: {
+                            color: "red"
+                        },
+                        stroke: {
+                            color: "black",
+                            width: 2
+                        },
+                        points: 4,
+                        radius: 10,
+                        radius2: 0,
+                        angle: 0.7853981633974483
+                    }
+                };
+                var crossJson = converter.toJson(converter.fromJson(cross));
+                var squareJson = converter.toJson(converter.fromJson(square));
+                var diamondJson = converter.toJson(converter.fromJson(diamond));
+                var starJson = converter.toJson(converter.fromJson(star));
+                var triangleJson = converter.toJson(converter.fromJson(triangle));
+                var xJson = converter.toJson(converter.fromJson(x));
+                base_14.should(!!crossJson.cross, "cross exists");
+                base_14.shouldEqual(crossJson.cross.size, cross.star.radius * 2, "cross size");
+                base_14.should(!!squareJson.square, "square exists");
+                base_14.shouldEqual(squareJson.square.size, square.star.radius * 2, "square size");
+                base_14.should(!!diamondJson.diamond, "diamond exists");
+                base_14.shouldEqual(diamondJson.diamond.size, diamond.star.radius * 2, "diamond size");
+                base_14.should(!!triangleJson.triangle, "triangle exists");
+                base_14.shouldEqual(triangleJson.triangle.size, triangle.star.radius * 2, "triangle size");
+                base_14.should(!!xJson.x, "x exists");
+                base_14.shouldEqual(xJson.x.size, x.star.radius * 2, "x size");
+                var items = { crossJson: crossJson, squareJson: squareJson, diamondJson: diamondJson, triangleJson: triangleJson, xJson: xJson };
+                Object.keys(items).forEach(function (k) {
+                    base_14.shouldEqual(base_14.stringify(converter.toJson(converter.fromJson(items[k]))), base_14.stringify(items[k]), k + " json->style->json");
+                });
+            });
+        });
+        base_14.describe("OL NEXT", function () {
+            base_14.it("NEXT", function () { });
+        });
+    });
+});
+define("node_modules/ol3-symbolizer/tests/spec/ags-symbolizer", ["require", "exports", "node_modules/ol3-fun/tests/base", "node_modules/ol3-symbolizer/ol3-symbolizer/format/ags-symbolizer", "node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer"], function (require, exports, base_15, ags_symbolizer_4, ol3_symbolizer_8) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    var fromJson = (function () {
+        var fromJsonConverter = new ags_symbolizer_4.StyleConverter();
+        return function (style) { return fromJsonConverter.fromJson(style); };
+    })();
+    var toJson = (function () {
+        var toJsonConverter = new ol3_symbolizer_8.StyleConverter();
+        return function (style) { return toJsonConverter.toJson(style); };
+    })();
+    function rgba(_a) {
+        var r = _a[0], g = _a[1], b = _a[2], a = _a[3];
+        return "rgba(" + r + "," + g + "," + b + "," + a / 255 + ")";
+    }
+    base_15.describe("esriSMS Tests", function () {
+        base_15.it("esriSMSCircle", function () {
+            var baseline = {
+                color: [255, 255, 255, 64],
+                size: 12,
+                angle: 0,
+                xoffset: 0,
+                yoffset: 0,
+                type: "esriSMS",
+                style: "esriSMSCircle",
+                outline: {
+                    color: [0, 0, 0, 255],
+                    width: 1,
+                    type: "esriSLS",
+                    style: "esriSLSSolid"
+                }
+            };
+            var style = fromJson(baseline);
+            var circleJson = toJson(style);
+            var expectedRadius = (baseline.size * 4) / 3 / 2;
+            base_15.shouldEqual(circleJson.circle.radius, expectedRadius, "circleJson radius is 33% larger than specified in the ags style (see StyleConverter.asWidth)");
+            base_15.shouldEqual(circleJson.circle.fill.color, rgba(baseline.color), "circleJson fill color");
+            base_15.shouldEqual(circleJson.circle.fill.pattern, null, "circleJson fill pattern is solid");
+            base_15.shouldEqual(circleJson.circle.stroke.color, rgba(baseline.outline.color), "circleJson stroke color");
+            base_15.shouldEqual(circleJson.circle.stroke.width, (baseline.outline.width * 4) / 3, "circleJson stroke width");
+            base_15.shouldEqual(circleJson.circle.stroke.lineCap, undefined, "circleJson stroke lineCap");
+            base_15.shouldEqual(circleJson.circle.stroke.lineDash, undefined, "circleJson stroke lineDash");
+            base_15.shouldEqual(circleJson.circle.stroke.lineJoin, undefined, "circleJson stroke lineJoin");
+        });
+        base_15.it("esriSMSCross", function () {
+            var baseline = {
+                color: [255, 255, 255, 64],
+                size: 12,
+                angle: 0,
+                xoffset: 0,
+                yoffset: 0,
+                type: "esriSMS",
+                style: "esriSMSCross",
+                outline: {
+                    color: [0, 0, 0, 255],
+                    width: 1,
+                    type: "esriSLS",
+                    style: "esriSLSSolid"
+                }
+            };
+            var json = toJson(fromJson(baseline));
+            base_15.should(!!json.cross, "cross");
+            base_15.shouldEqual(json.cross.opacity, 1, "opacity");
+            base_15.shouldEqual(json.cross.size, 22.62741699796952, "size");
+        });
+    });
+    base_15.describe("esriSLS Tests", function () {
+        base_15.it("esriSLSShortDash esriLCSSquare esriLJSRound", function () {
+            var baseline = {
+                type: "esriSLS",
+                style: "esriSLSShortDash",
+                color: [152, 230, 0, 255],
+                width: 1,
+                cap: "esriLCSSquare",
+                join: "esriLJSRound",
+                miterLimit: 9.75
+            };
+            var style = fromJson(baseline);
+            var json = toJson(style);
+            base_15.shouldEqual(json.stroke.color, rgba(baseline.color), "stroke color");
+        });
+        base_15.it("esriSLSDash esriLCSButt esriLJSBevel", function () {
+            var baseline = {
+                type: "esriSLS",
+                style: "esriSLSDash",
+                color: [152, 230, 0, 255],
+                width: 1,
+                cap: "esriLCSButt",
+                join: "esriLJSBevel",
+                miterLimit: 9.75
+            };
+            var style = fromJson(baseline);
+            var json = toJson(style);
+            base_15.shouldEqual(json.stroke.color, rgba(baseline.color), "stroke color");
+        });
+        base_15.it("esriSLSSolid esriLCSRound esriLJSMiter", function () {
+            var baseline = {
+                type: "esriSLS",
+                style: "esriSLSSolid",
+                color: [152, 230, 0, 255],
+                width: 1,
+                cap: "esriLCSRound",
+                join: "esriLJSMiter",
+                miterLimit: 9.75
+            };
+            var style = fromJson(baseline);
+            var json = toJson(style);
+            base_15.shouldEqual(json.stroke.color, rgba(baseline.color), "stroke color");
+        });
+    });
+});
+define("node_modules/ol3-symbolizer/tests/index", ["require", "exports", "node_modules/ol3-symbolizer/tests/spec/packages", "node_modules/ol3-symbolizer/tests/spec/common", "node_modules/ol3-symbolizer/tests/spec/ol3-symbolizer", "node_modules/ol3-symbolizer/tests/spec/ags-symbolizer"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+});
+define("node_modules/ol3-draw/tests/spec/packages", ["require", "exports", "node_modules/ol3-fun/tests/index", "node_modules/ol3-symbolizer/tests/index"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+});
+define("node_modules/ol3-draw/tests/spec/draw", ["require", "exports", "node_modules/ol3-fun/tests/base", "node_modules/ol3-draw/ol3-draw/ol3-draw"], function (require, exports, base_16, ol3_draw_3) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    base_16.describe("Draw Tests", function () {
+        base_16.it("Draw", function () {
+            base_16.should(!!ol3_draw_3.Draw, "Draw");
+        });
+        base_16.it("DEFAULT_OPTIONS", function () {
             var options = ol3_draw_3.Draw.DEFAULT_OPTIONS;
             checkDefaultInputOptions(options);
         });
-        base_13.it("options of an Input instance", function () {
+        base_16.it("options of an Input instance", function () {
             var input = ol3_draw_3.Draw.create();
             checkDefaultInputOptions(input.options);
         });
     });
     function checkDefaultInputOptions(options) {
-        base_13.should(!!options, "options");
-        base_13.shouldEqual(options.className, "ol-draw", "className");
-        base_13.shouldEqual(options.map, undefined, "map");
-        base_13.shouldEqual(options.position, "top left", "position");
+        base_16.should(!!options, "options");
+        base_16.shouldEqual(options.className, "ol-draw", "className");
+        base_16.shouldEqual(options.map, undefined, "map");
+        base_16.shouldEqual(options.position, "top left", "position");
     }
 });
-define("node_modules/ol3-draw/tests/spec/wfs-sync", ["require", "exports", "openlayers", "node_modules/ol3-fun/tests/base", "node_modules/ol3-draw/ol3-draw/services/wfs-sync"], function (require, exports, ol, base_14, wfs_sync_3) {
+define("node_modules/ol3-draw/tests/spec/wfs-sync", ["require", "exports", "openlayers", "node_modules/ol3-fun/tests/base", "node_modules/ol3-draw/ol3-draw/services/wfs-sync"], function (require, exports, ol, base_17, wfs_sync_3) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var WFS_INFO = {
@@ -15850,16 +17825,16 @@ define("node_modules/ol3-draw/tests/spec/wfs-sync", ["require", "exports", "open
         featureNS: "http://www.opengeospatial.net/cite",
         featurePrefix: "cite"
     };
-    base_14.describe("wfs-sync", function () {
-        base_14.it("WfsSync", function () {
-            base_14.should(!!wfs_sync_3.WfsSync, "WfsSync");
+    base_17.describe("wfs-sync", function () {
+        base_17.it("WfsSync", function () {
+            base_17.should(!!wfs_sync_3.WfsSync, "WfsSync");
         });
-        base_14.it("DEFAULT_OPTIONS", function () {
+        base_17.it("DEFAULT_OPTIONS", function () {
             var options = wfs_sync_3.WfsSync.DEFAULT_OPTIONS;
             checkDefaultInputOptions(options);
         });
         location.hostname === "127.0.0.1" &&
-            base_14.it("should invoke a POST request", function (done) {
+            base_17.it("should invoke a POST request", function (done) {
                 var source = new ol.source.Vector();
                 var service = wfs_sync_3.WfsSync.create({
                     wfsUrl: WFS_INFO.wfsUrl,
@@ -15877,19 +17852,23 @@ define("node_modules/ol3-draw/tests/spec/wfs-sync", ["require", "exports", "open
                     done();
                 });
                 service.on("error", function (args) {
-                    base_14.shouldEqual(args, "Feature type 'point_layer' is not available: ", "point_layer not available error message");
+                    base_17.shouldEqual(args, "Feature type 'point_layer' is not available: ", "point_layer not available error message");
                     done();
                 });
                 source.addFeature(new ol.Feature(new ol.geom.Point([0, 0])));
             });
     });
     function checkDefaultInputOptions(options) {
-        base_14.should(!!options, "options");
-        base_14.shouldEqual(options.featureIdFieldName, "gid", "featureIdFieldName");
-        base_14.shouldEqual(options.lastUpdateFieldName, "touched", "lastUpdateFieldName");
+        base_17.should(!!options, "options");
+        base_17.shouldEqual(options.featureIdFieldName, "gid", "featureIdFieldName");
+        base_17.shouldEqual(options.lastUpdateFieldName, "touched", "lastUpdateFieldName");
     }
 });
-define("node_modules/ol3-draw/tests/index", ["require", "exports", "node_modules/ol3-draw/tests/spec/draw", "node_modules/ol3-draw/tests/spec/wfs-sync"], function (require, exports) {
+define("node_modules/ol3-draw/tests/index", ["require", "exports", "node_modules/ol3-draw/tests/spec/packages", "node_modules/ol3-draw/tests/spec/draw", "node_modules/ol3-draw/tests/spec/wfs-sync"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+});
+define("node_modules/ol3-grid/tests/spec/packages", ["require", "exports", "node_modules/ol3-fun/tests/index"], function (require, exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
 });
@@ -15923,12 +17902,12 @@ define("node_modules/ol3-grid/tests/base", ["require", "exports"], function (req
     }
     exports.stringify = stringify;
 });
-define("node_modules/ol3-grid/tests/spec/grid", ["require", "exports", "node_modules/ol3-grid/tests/base", "mocha", "node_modules/ol3-grid/ol3-grid/ol3-grid"], function (require, exports, base_15, mocha_1, ol3_grid_1) {
+define("node_modules/ol3-grid/tests/spec/grid", ["require", "exports", "node_modules/ol3-grid/tests/base", "mocha", "node_modules/ol3-grid/ol3-grid/ol3-grid"], function (require, exports, base_18, mocha_1, ol3_grid_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     mocha_1.describe("Grid Tests", function () {
         mocha_1.it("Grid", function () {
-            base_15.should(!!ol3_grid_1.Grid, "Grid");
+            base_18.should(!!ol3_grid_1.Grid, "Grid");
         });
         mocha_1.it("DEFAULT_OPTIONS", function () {
             var options = ol3_grid_1.Grid.DEFAULT_OPTIONS;
@@ -15936,116 +17915,94 @@ define("node_modules/ol3-grid/tests/spec/grid", ["require", "exports", "node_mod
         });
         mocha_1.it("options of an Input instance", function () {
             var grid = ol3_grid_1.Grid.create();
-            base_15.shouldEqual(grid.getMap(), null, "no map");
+            base_18.shouldEqual(grid.getMap(), null, "no map");
             grid.destroy();
         });
     });
     function checkDefaultInputOptions(options) {
-        base_15.should(!!options, "options");
-        base_15.shouldEqual(options.autoCollapse, true, "autoCollapse");
-        base_15.shouldEqual(options.canCollapse, true, "canCollapse");
-        base_15.shouldEqual(options.className, "ol-grid", "className");
-        base_15.should(options.closedText.length > 0, "closedText");
-        base_15.shouldEqual(options.expanded, false, "expanded");
-        base_15.shouldEqual(options.hideButton, false, "hideButton");
-        base_15.shouldEqual(options.map, undefined, "map");
-        base_15.shouldEqual(!!options.openedText, true, "openedText");
-        base_15.shouldEqual(!!options.placeholderText, true, "placeholderText");
-        base_15.shouldEqual(options.position, "top right", "position");
-        base_15.shouldEqual(options.target, undefined, "target");
+        base_18.should(!!options, "options");
+        base_18.shouldEqual(options.autoCollapse, true, "autoCollapse");
+        base_18.shouldEqual(options.canCollapse, true, "canCollapse");
+        base_18.shouldEqual(options.className, "ol-grid", "className");
+        base_18.should(options.closedText.length > 0, "closedText");
+        base_18.shouldEqual(options.expanded, false, "expanded");
+        base_18.shouldEqual(options.hideButton, false, "hideButton");
+        base_18.shouldEqual(options.map, undefined, "map");
+        base_18.shouldEqual(!!options.openedText, true, "openedText");
+        base_18.shouldEqual(!!options.placeholderText, true, "placeholderText");
+        base_18.shouldEqual(options.position, "top right", "position");
+        base_18.shouldEqual(options.target, undefined, "target");
     }
 });
-define("node_modules/ol3-grid/tests/index", ["require", "exports", "node_modules/ol3-grid/tests/spec/grid"], function (require, exports) {
+define("node_modules/ol3-grid/tests/index", ["require", "exports", "node_modules/ol3-grid/tests/spec/packages", "node_modules/ol3-grid/tests/spec/grid"], function (require, exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
 });
-define("node_modules/ol3-input/tests/base", ["require", "exports"], function (require, exports) {
+define("node_modules/ol3-input/tests/spec/packages", ["require", "exports", "node_modules/ol3-fun/tests/index"], function (require, exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    function describe(title, cb) {
-        console.log(title || "undocumented test group");
-        return window.describe(title, cb);
-    }
-    exports.describe = describe;
-    function it(title, cb) {
-        console.log(title || "undocumented test");
-        return window.it(title, cb);
-    }
-    exports.it = it;
-    function should(result, message) {
-        console.log(message || "undocumented assertion");
-        if (!result)
-            throw message;
-    }
-    exports.should = should;
-    function shouldEqual(a, b, message) {
-        if (a != b)
-            console.warn(a, b);
-        should(a == b, message);
-    }
-    exports.shouldEqual = shouldEqual;
-    function stringify(o) {
-        return JSON.stringify(o, null, "\t");
-    }
-    exports.stringify = stringify;
 });
-define("node_modules/ol3-input/tests/spec/input", ["require", "exports", "node_modules/ol3-input/tests/base", "mocha", "node_modules/ol3-input/index"], function (require, exports, base_16, mocha_2, index_49) {
+define("node_modules/ol3-input/tests/spec/input", ["require", "exports", "node_modules/ol3-fun/tests/base", "node_modules/ol3-input/index"], function (require, exports, base_19, index_57) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    mocha_2.describe("Input Tests", function () {
-        mocha_2.it("Input", function () {
-            base_16.should(!!index_49.Input, "Input");
+    base_19.describe("Input Tests", function () {
+        base_19.it("Input", function () {
+            base_19.should(!!index_57.Input, "Input");
         });
-        mocha_2.it("OsmSearchProvider", function () {
-            base_16.should(!!index_49.OsmSearchProvider, "OsmSearchProvider");
+        base_19.it("OsmSearchProvider", function () {
+            base_19.should(!!index_57.OsmSearchProvider, "OsmSearchProvider");
         });
-        mocha_2.it("DEFAULT_OPTIONS", function () {
-            var options = index_49.Input.DEFAULT_OPTIONS;
+        base_19.it("DEFAULT_OPTIONS", function () {
+            var options = index_57.Input.DEFAULT_OPTIONS;
             checkDefaultInputOptions(options);
         });
-        mocha_2.it("options of an Input instance", function () {
-            var input = index_49.Input.create();
+        base_19.it("options of an Input instance", function () {
+            var input = index_57.Input.create();
             checkDefaultInputOptions(input.options);
         });
-        mocha_2.it("input dom", function (done) {
-            var input = index_49.Input.create({});
+        base_19.it("input dom", function (done) {
+            var input = index_57.Input.create({});
             var target = document.createElement("div");
             input.on("change", function (args) {
-                base_16.should(args.value === "hello", "change to hello");
+                base_19.should(args.value === "hello", "change to hello");
                 done();
             });
-            base_16.shouldEqual(target.innerHTML, "", "innerHTML");
+            base_19.shouldEqual(target.innerHTML, "", "innerHTML");
             input.setValue("hello");
         });
     });
     function checkDefaultInputOptions(options) {
-        base_16.should(!!options, "options");
-        base_16.shouldEqual(options.autoChange, false, "autoChange");
-        base_16.shouldEqual(options.autoClear, false, "autoClear");
-        base_16.shouldEqual(options.autoCollapse, true, "autoCollapse");
-        base_16.shouldEqual(options.autoSelect, true, "autoSelect");
-        base_16.shouldEqual(options.canCollapse, true, "canCollapse");
-        base_16.shouldEqual(options.changeDelay, 2000, "changeDelay");
-        base_16.shouldEqual(options.className, "ol-input", "className");
-        base_16.should(options.closedText.length > 0, "closedText");
-        base_16.shouldEqual(options.expanded, false, "expanded");
-        base_16.shouldEqual(options.hideButton, false, "hideButton");
-        base_16.shouldEqual(options.map, undefined, "map");
-        base_16.shouldEqual(!!options.openedText, true, "openedText");
-        base_16.shouldEqual(!!options.placeholderText, true, "placeholderText");
-        base_16.shouldEqual(options.position, "bottom left", "position");
-        base_16.shouldEqual(!!options.provider, true, "provider");
-        base_16.should(!!options.regex, "regex");
-        base_16.shouldEqual(options.render, undefined, "render");
-        base_16.shouldEqual(options.source, undefined, "source");
-        base_16.shouldEqual(options.target, undefined, "target");
+        base_19.should(!!options, "options");
+        base_19.shouldEqual(options.autoChange, false, "autoChange");
+        base_19.shouldEqual(options.autoClear, false, "autoClear");
+        base_19.shouldEqual(options.autoCollapse, true, "autoCollapse");
+        base_19.shouldEqual(options.autoSelect, true, "autoSelect");
+        base_19.shouldEqual(options.canCollapse, true, "canCollapse");
+        base_19.shouldEqual(options.changeDelay, 2000, "changeDelay");
+        base_19.shouldEqual(options.className, "ol-input", "className");
+        base_19.should(options.closedText.length > 0, "closedText");
+        base_19.shouldEqual(options.expanded, false, "expanded");
+        base_19.shouldEqual(options.hideButton, false, "hideButton");
+        base_19.shouldEqual(options.map, undefined, "map");
+        base_19.shouldEqual(!!options.openedText, true, "openedText");
+        base_19.shouldEqual(!!options.placeholderText, true, "placeholderText");
+        base_19.shouldEqual(options.position, "bottom left", "position");
+        base_19.shouldEqual(!!options.provider, true, "provider");
+        base_19.should(!!options.regex, "regex");
+        base_19.shouldEqual(options.render, undefined, "render");
+        base_19.shouldEqual(options.source, undefined, "source");
+        base_19.shouldEqual(options.target, undefined, "target");
     }
 });
-define("node_modules/ol3-input/tests/index", ["require", "exports", "node_modules/ol3-input/tests/spec/input"], function (require, exports) {
+define("node_modules/ol3-input/tests/index", ["require", "exports", "node_modules/ol3-input/tests/spec/packages", "node_modules/ol3-input/tests/spec/input"], function (require, exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
 });
-define("node_modules/ol3-layerswitcher/tests/extras/kill", ["require", "exports", "node_modules/ol3-fun/tests/base"], function (require, exports, base_17) {
+define("node_modules/ol3-layerswitcher/tests/spec/packages", ["require", "exports", "node_modules/ol3-fun/tests/index"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+});
+define("node_modules/ol3-layerswitcher/tests/extras/kill", ["require", "exports", "node_modules/ol3-fun/tests/base"], function (require, exports, base_20) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     function kill(target, delay) {
@@ -16063,7 +18020,7 @@ define("node_modules/ol3-layerswitcher/tests/extras/kill", ["require", "exports"
         return function () {
             if (cancel)
                 throw "cancelled by user via pointermove";
-            return base_17.slowloop([
+            return base_20.slowloop([
                 function () {
                     if (cancel)
                         throw "cancelled by user via pointermove";
@@ -16140,39 +18097,39 @@ define("node_modules/ol3-layerswitcher/tests/extras/setText", ["require", "expor
     }
     exports.createMapTarget = createMapTarget;
 });
-define("node_modules/ol3-layerswitcher/tests/spec/layerswitcher", ["require", "exports", "openlayers", "node_modules/ol3-fun/tests/base", "node_modules/ol3-layerswitcher/tests/extras/kill", "node_modules/ol3-layerswitcher/tests/extras/setText", "node_modules/ol3-layerswitcher/index", "node_modules/ol3-fun/index"], function (require, exports, ol, base_18, kill_1, setText_1, index_50, index_51) {
+define("node_modules/ol3-layerswitcher/tests/spec/layerswitcher", ["require", "exports", "openlayers", "node_modules/ol3-fun/tests/base", "node_modules/ol3-layerswitcher/tests/extras/kill", "node_modules/ol3-layerswitcher/tests/extras/setText", "node_modules/ol3-layerswitcher/index", "node_modules/ol3-fun/index"], function (require, exports, ol, base_21, kill_1, setText_1, index_58, index_59) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    base_18.describe("LayerSwitcher Tests", function () {
-        base_18.it("LayerSwitcher", function () {
-            base_18.should(!!index_50.LayerSwitcher, "LayerSwitcher");
+    base_21.describe("LayerSwitcher Tests", function () {
+        base_21.it("LayerSwitcher", function () {
+            base_21.should(!!index_58.LayerSwitcher, "LayerSwitcher");
         });
-        base_18.it("DEFAULT_OPTIONS", function () {
-            var options = index_50.DEFAULT_OPTIONS;
+        base_21.it("DEFAULT_OPTIONS", function () {
+            var options = index_58.DEFAULT_OPTIONS;
             checkDefaultInputOptions(options);
         });
-        base_18.it("Renders in DOM", function () {
+        base_21.it("Renders in DOM", function () {
             var target = setText_1.createMapTarget();
             var map = setText_1.createMap(target);
             var layer = setText_1.createVectorLayer(map);
             setText_1.createFeature(layer);
-            var switcher = index_50.LayerSwitcher.create({
+            var switcher = index_58.LayerSwitcher.create({
                 position: "top-2 right-2",
                 map: map
             });
             var labelCount = document.getElementsByTagName("label").length;
             switcher.addLayer(layer, "Vectors");
             switcher.showPanel();
-            return index_51.slowloop([
+            return index_59.slowloop([
                 function () {
-                    base_18.shouldEqual(document.getElementsByTagName("label").length, labelCount + 1, "Vectors label exists");
+                    base_21.shouldEqual(document.getElementsByTagName("label").length, labelCount + 1, "Vectors label exists");
                 }
             ]).then(kill_1.kill(switcher, 1000));
         });
-        base_18.it("Renders in DOM (complex)", function () {
+        base_21.it("Renders in DOM (complex)", function () {
             var target = setText_1.createMapTarget();
             var map = setText_1.createMap(target);
-            var switcher = index_50.LayerSwitcher.create({ map: map, position: "top right" });
+            var switcher = index_58.LayerSwitcher.create({ map: map, position: "top right" });
             var refresh = function (msg) {
                 console.log("refresh", msg);
                 switcher.hidePanel();
@@ -16211,10 +18168,10 @@ define("node_modules/ol3-layerswitcher/tests/spec/layerswitcher", ["require", "e
             groupLayers.on("add", function (args) { return refresh("add " + args.target.get("title")); });
             mapLayers.on("add", function (args) { return refresh("add " + args.target.get("title")); });
             mapLayers.on("remove", function (args) { return refresh("remove " + args.target.get("title")); });
-            return index_51.slowloop([
+            return index_59.slowloop([
                 function () {
                     switcher.showPanel();
-                    base_18.shouldEqual(switcher.isVisible(), true, "Panel is visible");
+                    base_21.shouldEqual(switcher.isVisible(), true, "Panel is visible");
                 },
                 function () { return mapLayers.insertAt(0, group1); },
                 function () { return groupLayers.insertAt(0, tiles[0]); },
@@ -16239,32 +18196,36 @@ define("node_modules/ol3-layerswitcher/tests/spec/layerswitcher", ["require", "e
                 function () { return vectors[2].setVisible(true); }
             ], 100)
                 .then(function () {
-                base_18.shouldEqual(vectors[0].getVisible(), false, "Parcel is hidden");
+                base_21.shouldEqual(vectors[0].getVisible(), false, "Parcel is hidden");
                 vectors[0].setVisible(true);
-                base_18.shouldEqual(vectors[1].getVisible(), true, "Address is visible");
-                base_18.shouldEqual(vectors[2].getVisible(), true, "Address is visible");
-                base_18.shouldEqual(tiles[0].getVisible(), true, "Bing is visible");
-                base_18.shouldEqual(tiles[1].getVisible(), false, "OSM is hidden");
+                base_21.shouldEqual(vectors[1].getVisible(), true, "Address is visible");
+                base_21.shouldEqual(vectors[2].getVisible(), true, "Address is visible");
+                base_21.shouldEqual(tiles[0].getVisible(), true, "Bing is visible");
+                base_21.shouldEqual(tiles[1].getVisible(), false, "OSM is hidden");
                 tiles[1].setVisible(true);
-                base_18.shouldEqual(tiles[1].getVisible(), true, "OSM is now visible");
-                base_18.shouldEqual(tiles[0].getVisible(), true, "Bing is still visible");
-                base_18.shouldEqual(switcher.isVisible(), true, "Panel is visible");
+                base_21.shouldEqual(tiles[1].getVisible(), true, "OSM is now visible");
+                base_21.shouldEqual(tiles[0].getVisible(), true, "Bing is still visible");
+                base_21.shouldEqual(switcher.isVisible(), true, "Panel is visible");
             })
                 .then(kill_1.kill(switcher));
         }).timeout(5000);
     });
     function checkDefaultInputOptions(options) {
-        base_18.should(!!options, "options");
-        base_18.shouldEqual(options.className, "layer-switcher", "className");
-        base_18.shouldEqual(options.closeOnClick, true, "closeOnClick");
-        base_18.shouldEqual(options.closeOnMouseOut, false, "closeOnMouseOut");
-        base_18.shouldEqual(options.openOnClick, true, "openOnClick");
-        base_18.shouldEqual(options.openOnMouseOver, false, "openOnMouseOver");
-        base_18.shouldEqual(options.target, undefined, "target");
-        base_18.shouldEqual(options.tipLabel, "Layers", "tipLabel");
+        base_21.should(!!options, "options");
+        base_21.shouldEqual(options.className, "layer-switcher", "className");
+        base_21.shouldEqual(options.closeOnClick, true, "closeOnClick");
+        base_21.shouldEqual(options.closeOnMouseOut, false, "closeOnMouseOut");
+        base_21.shouldEqual(options.openOnClick, true, "openOnClick");
+        base_21.shouldEqual(options.openOnMouseOver, false, "openOnMouseOver");
+        base_21.shouldEqual(options.target, undefined, "target");
+        base_21.shouldEqual(options.tipLabel, "Layers", "tipLabel");
     }
 });
-define("node_modules/ol3-layerswitcher/tests/index", ["require", "exports", "node_modules/ol3-layerswitcher/tests/spec/layerswitcher"], function (require, exports) {
+define("node_modules/ol3-layerswitcher/tests/index", ["require", "exports", "node_modules/ol3-layerswitcher/tests/spec/packages", "node_modules/ol3-layerswitcher/tests/spec/layerswitcher"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+});
+define("node_modules/ol3-panzoom/tests/spec/packages", ["require", "exports", "node_modules/ol3-fun/tests/index"], function (require, exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
 });
@@ -16306,10 +18267,10 @@ define("node_modules/ol3-panzoom/examples/utils/MapMaker", ["require", "exports"
     }
     exports.MapMaker = MapMaker;
 });
-define("node_modules/ol3-panzoom/tests/index", ["require", "exports", "node_modules/ol3-fun/tests/base", "node_modules/ol3-panzoom/index", "node_modules/ol3-panzoom/examples/utils/MapMaker"], function (require, exports, base_19, index_52, MapMaker_1) {
+define("node_modules/ol3-panzoom/tests/spec/panzoom", ["require", "exports", "node_modules/ol3-fun/tests/base", "node_modules/ol3-panzoom/index", "node_modules/ol3-panzoom/examples/utils/MapMaker"], function (require, exports, base_22, index_60, MapMaker_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    base_19.describe("ol3-panzoom", function () {
+    base_22.describe("ol3-panzoom", function () {
         function mapDiv() {
             var mapDiv = document.getElementById("map");
             if (!mapDiv) {
@@ -16319,25 +18280,25 @@ define("node_modules/ol3-panzoom/tests/index", ["require", "exports", "node_modu
             }
             return mapDiv;
         }
-        base_19.it("ol3-panzoom", function () {
-            base_19.should(!!index_52.PanZoom, "PanZoom exists");
+        base_22.it("ol3-panzoom", function () {
+            base_22.should(!!index_60.PanZoom, "PanZoom exists");
         });
-        base_19.it("creates", function (done) {
+        base_22.it("creates", function (done) {
             mapDiv();
-            var panzoom = new index_52.PanZoom({ duration: 20 });
+            var panzoom = index_60.PanZoom.create({ duration: 20 });
             var map = MapMaker_1.MapMaker(panzoom);
             map.once("postrender", function () {
                 var c1 = map.getView().getCenter();
                 var c = function () { return map.getView().getCenter(); };
-                base_19.slowloop([
+                base_22.slowloop([
                     function () { return panzoom.pan("east"); },
-                    function () { return base_19.should(c()[0] > c1[0], "pan east"); },
+                    function () { return base_22.should(c()[0] > c1[0], "pan east"); },
                     function () { return panzoom.pan("north"); },
-                    function () { return base_19.should(c()[1] > c1[1], "pan north"); },
+                    function () { return base_22.should(c()[1] > c1[1], "pan north"); },
                     function () { return panzoom.pan("west"); },
-                    function () { return base_19.should(c()[0] === c1[0], "pan west"); },
+                    function () { return base_22.should(c()[0] === c1[0], "pan west"); },
                     function () { return panzoom.pan("south"); },
-                    function () { return base_19.should(c()[1] === c1[1], "south north"); },
+                    function () { return base_22.should(c()[1] === c1[1], "south north"); },
                     function () { return panzoom.zoom("in"); }
                 ], panzoom.options.duration + 50, 2).then(function () {
                     map.setTarget(null);
@@ -16345,16 +18306,16 @@ define("node_modules/ol3-panzoom/tests/index", ["require", "exports", "node_modu
                 });
             });
         });
-        base_19.it("cycles through the themes", function (done) {
+        base_22.it("cycles through the themes", function (done) {
             mapDiv();
-            var panzoom = new index_52.PanZoom({
+            var panzoom = index_60.PanZoom.create({
                 slider: true,
                 duration: 20,
                 minZoom: 6,
                 maxZoom: 15
             });
             var map = MapMaker_1.MapMaker(panzoom);
-            panzoom.on("change:theme", function (args) {
+            panzoom.on("change:theme", function () {
                 switch (panzoom.get("theme")) {
                     case "dark":
                         panzoom.options.theme = "zoombar_black";
@@ -16374,7 +18335,7 @@ define("node_modules/ol3-panzoom/tests/index", ["require", "exports", "node_modu
                 panzoom.redraw();
             });
             map.once("postrender", function () {
-                base_19.slowloop([
+                base_22.slowloop([
                     function () { return panzoom.set("theme", panzoom.get("theme") == "dark" ? "light" : "dark"); },
                     function () { return panzoom.set("slider", !panzoom.options.slider); },
                     function () { return panzoom.set("maxextent", panzoom.get("maxextent") ? null : [-1000, -1000, 1000, 1000]); }
@@ -16385,6 +18346,10 @@ define("node_modules/ol3-panzoom/tests/index", ["require", "exports", "node_modu
             });
         }).timeout(10000);
     });
+});
+define("node_modules/ol3-panzoom/tests/index", ["require", "exports", "node_modules/ol3-panzoom/tests/spec/packages", "node_modules/ol3-panzoom/tests/spec/panzoom"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
 });
 define("node_modules/ol3-popup/examples/extras/once", ["require", "exports", "jquery"], function (require, exports, $) {
     "use strict";
@@ -16405,7 +18370,7 @@ define("node_modules/ol3-popup/examples/extras/once", ["require", "exports", "jq
     }
     exports.once = once;
 });
-define("node_modules/ol3-popup/tests/extras/kill", ["require", "exports", "node_modules/ol3-fun/tests/base"], function (require, exports, base_20) {
+define("node_modules/ol3-popup/tests/extras/kill", ["require", "exports", "node_modules/ol3-fun/tests/base"], function (require, exports, base_23) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     function kill(popup, delay) {
@@ -16415,7 +18380,7 @@ define("node_modules/ol3-popup/tests/extras/kill", ["require", "exports", "node_
             cancel = true;
         });
         return function () {
-            return base_20.slowloop([
+            return base_23.slowloop([
                 function () {
                     if (cancel)
                         throw "cancelled by user via pointermove";
@@ -16428,7 +18393,7 @@ define("node_modules/ol3-popup/tests/extras/kill", ["require", "exports", "node_
     }
     exports.kill = kill;
 });
-define("node_modules/ol3-popup/tests/spec/popup", ["require", "exports", "openlayers", "node_modules/ol3-fun/tests/base", "node_modules/ol3-fun/index", "node_modules/ol3-popup/index", "node_modules/ol3-popup/examples/extras/once", "node_modules/ol3-popup/tests/extras/kill"], function (require, exports, ol, base_21, index_53, index_54, once_1, kill_2) {
+define("node_modules/ol3-popup/tests/spec/popup", ["require", "exports", "openlayers", "node_modules/ol3-fun/tests/base", "node_modules/ol3-fun/index", "node_modules/ol3-popup/index", "node_modules/ol3-popup/examples/extras/once", "node_modules/ol3-popup/tests/extras/kill"], function (require, exports, ol, base_24, index_61, index_62, once_1, kill_2) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     function createMapDiv() {
@@ -16437,54 +18402,54 @@ define("node_modules/ol3-popup/tests/spec/popup", ["require", "exports", "openla
         document.body.appendChild(div);
         return div;
     }
-    base_21.describe("spec/popup", function () {
-        base_21.it("Popup", function () {
-            base_21.should(!!index_54.Popup, "Popup");
+    base_24.describe("spec/popup", function () {
+        base_24.it("Popup", function () {
+            base_24.should(!!index_62.Popup, "Popup");
         });
-        base_21.it("DEFAULT_OPTIONS", function () {
-            checkDefaultInputOptions(index_54.DEFAULT_OPTIONS);
-            base_21.should(!index_54.DEFAULT_OPTIONS.pagingStyle, "pagingStyle");
-            var p1 = index_54.Popup.create({ autoPopup: false });
+        base_24.it("DEFAULT_OPTIONS", function () {
+            checkDefaultInputOptions(index_62.DEFAULT_OPTIONS);
+            base_24.should(!index_62.DEFAULT_OPTIONS.pagingStyle, "pagingStyle");
+            var p1 = index_62.Popup.create({ autoPopup: false });
             p1.options.autoPopup = true;
             checkDefaultInputOptions(p1.options);
-            base_21.should(!!p1.options.pagingStyle, "pagingStyle");
+            base_24.should(!!p1.options.pagingStyle, "pagingStyle");
         });
-        base_21.it("Ensures options do not leak into other instances", function () {
-            var p1 = index_54.Popup.create({ autoPopup: false });
-            var p2 = index_54.Popup.create({ autoPopup: false });
+        base_24.it("Ensures options do not leak into other instances", function () {
+            var p1 = index_62.Popup.create({ autoPopup: false });
+            var p2 = index_62.Popup.create({ autoPopup: false });
             var expected = p1.options.indicatorOffsets["top-center"][0];
             p1.options.indicatorOffsets["top-center"][0] += 200;
             var actual = p2.options.indicatorOffsets["top-center"][0];
-            base_21.shouldEqual(actual, expected, "default did not change");
+            base_24.shouldEqual(actual, expected, "default did not change");
             p1.destroy();
             p2.destroy();
         });
-        base_21.it("Ensures global options can be tweaked", function () {
-            var originalDefaultValue = index_54.DEFAULT_OPTIONS.indicatorOffsets["top-center"][0];
-            var expected = (index_54.DEFAULT_OPTIONS.indicatorOffsets["top-center"][0] += 200);
+        base_24.it("Ensures global options can be tweaked", function () {
+            var originalDefaultValue = index_62.DEFAULT_OPTIONS.indicatorOffsets["top-center"][0];
+            var expected = (index_62.DEFAULT_OPTIONS.indicatorOffsets["top-center"][0] += 200);
             try {
-                var p1 = index_54.Popup.create({ autoPopup: false });
+                var p1 = index_62.Popup.create({ autoPopup: false });
                 var actual = p1.options.indicatorOffsets["top-center"][0];
-                base_21.shouldEqual(actual, expected, "default did change");
+                base_24.shouldEqual(actual, expected, "default did change");
                 p1.destroy();
             }
             finally {
-                index_54.DEFAULT_OPTIONS.indicatorOffsets["top-center"][0] = originalDefaultValue;
+                index_62.DEFAULT_OPTIONS.indicatorOffsets["top-center"][0] = originalDefaultValue;
             }
         });
-        base_21.it("Constructors", function () {
+        base_24.it("Constructors", function () {
             var map = new ol.Map({});
             try {
-                index_54.Popup.create({ id: "constructor-test" }).destroy();
+                index_62.Popup.create({ id: "constructor-test" }).destroy();
             }
             catch (_a) {
-                base_21.should(true, "empty constructor throws, either map or autoPopup=false necessary");
+                base_24.should(true, "empty constructor throws, either map or autoPopup=false necessary");
             }
-            index_54.Popup.create({ autoPopup: false }).destroy();
-            index_54.Popup.create({ map: map }).destroy();
+            index_62.Popup.create({ autoPopup: false }).destroy();
+            index_62.Popup.create({ map: map }).destroy();
             map.setTarget(null);
         });
-        base_21.it("Paging", function () {
+        base_24.it("Paging", function () {
             var target = createMapDiv();
             var map = new ol.Map({
                 target: target,
@@ -16495,57 +18460,57 @@ define("node_modules/ol3-popup/tests/spec/popup", ["require", "exports", "openla
                     zoom: 24
                 })
             });
-            var popup = index_54.Popup.create({ id: "paging-test", map: map });
+            var popup = index_62.Popup.create({ id: "paging-test", map: map });
             return once_1.once(map, "postrender", function () {
                 var c = map.getView().getCenter();
-                var points = index_53.pair(index_53.range(3), index_53.range(3)).map(function (n) { return new ol.geom.Point([c[0] + n[0], c[1] + n[1]]); });
+                var points = index_61.pair(index_61.range(3), index_61.range(3)).map(function (n) { return new ol.geom.Point([c[0] + n[0], c[1] + n[1]]); });
                 var count = 0;
                 points.forEach(function (p, i) {
                     popup.pages.add(function () { return "Page " + (i + 1) + ": visit counter: " + ++count; }, p);
-                    base_21.shouldEqual(popup.pages.count, i + 1, i + 1 + " pages");
+                    base_24.shouldEqual(popup.pages.count, i + 1, i + 1 + " pages");
                 });
                 var i = 0;
-                return base_21.slowloop([function () { return popup.pages.goto(i++); }], 100, popup.pages.count).then(function () {
-                    base_21.shouldEqual(popup.getElement().getElementsByClassName("ol-popup-content")[0].textContent, "Page 9: visit counter: 9", "last page contains correct text");
+                return base_24.slowloop([function () { return popup.pages.goto(i++); }], 100, popup.pages.count).then(function () {
+                    base_24.shouldEqual(popup.getElement().getElementsByClassName("ol-popup-content")[0].textContent, "Page 9: visit counter: 9", "last page contains correct text");
                 });
             }).then(kill_2.kill(popup));
         });
     });
     function checkDefaultInputOptions(options) {
-        base_21.should(!!options, "options");
-        base_21.shouldEqual(typeof options.asContent, "function", "asContent");
-        base_21.shouldEqual(options.autoPan, true, "autoPan");
-        base_21.shouldEqual(!options.autoPanAnimation, true, "autoPanAnimation");
-        base_21.shouldEqual(options.autoPanMargin, 20, "autoPanMargin");
-        base_21.shouldEqual(options.autoPopup, true, "autoPopup");
-        base_21.shouldEqual(options.autoPositioning, true, "autoPositioning");
-        base_21.shouldEqual(options.className, "ol-popup", "className");
-        base_21.shouldEqual(typeof options.css, "string", "css");
-        base_21.shouldEqual(!options.dockContainer, true, "dockContainer");
-        base_21.shouldEqual(!options.element, true, "element");
-        base_21.shouldEqual(!!options.id, true, "id");
-        base_21.shouldEqual(options.insertFirst, true, "insertFirst");
-        base_21.shouldEqual(!options.layers, true, "layers");
-        base_21.shouldEqual(!options.map, true, "map");
-        base_21.shouldEqual(!options.multi, true, "multi");
-        base_21.shouldEqual(base_21.stringify(options.offset), base_21.stringify([0, -10]), "offset");
-        base_21.shouldEqual(options.pointerPosition, 20, "pointerPosition");
-        base_21.shouldEqual(!options.position, true, "position");
-        base_21.shouldEqual(options.positioning, "bottom-center", "positioning");
-        base_21.shouldEqual(!options.showCoordinates, true, "showCoordinates");
-        base_21.shouldEqual(options.stopEvent, true, "stopEvent");
+        base_24.should(!!options, "options");
+        base_24.shouldEqual(typeof options.asContent, "function", "asContent");
+        base_24.shouldEqual(options.autoPan, true, "autoPan");
+        base_24.shouldEqual(!options.autoPanAnimation, true, "autoPanAnimation");
+        base_24.shouldEqual(options.autoPanMargin, 20, "autoPanMargin");
+        base_24.shouldEqual(options.autoPopup, true, "autoPopup");
+        base_24.shouldEqual(options.autoPositioning, true, "autoPositioning");
+        base_24.shouldEqual(options.className, "ol-popup", "className");
+        base_24.shouldEqual(typeof options.css, "string", "css");
+        base_24.shouldEqual(!options.dockContainer, true, "dockContainer");
+        base_24.shouldEqual(!options.element, true, "element");
+        base_24.shouldEqual(!!options.id, true, "id");
+        base_24.shouldEqual(options.insertFirst, true, "insertFirst");
+        base_24.shouldEqual(!options.layers, true, "layers");
+        base_24.shouldEqual(!options.map, true, "map");
+        base_24.shouldEqual(!options.multi, true, "multi");
+        base_24.shouldEqual(base_24.stringify(options.offset), base_24.stringify([0, -10]), "offset");
+        base_24.shouldEqual(options.pointerPosition, 20, "pointerPosition");
+        base_24.shouldEqual(!options.position, true, "position");
+        base_24.shouldEqual(options.positioning, "bottom-center", "positioning");
+        base_24.shouldEqual(!options.showCoordinates, true, "showCoordinates");
+        base_24.shouldEqual(options.stopEvent, true, "stopEvent");
     }
 });
-define("node_modules/ol3-popup/tests/spec/popup-content", ["require", "exports", "openlayers", "node_modules/ol3-fun/tests/base", "node_modules/ol3-popup/index"], function (require, exports, ol, base_22, index_55) {
+define("node_modules/ol3-popup/tests/spec/popup-content", ["require", "exports", "openlayers", "node_modules/ol3-fun/tests/base", "node_modules/ol3-popup/index"], function (require, exports, ol, base_25, index_63) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    base_22.describe("spec/popup-content", function () {
-        base_22.it("asContent returns a DOM node with content", function () {
-            var popup = index_55.Popup.create({ autoPopup: false });
+    base_25.describe("spec/popup-content", function () {
+        base_25.it("asContent returns a DOM node with content", function () {
+            var popup = index_63.Popup.create({ autoPopup: false });
             var feature = new ol.Feature({ name: "Feature Name" });
             var html = popup.options.asContent(feature);
-            base_22.should(0 < html.outerHTML.indexOf("Feature Name"), "Feature Name");
-            base_22.shouldEqual("<table><tbody><tr><td>name</td><td>Feature Name</td></tr></tbody></table>", html.innerHTML, "popup markup");
+            base_25.should(0 < html.outerHTML.indexOf("Feature Name"), "Feature Name");
+            base_25.shouldEqual("<table><tbody><tr><td>name</td><td>Feature Name</td></tr></tbody></table>", html.innerHTML, "popup markup");
         });
     });
 });
@@ -16564,7 +18529,7 @@ define("node_modules/ol3-popup/examples/extras/map-maker", ["require", "exports"
     }
     exports.MapMaker = MapMaker;
 });
-define("node_modules/ol3-popup/tests/spec/popup-css", ["require", "exports", "openlayers", "node_modules/ol3-fun/tests/base", "node_modules/ol3-fun/index", "node_modules/ol3-popup/index", "node_modules/ol3-popup/examples/extras/map-maker", "node_modules/ol3-popup/examples/extras/once", "node_modules/ol3-popup/tests/extras/kill"], function (require, exports, ol, base_23, index_56, index_57, map_maker_3, once_2, kill_3) {
+define("node_modules/ol3-popup/tests/spec/popup-css", ["require", "exports", "openlayers", "node_modules/ol3-fun/tests/base", "node_modules/ol3-fun/index", "node_modules/ol3-popup/index", "node_modules/ol3-popup/examples/extras/map-maker", "node_modules/ol3-popup/examples/extras/once", "node_modules/ol3-popup/tests/extras/kill"], function (require, exports, ol, base_26, index_64, index_65, map_maker_3, once_2, kill_3) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     function createMapDiv() {
@@ -16627,25 +18592,25 @@ define("node_modules/ol3-popup/tests/spec/popup-css", ["require", "exports", "op
         points.splice(index + 1, 0, b0, b, b1);
         return points;
     }
-    base_23.describe("ol3-popup/popup-css", function () {
-        base_23.it("Ensures css is destroyed with popup", function () {
-            var popup = index_57.Popup.create({
+    base_26.describe("ol3-popup/popup-css", function () {
+        base_26.it("Ensures css is destroyed with popup", function () {
+            var popup = index_65.Popup.create({
                 id: "my-popup",
                 autoPopup: false
             });
             var styleNode = document.getElementById("style-my-popup_options");
-            base_23.should(!!styleNode, "css node exists");
+            base_26.should(!!styleNode, "css node exists");
             popup.destroy();
             styleNode = document.getElementById("style-my-popup_options");
-            base_23.should(!styleNode, "css node does not exist");
+            base_26.should(!styleNode, "css node does not exist");
         });
-        base_23.it("DIAMONDS", function () {
+        base_26.it("DIAMONDS", function () {
             var div = createMapDiv();
             var map = map_maker_3.MapMaker(div);
-            var popup = index_57.Popup.create({
+            var popup = index_65.Popup.create({
                 id: "diamonds-test",
                 map: map,
-                indicators: index_57.DIAMONDS,
+                indicators: index_65.DIAMONDS,
                 indicatorOffsets: {
                     "bottom-left": [15, 16],
                     "bottom-center": [0, 16],
@@ -16660,7 +18625,7 @@ define("node_modules/ol3-popup/tests/spec/popup-css", ["require", "exports", "op
                 pointerPosition: 1,
                 positioning: "bottom-center",
                 autoPositioning: false,
-                css: index_57.DEFAULT_OPTIONS.css +
+                css: index_65.DEFAULT_OPTIONS.css +
                     "\n\t\t\t\t.ol-popup {\n\t\t\t\t\tbackground: silver;\n\t\t\t\t\tcolor: black;\n\t\t\t\t\tborder-radius: 1em;\n\t\t\t\t\tpadding: 1em;\n\t\t\t\t\tborder-color: silver;\n\t\t\t\t}\n\t\t\t\t.ol-popup.top.right {\n\t\t\t\t\tborder-top-right-radius: 0em;\n\t\t\t\t}\t\n\t\t\t\t.ol-popup.top.left {\n\t\t\t\t\tborder-top-left-radius: 0em;\n\t\t\t\t}\t\n\t\t\t\t.ol-popup.bottom.right {\n\t\t\t\t\tborder-bottom-right-radius: 0em;\n\t\t\t\t}\t\n\t\t\t\t.ol-popup.bottom.left {\n\t\t\t\t\tborder-bottom-left-radius: 0em;\n\t\t\t\t}\t\n\t\t\t\t.ol-popup.center.left {\n\t\t\t\t\tborder-top-left-radius: 0em;\n\t\t\t\t\tborder-bottom-left-radius: 0em;\n\t\t\t\t}\t\n\t\t\t\t.ol-popup.center.right {\n\t\t\t\t\tborder-top-right-radius: 0em;\n\t\t\t\t\tborder-bottom-right-radius: 0em;\n\t\t\t\t}\t\n\t\t\t\t.popup-indicator { \n\t\t\t\tcolor: silver;\n\t\t\t\tfont-weight: 900;\n\t\t\t}\n"
             });
             var vectorLayer = new ol.layer.Vector({
@@ -16668,21 +18633,21 @@ define("node_modules/ol3-popup/tests/spec/popup-css", ["require", "exports", "op
             });
             map.addLayer(vectorLayer);
             return once_2.once(map, "postrender", function () {
-                return base_23.slowloop(Object.keys(popup.options.indicators).map(function (k) { return function () {
+                return base_26.slowloop(Object.keys(popup.options.indicators).map(function (k) { return function () {
                     popup.setPositioning(k);
                     popup.show(map.getView().getCenter(), "Popup with " + k);
-                    base_23.shouldEqual(popup.indicator.getElement().textContent, popup.options.indicators[k], k);
+                    base_26.shouldEqual(popup.indicator.getElement().textContent, popup.options.indicators[k], k);
                 }; }), 200)
                     .then(kill_3.kill(popup))
                     .catch(function (ex) {
-                    base_23.should(!ex, ex);
+                    base_26.should(!ex, ex);
                 });
             });
         });
-        base_23.it("renders a tooltip on a canvas", function () {
+        base_26.it("renders a tooltip on a canvas", function () {
             var div = document.createElement("div");
             div.className = "canvas-container";
-            var cssRemove = index_56.cssin("canvas-test", ".canvas-container {\n            display: inline-block;\n            position: absolute;\n            top: 20px;\n            width: 200px;\n\t\t\theight: 200px;\n\t\t\tbackground: blue;\n            border: 1px solid white;\n        }");
+            var cssRemove = index_64.cssin("canvas-test", ".canvas-container {\n            display: inline-block;\n            position: absolute;\n            top: 20px;\n            width: 200px;\n\t\t\theight: 200px;\n\t\t\tbackground: blue;\n            border: 1px solid white;\n        }");
             div.innerHTML = "DIV CONTENT";
             var canvas = document.createElement("canvas");
             canvas.width = canvas.height = 200;
@@ -16706,7 +18671,7 @@ define("node_modules/ol3-popup/tests/spec/popup-css", ["require", "exports", "op
                 }
             ];
             {
-                var points = index_56.range(4).map(function (index) {
+                var points = index_64.range(4).map(function (index) {
                     return callout(rect([25, 25, 175, 175]), { index: index, size: 25, width: 25, skew: 10, offset: 20 });
                 });
                 loop = loop.concat(points.map(function (points) { return function () {
@@ -16718,11 +18683,11 @@ define("node_modules/ol3-popup/tests/spec/popup-css", ["require", "exports", "op
                     ctx.stroke();
                 }; }));
             }
-            return $.when(base_23.slowloop(index_56.range(100).map(function (n) { return function () {
+            return $.when(base_26.slowloop(index_64.range(100).map(function (n) { return function () {
                 div.style.left = div.style.top = 10 * Math.sin((n * Math.PI) / 100) * n + "px";
-            }; }), 50), base_23.slowloop(loop, 200).then(function () {
+            }; }), 50), base_26.slowloop(loop, 200).then(function () {
                 loop = [];
-                var points = index_56.range(70).map(function (index) {
+                var points = index_64.range(70).map(function (index) {
                     return callout(rect([20, 20, 180, 180]), {
                         index: 0,
                         size: 10,
@@ -16731,7 +18696,7 @@ define("node_modules/ol3-popup/tests/spec/popup-css", ["require", "exports", "op
                         offset: 2 * index - 70
                     });
                 });
-                points = points.concat(index_56.range(140).map(function (index) {
+                points = points.concat(index_64.range(140).map(function (index) {
                     return callout(rect([20, 20, 180, 180]), {
                         index: 1,
                         size: 10,
@@ -16740,7 +18705,7 @@ define("node_modules/ol3-popup/tests/spec/popup-css", ["require", "exports", "op
                         offset: index - 70
                     });
                 }));
-                points = points.concat(index_56.range(140)
+                points = points.concat(index_64.range(140)
                     .reverse()
                     .map(function (index) {
                     return callout(rect([20, 20, 180, 180]), {
@@ -16751,7 +18716,7 @@ define("node_modules/ol3-popup/tests/spec/popup-css", ["require", "exports", "op
                         offset: index - 70
                     });
                 }));
-                points = points.concat(index_56.range(140)
+                points = points.concat(index_64.range(140)
                     .reverse()
                     .map(function (index) {
                     return callout(rect([20, 20, 180, 180]), {
@@ -16770,16 +18735,16 @@ define("node_modules/ol3-popup/tests/spec/popup-css", ["require", "exports", "op
                     ctx.closePath();
                     ctx.stroke();
                 }; }));
-                return base_23.slowloop(loop, 0).then(function () { return base_23.slowloop(loop.reverse(), 0).then(function () { return div.remove(); }); });
+                return base_26.slowloop(loop, 0).then(function () { return base_26.slowloop(loop.reverse(), 0).then(function () { return div.remove(); }); });
             })).then(function () { return cssRemove(); });
         }).timeout(6000);
     });
 });
-define("node_modules/ol3-popup/tests/spec/smartpick", ["require", "exports", "openlayers", "node_modules/ol3-fun/tests/base", "node_modules/ol3-popup/ol3-popup/commands/smartpick", "node_modules/ol3-popup/examples/extras/map-maker", "node_modules/ol3-popup/index", "node_modules/ol3-popup/examples/extras/once", "node_modules/ol3-popup/tests/extras/kill"], function (require, exports, ol, base_24, smartpick_2, map_maker_4, index_58, once_3, kill_4) {
+define("node_modules/ol3-popup/tests/spec/smartpick", ["require", "exports", "openlayers", "node_modules/ol3-fun/tests/base", "node_modules/ol3-popup/ol3-popup/commands/smartpick", "node_modules/ol3-popup/examples/extras/map-maker", "node_modules/ol3-popup/index", "node_modules/ol3-popup/examples/extras/once", "node_modules/ol3-popup/tests/extras/kill"], function (require, exports, ol, base_27, smartpick_2, map_maker_4, index_66, once_3, kill_4) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     function PopupMaker(map) {
-        var popup = index_58.Popup.create({
+        var popup = index_66.Popup.create({
             id: "spec-smartpicker-test",
             map: map,
             autoPanAnimation: {
@@ -16843,8 +18808,8 @@ define("node_modules/ol3-popup/tests/spec/smartpick", ["require", "exports", "op
         });
         return vectorLayer;
     }
-    base_24.describe("smartpick", function () {
-        base_24.it("places 9 popups on the map", function () {
+    base_27.describe("smartpick", function () {
+        base_27.it("places 9 popups on the map", function () {
             var _a = GridMapMaker(), map = _a.map, points = _a.points, div = _a.div;
             div.style.width = div.style.height = "480px";
             div.style.border = "1px solid white";
@@ -16865,7 +18830,7 @@ define("node_modules/ol3-popup/tests/spec/smartpick", ["require", "exports", "op
                 return popup;
             });
             return once_3.once(map, "postrender", function () {
-                return base_24.slowloop(points.map(function (p, i) { return function () {
+                return base_27.slowloop(points.map(function (p, i) { return function () {
                     var popup = popups[i];
                     popup.show(p, smartpick_2.smartpick(popup, p));
                 }; }), 0);
@@ -16873,15 +18838,15 @@ define("node_modules/ol3-popup/tests/spec/smartpick", ["require", "exports", "op
                 .then(kill_4.kill(popups[0]))
                 .then(function () { return popups.map(function (p) { return p.destroy(); }); });
         });
-        base_24.it("configures a map with popup and points in strategic locations to ensure the positioning is correct", function () {
+        base_27.it("configures a map with popup and points in strategic locations to ensure the positioning is correct", function () {
             var _a = GridMapMaker(), map = _a.map, points = _a.points;
             return once_3.once(map, "postrender", function () {
                 var popup = PopupMaker(map);
-                return base_24.slowloop(points.map(function (p) { return function () {
+                return base_27.slowloop(points.map(function (p) { return function () {
                     var expected = smartpick_2.smartpick(popup, p);
                     popup.show(p, "" + expected);
                     var actual = popup.getPositioning();
-                    base_24.shouldEqual(expected, actual, "positioning");
+                    base_27.shouldEqual(expected, actual, "positioning");
                 }; }), 400, 1).then(kill_4.kill(popup, 0));
             });
         });
@@ -16891,505 +18856,40 @@ define("node_modules/ol3-popup/tests/index", ["require", "exports", "node_module
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
 });
-define("node_modules/ol3-search/tests/spec/search", ["require", "exports", "node_modules/ol3-fun/tests/base", "mocha", "node_modules/ol3-search/index"], function (require, exports, base_25, mocha_3, index_59) {
+define("node_modules/ol3-search/tests/spec/search", ["require", "exports", "node_modules/ol3-fun/tests/base", "mocha", "node_modules/ol3-search/index"], function (require, exports, base_28, mocha_2, index_67) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    mocha_3.describe("SearchForm Tests", function () {
-        mocha_3.it("SearchForm", function () {
-            base_25.should(!!index_59.SearchForm, "SearchForm");
+    mocha_2.describe("SearchForm Tests", function () {
+        mocha_2.it("SearchForm", function () {
+            base_28.should(!!index_67.SearchForm, "SearchForm");
         });
-        mocha_3.it("DEFAULT_OPTIONS", function () {
-            var options = index_59.SearchForm.DEFAULT_OPTIONS;
+        mocha_2.it("DEFAULT_OPTIONS", function () {
+            var options = index_67.SearchForm.DEFAULT_OPTIONS;
             checkDefaultInputOptions(options);
         });
-        mocha_3.it("options of an Input instance", function () {
-            var input = index_59.SearchForm.create();
+        mocha_2.it("options of an Input instance", function () {
+            var input = index_67.SearchForm.create();
             checkDefaultInputOptions(input.options);
         });
     });
     function checkDefaultInputOptions(options) {
-        base_25.should(!!options, "options");
-        base_25.shouldEqual(options.autoChange, false, "autoChange");
-        base_25.shouldEqual(options.autoClear, false, "autoClear");
-        base_25.shouldEqual(options.autoCollapse, true, "autoCollapse");
-        base_25.shouldEqual(options.canCollapse, true, "canCollapse");
-        base_25.shouldEqual(options.className, "ol-search", "className");
-        base_25.should(options.closedText.length > 0, "closedText");
-        base_25.shouldEqual(options.expanded, false, "expanded");
-        base_25.shouldEqual(options.hideButton, false, "hideButton");
-        base_25.shouldEqual(!!options.openedText, true, "openedText");
-        base_25.shouldEqual(options.position, "bottom left", "position");
-        base_25.shouldEqual(options.render, undefined, "render");
-        base_25.shouldEqual(options.source, undefined, "source");
-        base_25.shouldEqual(options.target, undefined, "target");
+        base_28.should(!!options, "options");
+        base_28.shouldEqual(options.autoChange, false, "autoChange");
+        base_28.shouldEqual(options.autoClear, false, "autoClear");
+        base_28.shouldEqual(options.autoCollapse, true, "autoCollapse");
+        base_28.shouldEqual(options.canCollapse, true, "canCollapse");
+        base_28.shouldEqual(options.className, "ol-search", "className");
+        base_28.should(options.closedText.length > 0, "closedText");
+        base_28.shouldEqual(options.expanded, false, "expanded");
+        base_28.shouldEqual(options.hideButton, false, "hideButton");
+        base_28.shouldEqual(!!options.openedText, true, "openedText");
+        base_28.shouldEqual(options.position, "bottom left", "position");
+        base_28.shouldEqual(options.render, undefined, "render");
+        base_28.shouldEqual(options.source, undefined, "source");
+        base_28.shouldEqual(options.target, undefined, "target");
     }
 });
 define("node_modules/ol3-search/tests/index", ["require", "exports", "node_modules/ol3-search/tests/spec/search"], function (require, exports) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-});
-define("node_modules/ol3-symbolizer/tests/common", ["require", "exports", "node_modules/ol3-symbolizer/ol3-symbolizer/common/assign", "node_modules/ol3-fun/index", "node_modules/ol3-fun/tests/base"], function (require, exports, assign_2, index_60, base_26) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    base_26.describe("assign tests", function () {
-        base_26.it("assign empty", function () {
-        });
-        base_26.it("assign number", function () {
-            var target = {};
-            assign_2.assign(target, "a", 100);
-            base_26.should(target.a === 100, "");
-        });
-        base_26.it("assign object", function () {
-            var target = {};
-            assign_2.assign(target, "a", { a: 100 });
-            base_26.should(target.a.a === 100, "");
-        });
-    });
-    base_26.describe("defaults tests", function () {
-        base_26.it("defaults number", function () {
-            base_26.should(index_60.defaults({}, { a: 100 }).a === 100, "");
-            base_26.should(index_60.defaults(index_60.defaults({}, { a: 100 }), { a: 200 }).a === 100, "");
-            var a = index_60.defaults({}, { a: 1 });
-            base_26.should(a === index_60.defaults(a, { a: 2 }), "");
-        });
-    });
-    base_26.describe("mixin tests", function () {
-        base_26.it("mixin number", function () {
-            base_26.should(index_60.mixin({}, { a: 100 }).a === 100, "");
-            base_26.should(index_60.mixin(index_60.mixin({}, { a: 100 }), { a: 200 }).a === 200, "");
-            var a = index_60.mixin({}, { a: 1 });
-            base_26.should(a === index_60.mixin(a, { a: 2 }), "");
-        });
-    });
-    base_26.describe("test accessing openlayers using amd", function () {
-        base_26.it("log ol.style.Style", function () {
-            require(["openlayers"], function (ol) {
-                var style = ol.style.Style;
-                base_26.should(!!style, "");
-                console.log(style.toString());
-            });
-        });
-    });
-});
-define("node_modules/ol3-symbolizer/ol3-symbolizer/styles/stroke/linedash", ["require", "exports"], function (require, exports) {
-    "use strict";
-    var dasharray = {
-        solid: "none",
-        shortdash: [4, 1],
-        shortdot: [1, 1],
-        shortdashdot: [4, 1, 1, 1],
-        shortdashdotdot: [4, 1, 1, 1, 1, 1],
-        dot: [1, 3],
-        dash: [4, 3],
-        longdash: [8, 3],
-        dashdot: [4, 3, 1, 3],
-        longdashdot: [8, 3, 1, 3],
-        longdashdotdot: [8, 3, 1, 3, 1, 3]
-    };
-    return dasharray;
-});
-define("node_modules/ol3-symbolizer/tests/ol3-symbolizer", ["require", "exports", "node_modules/ol3-symbolizer/ol3-symbolizer/styles/stroke/linedash", "node_modules/ol3-fun/tests/base", "node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer"], function (require, exports, Dashes, base_27, ol3_symbolizer_7) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    var converter = new ol3_symbolizer_7.StyleConverter();
-    base_27.describe("OL Format Tests", function () {
-        base_27.it("Ensures interface does not break", function () {
-            var circle = {};
-            circle.fill;
-            circle.opacity;
-            circle.radius;
-            circle.snapToPixel;
-            circle.stroke;
-            var color = {};
-            color === [1] || color == "";
-            var fill = {};
-            fill.color;
-            fill.gradient;
-            fill.image;
-            fill.pattern;
-            var icon = {};
-            icon["anchor-x"];
-            icon["anchor-y"];
-            icon.anchor;
-            icon.anchorOrigin;
-            icon.anchorXUnits;
-            icon.anchorYUnits;
-            icon.color;
-            icon.crossOrigin;
-            icon.offset;
-            icon.offsetOrigin;
-            icon.opacity;
-            icon.rotateWithView;
-            icon.rotation;
-            icon.scale;
-            icon.size;
-            icon.snapToPixel;
-            icon.src;
-            var image = {};
-            image.opacity;
-            image.rotateWithView;
-            image.rotation;
-            image.scale;
-            image.snapToPixel;
-        });
-    });
-    base_27.describe("OL StyleConverter API Tests", function () {
-        base_27.it("StyleConverter API", function () {
-            var converter = new ol3_symbolizer_7.StyleConverter();
-            base_27.should(typeof converter.fromJson === "function", "fromJson exists");
-            base_27.should(typeof converter.toJson === "function", "toJson exists");
-        });
-    });
-    base_27.describe("OL StyleConverter Json Tests", function () {
-        base_27.it("Circle Tests", function () {
-            var baseline = {
-                circle: {
-                    fill: {
-                        color: "rgba(197,37,84,0.90)"
-                    },
-                    opacity: 1,
-                    stroke: {
-                        color: "rgba(227,83,105,1)",
-                        width: 4.4
-                    },
-                    radius: 7.3
-                },
-                text: {
-                    fill: {
-                        color: "rgba(205,86,109,0.9)"
-                    },
-                    stroke: {
-                        color: "rgba(252,175,131,0.5)",
-                        width: 2
-                    },
-                    text: "Test",
-                    "offset-x": 0,
-                    "offset-y": 20,
-                    font: "18px fantasy"
-                }
-            };
-            var style = converter.fromJson(baseline);
-            var circleStyle = style.getImage();
-            base_27.should(circleStyle !== null, "getImage returns a style");
-            base_27.shouldEqual(circleStyle.getRadius(), baseline.circle.radius, "getImage is a circle and radius");
-            var circleJson = converter.toJson(style);
-            base_27.should(circleJson.circle !== null, "json contains a circle");
-            base_27.shouldEqual(circleJson.circle.radius, baseline.circle.radius, "circle radius");
-        });
-        base_27.it("Star Tests", function () {
-            var baseline = {
-                star: {
-                    fill: {
-                        color: "rgba(54,47,234,1)"
-                    },
-                    stroke: {
-                        color: "rgba(75,92,105,0.85)",
-                        width: 4
-                    },
-                    radius: 9,
-                    radius2: 0,
-                    points: 6
-                }
-            };
-            var style = converter.fromJson(baseline);
-            var starStyle = style.getImage();
-            base_27.should(starStyle !== null, "getImage returns a style");
-            base_27.shouldEqual(starStyle.getRadius(), baseline.star.radius, "starStyle radius");
-            base_27.shouldEqual(starStyle.getRadius2(), baseline.star.radius2, "starStyle radius2");
-            base_27.shouldEqual(starStyle.getPoints(), baseline.star.points, "starStyle points");
-            var starJson = converter.toJson(style);
-            base_27.should(starJson.star !== null, "json contains a star");
-            base_27.shouldEqual(starJson.star.radius, baseline.star.radius, "starJson radius");
-            base_27.shouldEqual(starJson.star.radius2, baseline.star.radius2, "starJson radius2");
-            base_27.shouldEqual(starJson.star.points, baseline.star.points, "starJson point count");
-        });
-        base_27.it("Fill Test", function () {
-            var baseline = {
-                fill: {
-                    gradient: {
-                        type: "linear(200,0,201,0)",
-                        stops: "rgba(255,0,0,.1) 0%;rgba(255,0,0,0.8) 100%"
-                    }
-                }
-            };
-            var style = converter.fromJson(baseline);
-            var fillStyle = style.getFill();
-            base_27.should(fillStyle !== null, "fillStyle exists");
-            var gradient = fillStyle.getColor();
-            base_27.shouldEqual(gradient.stops, baseline.fill.gradient.stops, "fillStyle color");
-            base_27.shouldEqual(gradient.type, baseline.fill.gradient.type, "fillStyle color");
-        });
-        base_27.it("Stroke Test", function () {
-            var baseline = {
-                stroke: {
-                    color: "orange",
-                    width: 2,
-                    lineDash: Dashes.longdashdotdot
-                }
-            };
-            var style = converter.fromJson(baseline);
-            var strokeStyle = style.getStroke();
-            base_27.should(strokeStyle !== null, "strokeStyle exists");
-            base_27.shouldEqual(strokeStyle.getColor(), baseline.stroke.color, "strokeStyle color");
-            base_27.shouldEqual(strokeStyle.getWidth(), baseline.stroke.width, "strokeStyle width");
-            base_27.shouldEqual(strokeStyle.getLineDash().join(), baseline.stroke.lineDash.join(), "strokeStyle lineDash");
-        });
-        base_27.it("Text Test", function () {
-            var baseline = {
-                text: {
-                    fill: {
-                        color: "rgba(75,92,85,0.85)"
-                    },
-                    stroke: {
-                        color: "rgba(255,255,255,1)",
-                        width: 5
-                    },
-                    "offset-x": 5,
-                    "offset-y": 10,
-                    offsetX: 15,
-                    offsetY: 20,
-                    text: "fantasy light",
-                    font: "18px serif"
-                }
-            };
-            var style = converter.fromJson(baseline);
-            var textStyle = style.getText();
-            base_27.should(textStyle !== null, "textStyle exists");
-            base_27.shouldEqual(textStyle.getFill().getColor(), baseline.text.fill.color, "textStyle text color");
-            base_27.shouldEqual(textStyle.getText(), baseline.text.text, "textStyle text");
-            base_27.shouldEqual(textStyle.getOffsetX(), baseline.text["offset-x"], "textStyle color");
-            base_27.shouldEqual(textStyle.getOffsetY(), baseline.text["offset-y"], "textStyle color");
-            base_27.shouldEqual(textStyle.getFont(), baseline.text.font, "textStyle font");
-        });
-    });
-    base_27.describe("OL Basic shapes", function () {
-        base_27.it("cross, square, diamond, star, triangle, x", function () {
-            var cross = {
-                star: {
-                    opacity: 0.5,
-                    fill: {
-                        color: "red"
-                    },
-                    stroke: {
-                        color: "black",
-                        width: 2
-                    },
-                    points: 4,
-                    radius: 10,
-                    radius2: 0,
-                    angle: 0
-                }
-            };
-            var square = {
-                star: {
-                    fill: {
-                        color: "red"
-                    },
-                    stroke: {
-                        color: "black",
-                        width: 2
-                    },
-                    points: 4,
-                    radius: 10,
-                    angle: 0.7853981633974483
-                }
-            };
-            var diamond = {
-                star: {
-                    fill: {
-                        color: "red"
-                    },
-                    stroke: {
-                        color: "black",
-                        width: 2
-                    },
-                    points: 4,
-                    radius: 10,
-                    angle: 0
-                }
-            };
-            var star = {
-                star: {
-                    fill: {
-                        color: "red"
-                    },
-                    stroke: {
-                        color: "black",
-                        width: 2
-                    },
-                    points: 5,
-                    radius: 10,
-                    radius2: 4,
-                    angle: 0
-                }
-            };
-            var triangle = {
-                star: {
-                    fill: {
-                        color: "red"
-                    },
-                    stroke: {
-                        color: "black",
-                        width: 2
-                    },
-                    points: 3,
-                    radius: 10,
-                    angle: 0
-                }
-            };
-            var x = {
-                star: {
-                    fill: {
-                        color: "red"
-                    },
-                    stroke: {
-                        color: "black",
-                        width: 2
-                    },
-                    points: 4,
-                    radius: 10,
-                    radius2: 0,
-                    angle: 0.7853981633974483
-                }
-            };
-            var crossJson = converter.toJson(converter.fromJson(cross));
-            var squareJson = converter.toJson(converter.fromJson(square));
-            var diamondJson = converter.toJson(converter.fromJson(diamond));
-            var starJson = converter.toJson(converter.fromJson(star));
-            var triangleJson = converter.toJson(converter.fromJson(triangle));
-            var xJson = converter.toJson(converter.fromJson(x));
-            base_27.should(!!crossJson.cross, "cross exists");
-            base_27.shouldEqual(crossJson.cross.size, cross.star.radius * 2, "cross size");
-            base_27.should(!!squareJson.square, "square exists");
-            base_27.shouldEqual(squareJson.square.size, square.star.radius * 2, "square size");
-            base_27.should(!!diamondJson.diamond, "diamond exists");
-            base_27.shouldEqual(diamondJson.diamond.size, diamond.star.radius * 2, "diamond size");
-            base_27.should(!!triangleJson.triangle, "triangle exists");
-            base_27.shouldEqual(triangleJson.triangle.size, triangle.star.radius * 2, "triangle size");
-            base_27.should(!!xJson.x, "x exists");
-            base_27.shouldEqual(xJson.x.size, x.star.radius * 2, "x size");
-            var items = { crossJson: crossJson, squareJson: squareJson, diamondJson: diamondJson, triangleJson: triangleJson, xJson: xJson };
-            Object.keys(items).forEach(function (k) {
-                base_27.shouldEqual(base_27.stringify(converter.toJson(converter.fromJson(items[k]))), base_27.stringify(items[k]), k + " json->style->json");
-            });
-        });
-    });
-    base_27.describe("OL NEXT", function () {
-        base_27.it("NEXT", function () { });
-    });
-});
-define("node_modules/ol3-symbolizer/tests/ags-symbolizer", ["require", "exports", "node_modules/ol3-fun/tests/base", "node_modules/ol3-symbolizer/ol3-symbolizer/format/ags-symbolizer", "node_modules/ol3-symbolizer/ol3-symbolizer/format/ol3-symbolizer"], function (require, exports, base_28, ags_symbolizer_4, ol3_symbolizer_8) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    var fromJson = (function () {
-        var fromJsonConverter = new ags_symbolizer_4.StyleConverter();
-        return function (style) { return fromJsonConverter.fromJson(style); };
-    })();
-    var toJson = (function () {
-        var toJsonConverter = new ol3_symbolizer_8.StyleConverter();
-        return function (style) { return toJsonConverter.toJson(style); };
-    })();
-    function rgba(_a) {
-        var r = _a[0], g = _a[1], b = _a[2], a = _a[3];
-        return "rgba(" + r + "," + g + "," + b + "," + a / 255 + ")";
-    }
-    base_28.describe("esriSMS Tests", function () {
-        base_28.it("esriSMSCircle", function () {
-            var baseline = {
-                color: [255, 255, 255, 64],
-                size: 12,
-                angle: 0,
-                xoffset: 0,
-                yoffset: 0,
-                type: "esriSMS",
-                style: "esriSMSCircle",
-                outline: {
-                    color: [0, 0, 0, 255],
-                    width: 1,
-                    type: "esriSLS",
-                    style: "esriSLSSolid"
-                }
-            };
-            var style = fromJson(baseline);
-            var circleJson = toJson(style);
-            var expectedRadius = (baseline.size * 4) / 3 / 2;
-            base_28.shouldEqual(circleJson.circle.radius, expectedRadius, "circleJson radius is 33% larger than specified in the ags style (see StyleConverter.asWidth)");
-            base_28.shouldEqual(circleJson.circle.fill.color, rgba(baseline.color), "circleJson fill color");
-            base_28.shouldEqual(circleJson.circle.fill.pattern, null, "circleJson fill pattern is solid");
-            base_28.shouldEqual(circleJson.circle.stroke.color, rgba(baseline.outline.color), "circleJson stroke color");
-            base_28.shouldEqual(circleJson.circle.stroke.width, (baseline.outline.width * 4) / 3, "circleJson stroke width");
-            base_28.shouldEqual(circleJson.circle.stroke.lineCap, undefined, "circleJson stroke lineCap");
-            base_28.shouldEqual(circleJson.circle.stroke.lineDash, undefined, "circleJson stroke lineDash");
-            base_28.shouldEqual(circleJson.circle.stroke.lineJoin, undefined, "circleJson stroke lineJoin");
-        });
-        base_28.it("esriSMSCross", function () {
-            var baseline = {
-                color: [255, 255, 255, 64],
-                size: 12,
-                angle: 0,
-                xoffset: 0,
-                yoffset: 0,
-                type: "esriSMS",
-                style: "esriSMSCross",
-                outline: {
-                    color: [0, 0, 0, 255],
-                    width: 1,
-                    type: "esriSLS",
-                    style: "esriSLSSolid"
-                }
-            };
-            var json = toJson(fromJson(baseline));
-            base_28.should(!!json.cross, "cross");
-            base_28.shouldEqual(json.cross.opacity, 1, "opacity");
-            base_28.shouldEqual(json.cross.size, 22.62741699796952, "size");
-        });
-    });
-    base_28.describe("esriSLS Tests", function () {
-        base_28.it("esriSLSShortDash esriLCSSquare esriLJSRound", function () {
-            var baseline = {
-                type: "esriSLS",
-                style: "esriSLSShortDash",
-                color: [152, 230, 0, 255],
-                width: 1,
-                cap: "esriLCSSquare",
-                join: "esriLJSRound",
-                miterLimit: 9.75
-            };
-            var style = fromJson(baseline);
-            var json = toJson(style);
-            base_28.shouldEqual(json.stroke.color, rgba(baseline.color), "stroke color");
-        });
-        base_28.it("esriSLSDash esriLCSButt esriLJSBevel", function () {
-            var baseline = {
-                type: "esriSLS",
-                style: "esriSLSDash",
-                color: [152, 230, 0, 255],
-                width: 1,
-                cap: "esriLCSButt",
-                join: "esriLJSBevel",
-                miterLimit: 9.75
-            };
-            var style = fromJson(baseline);
-            var json = toJson(style);
-            base_28.shouldEqual(json.stroke.color, rgba(baseline.color), "stroke color");
-        });
-        base_28.it("esriSLSSolid esriLCSRound esriLJSMiter", function () {
-            var baseline = {
-                type: "esriSLS",
-                style: "esriSLSSolid",
-                color: [152, 230, 0, 255],
-                width: 1,
-                cap: "esriLCSRound",
-                join: "esriLJSMiter",
-                miterLimit: 9.75
-            };
-            var style = fromJson(baseline);
-            var json = toJson(style);
-            base_28.shouldEqual(json.stroke.color, rgba(baseline.color), "stroke color");
-        });
-    });
-});
-define("node_modules/ol3-symbolizer/tests/index", ["require", "exports", "node_modules/ol3-symbolizer/tests/common", "node_modules/ol3-symbolizer/tests/ol3-symbolizer", "node_modules/ol3-symbolizer/tests/ags-symbolizer"], function (require, exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
 });
