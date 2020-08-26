@@ -4581,12 +4581,18 @@ define("poc/index", ["require", "exports", "node_modules/ol/src/extent"], functi
         const [xmid, ymid] = [xmin + w / 2, ymin + h / 2];
         return { xmin, ymin, xmax, ymax, w, h, xmid, ymid };
     }
-    const TINY = 0.0000001;
+    const TINY = 0.00000001;
     function isInt(value) {
-        return TINY > Math.abs(value % 1);
+        return TINY > Math.abs(value - Math.round(value));
     }
     function isEq(v1, v2) {
         return TINY > Math.abs(v1 - v2);
+    }
+    function isLt(v1, v2) {
+        return TINY < v2 - v1;
+    }
+    function isGt(v1, v2) {
+        return TINY < v1 - v2;
     }
     class TileTree {
         constructor(options) {
@@ -4630,54 +4636,172 @@ define("poc/index", ["require", "exports", "node_modules/ol/src/extent"], functi
             }
         }
         find(extent) {
-            if (!extent_1.containsExtent(this.root.extent, extent))
-                throw "extent is out-of-bounds";
             const info = explode(extent);
-            if (info.w !== info.h)
+            const rootInfo = explode(this.root.extent);
+            if (!extent_1.containsExtent(this.root.extent, extent)) {
+                if (isLt(info.xmin, rootInfo.xmin))
+                    throw "xmin too small";
+                if (isLt(info.ymin, rootInfo.ymin))
+                    throw "ymin too small";
+                if (isGt(info.xmax, rootInfo.xmax))
+                    throw `xmax too large: ${info.xmax} > ${rootInfo.xmax}`;
+                if (isGt(info.ymax, rootInfo.ymax))
+                    throw "ymax too large";
+            }
+            if (!isEq(info.w, info.h))
                 throw "not square";
             if (isEq(info.w, 0))
                 throw "too small";
-            const rootInfo = explode(this.root.extent);
-            if (!isInt(Math.log2(rootInfo.w / info.w)))
+            if (!isInt(Math.log2(rootInfo.w / info.w))) {
                 throw "wrong power";
+            }
             return this.findNode(this.root, this.asTileNode(extent));
         }
         findNode(root, child) {
-            console.log("findNode", root, child);
             const info = explode(child.extent);
             const rootInfo = explode(root.extent);
             if (!extent_1.containsExtent(root.extent, child.extent)) {
-                if (info.xmin < rootInfo.xmin)
+                if (isLt(info.xmin, rootInfo.xmin))
                     throw "xmin too small";
-                if (info.ymin < rootInfo.ymin)
+                if (isLt(info.ymin, rootInfo.ymin))
                     throw "ymin too small";
-                if (info.xmax > rootInfo.xmax)
-                    throw "xmax too large";
-                if (info.ymax > rootInfo.ymax)
+                if (isGt(info.xmax, rootInfo.xmax))
+                    throw `xmax too large: ${info.xmax} > ${rootInfo.xmax}`;
+                if (isGt(info.ymax, rootInfo.ymax))
                     throw "ymax too large";
             }
             if (isEq(info.w, rootInfo.w))
                 return root;
-            const isLeftQuad = info.xmin < rootInfo.xmid ? 1 : 0;
-            const isBottomQuad = info.ymin < rootInfo.ymid ? 1 : 0;
+            const isLeftQuad = isLt(info.xmin, rootInfo.xmid) ? 1 : 0;
+            const isBottomQuad = isLt(info.ymin, rootInfo.ymid) ? 1 : 0;
             const quadIndex = (1 - isLeftQuad) * 1 + (1 - isBottomQuad) * 2;
             if (!root.quad[quadIndex]) {
-                const subExtent = [
-                    isLeftQuad ? rootInfo.xmin : rootInfo.xmid,
-                    isBottomQuad ? rootInfo.ymin : rootInfo.ymid,
-                    isLeftQuad ? rootInfo.xmid : rootInfo.xmax,
-                    isBottomQuad ? rootInfo.ymid : rootInfo.ymax,
-                ];
-                root.quad[quadIndex] = this.asTileNode(subExtent);
+                this.defineAllQuads(root);
             }
             return this.findNode(root.quad[quadIndex], child);
         }
     }
     exports.TileTree = TileTree;
 });
-define("index", ["require", "exports", "mocha", "chai", "node_modules/ol/src/proj", "poc/index"], function (require, exports, mocha_1, chai_1, proj_1, index_1) {
+define("node_modules/ol/src/tilegrid", ["require", "exports", "node_modules/ol/src/extent/Corner", "node_modules/ol/src/tilegrid/TileGrid", "node_modules/ol/src/proj/Units", "node_modules/ol/src/tilegrid/common", "node_modules/ol/src/proj", "node_modules/ol/src/extent", "node_modules/ol/src/size"], function (require, exports, Corner_js_2, TileGrid_js_1, Units_js_6, common_js_2, proj_js_2, extent_js_13, size_js_2) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
+    exports.extentFromProjection = exports.createForProjection = exports.createXYZ = exports.createForExtent = exports.wrapX = exports.getForProjection = void 0;
+    function getForProjection(projection) {
+        let tileGrid = projection.getDefaultTileGrid();
+        if (!tileGrid) {
+            tileGrid = createForProjection(projection);
+            projection.setDefaultTileGrid(tileGrid);
+        }
+        return tileGrid;
+    }
+    exports.getForProjection = getForProjection;
+    function wrapX(tileGrid, tileCoord, projection) {
+        const z = tileCoord[0];
+        const center = tileGrid.getTileCoordCenter(tileCoord);
+        const projectionExtent = extentFromProjection(projection);
+        if (!extent_js_13.containsCoordinate(projectionExtent, center)) {
+            const worldWidth = extent_js_13.getWidth(projectionExtent);
+            const worldsAway = Math.ceil((projectionExtent[0] - center[0]) / worldWidth);
+            center[0] += worldWidth * worldsAway;
+            return tileGrid.getTileCoordForCoordAndZ(center, z);
+        }
+        else {
+            return tileCoord;
+        }
+    }
+    exports.wrapX = wrapX;
+    function createForExtent(extent, opt_maxZoom, opt_tileSize, opt_corner) {
+        const corner = opt_corner !== undefined ? opt_corner : Corner_js_2.default.TOP_LEFT;
+        const resolutions = resolutionsFromExtent(extent, opt_maxZoom, opt_tileSize);
+        return new TileGrid_js_1.default({
+            extent: extent,
+            origin: extent_js_13.getCorner(extent, corner),
+            resolutions: resolutions,
+            tileSize: opt_tileSize,
+        });
+    }
+    exports.createForExtent = createForExtent;
+    function createXYZ(opt_options) {
+        const xyzOptions = opt_options || {};
+        const extent = xyzOptions.extent || proj_js_2.get('EPSG:3857').getExtent();
+        const gridOptions = {
+            extent: extent,
+            minZoom: xyzOptions.minZoom,
+            tileSize: xyzOptions.tileSize,
+            resolutions: resolutionsFromExtent(extent, xyzOptions.maxZoom, xyzOptions.tileSize, xyzOptions.maxResolution),
+        };
+        return new TileGrid_js_1.default(gridOptions);
+    }
+    exports.createXYZ = createXYZ;
+    function resolutionsFromExtent(extent, opt_maxZoom, opt_tileSize, opt_maxResolution) {
+        const maxZoom = opt_maxZoom !== undefined ? opt_maxZoom : common_js_2.DEFAULT_MAX_ZOOM;
+        const height = extent_js_13.getHeight(extent);
+        const width = extent_js_13.getWidth(extent);
+        const tileSize = size_js_2.toSize(opt_tileSize !== undefined ? opt_tileSize : common_js_2.DEFAULT_TILE_SIZE);
+        const maxResolution = opt_maxResolution > 0
+            ? opt_maxResolution
+            : Math.max(width / tileSize[0], height / tileSize[1]);
+        const length = maxZoom + 1;
+        const resolutions = new Array(length);
+        for (let z = 0; z < length; ++z) {
+            resolutions[z] = maxResolution / Math.pow(2, z);
+        }
+        return resolutions;
+    }
+    function createForProjection(projection, opt_maxZoom, opt_tileSize, opt_corner) {
+        const extent = extentFromProjection(projection);
+        return createForExtent(extent, opt_maxZoom, opt_tileSize, opt_corner);
+    }
+    exports.createForProjection = createForProjection;
+    function extentFromProjection(projection) {
+        projection = proj_js_2.get(projection);
+        let extent = projection.getExtent();
+        if (!extent) {
+            const half = (180 * proj_js_2.METERS_PER_UNIT[Units_js_6.default.DEGREES]) / projection.getMetersPerUnit();
+            extent = extent_js_13.createOrUpdate(-half, -half, half, half);
+        }
+        return extent;
+    }
+    exports.extentFromProjection = extentFromProjection;
+});
+define("node_modules/ol/src/loadingstrategy", ["require", "exports"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.tile = exports.bbox = exports.all = void 0;
+    function all(extent, resolution) {
+        return [[-Infinity, -Infinity, Infinity, Infinity]];
+    }
+    exports.all = all;
+    function bbox(extent, resolution) {
+        return [extent];
+    }
+    exports.bbox = bbox;
+    function tile(tileGrid) {
+        return (function (extent, resolution) {
+            const z = tileGrid.getZForResolution(resolution);
+            const tileRange = tileGrid.getTileRangeForExtentAndZ(extent, z);
+            const extents = [];
+            const tileCoord = [z, 0, 0];
+            for (tileCoord[1] = tileRange.minX; tileCoord[1] <= tileRange.maxX; ++tileCoord[1]) {
+                for (tileCoord[2] = tileRange.minY; tileCoord[2] <= tileRange.maxY; ++tileCoord[2]) {
+                    extents.push(tileGrid.getTileCoordExtent(tileCoord));
+                }
+            }
+            return extents;
+        });
+    }
+    exports.tile = tile;
+});
+define("index", ["require", "exports", "mocha", "chai", "node_modules/ol/src/proj", "poc/index", "node_modules/ol/src/tilegrid", "node_modules/ol/src/loadingstrategy"], function (require, exports, mocha_1, chai_1, proj_1, index_1, tilegrid_1, loadingstrategy_js_1) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    function explode(extent) {
+        const [xmin, ymin, xmax, ymax] = extent;
+        const [w, h] = [xmax - xmin, ymax - ymin];
+        const [xmid, ymid] = [xmin + w / 2, ymin + h / 2];
+        return { xmin, ymin, xmax, ymax, w, h, xmid, ymid };
+    }
     const TINY = 0.0000001;
     function isEq(v1, v2) {
         return TINY > Math.abs(v1 - v2);
@@ -4701,8 +4825,8 @@ define("index", ["require", "exports", "mocha", "chai", "node_modules/ol/src/pro
         mocha_1.it("inserts an extent outside of the bounds of the current tree", () => {
             const extent = [0, 0, 1, 1];
             const tree = new index_1.TileTree({ extent });
-            chai_1.assert.throws(() => tree.find([1, 1, 2, 2]), "extent is out-of-bounds");
-            chai_1.assert.throws(() => tree.find([0.1, 0.1, 0.9, 1.00001]), "extent is out-of-bounds");
+            chai_1.assert.throws(() => tree.find([1, 1, 2, 2]), "xmax too large: 2 > 1");
+            chai_1.assert.throws(() => tree.find([0.1, 0.1, 0.9, 1.00001]), "ymax too large");
         });
         mocha_1.it("inserts an extent that misaligns to the established scale", () => {
             const extent = [0, 0, 1, 1];
@@ -4722,7 +4846,6 @@ define("index", ["require", "exports", "mocha", "chai", "node_modules/ol/src/pro
             const q1 = tree.find([0.25, 0, 0.5, 0.25]);
             const q2 = tree.find([0, 0.25, 0.25, 0.5]);
             const q3 = tree.find([0.25, 0.25, 0.5, 0.5]);
-            console.log(result1);
             chai_1.assert.equal(q0, result1.quad[0], "quad0");
             chai_1.assert.equal(q1, result1.quad[1], "quad1");
             chai_1.assert.equal(q2, result1.quad[2], "quad2");
@@ -4736,12 +4859,14 @@ define("index", ["require", "exports", "mocha", "chai", "node_modules/ol/src/pro
             const q1 = tree.find([0.25, 0, 0.5, 0.25]);
             const q2 = tree.find([0, 0.25, 0.25, 0.5]);
             const q3 = tree.find([0.25, 0.25, 0.5, 0.5]);
+            const q33 = tree.find([0.375, 0.375, 0.5, 0.5]);
             q0.count = 1;
             q1.count = 2;
             q2.count = 4;
             q3.count = 8;
-            const totalCount = visit(root, (a, b) => a + (b === null || b === void 0 ? void 0 : b.count) || 0, 0);
-            chai_1.assert.equal(totalCount, 15);
+            q33.count = 16;
+            const totalCount = visit(root, (a, b) => a + ((b === null || b === void 0 ? void 0 : b.count) || 0), 0);
+            chai_1.assert.equal(totalCount, 31);
         });
         mocha_1.it("uses 3857 to find a tile for a given depth and coordinate", () => {
             const extent = proj_1.get("EPSG:3857").getExtent();
@@ -4759,6 +4884,45 @@ define("index", ["require", "exports", "mocha", "chai", "node_modules/ol/src/pro
             chai_1.assert.equal(q1.extent[1], size, "q1.y");
             chai_1.assert.equal(q2.extent[1], 0, "q2.y");
             chai_1.assert.equal(q3.extent[1], 0, "q3.y");
+        });
+        mocha_1.it("can cache tiles from a TileGrid", () => {
+            const extent = proj_1.get("EPSG:3857").getExtent();
+            const tree = new index_1.TileTree({
+                extent,
+            });
+            const tileGrid = tilegrid_1.createXYZ({ extent });
+            const addTiles = (level) => tileGrid.forEachTileCoord(extent, level, (tileCoord) => {
+                const [z, x, y] = tileCoord;
+                const extent = tileGrid.getTileCoordExtent(tileCoord);
+                tree.find(extent).tileCoord = tileCoord;
+            });
+            const maxX = () => visit(tree.find(extent), (a, b) => Math.max(a, b.tileCoord ? b.tileCoord[1] : a), 0);
+            for (let i = 0; i <= 8; i++) {
+                addTiles(i);
+                chai_1.assert.equal(Math.pow(2, i) - 1, maxX(), `addTiles(${i})`);
+            }
+        });
+        mocha_1.it("integrates with a tiling strategy", () => {
+            const extent = proj_1.get("EPSG:3857").getExtent();
+            const tree = new index_1.TileTree({ extent });
+            const tileGrid = tilegrid_1.createXYZ({ extent });
+            const strategy = loadingstrategy_js_1.tile(tileGrid);
+            const resolutions = tileGrid.getResolutions();
+            let quad0 = extent;
+            resolutions.slice(0, 28).forEach((resolution, i) => {
+                const extents = strategy(quad0, resolution);
+                quad0 = extents[0];
+                console.log(i, resolution, quad0);
+                tree.find(quad0);
+            });
+            chai_1.assert.equal(0.0005831682455839253, resolutions[28]);
+            resolutions.slice(28).forEach((resolution, i) => {
+                const extents = strategy(quad0, resolution);
+                quad0 = extents[0];
+                console.log(i, resolution, quad0);
+                chai_1.assert.throws(() => tree.find(quad0), "wrong power");
+            });
+            console.log(explode(quad0));
         });
     });
 });
