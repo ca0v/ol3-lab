@@ -14752,9 +14752,56 @@ define("node_modules/ol/src/source/Vector", ["require", "exports", "node_modules
     }
     exports.default = VectorSource;
 });
-define("index", ["require", "exports", "mocha", "chai", "node_modules/ol/src/extent", "node_modules/ol/src/proj", "poc/index", "node_modules/ol/src/tilegrid", "node_modules/ol/src/loadingstrategy", "node_modules/ol/src/source/Vector", "node_modules/ol/src/geom/Point", "node_modules/ol/src/Feature", "node_modules/ol/src/source/VectorEventType"], function (require, exports, mocha_1, chai_1, extent_2, proj_1, index_1, tilegrid_1, loadingstrategy_1, Vector_1, Point_1, Feature_1, VectorEventType_1) {
+define("poc/FeatureServiceRequest", ["require", "exports"], function (require, exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
+});
+define("poc/fun/asQueryString", ["require", "exports"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.asQueryString = void 0;
+    function asQueryString(o) {
+        return Object.keys(o)
+            .map((v) => `${v}=${o[v]}`)
+            .join("&");
+    }
+    exports.asQueryString = asQueryString;
+});
+define("poc/FeatureServiceProxy", ["require", "exports", "poc/fun/asQueryString"], function (require, exports, asQueryString_1) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.FeatureServiceProxy = void 0;
+    class FeatureServiceProxy {
+        constructor(options) {
+            this.options = options;
+        }
+        fetch(request) {
+            return __awaiter(this, void 0, void 0, function* () {
+                const baseUrl = `${this.options.service}?${asQueryString_1.asQueryString(request)}`;
+                const response = yield fetch(baseUrl);
+                if (!response.ok)
+                    throw response.statusText;
+                const data = yield response.json();
+                return data;
+            });
+        }
+    }
+    exports.FeatureServiceProxy = FeatureServiceProxy;
+});
+define("poc/fun/removeAuthority", ["require", "exports"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.removeAuthority = void 0;
+    function removeAuthority(projCode) {
+        var _a;
+        return parseInt(((_a = projCode.split(":", 2)) === null || _a === void 0 ? void 0 : _a.pop()) || "0");
+    }
+    exports.removeAuthority = removeAuthority;
+});
+define("poc/fun/createWeightedFeature", ["require", "exports", "node_modules/ol/src/extent", "node_modules/ol/src/geom/Point", "node_modules/ol/src/Feature"], function (require, exports, extent_2, Point_1, Feature_1) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.createWeightedFeature = void 0;
     function createWeightedFeature(featureCountPerQuadrant, extent) {
         const weight = featureCountPerQuadrant.reduce((a, b) => a + b, 0);
         if (!weight)
@@ -14780,55 +14827,20 @@ define("index", ["require", "exports", "mocha", "chai", "node_modules/ol/src/ext
         feature.setProperties({ count: weight });
         return feature;
     }
+    exports.createWeightedFeature = createWeightedFeature;
+});
+define("poc/test/index", ["require", "exports", "mocha", "chai", "node_modules/ol/src/extent", "node_modules/ol/src/proj", "poc/index", "node_modules/ol/src/tilegrid", "node_modules/ol/src/loadingstrategy", "node_modules/ol/src/source/Vector", "node_modules/ol/src/geom/Point", "node_modules/ol/src/Feature", "node_modules/ol/src/source/VectorEventType", "poc/FeatureServiceProxy", "poc/fun/removeAuthority", "poc/fun/createWeightedFeature"], function (require, exports, mocha_1, chai_1, extent_3, proj_1, index_1, tilegrid_1, loadingstrategy_1, Vector_1, Point_2, Feature_2, VectorEventType_1, FeatureServiceProxy_1, removeAuthority_1, createWeightedFeature_1) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
     function removeFeaturesFromSource(extent, resolution, source) {
         const featuresToRemove = source
             .getFeaturesInExtent(extent)
             .filter((f) => f.getProperties().resolution > resolution);
         featuresToRemove.forEach((f) => source.removeFeature(f));
     }
-    function quarter(extent) {
-        const [a, b, c, d] = extent;
-        const [w, h] = [Math.floor((c - a) / 2), Math.floor((d - b) / 2)];
-        return [
-            [a + w + 1, b + h + 1, c, d],
-            [a, b + h + 1, a + w, d],
-            [a, b, a + w, b + h],
-            [a + w + 1, b, c, b + h],
-        ];
-    }
-    class FeatureServiceProxy {
-        constructor(options) {
-            this.options = options;
-        }
-        fetch(request) {
-            return __awaiter(this, void 0, void 0, function* () {
-                const baseUrl = `${this.options.service}?${asQueryString(request)}`;
-                const response = yield fetch(baseUrl);
-                if (!response.ok)
-                    throw response.statusText;
-                const data = yield response.json();
-                return data;
-            });
-        }
-    }
-    function removeAuthority(projCode) {
-        var _a;
-        return parseInt(((_a = projCode.split(":", 2)) === null || _a === void 0 ? void 0 : _a.pop()) || "0");
-    }
     function bbox(extent) {
         const [xmin, ymin, xmax, ymax] = extent;
         return JSON.stringify({ xmin, ymin, xmax, ymax });
-    }
-    function asQueryString(o) {
-        return Object.keys(o)
-            .map((v) => `${v}=${o[v]}`)
-            .join("&");
-    }
-    function explode(extent) {
-        const [xmin, ymin, xmax, ymax] = extent;
-        const [w, h] = [xmax - xmin, ymax - ymin];
-        const [xmid, ymid] = [xmin + w / 2, ymin + h / 2];
-        return { xmin, ymin, xmax, ymax, w, h, xmid, ymid };
     }
     const TINY = 0.0000001;
     function isEq(v1, v2) {
@@ -14961,16 +14973,16 @@ define("index", ["require", "exports", "mocha", "chai", "node_modules/ol/src/ext
                 const tileNode = tree.find(extent);
                 if (tileNode.count)
                     return;
-                const proxy = new FeatureServiceProxy({
+                const proxy = new FeatureServiceProxy_1.FeatureServiceProxy({
                     service: url,
                 });
                 const request = {
                     f: "json",
                     geometry: "",
                     geometryType: "esriGeometryEnvelope",
-                    inSR: removeAuthority(projection.getCode()),
+                    inSR: removeAuthority_1.removeAuthority(projection.getCode()),
                     outFields: "*",
-                    outSR: removeAuthority(projection.getCode()),
+                    outSR: removeAuthority_1.removeAuthority(projection.getCode()),
                     returnGeometry: true,
                     returnCountOnly: false,
                     spatialRel: "esriSpatialRelIntersects",
@@ -14980,8 +14992,8 @@ define("index", ["require", "exports", "mocha", "chai", "node_modules/ol/src/ext
                 const response = yield proxy.fetch(request);
                 const count = response.count;
                 tileNode.count = count;
-                const geom = new Point_1.default(extent_2.getCenter(extent));
-                const feature = new Feature_1.default(geom);
+                const geom = new Point_2.default(extent_3.getCenter(extent));
+                const feature = new Feature_2.default(geom);
                 feature.setProperties({ count, resolution });
                 source.addFeature(feature);
                 removeFeaturesFromSource(extent, resolution, source);
@@ -14991,8 +15003,13 @@ define("index", ["require", "exports", "mocha", "chai", "node_modules/ol/src/ext
             source.on(VectorEventType_1.default.ADDFEATURE, (args) => {
                 const { count, resolution } = args.feature.getProperties();
                 console.log(count, resolution);
+                createWeightedFeature_1.createWeightedFeature;
             });
         });
     });
+});
+define("index", ["require", "exports", "poc/test/index"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
 });
 //# sourceMappingURL=index.js.map
