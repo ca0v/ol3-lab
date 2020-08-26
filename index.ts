@@ -1,11 +1,98 @@
 import { describe, it } from "mocha";
 import { assert } from "chai";
 
-import type { Extent } from "@ol/extent";
-import { get as getProjection } from "@ol/proj";
+import { Extent, getCenter, getHeight, getWidth } from "@ol/extent";
+import { get as getProjection, Projection } from "@ol/proj";
 import { TileTree, TileNode } from "./poc/index";
 import { createXYZ } from "@ol/tilegrid";
-import { tile as tileStrategy } from "@ol/loadingstrategy.js";
+import { tile as tileStrategy } from "@ol/loadingstrategy";
+import VectorSource from "@ol/source/Vector";
+import Point from "@ol/geom/Point";
+import Feature from "@ol/Feature";
+import Geometry from "@ol/geom/Geometry";
+import VectorEventType from "@ol/source/VectorEventType";
+
+function createWeightedFeature(
+  featureCountPerQuadrant: number[],
+  extent: Extent
+) {
+  const weight = featureCountPerQuadrant.reduce((a, b) => a + b, 0);
+  if (!weight) return;
+
+  const dx =
+    featureCountPerQuadrant[0] +
+    featureCountPerQuadrant[3] -
+    featureCountPerQuadrant[1] -
+    featureCountPerQuadrant[2];
+  const dy =
+    featureCountPerQuadrant[0] +
+    featureCountPerQuadrant[1] -
+    featureCountPerQuadrant[2] -
+    featureCountPerQuadrant[3];
+
+  const [cx, cy] = getCenter(extent);
+  const width = getWidth(extent) / 2;
+  const height = getHeight(extent) / 2;
+  const center = new Point([
+    cx + width * (dx / weight),
+    cy + height * (dy / weight),
+  ]);
+
+  const x = cx + (dx / weight) * (width / 2);
+  const y = cy + (dy / weight) * (height / 2);
+
+  const feature = new Feature(new Point([x, y]));
+  feature.setProperties({ count: weight });
+  return feature;
+}
+
+function removeFeaturesFromSource(
+  extent: Extent,
+  resolution: number,
+  source: VectorSource<Geometry>
+) {
+  const featuresToRemove = source
+    .getFeaturesInExtent(extent)
+    .filter((f) => f.getProperties().resolution > resolution);
+  featuresToRemove.forEach((f) => source.removeFeature(f));
+}
+
+function quarter(extent: Extent): Extent[] {
+  const [a, b, c, d] = extent;
+  const [w, h] = [Math.floor((c - a) / 2), Math.floor((d - b) / 2)];
+  return [
+    [a + w + 1, b + h + 1, c, d],
+    [a, b + h + 1, a + w, d],
+    [a, b, a + w, b + h],
+    [a + w + 1, b, c, b + h],
+  ];
+}
+
+class FeatureServiceProxy {
+  constructor(public options: { service: string }) {}
+  async fetch<T>(request: FeatureServiceRequest): Promise<T> {
+    const baseUrl = `${this.options.service}?${asQueryString(request)}`;
+    const response = await fetch(baseUrl);
+    if (!response.ok) throw response.statusText;
+    const data = await response.json();
+    return <T>data;
+  }
+}
+
+function removeAuthority(projCode: string) {
+  return parseInt(projCode.split(":", 2)?.pop() || "0");
+}
+
+function bbox(extent: Extent) {
+  const [xmin, ymin, xmax, ymax] = extent;
+  return JSON.stringify({ xmin, ymin, xmax, ymax });
+}
+
+function asQueryString(o: object) {
+  return Object.keys(o)
+    .map((v) => `${v}=${(<any>o)[v]}`)
+    .join("&");
+}
 
 function explode(extent: Extent) {
   const [xmin, ymin, xmax, ymax] = extent;
@@ -32,6 +119,18 @@ function visit<T extends TileNode, Q>(
     });
   return result;
 }
+
+type FeatureServiceRequest = {
+  f: "json";
+  returnGeometry: boolean;
+  returnCountOnly: boolean;
+  spatialRel: "esriSpatialRelIntersects";
+  geometry: string;
+  geometryType: "esriGeometryEnvelope";
+  inSR: number;
+  outFields: string;
+  outSR: number;
+};
 
 describe("TileTree Tests", () => {
   it("creates a tile tree", () => {
@@ -152,7 +251,6 @@ describe("TileTree Tests", () => {
     resolutions.slice(0, 28).forEach((resolution, i) => {
       const extents = strategy(quad0, resolution) as Extent[];
       quad0 = extents[0];
-      console.log(i, resolution, quad0);
       tree.find(quad0);
     });
 
@@ -163,10 +261,75 @@ describe("TileTree Tests", () => {
     resolutions.slice(28).forEach((resolution, i) => {
       const extents = strategy(quad0, resolution) as Extent[];
       quad0 = extents[0];
-      console.log(i, resolution, quad0);
       // TODO: would prefer this to work
       assert.throws(() => tree.find(quad0), "wrong power");
     });
-    console.log(explode(quad0));
+  });
+
+  it("integrates with a feature source", () => {
+    const url =
+      "http://localhost:3002/mock/sampleserver3/arcgis/rest/services/Petroleum/KSFields/FeatureServer/0/query";
+    const projection = getProjection("EPSG:3857");
+    const tileGrid = createXYZ({ tileSize: 512 });
+    const strategy = tileStrategy(tileGrid);
+
+    const tree = new TileTree<TileNode & { count: number }>({
+      extent: tileGrid.getExtent(),
+    });
+
+    const loader = async (
+      extent: Extent,
+      resolution: number,
+      projection: Projection
+    ) => {
+      const tileNode = tree.find(extent);
+      if (tileNode.count) return;
+
+      const proxy = new FeatureServiceProxy({
+        service: url,
+      });
+
+      const request: FeatureServiceRequest = {
+        f: "json",
+        geometry: "",
+        geometryType: "esriGeometryEnvelope",
+        inSR: removeAuthority(projection.getCode()),
+        outFields: "*",
+        outSR: removeAuthority(projection.getCode()),
+        returnGeometry: true,
+        returnCountOnly: false,
+        spatialRel: "esriSpatialRelIntersects",
+      };
+
+      request.geometry = bbox(extent);
+      request.returnCountOnly = true;
+
+      const response = await proxy.fetch<{ count: number }>(request);
+      const count = response.count;
+      tileNode.count = count;
+
+      const geom = new Point(getCenter(extent));
+      const feature = new Feature(geom);
+      feature.setProperties({ count, resolution });
+      source.addFeature(feature);
+
+      removeFeaturesFromSource(extent, resolution, source);
+    };
+
+    const source = new VectorSource({ strategy, loader });
+
+    source.loadFeatures(
+      tileGrid.getExtent(),
+      tileGrid.getResolution(0),
+      projection
+    );
+
+    source.on(
+      VectorEventType.ADDFEATURE,
+      (args: { feature: Feature<Point> }) => {
+        const { count, resolution } = args.feature.getProperties();
+        console.log(count, resolution);
+      }
+    );
   });
 });

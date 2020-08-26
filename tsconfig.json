@@ -23,6 +23,12 @@
 		"paths": {
 			"@ol/*": [
 				"./node_modules/ol/src/*"
+			],
+			"rbush/rbush.js": [
+				"./node_modules/rbush/index.js"
+			],
+			"quickselect": [
+				"./node_modules/quickselect/index.js"
 			]
 		},
 		"moduleResolution": "classic",
