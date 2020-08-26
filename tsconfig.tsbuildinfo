@@ -1,0 +1,2028 @@
+{
+  "program": {
+    "fileInfos": {
+      "./node_modules/typescript/lib/lib.es5.d.ts": {
+        "version": "c9a1f03d6ba0fe3c871eb0dd81622e78fbb61ade70878b34d48a341a690c59e9",
+        "signature": "c9a1f03d6ba0fe3c871eb0dd81622e78fbb61ade70878b34d48a341a690c59e9",
+        "affectsGlobalScope": true
+      },
+      "./node_modules/typescript/lib/lib.es2015.d.ts": {
+        "version": "dc47c4fa66b9b9890cf076304de2a9c5201e94b740cffdf09f87296d877d71f6",
+        "signature": "dc47c4fa66b9b9890cf076304de2a9c5201e94b740cffdf09f87296d877d71f6",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/typescript/lib/lib.dom.d.ts": {
+        "version": "38130cdd16bd2318b9362f9d60dd9670f7e38708bb6131cf11fc78a41b2c34a0",
+        "signature": "38130cdd16bd2318b9362f9d60dd9670f7e38708bb6131cf11fc78a41b2c34a0",
+        "affectsGlobalScope": true
+      },
+      "./node_modules/typescript/lib/lib.es2015.core.d.ts": {
+        "version": "46ee15e9fefa913333b61eaf6b18885900b139867d89832a515059b62cf16a17",
+        "signature": "46ee15e9fefa913333b61eaf6b18885900b139867d89832a515059b62cf16a17",
+        "affectsGlobalScope": true
+      },
+      "./node_modules/typescript/lib/lib.es2015.collection.d.ts": {
+        "version": "43fb1d932e4966a39a41b464a12a81899d9ae5f2c829063f5571b6b87e6d2f9c",
+        "signature": "43fb1d932e4966a39a41b464a12a81899d9ae5f2c829063f5571b6b87e6d2f9c",
+        "affectsGlobalScope": true
+      },
+      "./node_modules/typescript/lib/lib.es2015.generator.d.ts": {
+        "version": "cdccba9a388c2ee3fd6ad4018c640a471a6c060e96f1232062223063b0a5ac6a",
+        "signature": "cdccba9a388c2ee3fd6ad4018c640a471a6c060e96f1232062223063b0a5ac6a",
+        "affectsGlobalScope": true
+      },
+      "./node_modules/typescript/lib/lib.es2015.iterable.d.ts": {
+        "version": "42f5e41e5893da663dbf0394268f54f1da4b43dc0ddd2ea4bf471fe5361d6faf",
+        "signature": "42f5e41e5893da663dbf0394268f54f1da4b43dc0ddd2ea4bf471fe5361d6faf",
+        "affectsGlobalScope": true
+      },
+      "./node_modules/typescript/lib/lib.es2015.promise.d.ts": {
+        "version": "0b7a905675e6cb4211c128f0a3aa47d414b275180a299a9aad5d3ec298abbfc4",
+        "signature": "0b7a905675e6cb4211c128f0a3aa47d414b275180a299a9aad5d3ec298abbfc4",
+        "affectsGlobalScope": true
+      },
+      "./node_modules/typescript/lib/lib.es2015.proxy.d.ts": {
+        "version": "dfff68b3c34338f6b307a25d4566de15eed7973b0dc5d69f9fde2bcac1c25315",
+        "signature": "dfff68b3c34338f6b307a25d4566de15eed7973b0dc5d69f9fde2bcac1c25315",
+        "affectsGlobalScope": true
+      },
+      "./node_modules/typescript/lib/lib.es2015.reflect.d.ts": {
+        "version": "cb609802a8698aa28b9c56331d4b53f590ca3c1c3a255350304ae3d06017779d",
+        "signature": "cb609802a8698aa28b9c56331d4b53f590ca3c1c3a255350304ae3d06017779d",
+        "affectsGlobalScope": true
+      },
+      "./node_modules/typescript/lib/lib.es2015.symbol.d.ts": {
+        "version": "3013574108c36fd3aaca79764002b3717da09725a36a6fc02eac386593110f93",
+        "signature": "3013574108c36fd3aaca79764002b3717da09725a36a6fc02eac386593110f93",
+        "affectsGlobalScope": true
+      },
+      "./node_modules/typescript/lib/lib.es2015.symbol.wellknown.d.ts": {
+        "version": "4670208dd7da9d6c774ab1b75c1527a810388c7989c4905de6aaea8561cb9dce",
+        "signature": "4670208dd7da9d6c774ab1b75c1527a810388c7989c4905de6aaea8561cb9dce",
+        "affectsGlobalScope": true
+      },
+      "./node_modules/@types/ol/events/event.d.ts": {
+        "version": "f114e3ca03079f69e14c9729a902e16b0ef880e2fff002a57be0c0c5867edaa0",
+        "signature": "f114e3ca03079f69e14c9729a902e16b0ef880e2fff002a57be0c0c5867edaa0",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/disposable.d.ts": {
+        "version": "102303e631dd35e208a5eae2bb16db2b53066b132caea28603c19cccc3c25d48",
+        "signature": "102303e631dd35e208a5eae2bb16db2b53066b132caea28603c19cccc3c25d48",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/events/target.d.ts": {
+        "version": "b971e455036d79fb9f5e75533a8cc14a94e4a9a561ba78c115cc4933c407849d",
+        "signature": "b971e455036d79fb9f5e75533a8cc14a94e4a9a561ba78c115cc4933c407849d",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/events.d.ts": {
+        "version": "77a6f5a640a71df9f1e8570cb4295a287e733ee3da42c91f2c0ababa8483000f",
+        "signature": "77a6f5a640a71df9f1e8570cb4295a287e733ee3da42c91f2c0ababa8483000f",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/observable.d.ts": {
+        "version": "629d339a77dafe7d6264a1833f565276f9fc27d4a12b857fcef02fb23416caea",
+        "signature": "629d339a77dafe7d6264a1833f565276f9fc27d4a12b857fcef02fb23416caea",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/object.d.ts": {
+        "version": "bc28eecb4dd8f090fb69127a73731ad2d9d0ae980939cb645aa7b6d9e4e65431",
+        "signature": "bc28eecb4dd8f090fb69127a73731ad2d9d0ae980939cb645aa7b6d9e4e65431",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/size.d.ts": {
+        "version": "e4a904a0330f78c2c827cb7f5184394903d5d3d9df5bbc554f50e8ca2ebaf7e7",
+        "signature": "e4a904a0330f78c2c827cb7f5184394903d5d3d9df5bbc554f50e8ca2ebaf7e7",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/tilecoord.d.ts": {
+        "version": "84679cf5e2bfa2919ae03ad8592f77102aebee15f4c45b28119cc5173f74ec53",
+        "signature": "84679cf5e2bfa2919ae03ad8592f77102aebee15f4c45b28119cc5173f74ec53",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/tilerange.d.ts": {
+        "version": "cd96c41d846d5d25be7b9955641db0868db7ebfa10f78bbd7f18991546e756f9",
+        "signature": "cd96c41d846d5d25be7b9955641db0868db7ebfa10f78bbd7f18991546e756f9",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/tilegrid/tilegrid.d.ts": {
+        "version": "ae6d89112d68ff796fdf6a9fce3ba64c38cff908b7355b616f63e814938e7067",
+        "signature": "ae6d89112d68ff796fdf6a9fce3ba64c38cff908b7355b616f63e814938e7067",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/proj/units.d.ts": {
+        "version": "318fd53bb96b6bb5e15c42afd3708dd634f07fde7277413fc1375649c8aef71f",
+        "signature": "318fd53bb96b6bb5e15c42afd3708dd634f07fde7277413fc1375649c8aef71f",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/proj/projection.d.ts": {
+        "version": "54715c4c5b0ef876ecf42c2dd13b5106381872357d790b477c33d627e242b73b",
+        "signature": "54715c4c5b0ef876ecf42c2dd13b5106381872357d790b477c33d627e242b73b",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/proj.d.ts": {
+        "version": "175a56d878529811af9d83e6c1caa52d8e5c7e4d9fc1372e34758bcec338f568",
+        "signature": "175a56d878529811af9d83e6c1caa52d8e5c7e4d9fc1372e34758bcec338f568",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/geom/geometrytype.d.ts": {
+        "version": "91c1c33696973e84f0dac7258a67be2d7e62b8226faad41a2561d243b119c3b0",
+        "signature": "91c1c33696973e84f0dac7258a67be2d7e62b8226faad41a2561d243b119c3b0",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/geom/geometry.d.ts": {
+        "version": "78ff466069e6289ff55aaf73a9a31488983fd1ff514207dbea6be1783e2458cf",
+        "signature": "78ff466069e6289ff55aaf73a9a31488983fd1ff514207dbea6be1783e2458cf",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/geom/geometrylayout.d.ts": {
+        "version": "2085ce1ffb43fcc11577a12155282b0ca0a896412ac1e84ea8d8f95fa108f088",
+        "signature": "2085ce1ffb43fcc11577a12155282b0ca0a896412ac1e84ea8d8f95fa108f088",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/pixel.d.ts": {
+        "version": "b84335837894162cdcaef163008a238e434a7a71a8614ea0de202884c8501f9e",
+        "signature": "b84335837894162cdcaef163008a238e434a7a71a8614ea0de202884c8501f9e",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/transform.d.ts": {
+        "version": "c19026468027401acd7000259700f85eed550b5de1c1ea8f52351edea2c85f57",
+        "signature": "c19026468027401acd7000259700f85eed550b5de1c1ea8f52351edea2c85f57",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/geom/simplegeometry.d.ts": {
+        "version": "66173f094bd9dbd60c7f5db470b0ecd37515fef0e3d0bf3aaae98cc6744d2303",
+        "signature": "66173f094bd9dbd60c7f5db470b0ecd37515fef0e3d0bf3aaae98cc6744d2303",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/geom/circle.d.ts": {
+        "version": "8383e720e55d7850af74b293e30de21c5ecc4ece311965f2fcba9f8e1c8707df",
+        "signature": "8383e720e55d7850af74b293e30de21c5ecc4ece311965f2fcba9f8e1c8707df",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/coordinate.d.ts": {
+        "version": "6d034e97f8f1f51f649aabc7f580f520b085506904701625d4cce24562039262",
+        "signature": "6d034e97f8f1f51f649aabc7f580f520b085506904701625d4cce24562039262",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/extent/corner.d.ts": {
+        "version": "843cd9ad91b76d57540b65ca2d7dbcc1cf247d3774ee62368da80ffc2dcf01be",
+        "signature": "843cd9ad91b76d57540b65ca2d7dbcc1cf247d3774ee62368da80ffc2dcf01be",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/extent/relationship.d.ts": {
+        "version": "9feb090c6c3c9f407a1448bf3425ed45d39a6af4c09d112bec568e0a1500b6bc",
+        "signature": "9feb090c6c3c9f407a1448bf3425ed45d39a6af4c09d112bec568e0a1500b6bc",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/extent.d.ts": {
+        "version": "ca08e0cf157f881cc0cf649c1313a32860b272529634f21815dcf45b8140d549",
+        "signature": "ca08e0cf157f881cc0cf649c1313a32860b272529634f21815dcf45b8140d549",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/mocha/mocha.js": {
+        "version": "12650d4d3e8df3b9aab063ad2ffcefdabeb2901cc5b4a99b048acbe72f19243a",
+        "signature": "c87cfb899ce9d3e78eab7f3d03d9a8dbcbb1d738e5baf42a70cbe276011bb223",
+        "affectsGlobalScope": true
+      },
+      "./index.ts": {
+        "version": "9227f9c57578409924b464b21db67bb46a5f8e2d583c74368835606f62982fd6",
+        "signature": "f761c91419d0a89422a0004ef1a92929dd4d2d5e5c16758654d8b0467d1998c6",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/arcgis-rest-api/index.d.ts": {
+        "version": "5459f405a3c6941ad9dd5aab8e25e7281846f02ae808d8287eccae07a5f9de19",
+        "signature": "5459f405a3c6941ad9dd5aab8e25e7281846f02ae808d8287eccae07a5f9de19",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/color-name/index.d.ts": {
+        "version": "f0cb4b3ab88193e3e51e9e2622e4c375955003f1f81239d72c5b7a95415dad3e",
+        "signature": "f0cb4b3ab88193e3e51e9e2622e4c375955003f1f81239d72c5b7a95415dad3e",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/geojson/index.d.ts": {
+        "version": "3a68b9e1129584f9e42f615b56926b0d2c1d22746e9c4689faf48d0e9749536a",
+        "signature": "3a68b9e1129584f9e42f615b56926b0d2c1d22746e9c4689faf48d0e9749536a",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/mocha/index.d.ts": {
+        "version": "060f0636cb83057f9a758cafc817b7be1e8612c4387dfe3fbadda865958cf8c1",
+        "signature": "060f0636cb83057f9a758cafc817b7be1e8612c4387dfe3fbadda865958cf8c1",
+        "affectsGlobalScope": true
+      },
+      "./node_modules/@types/ol/assertionerror.d.ts": {
+        "version": "0dc63e873cb1b0a28eae59f4bebd4c10c6f6532a688fbe1f2b533355d48d3cb8",
+        "signature": "0dc63e873cb1b0a28eae59f4bebd4c10c6f6532a688fbe1f2b533355d48d3cb8",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/collection.d.ts": {
+        "version": "6fdcd70a48cf383f28207495b9af760dc7887d7f7cbbbe6d7152c3337cff701d",
+        "signature": "6fdcd70a48cf383f28207495b9af760dc7887d7f7cbbbe6d7152c3337cff701d",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/render/feature.d.ts": {
+        "version": "22e10d8e60536abc4d4af2aa2642b10768b073b4b67a89e1467ff2803ad11ff8",
+        "signature": "22e10d8e60536abc4d4af2aa2642b10768b073b4b67a89e1467ff2803ad11ff8",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/mapevent.d.ts": {
+        "version": "4a948333a8eb21fe3e78b8d134b7ad9f3ad7c2cc818c5e57507bd47f740e43f7",
+        "signature": "4a948333a8eb21fe3e78b8d134b7ad9f3ad7c2cc818c5e57507bd47f740e43f7",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/control/control.d.ts": {
+        "version": "db35aec0c5b01bafbb903797891bf51242457e9fd4116cc1db9a719582fe6e27",
+        "signature": "db35aec0c5b01bafbb903797891bf51242457e9fd4116cc1db9a719582fe6e27",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/mapbrowserevent.d.ts": {
+        "version": "3f28d8723968626ccd1973ce53781718659b283022d6da148ad79f54c90ec7a8",
+        "signature": "3f28d8723968626ccd1973ce53781718659b283022d6da148ad79f54c90ec7a8",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/centerconstraint.d.ts": {
+        "version": "6ce223dd8027bce37532e65f4998bf3da9cf8ed701f031bac569ac536a881314",
+        "signature": "6ce223dd8027bce37532e65f4998bf3da9cf8ed701f031bac569ac536a881314",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/resolutionconstraint.d.ts": {
+        "version": "cbecc586dda89b5f6797c39417ec73b1c077d100e86e75531bbd002e6eb1df07",
+        "signature": "cbecc586dda89b5f6797c39417ec73b1c077d100e86e75531bbd002e6eb1df07",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/rotationconstraint.d.ts": {
+        "version": "697e2c6843ec123be64dc95a4030cebebe67b5767e21695f541c41b58d9e4e1e",
+        "signature": "697e2c6843ec123be64dc95a4030cebebe67b5767e21695f541c41b58d9e4e1e",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/viewhint.d.ts": {
+        "version": "51f25ce62e7dedace60e8a1372143071ff14cb553518f67b10c8cc00b526bff0",
+        "signature": "51f25ce62e7dedace60e8a1372143071ff14cb553518f67b10c8cc00b526bff0",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/view.d.ts": {
+        "version": "24f72a95e71b2d1eb7ac891a2527a7f4105523d3967f20a215f99e0a42b6e439",
+        "signature": "24f72a95e71b2d1eb7ac891a2527a7f4105523d3967f20a215f99e0a42b6e439",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/interaction/interaction.d.ts": {
+        "version": "90d728b3df8b884e3eb6a4eef87ecfce7fe1e52aa216cdc7ed7a42059e59597a",
+        "signature": "90d728b3df8b884e3eb6a4eef87ecfce7fe1e52aa216cdc7ed7a42059e59597a",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/source/state.d.ts": {
+        "version": "f439d5a00d428c6c63933ee13ded776bb8f368ea059f9295ad6c035e90002219",
+        "signature": "f439d5a00d428c6c63933ee13ded776bb8f368ea059f9295ad6c035e90002219",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/source/source.d.ts": {
+        "version": "17f64121f0e936b28464931959b4fb193206c50183368f2890242f2918b20313",
+        "signature": "17f64121f0e936b28464931959b4fb193206c50183368f2890242f2918b20313",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/render/eventtype.d.ts": {
+        "version": "4eddb8c174220274728b61c0fdecf7894cf25c774225dc1b34fe297e58641a23",
+        "signature": "4eddb8c174220274728b61c0fdecf7894cf25c774225dc1b34fe297e58641a23",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/render/event.d.ts": {
+        "version": "0d9a64f2e912ec338acbb42ce0b69be7452319d27afd89c1d970340e582595da",
+        "signature": "0d9a64f2e912ec338acbb42ce0b69be7452319d27afd89c1d970340e582595da",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/imagestate.d.ts": {
+        "version": "7856f29a43f6178d87031b0e377ed81e02fe49cd836d670e027d2ba66ed7b546",
+        "signature": "7856f29a43f6178d87031b0e377ed81e02fe49cd836d670e027d2ba66ed7b546",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/imagebase.d.ts": {
+        "version": "6ff1695e8e37815a7a2164b08acf3cb64c0fad700da129c3e4fa5a5f07a05b80",
+        "signature": "6ff1695e8e37815a7a2164b08acf3cb64c0fad700da129c3e4fa5a5f07a05b80",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/tilestate.d.ts": {
+        "version": "99237fe944f24c0a96cf9c0c46c379c01669299c1f16d25d55cc3a90a4d5f2f0",
+        "signature": "99237fe944f24c0a96cf9c0c46c379c01669299c1f16d25d55cc3a90a4d5f2f0",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/tile.d.ts": {
+        "version": "17b4f8690cbe2c17a92e31e1548824588d4f3ac2ebc1cdc60b69f17642208690",
+        "signature": "17b4f8690cbe2c17a92e31e1548824588d4f3ac2ebc1cdc60b69f17642208690",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/structs/lrucache.d.ts": {
+        "version": "a4d02a7890d6d9274144f3fd97fac3a864c03a5c98e57ec6827e26ae82600f83",
+        "signature": "a4d02a7890d6d9274144f3fd97fac3a864c03a5c98e57ec6827e26ae82600f83",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/tilecache.d.ts": {
+        "version": "bdcbdb5324400968b68dbbb47a042dbfe5a3a1f6667561841fff6fda53a74514",
+        "signature": "bdcbdb5324400968b68dbbb47a042dbfe5a3a1f6667561841fff6fda53a74514",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/source/tile.d.ts": {
+        "version": "a2d170ccdda71a376839c7cc6c78f73c335e8b31193fa2c37373a18875a84c8a",
+        "signature": "a2d170ccdda71a376839c7cc6c78f73c335e8b31193fa2c37373a18875a84c8a",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/renderer/layer.d.ts": {
+        "version": "39a4d6f3daebe2fd4a209630cd9fd18cc866813058bdcf5d4db04460add9f771",
+        "signature": "39a4d6f3daebe2fd4a209630cd9fd18cc866813058bdcf5d4db04460add9f771",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/layer/layer.d.ts": {
+        "version": "6e7a1192dde1d8371cb4bebfa9fe9bd8523fed955b36cc18b9b737c0eb13194e",
+        "signature": "6e7a1192dde1d8371cb4bebfa9fe9bd8523fed955b36cc18b9b737c0eb13194e",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/layer/base.d.ts": {
+        "version": "4718740f93ab918225e0731a57124657ea23412f449a442a44f8138c256342c3",
+        "signature": "4718740f93ab918225e0731a57124657ea23412f449a442a44f8138c256342c3",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/layer/group.d.ts": {
+        "version": "06b73cdd6d227dd609aa61d5c6f0a917ac31fcea25d8e8f2bd59e97d4448f00b",
+        "signature": "06b73cdd6d227dd609aa61d5c6f0a917ac31fcea25d8e8f2bd59e97d4448f00b",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/overlaypositioning.d.ts": {
+        "version": "bb97401b0e006782ccc5b841a8075cbf9f51eeeb585f830379a48681e8b6c003",
+        "signature": "bb97401b0e006782ccc5b841a8075cbf9f51eeeb585f830379a48681e8b6c003",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/overlay.d.ts": {
+        "version": "01424da8f00763977a37b44934f6a4c9b67c48358526ea3ff506c942e2213180",
+        "signature": "01424da8f00763977a37b44934f6a4c9b67c48358526ea3ff506c942e2213180",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/renderer/map.d.ts": {
+        "version": "17e99a4844a01e7f03ad325d27db9098f81e8d9975e540a6bc05024d4cc3b5cb",
+        "signature": "17e99a4844a01e7f03ad325d27db9098f81e8d9975e540a6bc05024d4cc3b5cb",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/structs/priorityqueue.d.ts": {
+        "version": "d5ba7da97fe1f142dd36ff51a2cfb6e2ae5ebd2b8d11d70889cc345689388a9a",
+        "signature": "d5ba7da97fe1f142dd36ff51a2cfb6e2ae5ebd2b8d11d70889cc345689388a9a",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/tilequeue.d.ts": {
+        "version": "a223a1b276be67958bb2a5611bf814b26e45d5f2b4456e8468eeff25d3ade74e",
+        "signature": "a223a1b276be67958bb2a5611bf814b26e45d5f2b4456e8468eeff25d3ade74e",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/pluggablemap.d.ts": {
+        "version": "db78efa959987bf81105e328db74754130a0953d451797e90e6bbba98f653435",
+        "signature": "db78efa959987bf81105e328db74754130a0953d451797e90e6bbba98f653435",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/geom/geometrycollection.d.ts": {
+        "version": "354f77c8c3c19f67b02176f6b54d4e21d049015babeec000e377bc3f38d4ee99",
+        "signature": "354f77c8c3c19f67b02176f6b54d4e21d049015babeec000e377bc3f38d4ee99",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/geom/linestring.d.ts": {
+        "version": "ff823ccd2f6856951a8de878edd59af9960ad5713dbbcc3bfe1513cd2f8bab87",
+        "signature": "ff823ccd2f6856951a8de878edd59af9960ad5713dbbcc3bfe1513cd2f8bab87",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/geom/multilinestring.d.ts": {
+        "version": "40962989ab7b088c12dfd0e9f5aef86ed6941e132d009cfd63be809010dc6d6c",
+        "signature": "40962989ab7b088c12dfd0e9f5aef86ed6941e132d009cfd63be809010dc6d6c",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/geom/point.d.ts": {
+        "version": "9d8484b0378f3f784fce983a37e06ea999542ee854553069f67a81ae04f93540",
+        "signature": "9d8484b0378f3f784fce983a37e06ea999542ee854553069f67a81ae04f93540",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/geom/multipoint.d.ts": {
+        "version": "104175b4f8089aac7021e6319e2b293ffacd3b0a9b52d1612bb0d61b28d60b5d",
+        "signature": "104175b4f8089aac7021e6319e2b293ffacd3b0a9b52d1612bb0d61b28d60b5d",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/geom/linearring.d.ts": {
+        "version": "568b8e3c7355e58ea9dbdd060801d5b05e58da8544b7b60a580351e638ca39a3",
+        "signature": "568b8e3c7355e58ea9dbdd060801d5b05e58da8544b7b60a580351e638ca39a3",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/geom/polygon.d.ts": {
+        "version": "f2283eb3b1acc4aea2bde30380379add16d0fc9512ae6123d0e61ab609432f4f",
+        "signature": "f2283eb3b1acc4aea2bde30380379add16d0fc9512ae6123d0e61ab609432f4f",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/geom/multipolygon.d.ts": {
+        "version": "73579a950e164e1490f29bea16667a2aadbae7fba6abde62d1fa414b9d80ce8d",
+        "signature": "73579a950e164e1490f29bea16667a2aadbae7fba6abde62d1fa414b9d80ce8d",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/color.d.ts": {
+        "version": "1bfd86200eb059a85d029246e6da90b2619431ec8c4179b6c07b026f0d5fcb67",
+        "signature": "1bfd86200eb059a85d029246e6da90b2619431ec8c4179b6c07b026f0d5fcb67",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/colorlike.d.ts": {
+        "version": "31b9d39f837c7e63a92f5cc1c460d30d9f4e90a28598133abcaeee601a9d829c",
+        "signature": "31b9d39f837c7e63a92f5cc1c460d30d9f4e90a28598133abcaeee601a9d829c",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/style/fill.d.ts": {
+        "version": "722df153f3edb04c1104c5a1b59a199555831588d64e13933d59e060bc9eefde",
+        "signature": "722df153f3edb04c1104c5a1b59a199555831588d64e13933d59e060bc9eefde",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/style/image.d.ts": {
+        "version": "fd796bd3cd0e7c5e44f437d8e4724fd4448c70406b0957bf90ca57c2bef5a0c2",
+        "signature": "fd796bd3cd0e7c5e44f437d8e4724fd4448c70406b0957bf90ca57c2bef5a0c2",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/style/stroke.d.ts": {
+        "version": "301c258d1c0bfaa8d8726c92fa28086d8e662376619d89b4f0ba743f9322943b",
+        "signature": "301c258d1c0bfaa8d8726c92fa28086d8e662376619d89b4f0ba743f9322943b",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/style/textplacement.d.ts": {
+        "version": "867516f7f8c23f3cb576ea02eae98f05d8280021a5716061e79c42f3592f6fa5",
+        "signature": "867516f7f8c23f3cb576ea02eae98f05d8280021a5716061e79c42f3592f6fa5",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/style/text.d.ts": {
+        "version": "6295edf2fb9c8020dc667ce27a6f791fa8a07d6088a0cb474ed73d338c8d07fd",
+        "signature": "6295edf2fb9c8020dc667ce27a6f791fa8a07d6088a0cb474ed73d338c8d07fd",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/render/canvas.d.ts": {
+        "version": "ebde816bed0f94f8a98cbf43e0b4eb07c86074a8c80a605146715c7ee2e8c99a",
+        "signature": "ebde816bed0f94f8a98cbf43e0b4eb07c86074a8c80a605146715c7ee2e8c99a",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/render/vectorcontext.d.ts": {
+        "version": "224b9437bca73ec4ff9a8e17443f082cb7a98ddd73ca0ab20089980f97ad45ad",
+        "signature": "224b9437bca73ec4ff9a8e17443f082cb7a98ddd73ca0ab20089980f97ad45ad",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/render/canvas/immediate.d.ts": {
+        "version": "6d7020ee7da3fe214a678458b2cfa2f6cff0044e6bfeb33d0720379d9c4787eb",
+        "signature": "6d7020ee7da3fe214a678458b2cfa2f6cff0044e6bfeb33d0720379d9c4787eb",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/render.d.ts": {
+        "version": "a2809025e9b8bda7dcb5175d95e73d3a55ce304ad17f397ce08d361086e11eb1",
+        "signature": "a2809025e9b8bda7dcb5175d95e73d3a55ce304ad17f397ce08d361086e11eb1",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/style/style.d.ts": {
+        "version": "915ab488649f10ca2b1398d4a9a3f5b93866b36a85523a8bba5482ad331158e4",
+        "signature": "915ab488649f10ca2b1398d4a9a3f5b93866b36a85523a8bba5482ad331158e4",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/feature.d.ts": {
+        "version": "fdcfb6cfc5ceeaf9499e37e6d155e137de47b7c76501d4c5fa4aa783efc8677c",
+        "signature": "fdcfb6cfc5ceeaf9499e37e6d155e137de47b7c76501d4c5fa4aa783efc8677c",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/geolocation.d.ts": {
+        "version": "ae6d8829f42d7030912a4cc0cd4c9581f8e87c74660ebad2d9b0f9ef9917fbbe",
+        "signature": "ae6d8829f42d7030912a4cc0cd4c9581f8e87c74660ebad2d9b0f9ef9917fbbe",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/format/formattype.d.ts": {
+        "version": "2a70586af515a967b9c512703303b89fb75829892635d7d7c4a1d9c8ecabe84e",
+        "signature": "2a70586af515a967b9c512703303b89fb75829892635d7d7c4a1d9c8ecabe84e",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/format/feature.d.ts": {
+        "version": "cd5f7a80280f75da22d0f63876206e8855b3a5f668ef8a7ff8da1d35aec78179",
+        "signature": "cd5f7a80280f75da22d0f63876206e8855b3a5f668ef8a7ff8da1d35aec78179",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/vectortile.d.ts": {
+        "version": "c3ff91a4a884d8697b35e7e5a2fa0bb3bb1c08e66cd3068e31402a2ff5047f14",
+        "signature": "c3ff91a4a884d8697b35e7e5a2fa0bb3bb1c08e66cd3068e31402a2ff5047f14",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/featureloader.d.ts": {
+        "version": "9f0c007687dd19ebb775cc40180b61147458d26aea2cf5de712e82b49ea5642b",
+        "signature": "9f0c007687dd19ebb775cc40180b61147458d26aea2cf5de712e82b49ea5642b",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/source/vector.d.ts": {
+        "version": "7248eff968028bad4bd2fc8b1342b7926f66886573bf2401e484f5464996abe9",
+        "signature": "7248eff968028bad4bd2fc8b1342b7926f66886573bf2401e484f5464996abe9",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/vectorrendertile.d.ts": {
+        "version": "b275f2965de4da2fa78adcaffea987e2aa7d487af85fb598b4887fd6230ee6b5",
+        "signature": "b275f2965de4da2fa78adcaffea987e2aa7d487af85fb598b4887fd6230ee6b5",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/source/urltile.d.ts": {
+        "version": "8a83bf53025fce9a4c9cdd68b1207bd389195cfde4d442ea9a42d52581be71aa",
+        "signature": "8a83bf53025fce9a4c9cdd68b1207bd389195cfde4d442ea9a42d52581be71aa",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/source/vectortile.d.ts": {
+        "version": "444e50c1b5ea0d7630d323d307f5f8f41d87b4f4bf2eebfabcb5f493bd0f57c4",
+        "signature": "444e50c1b5ea0d7630d323d307f5f8f41d87b4f4bf2eebfabcb5f493bd0f57c4",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/layer/basevector.d.ts": {
+        "version": "c3944a3294bce196ef8fff1a8474604b9f8ac6dfd2898d223ba1e5b20b1163b8",
+        "signature": "c3944a3294bce196ef8fff1a8474604b9f8ac6dfd2898d223ba1e5b20b1163b8",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/layer/vector.d.ts": {
+        "version": "7e87f0c31c92221c3e72c641d63aef5f55581764a9d8cfe41d4c5b1d4f19a534",
+        "signature": "7e87f0c31c92221c3e72c641d63aef5f55581764a9d8cfe41d4c5b1d4f19a534",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/layer/graticule.d.ts": {
+        "version": "96c980f8ba8ae292f4eecaffcc7826646c8afa17820feeaf547a6cd23705508d",
+        "signature": "96c980f8ba8ae292f4eecaffcc7826646c8afa17820feeaf547a6cd23705508d",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/image.d.ts": {
+        "version": "1fec7e6fec5fba2ce9b518f9a8e43a425560045c562b08417f575577833b3a20",
+        "signature": "1fec7e6fec5fba2ce9b518f9a8e43a425560045c562b08417f575577833b3a20",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/imagecanvas.d.ts": {
+        "version": "0d861979ef169e190f1b0cc81bab271bb942c15a7ed3a7bcc5d88cf781405a20",
+        "signature": "0d861979ef169e190f1b0cc81bab271bb942c15a7ed3a7bcc5d88cf781405a20",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/imagetile.d.ts": {
+        "version": "0f1fe685335ffd7849171f188b2f1a31de9f63d082ae72c3c47fb113dff4ddef",
+        "signature": "0f1fe685335ffd7849171f188b2f1a31de9f63d082ae72c3c47fb113dff4ddef",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/kinetic.d.ts": {
+        "version": "6f70032b136d6c29ceecfeb641422cbafafec84eaef8343bc33996cd61f32c9b",
+        "signature": "6f70032b136d6c29ceecfeb641422cbafafec84eaef8343bc33996cd61f32c9b",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/map.d.ts": {
+        "version": "0ef2db8b3d14cac8d526cdc17235755344a54b3fcfc68d6755bbb825040821fc",
+        "signature": "0ef2db8b3d14cac8d526cdc17235755344a54b3fcfc68d6755bbb825040821fc",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/mapbrowsereventhandler.d.ts": {
+        "version": "a917fd64720625cfbb6f5c17d2e09b52ccc20f30350170c7365bff92d92f9990",
+        "signature": "a917fd64720625cfbb6f5c17d2e09b52ccc20f30350170c7365bff92d92f9990",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/mapbrowserpointerevent.d.ts": {
+        "version": "3585fc6efafa17f556d17e75e8c2e6923e00c8f7d59ee208a65ffb55e230cf7c",
+        "signature": "3585fc6efafa17f556d17e75e8c2e6923e00c8f7d59ee208a65ffb55e230cf7c",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/util.d.ts": {
+        "version": "ee5e06161dc155e797d75e7daee00138dd023e1d0038dd6c920297431dbbe9a6",
+        "signature": "ee5e06161dc155e797d75e7daee00138dd023e1d0038dd6c920297431dbbe9a6",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/ol/index.d.ts": {
+        "version": "f0e88645392dc8acf40c17175fcef08ef3bf9020ad04176aef79a39af85c44f3",
+        "signature": "f0e88645392dc8acf40c17175fcef08ef3bf9020ad04176aef79a39af85c44f3",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/q/index.d.ts": {
+        "version": "f9a2dd6a6084665f093ed0e9664b8e673be2a45e342a59dd4e0e4e552e68a9ad",
+        "signature": "f9a2dd6a6084665f093ed0e9664b8e673be2a45e342a59dd4e0e4e552e68a9ad",
+        "affectsGlobalScope": false
+      },
+      "./node_modules/@types/topojson-specification/index.d.ts": {
+        "version": "b1f300930b444f0667cbd89fbb56c8f3f5660dcf9a3fe47de950c289342b66d8",
+        "signature": "b1f300930b444f0667cbd89fbb56c8f3f5660dcf9a3fe47de950c289342b66d8",
+        "affectsGlobalScope": false
+      }
+    },
+    "options": {
+      "declaration": false,
+      "incremental": true,
+      "skipDefaultLibCheck": true,
+      "allowJs": true,
+      "removeComments": true,
+      "target": 2,
+      "noImplicitAny": false,
+      "sourceMap": true,
+      "inlineSourceMap": false,
+      "inlineSources": false,
+      "rootDir": "./",
+      "lib": [
+        "lib.es2015.d.ts",
+        "lib.dom.d.ts"
+      ],
+      "baseUrl": "./",
+      "paths": {
+        "mocha": [
+          "./node_modules/mocha/mocha.js"
+        ]
+      },
+      "project": "./tsconfig.json",
+      "watch": true,
+      "configFilePath": "./tsconfig.json"
+    },
+    "referencedMap": {
+      "./index.ts": [
+        "./node_modules/@types/mocha/index.d.ts",
+        "./node_modules/@types/ol/extent.d.ts"
+      ],
+      "./node_modules/@types/ol/centerconstraint.d.ts": [
+        "./node_modules/@types/ol/coordinate.d.ts",
+        "./node_modules/@types/ol/extent.d.ts",
+        "./node_modules/@types/ol/size.d.ts"
+      ],
+      "./node_modules/@types/ol/collection.d.ts": [
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/object.d.ts"
+      ],
+      "./node_modules/@types/ol/colorlike.d.ts": [
+        "./node_modules/@types/ol/color.d.ts"
+      ],
+      "./node_modules/@types/ol/control/control.d.ts": [
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/mapevent.d.ts",
+        "./node_modules/@types/ol/object.d.ts",
+        "./node_modules/@types/ol/pluggablemap.d.ts"
+      ],
+      "./node_modules/@types/ol/coordinate.d.ts": [
+        "./node_modules/@types/ol/geom/circle.d.ts",
+        "./node_modules/@types/ol/proj/projection.d.ts"
+      ],
+      "./node_modules/@types/ol/events.d.ts": [
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/events/target.d.ts"
+      ],
+      "./node_modules/@types/ol/events/target.d.ts": [
+        "./node_modules/@types/ol/disposable.d.ts",
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts"
+      ],
+      "./node_modules/@types/ol/extent.d.ts": [
+        "./node_modules/@types/ol/coordinate.d.ts",
+        "./node_modules/@types/ol/extent/corner.d.ts",
+        "./node_modules/@types/ol/extent/relationship.d.ts",
+        "./node_modules/@types/ol/proj.d.ts",
+        "./node_modules/@types/ol/proj/projection.d.ts",
+        "./node_modules/@types/ol/size.d.ts"
+      ],
+      "./node_modules/@types/ol/feature.d.ts": [
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/geom/geometry.d.ts",
+        "./node_modules/@types/ol/object.d.ts",
+        "./node_modules/@types/ol/render/feature.d.ts",
+        "./node_modules/@types/ol/style/style.d.ts"
+      ],
+      "./node_modules/@types/ol/featureloader.d.ts": [
+        "./node_modules/@types/ol/extent.d.ts",
+        "./node_modules/@types/ol/format/feature.d.ts",
+        "./node_modules/@types/ol/geom/geometry.d.ts",
+        "./node_modules/@types/ol/proj/projection.d.ts",
+        "./node_modules/@types/ol/source/vector.d.ts",
+        "./node_modules/@types/ol/vectortile.d.ts"
+      ],
+      "./node_modules/@types/ol/format/feature.d.ts": [
+        "./node_modules/@types/ol/extent.d.ts",
+        "./node_modules/@types/ol/feature.d.ts",
+        "./node_modules/@types/ol/format/formattype.d.ts",
+        "./node_modules/@types/ol/geom/geometry.d.ts",
+        "./node_modules/@types/ol/proj.d.ts",
+        "./node_modules/@types/ol/proj/projection.d.ts"
+      ],
+      "./node_modules/@types/ol/geolocation.d.ts": [
+        "./node_modules/@types/ol/coordinate.d.ts",
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/geom/polygon.d.ts",
+        "./node_modules/@types/ol/object.d.ts",
+        "./node_modules/@types/ol/proj.d.ts",
+        "./node_modules/@types/ol/proj/projection.d.ts"
+      ],
+      "./node_modules/@types/ol/geom/circle.d.ts": [
+        "./node_modules/@types/ol/coordinate.d.ts",
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/extent.d.ts",
+        "./node_modules/@types/ol/geom/geometry.d.ts",
+        "./node_modules/@types/ol/geom/geometrylayout.d.ts",
+        "./node_modules/@types/ol/geom/geometrytype.d.ts",
+        "./node_modules/@types/ol/geom/simplegeometry.d.ts",
+        "./node_modules/@types/ol/object.d.ts",
+        "./node_modules/@types/ol/proj.d.ts"
+      ],
+      "./node_modules/@types/ol/geom/geometry.d.ts": [
+        "./node_modules/@types/ol/coordinate.d.ts",
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/extent.d.ts",
+        "./node_modules/@types/ol/geom/geometrytype.d.ts",
+        "./node_modules/@types/ol/object.d.ts",
+        "./node_modules/@types/ol/proj.d.ts"
+      ],
+      "./node_modules/@types/ol/geom/geometrycollection.d.ts": [
+        "./node_modules/@types/ol/coordinate.d.ts",
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/extent.d.ts",
+        "./node_modules/@types/ol/geom/geometry.d.ts",
+        "./node_modules/@types/ol/geom/geometrytype.d.ts",
+        "./node_modules/@types/ol/object.d.ts",
+        "./node_modules/@types/ol/proj.d.ts"
+      ],
+      "./node_modules/@types/ol/geom/linearring.d.ts": [
+        "./node_modules/@types/ol/coordinate.d.ts",
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/extent.d.ts",
+        "./node_modules/@types/ol/geom/geometry.d.ts",
+        "./node_modules/@types/ol/geom/geometrylayout.d.ts",
+        "./node_modules/@types/ol/geom/geometrytype.d.ts",
+        "./node_modules/@types/ol/geom/simplegeometry.d.ts",
+        "./node_modules/@types/ol/object.d.ts",
+        "./node_modules/@types/ol/proj.d.ts"
+      ],
+      "./node_modules/@types/ol/geom/linestring.d.ts": [
+        "./node_modules/@types/ol/coordinate.d.ts",
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/extent.d.ts",
+        "./node_modules/@types/ol/geom/geometry.d.ts",
+        "./node_modules/@types/ol/geom/geometrylayout.d.ts",
+        "./node_modules/@types/ol/geom/geometrytype.d.ts",
+        "./node_modules/@types/ol/geom/simplegeometry.d.ts",
+        "./node_modules/@types/ol/object.d.ts",
+        "./node_modules/@types/ol/proj.d.ts"
+      ],
+      "./node_modules/@types/ol/geom/multilinestring.d.ts": [
+        "./node_modules/@types/ol/coordinate.d.ts",
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/extent.d.ts",
+        "./node_modules/@types/ol/geom/geometry.d.ts",
+        "./node_modules/@types/ol/geom/geometrylayout.d.ts",
+        "./node_modules/@types/ol/geom/geometrytype.d.ts",
+        "./node_modules/@types/ol/geom/linestring.d.ts",
+        "./node_modules/@types/ol/geom/simplegeometry.d.ts",
+        "./node_modules/@types/ol/object.d.ts",
+        "./node_modules/@types/ol/proj.d.ts"
+      ],
+      "./node_modules/@types/ol/geom/multipoint.d.ts": [
+        "./node_modules/@types/ol/coordinate.d.ts",
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/extent.d.ts",
+        "./node_modules/@types/ol/geom/geometry.d.ts",
+        "./node_modules/@types/ol/geom/geometrylayout.d.ts",
+        "./node_modules/@types/ol/geom/geometrytype.d.ts",
+        "./node_modules/@types/ol/geom/point.d.ts",
+        "./node_modules/@types/ol/geom/simplegeometry.d.ts",
+        "./node_modules/@types/ol/object.d.ts",
+        "./node_modules/@types/ol/proj.d.ts"
+      ],
+      "./node_modules/@types/ol/geom/multipolygon.d.ts": [
+        "./node_modules/@types/ol/coordinate.d.ts",
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/extent.d.ts",
+        "./node_modules/@types/ol/geom/geometry.d.ts",
+        "./node_modules/@types/ol/geom/geometrylayout.d.ts",
+        "./node_modules/@types/ol/geom/geometrytype.d.ts",
+        "./node_modules/@types/ol/geom/multipoint.d.ts",
+        "./node_modules/@types/ol/geom/polygon.d.ts",
+        "./node_modules/@types/ol/geom/simplegeometry.d.ts",
+        "./node_modules/@types/ol/object.d.ts",
+        "./node_modules/@types/ol/proj.d.ts"
+      ],
+      "./node_modules/@types/ol/geom/point.d.ts": [
+        "./node_modules/@types/ol/coordinate.d.ts",
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/extent.d.ts",
+        "./node_modules/@types/ol/geom/geometry.d.ts",
+        "./node_modules/@types/ol/geom/geometrylayout.d.ts",
+        "./node_modules/@types/ol/geom/geometrytype.d.ts",
+        "./node_modules/@types/ol/geom/simplegeometry.d.ts",
+        "./node_modules/@types/ol/object.d.ts",
+        "./node_modules/@types/ol/proj.d.ts"
+      ],
+      "./node_modules/@types/ol/geom/polygon.d.ts": [
+        "./node_modules/@types/ol/coordinate.d.ts",
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/extent.d.ts",
+        "./node_modules/@types/ol/geom/circle.d.ts",
+        "./node_modules/@types/ol/geom/geometry.d.ts",
+        "./node_modules/@types/ol/geom/geometrylayout.d.ts",
+        "./node_modules/@types/ol/geom/geometrytype.d.ts",
+        "./node_modules/@types/ol/geom/linearring.d.ts",
+        "./node_modules/@types/ol/geom/point.d.ts",
+        "./node_modules/@types/ol/geom/simplegeometry.d.ts",
+        "./node_modules/@types/ol/object.d.ts",
+        "./node_modules/@types/ol/proj.d.ts"
+      ],
+      "./node_modules/@types/ol/geom/simplegeometry.d.ts": [
+        "./node_modules/@types/ol/coordinate.d.ts",
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/extent.d.ts",
+        "./node_modules/@types/ol/geom/geometry.d.ts",
+        "./node_modules/@types/ol/geom/geometrylayout.d.ts",
+        "./node_modules/@types/ol/geom/geometrytype.d.ts",
+        "./node_modules/@types/ol/object.d.ts",
+        "./node_modules/@types/ol/proj.d.ts",
+        "./node_modules/@types/ol/transform.d.ts"
+      ],
+      "./node_modules/@types/ol/image.d.ts": [
+        "./node_modules/@types/ol/extent.d.ts",
+        "./node_modules/@types/ol/imagebase.d.ts",
+        "./node_modules/@types/ol/imagestate.d.ts"
+      ],
+      "./node_modules/@types/ol/imagebase.d.ts": [
+        "./node_modules/@types/ol/events/target.d.ts",
+        "./node_modules/@types/ol/extent.d.ts",
+        "./node_modules/@types/ol/imagestate.d.ts"
+      ],
+      "./node_modules/@types/ol/imagecanvas.d.ts": [
+        "./node_modules/@types/ol/extent.d.ts",
+        "./node_modules/@types/ol/imagebase.d.ts"
+      ],
+      "./node_modules/@types/ol/imagetile.d.ts": [
+        "./node_modules/@types/ol/tile.d.ts",
+        "./node_modules/@types/ol/tilecoord.d.ts",
+        "./node_modules/@types/ol/tilestate.d.ts"
+      ],
+      "./node_modules/@types/ol/index.d.ts": [
+        "./node_modules/@types/ol/assertionerror.d.ts",
+        "./node_modules/@types/ol/collection.d.ts",
+        "./node_modules/@types/ol/disposable.d.ts",
+        "./node_modules/@types/ol/feature.d.ts",
+        "./node_modules/@types/ol/geolocation.d.ts",
+        "./node_modules/@types/ol/image.d.ts",
+        "./node_modules/@types/ol/imagebase.d.ts",
+        "./node_modules/@types/ol/imagecanvas.d.ts",
+        "./node_modules/@types/ol/imagetile.d.ts",
+        "./node_modules/@types/ol/kinetic.d.ts",
+        "./node_modules/@types/ol/layer/graticule.d.ts",
+        "./node_modules/@types/ol/map.d.ts",
+        "./node_modules/@types/ol/mapbrowserevent.d.ts",
+        "./node_modules/@types/ol/mapbrowsereventhandler.d.ts",
+        "./node_modules/@types/ol/mapbrowserpointerevent.d.ts",
+        "./node_modules/@types/ol/mapevent.d.ts",
+        "./node_modules/@types/ol/object.d.ts",
+        "./node_modules/@types/ol/observable.d.ts",
+        "./node_modules/@types/ol/overlay.d.ts",
+        "./node_modules/@types/ol/pluggablemap.d.ts",
+        "./node_modules/@types/ol/tile.d.ts",
+        "./node_modules/@types/ol/tilecache.d.ts",
+        "./node_modules/@types/ol/tilequeue.d.ts",
+        "./node_modules/@types/ol/tilerange.d.ts",
+        "./node_modules/@types/ol/util.d.ts",
+        "./node_modules/@types/ol/vectorrendertile.d.ts",
+        "./node_modules/@types/ol/vectortile.d.ts",
+        "./node_modules/@types/ol/view.d.ts"
+      ],
+      "./node_modules/@types/ol/interaction/interaction.d.ts": [
+        "./node_modules/@types/ol/coordinate.d.ts",
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/mapbrowserevent.d.ts",
+        "./node_modules/@types/ol/object.d.ts",
+        "./node_modules/@types/ol/pluggablemap.d.ts",
+        "./node_modules/@types/ol/view.d.ts"
+      ],
+      "./node_modules/@types/ol/layer/base.d.ts": [
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/extent.d.ts",
+        "./node_modules/@types/ol/layer/layer.d.ts",
+        "./node_modules/@types/ol/object.d.ts",
+        "./node_modules/@types/ol/source/source.d.ts",
+        "./node_modules/@types/ol/source/state.d.ts"
+      ],
+      "./node_modules/@types/ol/layer/basevector.d.ts": [
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/extent.d.ts",
+        "./node_modules/@types/ol/feature.d.ts",
+        "./node_modules/@types/ol/geom/geometry.d.ts",
+        "./node_modules/@types/ol/layer/layer.d.ts",
+        "./node_modules/@types/ol/object.d.ts",
+        "./node_modules/@types/ol/pixel.d.ts",
+        "./node_modules/@types/ol/pluggablemap.d.ts",
+        "./node_modules/@types/ol/render.d.ts",
+        "./node_modules/@types/ol/render/event.d.ts",
+        "./node_modules/@types/ol/source/vector.d.ts",
+        "./node_modules/@types/ol/source/vectortile.d.ts",
+        "./node_modules/@types/ol/style/style.d.ts"
+      ],
+      "./node_modules/@types/ol/layer/graticule.d.ts": [
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/extent.d.ts",
+        "./node_modules/@types/ol/geom/linestring.d.ts",
+        "./node_modules/@types/ol/geom/point.d.ts",
+        "./node_modules/@types/ol/layer/vector.d.ts",
+        "./node_modules/@types/ol/object.d.ts",
+        "./node_modules/@types/ol/proj/projection.d.ts",
+        "./node_modules/@types/ol/render/event.d.ts",
+        "./node_modules/@types/ol/style/stroke.d.ts",
+        "./node_modules/@types/ol/style/text.d.ts"
+      ],
+      "./node_modules/@types/ol/layer/group.d.ts": [
+        "./node_modules/@types/ol/collection.d.ts",
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/extent.d.ts",
+        "./node_modules/@types/ol/layer/base.d.ts",
+        "./node_modules/@types/ol/layer/layer.d.ts",
+        "./node_modules/@types/ol/object.d.ts",
+        "./node_modules/@types/ol/source/source.d.ts",
+        "./node_modules/@types/ol/source/state.d.ts"
+      ],
+      "./node_modules/@types/ol/layer/layer.d.ts": [
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/extent.d.ts",
+        "./node_modules/@types/ol/feature.d.ts",
+        "./node_modules/@types/ol/geom/geometry.d.ts",
+        "./node_modules/@types/ol/layer/base.d.ts",
+        "./node_modules/@types/ol/object.d.ts",
+        "./node_modules/@types/ol/pixel.d.ts",
+        "./node_modules/@types/ol/pluggablemap.d.ts",
+        "./node_modules/@types/ol/render/event.d.ts",
+        "./node_modules/@types/ol/renderer/layer.d.ts",
+        "./node_modules/@types/ol/source/source.d.ts",
+        "./node_modules/@types/ol/source/state.d.ts",
+        "./node_modules/@types/ol/view.d.ts"
+      ],
+      "./node_modules/@types/ol/layer/vector.d.ts": [
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/layer/basevector.d.ts",
+        "./node_modules/@types/ol/layer/layer.d.ts",
+        "./node_modules/@types/ol/object.d.ts",
+        "./node_modules/@types/ol/render/event.d.ts",
+        "./node_modules/@types/ol/renderer/layer.d.ts",
+        "./node_modules/@types/ol/source/source.d.ts",
+        "./node_modules/@types/ol/source/vector.d.ts"
+      ],
+      "./node_modules/@types/ol/map.d.ts": [
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/mapbrowserevent.d.ts",
+        "./node_modules/@types/ol/mapevent.d.ts",
+        "./node_modules/@types/ol/object.d.ts",
+        "./node_modules/@types/ol/pluggablemap.d.ts",
+        "./node_modules/@types/ol/render/event.d.ts",
+        "./node_modules/@types/ol/renderer/map.d.ts"
+      ],
+      "./node_modules/@types/ol/mapbrowserevent.d.ts": [
+        "./node_modules/@types/ol/coordinate.d.ts",
+        "./node_modules/@types/ol/mapevent.d.ts",
+        "./node_modules/@types/ol/pixel.d.ts",
+        "./node_modules/@types/ol/pluggablemap.d.ts"
+      ],
+      "./node_modules/@types/ol/mapbrowsereventhandler.d.ts": [
+        "./node_modules/@types/ol/events/target.d.ts",
+        "./node_modules/@types/ol/pluggablemap.d.ts"
+      ],
+      "./node_modules/@types/ol/mapbrowserpointerevent.d.ts": [
+        "./node_modules/@types/ol/mapbrowserevent.d.ts",
+        "./node_modules/@types/ol/pluggablemap.d.ts"
+      ],
+      "./node_modules/@types/ol/mapevent.d.ts": [
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/pluggablemap.d.ts"
+      ],
+      "./node_modules/@types/ol/object.d.ts": [
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/observable.d.ts"
+      ],
+      "./node_modules/@types/ol/observable.d.ts": [
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/events/target.d.ts"
+      ],
+      "./node_modules/@types/ol/overlay.d.ts": [
+        "./node_modules/@types/ol/coordinate.d.ts",
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/extent.d.ts",
+        "./node_modules/@types/ol/object.d.ts",
+        "./node_modules/@types/ol/overlaypositioning.d.ts",
+        "./node_modules/@types/ol/pixel.d.ts",
+        "./node_modules/@types/ol/pluggablemap.d.ts",
+        "./node_modules/@types/ol/size.d.ts"
+      ],
+      "./node_modules/@types/ol/pluggablemap.d.ts": [
+        "./node_modules/@types/ol/collection.d.ts",
+        "./node_modules/@types/ol/control/control.d.ts",
+        "./node_modules/@types/ol/coordinate.d.ts",
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/extent.d.ts",
+        "./node_modules/@types/ol/feature.d.ts",
+        "./node_modules/@types/ol/interaction/interaction.d.ts",
+        "./node_modules/@types/ol/layer/base.d.ts",
+        "./node_modules/@types/ol/layer/group.d.ts",
+        "./node_modules/@types/ol/layer/layer.d.ts",
+        "./node_modules/@types/ol/mapbrowserevent.d.ts",
+        "./node_modules/@types/ol/mapevent.d.ts",
+        "./node_modules/@types/ol/object.d.ts",
+        "./node_modules/@types/ol/overlay.d.ts",
+        "./node_modules/@types/ol/pixel.d.ts",
+        "./node_modules/@types/ol/render/event.d.ts",
+        "./node_modules/@types/ol/renderer/map.d.ts",
+        "./node_modules/@types/ol/size.d.ts",
+        "./node_modules/@types/ol/source/source.d.ts",
+        "./node_modules/@types/ol/tile.d.ts",
+        "./node_modules/@types/ol/tilequeue.d.ts",
+        "./node_modules/@types/ol/transform.d.ts",
+        "./node_modules/@types/ol/view.d.ts"
+      ],
+      "./node_modules/@types/ol/proj.d.ts": [
+        "./node_modules/@types/ol/coordinate.d.ts",
+        "./node_modules/@types/ol/extent.d.ts",
+        "./node_modules/@types/ol/proj/projection.d.ts",
+        "./node_modules/@types/ol/proj/units.d.ts"
+      ],
+      "./node_modules/@types/ol/proj/projection.d.ts": [
+        "./node_modules/@types/ol/coordinate.d.ts",
+        "./node_modules/@types/ol/extent.d.ts",
+        "./node_modules/@types/ol/proj/units.d.ts",
+        "./node_modules/@types/ol/tilegrid/tilegrid.d.ts"
+      ],
+      "./node_modules/@types/ol/render.d.ts": [
+        "./node_modules/@types/ol/feature.d.ts",
+        "./node_modules/@types/ol/geom/simplegeometry.d.ts",
+        "./node_modules/@types/ol/pixel.d.ts",
+        "./node_modules/@types/ol/pluggablemap.d.ts",
+        "./node_modules/@types/ol/render/canvas/immediate.d.ts",
+        "./node_modules/@types/ol/render/event.d.ts",
+        "./node_modules/@types/ol/size.d.ts"
+      ],
+      "./node_modules/@types/ol/render/canvas.d.ts": [
+        "./node_modules/@types/ol/colorlike.d.ts",
+        "./node_modules/@types/ol/style/fill.d.ts",
+        "./node_modules/@types/ol/style/stroke.d.ts",
+        "./node_modules/@types/ol/transform.d.ts"
+      ],
+      "./node_modules/@types/ol/render/canvas/immediate.d.ts": [
+        "./node_modules/@types/ol/extent.d.ts",
+        "./node_modules/@types/ol/proj.d.ts",
+        "./node_modules/@types/ol/render/vectorcontext.d.ts",
+        "./node_modules/@types/ol/transform.d.ts"
+      ],
+      "./node_modules/@types/ol/render/event.d.ts": [
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/pluggablemap.d.ts",
+        "./node_modules/@types/ol/render/eventtype.d.ts",
+        "./node_modules/@types/ol/transform.d.ts"
+      ],
+      "./node_modules/@types/ol/render/feature.d.ts": [
+        "./node_modules/@types/ol/extent.d.ts",
+        "./node_modules/@types/ol/geom/geometrytype.d.ts",
+        "./node_modules/@types/ol/proj.d.ts"
+      ],
+      "./node_modules/@types/ol/render/vectorcontext.d.ts": [
+        "./node_modules/@types/ol/feature.d.ts",
+        "./node_modules/@types/ol/geom/circle.d.ts",
+        "./node_modules/@types/ol/geom/geometry.d.ts",
+        "./node_modules/@types/ol/geom/geometrycollection.d.ts",
+        "./node_modules/@types/ol/geom/linestring.d.ts",
+        "./node_modules/@types/ol/geom/multilinestring.d.ts",
+        "./node_modules/@types/ol/geom/multipoint.d.ts",
+        "./node_modules/@types/ol/geom/multipolygon.d.ts",
+        "./node_modules/@types/ol/geom/point.d.ts",
+        "./node_modules/@types/ol/geom/polygon.d.ts",
+        "./node_modules/@types/ol/geom/simplegeometry.d.ts",
+        "./node_modules/@types/ol/render/canvas.d.ts",
+        "./node_modules/@types/ol/render/feature.d.ts",
+        "./node_modules/@types/ol/style/fill.d.ts",
+        "./node_modules/@types/ol/style/image.d.ts",
+        "./node_modules/@types/ol/style/stroke.d.ts",
+        "./node_modules/@types/ol/style/style.d.ts",
+        "./node_modules/@types/ol/style/text.d.ts"
+      ],
+      "./node_modules/@types/ol/renderer/layer.d.ts": [
+        "./node_modules/@types/ol/coordinate.d.ts",
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/feature.d.ts",
+        "./node_modules/@types/ol/geom/geometry.d.ts",
+        "./node_modules/@types/ol/imagebase.d.ts",
+        "./node_modules/@types/ol/layer/layer.d.ts",
+        "./node_modules/@types/ol/observable.d.ts",
+        "./node_modules/@types/ol/pixel.d.ts",
+        "./node_modules/@types/ol/pluggablemap.d.ts",
+        "./node_modules/@types/ol/proj/projection.d.ts",
+        "./node_modules/@types/ol/source/source.d.ts",
+        "./node_modules/@types/ol/source/tile.d.ts",
+        "./node_modules/@types/ol/tile.d.ts",
+        "./node_modules/@types/ol/tilerange.d.ts"
+      ],
+      "./node_modules/@types/ol/renderer/map.d.ts": [
+        "./node_modules/@types/ol/coordinate.d.ts",
+        "./node_modules/@types/ol/disposable.d.ts",
+        "./node_modules/@types/ol/feature.d.ts",
+        "./node_modules/@types/ol/layer/layer.d.ts",
+        "./node_modules/@types/ol/pixel.d.ts",
+        "./node_modules/@types/ol/pluggablemap.d.ts",
+        "./node_modules/@types/ol/render/eventtype.d.ts",
+        "./node_modules/@types/ol/source/source.d.ts"
+      ],
+      "./node_modules/@types/ol/resolutionconstraint.d.ts": [
+        "./node_modules/@types/ol/extent.d.ts",
+        "./node_modules/@types/ol/size.d.ts"
+      ],
+      "./node_modules/@types/ol/source/source.d.ts": [
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/object.d.ts",
+        "./node_modules/@types/ol/pluggablemap.d.ts",
+        "./node_modules/@types/ol/proj.d.ts",
+        "./node_modules/@types/ol/proj/projection.d.ts",
+        "./node_modules/@types/ol/source/state.d.ts"
+      ],
+      "./node_modules/@types/ol/source/tile.d.ts": [
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/object.d.ts",
+        "./node_modules/@types/ol/proj.d.ts",
+        "./node_modules/@types/ol/proj/projection.d.ts",
+        "./node_modules/@types/ol/size.d.ts",
+        "./node_modules/@types/ol/source/source.d.ts",
+        "./node_modules/@types/ol/source/state.d.ts",
+        "./node_modules/@types/ol/tile.d.ts",
+        "./node_modules/@types/ol/tilecache.d.ts",
+        "./node_modules/@types/ol/tilecoord.d.ts",
+        "./node_modules/@types/ol/tilegrid/tilegrid.d.ts",
+        "./node_modules/@types/ol/tilerange.d.ts"
+      ],
+      "./node_modules/@types/ol/source/urltile.d.ts": [
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/object.d.ts",
+        "./node_modules/@types/ol/proj.d.ts",
+        "./node_modules/@types/ol/proj/projection.d.ts",
+        "./node_modules/@types/ol/source/source.d.ts",
+        "./node_modules/@types/ol/source/state.d.ts",
+        "./node_modules/@types/ol/source/tile.d.ts",
+        "./node_modules/@types/ol/tile.d.ts",
+        "./node_modules/@types/ol/tilegrid/tilegrid.d.ts"
+      ],
+      "./node_modules/@types/ol/source/vector.d.ts": [
+        "./node_modules/@types/ol/collection.d.ts",
+        "./node_modules/@types/ol/coordinate.d.ts",
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/extent.d.ts",
+        "./node_modules/@types/ol/feature.d.ts",
+        "./node_modules/@types/ol/featureloader.d.ts",
+        "./node_modules/@types/ol/format/feature.d.ts",
+        "./node_modules/@types/ol/geom/geometry.d.ts",
+        "./node_modules/@types/ol/object.d.ts",
+        "./node_modules/@types/ol/proj/projection.d.ts",
+        "./node_modules/@types/ol/source/source.d.ts"
+      ],
+      "./node_modules/@types/ol/source/vectortile.d.ts": [
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/extent.d.ts",
+        "./node_modules/@types/ol/feature.d.ts",
+        "./node_modules/@types/ol/format/feature.d.ts",
+        "./node_modules/@types/ol/object.d.ts",
+        "./node_modules/@types/ol/proj.d.ts",
+        "./node_modules/@types/ol/proj/projection.d.ts",
+        "./node_modules/@types/ol/size.d.ts",
+        "./node_modules/@types/ol/source/source.d.ts",
+        "./node_modules/@types/ol/source/state.d.ts",
+        "./node_modules/@types/ol/source/tile.d.ts",
+        "./node_modules/@types/ol/source/urltile.d.ts",
+        "./node_modules/@types/ol/tile.d.ts",
+        "./node_modules/@types/ol/tilegrid/tilegrid.d.ts",
+        "./node_modules/@types/ol/vectorrendertile.d.ts",
+        "./node_modules/@types/ol/vectortile.d.ts"
+      ],
+      "./node_modules/@types/ol/structs/lrucache.d.ts": [
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts"
+      ],
+      "./node_modules/@types/ol/style/fill.d.ts": [
+        "./node_modules/@types/ol/color.d.ts",
+        "./node_modules/@types/ol/colorlike.d.ts"
+      ],
+      "./node_modules/@types/ol/style/image.d.ts": [
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/imagestate.d.ts",
+        "./node_modules/@types/ol/size.d.ts"
+      ],
+      "./node_modules/@types/ol/style/stroke.d.ts": [
+        "./node_modules/@types/ol/color.d.ts",
+        "./node_modules/@types/ol/colorlike.d.ts"
+      ],
+      "./node_modules/@types/ol/style/style.d.ts": [
+        "./node_modules/@types/ol/coordinate.d.ts",
+        "./node_modules/@types/ol/feature.d.ts",
+        "./node_modules/@types/ol/geom/geometry.d.ts",
+        "./node_modules/@types/ol/geom/geometrytype.d.ts",
+        "./node_modules/@types/ol/render.d.ts",
+        "./node_modules/@types/ol/render/feature.d.ts",
+        "./node_modules/@types/ol/style/fill.d.ts",
+        "./node_modules/@types/ol/style/image.d.ts",
+        "./node_modules/@types/ol/style/stroke.d.ts",
+        "./node_modules/@types/ol/style/text.d.ts"
+      ],
+      "./node_modules/@types/ol/style/text.d.ts": [
+        "./node_modules/@types/ol/style/fill.d.ts",
+        "./node_modules/@types/ol/style/stroke.d.ts",
+        "./node_modules/@types/ol/style/textplacement.d.ts"
+      ],
+      "./node_modules/@types/ol/tile.d.ts": [
+        "./node_modules/@types/ol/events/target.d.ts",
+        "./node_modules/@types/ol/proj/projection.d.ts",
+        "./node_modules/@types/ol/tilecoord.d.ts",
+        "./node_modules/@types/ol/tilestate.d.ts"
+      ],
+      "./node_modules/@types/ol/tilecache.d.ts": [
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/structs/lrucache.d.ts"
+      ],
+      "./node_modules/@types/ol/tilecoord.d.ts": [
+        "./node_modules/@types/ol/tilegrid/tilegrid.d.ts"
+      ],
+      "./node_modules/@types/ol/tilegrid/tilegrid.d.ts": [
+        "./node_modules/@types/ol/coordinate.d.ts",
+        "./node_modules/@types/ol/extent.d.ts",
+        "./node_modules/@types/ol/size.d.ts",
+        "./node_modules/@types/ol/tilecoord.d.ts",
+        "./node_modules/@types/ol/tilerange.d.ts"
+      ],
+      "./node_modules/@types/ol/tilequeue.d.ts": [
+        "./node_modules/@types/ol/coordinate.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/pluggablemap.d.ts",
+        "./node_modules/@types/ol/structs/priorityqueue.d.ts",
+        "./node_modules/@types/ol/tile.d.ts"
+      ],
+      "./node_modules/@types/ol/tilerange.d.ts": [
+        "./node_modules/@types/ol/size.d.ts",
+        "./node_modules/@types/ol/tilecoord.d.ts"
+      ],
+      "./node_modules/@types/ol/transform.d.ts": [
+        "./node_modules/@types/ol/coordinate.d.ts",
+        "./node_modules/@types/ol/pixel.d.ts"
+      ],
+      "./node_modules/@types/ol/vectorrendertile.d.ts": [
+        "./node_modules/@types/ol/layer/layer.d.ts",
+        "./node_modules/@types/ol/render.d.ts",
+        "./node_modules/@types/ol/source/source.d.ts",
+        "./node_modules/@types/ol/tile.d.ts",
+        "./node_modules/@types/ol/tilecoord.d.ts",
+        "./node_modules/@types/ol/tilestate.d.ts",
+        "./node_modules/@types/ol/vectortile.d.ts"
+      ],
+      "./node_modules/@types/ol/vectortile.d.ts": [
+        "./node_modules/@types/ol/feature.d.ts",
+        "./node_modules/@types/ol/featureloader.d.ts",
+        "./node_modules/@types/ol/format/feature.d.ts",
+        "./node_modules/@types/ol/geom/geometry.d.ts",
+        "./node_modules/@types/ol/proj/projection.d.ts",
+        "./node_modules/@types/ol/tile.d.ts",
+        "./node_modules/@types/ol/tilecoord.d.ts",
+        "./node_modules/@types/ol/tilestate.d.ts"
+      ],
+      "./node_modules/@types/ol/view.d.ts": [
+        "./node_modules/@types/ol/centerconstraint.d.ts",
+        "./node_modules/@types/ol/coordinate.d.ts",
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/extent.d.ts",
+        "./node_modules/@types/ol/geom/simplegeometry.d.ts",
+        "./node_modules/@types/ol/object.d.ts",
+        "./node_modules/@types/ol/pixel.d.ts",
+        "./node_modules/@types/ol/proj.d.ts",
+        "./node_modules/@types/ol/proj/projection.d.ts",
+        "./node_modules/@types/ol/resolutionconstraint.d.ts",
+        "./node_modules/@types/ol/rotationconstraint.d.ts",
+        "./node_modules/@types/ol/size.d.ts",
+        "./node_modules/@types/ol/viewhint.d.ts"
+      ],
+      "./node_modules/@types/topojson-specification/index.d.ts": [
+        "./node_modules/@types/geojson/index.d.ts"
+      ]
+    },
+    "exportedModulesMap": {
+      "./node_modules/@types/ol/centerconstraint.d.ts": [
+        "./node_modules/@types/ol/coordinate.d.ts",
+        "./node_modules/@types/ol/extent.d.ts",
+        "./node_modules/@types/ol/size.d.ts"
+      ],
+      "./node_modules/@types/ol/collection.d.ts": [
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/object.d.ts"
+      ],
+      "./node_modules/@types/ol/colorlike.d.ts": [
+        "./node_modules/@types/ol/color.d.ts"
+      ],
+      "./node_modules/@types/ol/control/control.d.ts": [
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/mapevent.d.ts",
+        "./node_modules/@types/ol/object.d.ts",
+        "./node_modules/@types/ol/pluggablemap.d.ts"
+      ],
+      "./node_modules/@types/ol/coordinate.d.ts": [
+        "./node_modules/@types/ol/geom/circle.d.ts",
+        "./node_modules/@types/ol/proj/projection.d.ts"
+      ],
+      "./node_modules/@types/ol/events.d.ts": [
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/events/target.d.ts"
+      ],
+      "./node_modules/@types/ol/events/target.d.ts": [
+        "./node_modules/@types/ol/disposable.d.ts",
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts"
+      ],
+      "./node_modules/@types/ol/extent.d.ts": [
+        "./node_modules/@types/ol/coordinate.d.ts",
+        "./node_modules/@types/ol/extent/corner.d.ts",
+        "./node_modules/@types/ol/extent/relationship.d.ts",
+        "./node_modules/@types/ol/proj.d.ts",
+        "./node_modules/@types/ol/proj/projection.d.ts",
+        "./node_modules/@types/ol/size.d.ts"
+      ],
+      "./node_modules/@types/ol/feature.d.ts": [
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/geom/geometry.d.ts",
+        "./node_modules/@types/ol/object.d.ts",
+        "./node_modules/@types/ol/render/feature.d.ts",
+        "./node_modules/@types/ol/style/style.d.ts"
+      ],
+      "./node_modules/@types/ol/featureloader.d.ts": [
+        "./node_modules/@types/ol/extent.d.ts",
+        "./node_modules/@types/ol/format/feature.d.ts",
+        "./node_modules/@types/ol/geom/geometry.d.ts",
+        "./node_modules/@types/ol/proj/projection.d.ts",
+        "./node_modules/@types/ol/source/vector.d.ts",
+        "./node_modules/@types/ol/vectortile.d.ts"
+      ],
+      "./node_modules/@types/ol/format/feature.d.ts": [
+        "./node_modules/@types/ol/extent.d.ts",
+        "./node_modules/@types/ol/feature.d.ts",
+        "./node_modules/@types/ol/format/formattype.d.ts",
+        "./node_modules/@types/ol/geom/geometry.d.ts",
+        "./node_modules/@types/ol/proj.d.ts",
+        "./node_modules/@types/ol/proj/projection.d.ts"
+      ],
+      "./node_modules/@types/ol/geolocation.d.ts": [
+        "./node_modules/@types/ol/coordinate.d.ts",
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/geom/polygon.d.ts",
+        "./node_modules/@types/ol/object.d.ts",
+        "./node_modules/@types/ol/proj.d.ts",
+        "./node_modules/@types/ol/proj/projection.d.ts"
+      ],
+      "./node_modules/@types/ol/geom/circle.d.ts": [
+        "./node_modules/@types/ol/coordinate.d.ts",
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/extent.d.ts",
+        "./node_modules/@types/ol/geom/geometry.d.ts",
+        "./node_modules/@types/ol/geom/geometrylayout.d.ts",
+        "./node_modules/@types/ol/geom/geometrytype.d.ts",
+        "./node_modules/@types/ol/geom/simplegeometry.d.ts",
+        "./node_modules/@types/ol/object.d.ts",
+        "./node_modules/@types/ol/proj.d.ts"
+      ],
+      "./node_modules/@types/ol/geom/geometry.d.ts": [
+        "./node_modules/@types/ol/coordinate.d.ts",
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/extent.d.ts",
+        "./node_modules/@types/ol/geom/geometrytype.d.ts",
+        "./node_modules/@types/ol/object.d.ts",
+        "./node_modules/@types/ol/proj.d.ts"
+      ],
+      "./node_modules/@types/ol/geom/geometrycollection.d.ts": [
+        "./node_modules/@types/ol/coordinate.d.ts",
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/extent.d.ts",
+        "./node_modules/@types/ol/geom/geometry.d.ts",
+        "./node_modules/@types/ol/geom/geometrytype.d.ts",
+        "./node_modules/@types/ol/object.d.ts",
+        "./node_modules/@types/ol/proj.d.ts"
+      ],
+      "./node_modules/@types/ol/geom/linearring.d.ts": [
+        "./node_modules/@types/ol/coordinate.d.ts",
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/extent.d.ts",
+        "./node_modules/@types/ol/geom/geometry.d.ts",
+        "./node_modules/@types/ol/geom/geometrylayout.d.ts",
+        "./node_modules/@types/ol/geom/geometrytype.d.ts",
+        "./node_modules/@types/ol/geom/simplegeometry.d.ts",
+        "./node_modules/@types/ol/object.d.ts",
+        "./node_modules/@types/ol/proj.d.ts"
+      ],
+      "./node_modules/@types/ol/geom/linestring.d.ts": [
+        "./node_modules/@types/ol/coordinate.d.ts",
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/extent.d.ts",
+        "./node_modules/@types/ol/geom/geometry.d.ts",
+        "./node_modules/@types/ol/geom/geometrylayout.d.ts",
+        "./node_modules/@types/ol/geom/geometrytype.d.ts",
+        "./node_modules/@types/ol/geom/simplegeometry.d.ts",
+        "./node_modules/@types/ol/object.d.ts",
+        "./node_modules/@types/ol/proj.d.ts"
+      ],
+      "./node_modules/@types/ol/geom/multilinestring.d.ts": [
+        "./node_modules/@types/ol/coordinate.d.ts",
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/extent.d.ts",
+        "./node_modules/@types/ol/geom/geometry.d.ts",
+        "./node_modules/@types/ol/geom/geometrylayout.d.ts",
+        "./node_modules/@types/ol/geom/geometrytype.d.ts",
+        "./node_modules/@types/ol/geom/linestring.d.ts",
+        "./node_modules/@types/ol/geom/simplegeometry.d.ts",
+        "./node_modules/@types/ol/object.d.ts",
+        "./node_modules/@types/ol/proj.d.ts"
+      ],
+      "./node_modules/@types/ol/geom/multipoint.d.ts": [
+        "./node_modules/@types/ol/coordinate.d.ts",
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/extent.d.ts",
+        "./node_modules/@types/ol/geom/geometry.d.ts",
+        "./node_modules/@types/ol/geom/geometrylayout.d.ts",
+        "./node_modules/@types/ol/geom/geometrytype.d.ts",
+        "./node_modules/@types/ol/geom/point.d.ts",
+        "./node_modules/@types/ol/geom/simplegeometry.d.ts",
+        "./node_modules/@types/ol/object.d.ts",
+        "./node_modules/@types/ol/proj.d.ts"
+      ],
+      "./node_modules/@types/ol/geom/multipolygon.d.ts": [
+        "./node_modules/@types/ol/coordinate.d.ts",
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/extent.d.ts",
+        "./node_modules/@types/ol/geom/geometry.d.ts",
+        "./node_modules/@types/ol/geom/geometrylayout.d.ts",
+        "./node_modules/@types/ol/geom/geometrytype.d.ts",
+        "./node_modules/@types/ol/geom/multipoint.d.ts",
+        "./node_modules/@types/ol/geom/polygon.d.ts",
+        "./node_modules/@types/ol/geom/simplegeometry.d.ts",
+        "./node_modules/@types/ol/object.d.ts",
+        "./node_modules/@types/ol/proj.d.ts"
+      ],
+      "./node_modules/@types/ol/geom/point.d.ts": [
+        "./node_modules/@types/ol/coordinate.d.ts",
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/extent.d.ts",
+        "./node_modules/@types/ol/geom/geometry.d.ts",
+        "./node_modules/@types/ol/geom/geometrylayout.d.ts",
+        "./node_modules/@types/ol/geom/geometrytype.d.ts",
+        "./node_modules/@types/ol/geom/simplegeometry.d.ts",
+        "./node_modules/@types/ol/object.d.ts",
+        "./node_modules/@types/ol/proj.d.ts"
+      ],
+      "./node_modules/@types/ol/geom/polygon.d.ts": [
+        "./node_modules/@types/ol/coordinate.d.ts",
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/extent.d.ts",
+        "./node_modules/@types/ol/geom/circle.d.ts",
+        "./node_modules/@types/ol/geom/geometry.d.ts",
+        "./node_modules/@types/ol/geom/geometrylayout.d.ts",
+        "./node_modules/@types/ol/geom/geometrytype.d.ts",
+        "./node_modules/@types/ol/geom/linearring.d.ts",
+        "./node_modules/@types/ol/geom/point.d.ts",
+        "./node_modules/@types/ol/geom/simplegeometry.d.ts",
+        "./node_modules/@types/ol/object.d.ts",
+        "./node_modules/@types/ol/proj.d.ts"
+      ],
+      "./node_modules/@types/ol/geom/simplegeometry.d.ts": [
+        "./node_modules/@types/ol/coordinate.d.ts",
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/extent.d.ts",
+        "./node_modules/@types/ol/geom/geometry.d.ts",
+        "./node_modules/@types/ol/geom/geometrylayout.d.ts",
+        "./node_modules/@types/ol/geom/geometrytype.d.ts",
+        "./node_modules/@types/ol/object.d.ts",
+        "./node_modules/@types/ol/proj.d.ts",
+        "./node_modules/@types/ol/transform.d.ts"
+      ],
+      "./node_modules/@types/ol/image.d.ts": [
+        "./node_modules/@types/ol/extent.d.ts",
+        "./node_modules/@types/ol/imagebase.d.ts",
+        "./node_modules/@types/ol/imagestate.d.ts"
+      ],
+      "./node_modules/@types/ol/imagebase.d.ts": [
+        "./node_modules/@types/ol/events/target.d.ts",
+        "./node_modules/@types/ol/extent.d.ts",
+        "./node_modules/@types/ol/imagestate.d.ts"
+      ],
+      "./node_modules/@types/ol/imagecanvas.d.ts": [
+        "./node_modules/@types/ol/extent.d.ts",
+        "./node_modules/@types/ol/imagebase.d.ts"
+      ],
+      "./node_modules/@types/ol/imagetile.d.ts": [
+        "./node_modules/@types/ol/tile.d.ts",
+        "./node_modules/@types/ol/tilecoord.d.ts",
+        "./node_modules/@types/ol/tilestate.d.ts"
+      ],
+      "./node_modules/@types/ol/index.d.ts": [
+        "./node_modules/@types/ol/assertionerror.d.ts",
+        "./node_modules/@types/ol/collection.d.ts",
+        "./node_modules/@types/ol/disposable.d.ts",
+        "./node_modules/@types/ol/feature.d.ts",
+        "./node_modules/@types/ol/geolocation.d.ts",
+        "./node_modules/@types/ol/image.d.ts",
+        "./node_modules/@types/ol/imagebase.d.ts",
+        "./node_modules/@types/ol/imagecanvas.d.ts",
+        "./node_modules/@types/ol/imagetile.d.ts",
+        "./node_modules/@types/ol/kinetic.d.ts",
+        "./node_modules/@types/ol/layer/graticule.d.ts",
+        "./node_modules/@types/ol/map.d.ts",
+        "./node_modules/@types/ol/mapbrowserevent.d.ts",
+        "./node_modules/@types/ol/mapbrowsereventhandler.d.ts",
+        "./node_modules/@types/ol/mapbrowserpointerevent.d.ts",
+        "./node_modules/@types/ol/mapevent.d.ts",
+        "./node_modules/@types/ol/object.d.ts",
+        "./node_modules/@types/ol/observable.d.ts",
+        "./node_modules/@types/ol/overlay.d.ts",
+        "./node_modules/@types/ol/pluggablemap.d.ts",
+        "./node_modules/@types/ol/tile.d.ts",
+        "./node_modules/@types/ol/tilecache.d.ts",
+        "./node_modules/@types/ol/tilequeue.d.ts",
+        "./node_modules/@types/ol/tilerange.d.ts",
+        "./node_modules/@types/ol/util.d.ts",
+        "./node_modules/@types/ol/vectorrendertile.d.ts",
+        "./node_modules/@types/ol/vectortile.d.ts",
+        "./node_modules/@types/ol/view.d.ts"
+      ],
+      "./node_modules/@types/ol/interaction/interaction.d.ts": [
+        "./node_modules/@types/ol/coordinate.d.ts",
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/mapbrowserevent.d.ts",
+        "./node_modules/@types/ol/object.d.ts",
+        "./node_modules/@types/ol/pluggablemap.d.ts",
+        "./node_modules/@types/ol/view.d.ts"
+      ],
+      "./node_modules/@types/ol/layer/base.d.ts": [
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/extent.d.ts",
+        "./node_modules/@types/ol/layer/layer.d.ts",
+        "./node_modules/@types/ol/object.d.ts",
+        "./node_modules/@types/ol/source/source.d.ts",
+        "./node_modules/@types/ol/source/state.d.ts"
+      ],
+      "./node_modules/@types/ol/layer/basevector.d.ts": [
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/extent.d.ts",
+        "./node_modules/@types/ol/feature.d.ts",
+        "./node_modules/@types/ol/geom/geometry.d.ts",
+        "./node_modules/@types/ol/layer/layer.d.ts",
+        "./node_modules/@types/ol/object.d.ts",
+        "./node_modules/@types/ol/pixel.d.ts",
+        "./node_modules/@types/ol/pluggablemap.d.ts",
+        "./node_modules/@types/ol/render.d.ts",
+        "./node_modules/@types/ol/render/event.d.ts",
+        "./node_modules/@types/ol/source/vector.d.ts",
+        "./node_modules/@types/ol/source/vectortile.d.ts",
+        "./node_modules/@types/ol/style/style.d.ts"
+      ],
+      "./node_modules/@types/ol/layer/graticule.d.ts": [
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/extent.d.ts",
+        "./node_modules/@types/ol/geom/linestring.d.ts",
+        "./node_modules/@types/ol/geom/point.d.ts",
+        "./node_modules/@types/ol/layer/vector.d.ts",
+        "./node_modules/@types/ol/object.d.ts",
+        "./node_modules/@types/ol/proj/projection.d.ts",
+        "./node_modules/@types/ol/render/event.d.ts",
+        "./node_modules/@types/ol/style/stroke.d.ts",
+        "./node_modules/@types/ol/style/text.d.ts"
+      ],
+      "./node_modules/@types/ol/layer/group.d.ts": [
+        "./node_modules/@types/ol/collection.d.ts",
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/extent.d.ts",
+        "./node_modules/@types/ol/layer/base.d.ts",
+        "./node_modules/@types/ol/layer/layer.d.ts",
+        "./node_modules/@types/ol/object.d.ts",
+        "./node_modules/@types/ol/source/source.d.ts",
+        "./node_modules/@types/ol/source/state.d.ts"
+      ],
+      "./node_modules/@types/ol/layer/layer.d.ts": [
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/extent.d.ts",
+        "./node_modules/@types/ol/feature.d.ts",
+        "./node_modules/@types/ol/geom/geometry.d.ts",
+        "./node_modules/@types/ol/layer/base.d.ts",
+        "./node_modules/@types/ol/object.d.ts",
+        "./node_modules/@types/ol/pixel.d.ts",
+        "./node_modules/@types/ol/pluggablemap.d.ts",
+        "./node_modules/@types/ol/render/event.d.ts",
+        "./node_modules/@types/ol/renderer/layer.d.ts",
+        "./node_modules/@types/ol/source/source.d.ts",
+        "./node_modules/@types/ol/source/state.d.ts",
+        "./node_modules/@types/ol/view.d.ts"
+      ],
+      "./node_modules/@types/ol/layer/vector.d.ts": [
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/layer/basevector.d.ts",
+        "./node_modules/@types/ol/layer/layer.d.ts",
+        "./node_modules/@types/ol/object.d.ts",
+        "./node_modules/@types/ol/render/event.d.ts",
+        "./node_modules/@types/ol/renderer/layer.d.ts",
+        "./node_modules/@types/ol/source/source.d.ts",
+        "./node_modules/@types/ol/source/vector.d.ts"
+      ],
+      "./node_modules/@types/ol/map.d.ts": [
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/mapbrowserevent.d.ts",
+        "./node_modules/@types/ol/mapevent.d.ts",
+        "./node_modules/@types/ol/object.d.ts",
+        "./node_modules/@types/ol/pluggablemap.d.ts",
+        "./node_modules/@types/ol/render/event.d.ts",
+        "./node_modules/@types/ol/renderer/map.d.ts"
+      ],
+      "./node_modules/@types/ol/mapbrowserevent.d.ts": [
+        "./node_modules/@types/ol/coordinate.d.ts",
+        "./node_modules/@types/ol/mapevent.d.ts",
+        "./node_modules/@types/ol/pixel.d.ts",
+        "./node_modules/@types/ol/pluggablemap.d.ts"
+      ],
+      "./node_modules/@types/ol/mapbrowsereventhandler.d.ts": [
+        "./node_modules/@types/ol/events/target.d.ts",
+        "./node_modules/@types/ol/pluggablemap.d.ts"
+      ],
+      "./node_modules/@types/ol/mapbrowserpointerevent.d.ts": [
+        "./node_modules/@types/ol/mapbrowserevent.d.ts",
+        "./node_modules/@types/ol/pluggablemap.d.ts"
+      ],
+      "./node_modules/@types/ol/mapevent.d.ts": [
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/pluggablemap.d.ts"
+      ],
+      "./node_modules/@types/ol/object.d.ts": [
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/observable.d.ts"
+      ],
+      "./node_modules/@types/ol/observable.d.ts": [
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/events/target.d.ts"
+      ],
+      "./node_modules/@types/ol/overlay.d.ts": [
+        "./node_modules/@types/ol/coordinate.d.ts",
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/extent.d.ts",
+        "./node_modules/@types/ol/object.d.ts",
+        "./node_modules/@types/ol/overlaypositioning.d.ts",
+        "./node_modules/@types/ol/pixel.d.ts",
+        "./node_modules/@types/ol/pluggablemap.d.ts",
+        "./node_modules/@types/ol/size.d.ts"
+      ],
+      "./node_modules/@types/ol/pluggablemap.d.ts": [
+        "./node_modules/@types/ol/collection.d.ts",
+        "./node_modules/@types/ol/control/control.d.ts",
+        "./node_modules/@types/ol/coordinate.d.ts",
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/extent.d.ts",
+        "./node_modules/@types/ol/feature.d.ts",
+        "./node_modules/@types/ol/interaction/interaction.d.ts",
+        "./node_modules/@types/ol/layer/base.d.ts",
+        "./node_modules/@types/ol/layer/group.d.ts",
+        "./node_modules/@types/ol/layer/layer.d.ts",
+        "./node_modules/@types/ol/mapbrowserevent.d.ts",
+        "./node_modules/@types/ol/mapevent.d.ts",
+        "./node_modules/@types/ol/object.d.ts",
+        "./node_modules/@types/ol/overlay.d.ts",
+        "./node_modules/@types/ol/pixel.d.ts",
+        "./node_modules/@types/ol/render/event.d.ts",
+        "./node_modules/@types/ol/renderer/map.d.ts",
+        "./node_modules/@types/ol/size.d.ts",
+        "./node_modules/@types/ol/source/source.d.ts",
+        "./node_modules/@types/ol/tile.d.ts",
+        "./node_modules/@types/ol/tilequeue.d.ts",
+        "./node_modules/@types/ol/transform.d.ts",
+        "./node_modules/@types/ol/view.d.ts"
+      ],
+      "./node_modules/@types/ol/proj.d.ts": [
+        "./node_modules/@types/ol/coordinate.d.ts",
+        "./node_modules/@types/ol/extent.d.ts",
+        "./node_modules/@types/ol/proj/projection.d.ts",
+        "./node_modules/@types/ol/proj/units.d.ts"
+      ],
+      "./node_modules/@types/ol/proj/projection.d.ts": [
+        "./node_modules/@types/ol/coordinate.d.ts",
+        "./node_modules/@types/ol/extent.d.ts",
+        "./node_modules/@types/ol/proj/units.d.ts",
+        "./node_modules/@types/ol/tilegrid/tilegrid.d.ts"
+      ],
+      "./node_modules/@types/ol/render.d.ts": [
+        "./node_modules/@types/ol/feature.d.ts",
+        "./node_modules/@types/ol/geom/simplegeometry.d.ts",
+        "./node_modules/@types/ol/pixel.d.ts",
+        "./node_modules/@types/ol/pluggablemap.d.ts",
+        "./node_modules/@types/ol/render/canvas/immediate.d.ts",
+        "./node_modules/@types/ol/render/event.d.ts",
+        "./node_modules/@types/ol/size.d.ts"
+      ],
+      "./node_modules/@types/ol/render/canvas.d.ts": [
+        "./node_modules/@types/ol/colorlike.d.ts",
+        "./node_modules/@types/ol/style/fill.d.ts",
+        "./node_modules/@types/ol/style/stroke.d.ts",
+        "./node_modules/@types/ol/transform.d.ts"
+      ],
+      "./node_modules/@types/ol/render/canvas/immediate.d.ts": [
+        "./node_modules/@types/ol/extent.d.ts",
+        "./node_modules/@types/ol/proj.d.ts",
+        "./node_modules/@types/ol/render/vectorcontext.d.ts",
+        "./node_modules/@types/ol/transform.d.ts"
+      ],
+      "./node_modules/@types/ol/render/event.d.ts": [
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/pluggablemap.d.ts",
+        "./node_modules/@types/ol/render/eventtype.d.ts",
+        "./node_modules/@types/ol/transform.d.ts"
+      ],
+      "./node_modules/@types/ol/render/feature.d.ts": [
+        "./node_modules/@types/ol/extent.d.ts",
+        "./node_modules/@types/ol/geom/geometrytype.d.ts",
+        "./node_modules/@types/ol/proj.d.ts"
+      ],
+      "./node_modules/@types/ol/render/vectorcontext.d.ts": [
+        "./node_modules/@types/ol/feature.d.ts",
+        "./node_modules/@types/ol/geom/circle.d.ts",
+        "./node_modules/@types/ol/geom/geometry.d.ts",
+        "./node_modules/@types/ol/geom/geometrycollection.d.ts",
+        "./node_modules/@types/ol/geom/linestring.d.ts",
+        "./node_modules/@types/ol/geom/multilinestring.d.ts",
+        "./node_modules/@types/ol/geom/multipoint.d.ts",
+        "./node_modules/@types/ol/geom/multipolygon.d.ts",
+        "./node_modules/@types/ol/geom/point.d.ts",
+        "./node_modules/@types/ol/geom/polygon.d.ts",
+        "./node_modules/@types/ol/geom/simplegeometry.d.ts",
+        "./node_modules/@types/ol/render/canvas.d.ts",
+        "./node_modules/@types/ol/render/feature.d.ts",
+        "./node_modules/@types/ol/style/fill.d.ts",
+        "./node_modules/@types/ol/style/image.d.ts",
+        "./node_modules/@types/ol/style/stroke.d.ts",
+        "./node_modules/@types/ol/style/style.d.ts",
+        "./node_modules/@types/ol/style/text.d.ts"
+      ],
+      "./node_modules/@types/ol/renderer/layer.d.ts": [
+        "./node_modules/@types/ol/coordinate.d.ts",
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/feature.d.ts",
+        "./node_modules/@types/ol/geom/geometry.d.ts",
+        "./node_modules/@types/ol/imagebase.d.ts",
+        "./node_modules/@types/ol/layer/layer.d.ts",
+        "./node_modules/@types/ol/observable.d.ts",
+        "./node_modules/@types/ol/pixel.d.ts",
+        "./node_modules/@types/ol/pluggablemap.d.ts",
+        "./node_modules/@types/ol/proj/projection.d.ts",
+        "./node_modules/@types/ol/source/source.d.ts",
+        "./node_modules/@types/ol/source/tile.d.ts",
+        "./node_modules/@types/ol/tile.d.ts",
+        "./node_modules/@types/ol/tilerange.d.ts"
+      ],
+      "./node_modules/@types/ol/renderer/map.d.ts": [
+        "./node_modules/@types/ol/coordinate.d.ts",
+        "./node_modules/@types/ol/disposable.d.ts",
+        "./node_modules/@types/ol/feature.d.ts",
+        "./node_modules/@types/ol/layer/layer.d.ts",
+        "./node_modules/@types/ol/pixel.d.ts",
+        "./node_modules/@types/ol/pluggablemap.d.ts",
+        "./node_modules/@types/ol/render/eventtype.d.ts",
+        "./node_modules/@types/ol/source/source.d.ts"
+      ],
+      "./node_modules/@types/ol/resolutionconstraint.d.ts": [
+        "./node_modules/@types/ol/extent.d.ts",
+        "./node_modules/@types/ol/size.d.ts"
+      ],
+      "./node_modules/@types/ol/source/source.d.ts": [
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/object.d.ts",
+        "./node_modules/@types/ol/pluggablemap.d.ts",
+        "./node_modules/@types/ol/proj.d.ts",
+        "./node_modules/@types/ol/proj/projection.d.ts",
+        "./node_modules/@types/ol/source/state.d.ts"
+      ],
+      "./node_modules/@types/ol/source/tile.d.ts": [
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/object.d.ts",
+        "./node_modules/@types/ol/proj.d.ts",
+        "./node_modules/@types/ol/proj/projection.d.ts",
+        "./node_modules/@types/ol/size.d.ts",
+        "./node_modules/@types/ol/source/source.d.ts",
+        "./node_modules/@types/ol/source/state.d.ts",
+        "./node_modules/@types/ol/tile.d.ts",
+        "./node_modules/@types/ol/tilecache.d.ts",
+        "./node_modules/@types/ol/tilecoord.d.ts",
+        "./node_modules/@types/ol/tilegrid/tilegrid.d.ts",
+        "./node_modules/@types/ol/tilerange.d.ts"
+      ],
+      "./node_modules/@types/ol/source/urltile.d.ts": [
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/object.d.ts",
+        "./node_modules/@types/ol/proj.d.ts",
+        "./node_modules/@types/ol/proj/projection.d.ts",
+        "./node_modules/@types/ol/source/source.d.ts",
+        "./node_modules/@types/ol/source/state.d.ts",
+        "./node_modules/@types/ol/source/tile.d.ts",
+        "./node_modules/@types/ol/tile.d.ts",
+        "./node_modules/@types/ol/tilegrid/tilegrid.d.ts"
+      ],
+      "./node_modules/@types/ol/source/vector.d.ts": [
+        "./node_modules/@types/ol/collection.d.ts",
+        "./node_modules/@types/ol/coordinate.d.ts",
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/extent.d.ts",
+        "./node_modules/@types/ol/feature.d.ts",
+        "./node_modules/@types/ol/featureloader.d.ts",
+        "./node_modules/@types/ol/format/feature.d.ts",
+        "./node_modules/@types/ol/geom/geometry.d.ts",
+        "./node_modules/@types/ol/object.d.ts",
+        "./node_modules/@types/ol/proj/projection.d.ts",
+        "./node_modules/@types/ol/source/source.d.ts"
+      ],
+      "./node_modules/@types/ol/source/vectortile.d.ts": [
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/extent.d.ts",
+        "./node_modules/@types/ol/feature.d.ts",
+        "./node_modules/@types/ol/format/feature.d.ts",
+        "./node_modules/@types/ol/object.d.ts",
+        "./node_modules/@types/ol/proj.d.ts",
+        "./node_modules/@types/ol/proj/projection.d.ts",
+        "./node_modules/@types/ol/size.d.ts",
+        "./node_modules/@types/ol/source/source.d.ts",
+        "./node_modules/@types/ol/source/state.d.ts",
+        "./node_modules/@types/ol/source/tile.d.ts",
+        "./node_modules/@types/ol/source/urltile.d.ts",
+        "./node_modules/@types/ol/tile.d.ts",
+        "./node_modules/@types/ol/tilegrid/tilegrid.d.ts",
+        "./node_modules/@types/ol/vectorrendertile.d.ts",
+        "./node_modules/@types/ol/vectortile.d.ts"
+      ],
+      "./node_modules/@types/ol/structs/lrucache.d.ts": [
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts"
+      ],
+      "./node_modules/@types/ol/style/fill.d.ts": [
+        "./node_modules/@types/ol/color.d.ts",
+        "./node_modules/@types/ol/colorlike.d.ts"
+      ],
+      "./node_modules/@types/ol/style/image.d.ts": [
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/imagestate.d.ts",
+        "./node_modules/@types/ol/size.d.ts"
+      ],
+      "./node_modules/@types/ol/style/stroke.d.ts": [
+        "./node_modules/@types/ol/color.d.ts",
+        "./node_modules/@types/ol/colorlike.d.ts"
+      ],
+      "./node_modules/@types/ol/style/style.d.ts": [
+        "./node_modules/@types/ol/coordinate.d.ts",
+        "./node_modules/@types/ol/feature.d.ts",
+        "./node_modules/@types/ol/geom/geometry.d.ts",
+        "./node_modules/@types/ol/geom/geometrytype.d.ts",
+        "./node_modules/@types/ol/render.d.ts",
+        "./node_modules/@types/ol/render/feature.d.ts",
+        "./node_modules/@types/ol/style/fill.d.ts",
+        "./node_modules/@types/ol/style/image.d.ts",
+        "./node_modules/@types/ol/style/stroke.d.ts",
+        "./node_modules/@types/ol/style/text.d.ts"
+      ],
+      "./node_modules/@types/ol/style/text.d.ts": [
+        "./node_modules/@types/ol/style/fill.d.ts",
+        "./node_modules/@types/ol/style/stroke.d.ts",
+        "./node_modules/@types/ol/style/textplacement.d.ts"
+      ],
+      "./node_modules/@types/ol/tile.d.ts": [
+        "./node_modules/@types/ol/events/target.d.ts",
+        "./node_modules/@types/ol/proj/projection.d.ts",
+        "./node_modules/@types/ol/tilecoord.d.ts",
+        "./node_modules/@types/ol/tilestate.d.ts"
+      ],
+      "./node_modules/@types/ol/tilecache.d.ts": [
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/structs/lrucache.d.ts"
+      ],
+      "./node_modules/@types/ol/tilecoord.d.ts": [
+        "./node_modules/@types/ol/tilegrid/tilegrid.d.ts"
+      ],
+      "./node_modules/@types/ol/tilegrid/tilegrid.d.ts": [
+        "./node_modules/@types/ol/coordinate.d.ts",
+        "./node_modules/@types/ol/extent.d.ts",
+        "./node_modules/@types/ol/size.d.ts",
+        "./node_modules/@types/ol/tilecoord.d.ts",
+        "./node_modules/@types/ol/tilerange.d.ts"
+      ],
+      "./node_modules/@types/ol/tilequeue.d.ts": [
+        "./node_modules/@types/ol/coordinate.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/pluggablemap.d.ts",
+        "./node_modules/@types/ol/structs/priorityqueue.d.ts",
+        "./node_modules/@types/ol/tile.d.ts"
+      ],
+      "./node_modules/@types/ol/tilerange.d.ts": [
+        "./node_modules/@types/ol/size.d.ts",
+        "./node_modules/@types/ol/tilecoord.d.ts"
+      ],
+      "./node_modules/@types/ol/transform.d.ts": [
+        "./node_modules/@types/ol/coordinate.d.ts",
+        "./node_modules/@types/ol/pixel.d.ts"
+      ],
+      "./node_modules/@types/ol/vectorrendertile.d.ts": [
+        "./node_modules/@types/ol/layer/layer.d.ts",
+        "./node_modules/@types/ol/render.d.ts",
+        "./node_modules/@types/ol/source/source.d.ts",
+        "./node_modules/@types/ol/tile.d.ts",
+        "./node_modules/@types/ol/tilecoord.d.ts",
+        "./node_modules/@types/ol/tilestate.d.ts",
+        "./node_modules/@types/ol/vectortile.d.ts"
+      ],
+      "./node_modules/@types/ol/vectortile.d.ts": [
+        "./node_modules/@types/ol/feature.d.ts",
+        "./node_modules/@types/ol/featureloader.d.ts",
+        "./node_modules/@types/ol/format/feature.d.ts",
+        "./node_modules/@types/ol/geom/geometry.d.ts",
+        "./node_modules/@types/ol/proj/projection.d.ts",
+        "./node_modules/@types/ol/tile.d.ts",
+        "./node_modules/@types/ol/tilecoord.d.ts",
+        "./node_modules/@types/ol/tilestate.d.ts"
+      ],
+      "./node_modules/@types/ol/view.d.ts": [
+        "./node_modules/@types/ol/centerconstraint.d.ts",
+        "./node_modules/@types/ol/coordinate.d.ts",
+        "./node_modules/@types/ol/events.d.ts",
+        "./node_modules/@types/ol/events/event.d.ts",
+        "./node_modules/@types/ol/extent.d.ts",
+        "./node_modules/@types/ol/geom/simplegeometry.d.ts",
+        "./node_modules/@types/ol/object.d.ts",
+        "./node_modules/@types/ol/pixel.d.ts",
+        "./node_modules/@types/ol/proj.d.ts",
+        "./node_modules/@types/ol/proj/projection.d.ts",
+        "./node_modules/@types/ol/resolutionconstraint.d.ts",
+        "./node_modules/@types/ol/rotationconstraint.d.ts",
+        "./node_modules/@types/ol/size.d.ts",
+        "./node_modules/@types/ol/viewhint.d.ts"
+      ],
+      "./node_modules/@types/topojson-specification/index.d.ts": [
+        "./node_modules/@types/geojson/index.d.ts"
+      ]
+    },
+    "semanticDiagnosticsPerFile": [
+      "./node_modules/typescript/lib/lib.dom.d.ts",
+      "./node_modules/typescript/lib/lib.es2015.collection.d.ts",
+      "./node_modules/typescript/lib/lib.es2015.core.d.ts",
+      "./node_modules/typescript/lib/lib.es2015.d.ts",
+      "./node_modules/typescript/lib/lib.es2015.generator.d.ts",
+      "./node_modules/typescript/lib/lib.es2015.iterable.d.ts",
+      "./node_modules/typescript/lib/lib.es2015.promise.d.ts",
+      "./node_modules/typescript/lib/lib.es2015.proxy.d.ts",
+      "./node_modules/typescript/lib/lib.es2015.reflect.d.ts",
+      "./node_modules/typescript/lib/lib.es2015.symbol.d.ts",
+      "./node_modules/typescript/lib/lib.es2015.symbol.wellknown.d.ts",
+      "./node_modules/typescript/lib/lib.es5.d.ts"
+    ]
+  },
+  "version": "4.0.2"
+}

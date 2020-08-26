@@ -1,3 +1,4 @@
+.cache
 .vscode
 node_modules
 dist
@@ -6,5 +7,6 @@ jspm_packages
 typings
 *.log
 *.js
+*.js.map
 built/**
 static/**
