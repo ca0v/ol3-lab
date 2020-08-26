@@ -11,9 +11,10 @@ Proof of Concept code for learning aspects of OpenLayers and related spatial lib
 
 ## Examples
 
+-   [master](https://rawgit.com/ca0v/ol3-lab/v6.4.3/index.html)
 -   [v5.1.3](https://rawgit.com/ca0v/ol3-lab/v5.1.3/loaders/tests.html?theme=dark)
 -   [v4.6.5](https://rawgit.com/ca0v/ol3-lab/v4.6.5/rawgit.html?run=ol3-lab/labs/index)
--   [master](https://rawgit.com/ca0v/ol3-lab/master/rawgit.html?run=ol3-lab/labs/index)
+-   [master](https://rawgit.com/ca0v/ol3-lab/master/index.html)
 
 ## Develop
 
