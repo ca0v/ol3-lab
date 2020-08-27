@@ -1,4 +1,4 @@
-import { Extent, getCenter } from "@ol/extent";
+import { Extent, getCenter, getWidth } from "@ol/extent";
 import { Projection } from "@ol/proj";
 import { TileTree } from "../index";
 import VectorSource from "@ol/source/Vector";
@@ -8,6 +8,9 @@ import Geometry from "@ol/geom/Geometry";
 import { FeatureServiceProxy } from "../FeatureServiceProxy";
 import { removeAuthority } from "./removeAuthority";
 import { FeatureServiceRequest } from "../FeatureServiceRequest";
+import Circle from "@ol/geom/Circle";
+import EsriJSON from "@ol/format/EsriJSON";
+import Polygon from "@ol/geom/Polygon";
 
 function bbox(extent: Extent) {
   const [xmin, ymin, xmax, ymax] = extent;
@@ -15,7 +18,7 @@ function bbox(extent: Extent) {
 }
 
 export function buildLoader(options: {
-  tree: TileTree<{ count: number }>;
+  tree: TileTree<{ count: number; feature: Feature<Geometry> }>;
   url: string;
   strategy: any;
 }) {
@@ -26,10 +29,21 @@ export function buildLoader(options: {
     resolution: number,
     projection: Projection
   ) {
+    // no not prevent future calls
+    source["loadedExtentsRtree_"].clear();
+
     const { tree } = options;
     const tileNode = tree.find(extent);
-    if (typeof tileNode.data.count === "number") return;
+    if (typeof tileNode.data.count === "number") {
+      console.log(
+        `already loaded: ${extent.map(Math.round)}, count:${
+          tileNode.data.count
+        }`
+      );
+      return;
+    }
     tileNode.data.count = 0; // mark as loading
+    console.log(`loading: ${extent.map(Math.round)}`);
 
     const proxy = new FeatureServiceProxy({
       service: options.url,
@@ -59,21 +73,45 @@ export function buildLoader(options: {
           .join(",")}`
       );
       if (count > 0) {
-        const geom = new Point(getCenter(extent));
-        const feature = new Feature(geom);
-        feature.setProperties({ count, resolution });
-        source.addFeature(feature);
-
         // drill down until we understand the layout
         if (count > 1000) {
-          setTimeout(() => {
-            Promise.all(
-              tree.ensureQuads(tileNode).map((q) => {
-                loader(q.extent, resolution / 2, projection);
-              })
-            );
-            source.removeFeature(feature);
-          }, 200);
+          await Promise.all(
+            tree.ensureQuads(tileNode).map((q) => {
+              source.loadFeatures(q.extent, resolution / 2, projection);
+            })
+          );
+        }
+
+        if (count < 100) {
+          const esrijsonFormat = new EsriJSON();
+          request.returnCountOnly = false;
+          const response = await proxy.fetch<{
+            objectIdFieldName: string;
+            features: { attributes: any; geometry: any }[];
+          }>(request);
+          console.log(response);
+          const features = esrijsonFormat.readFeatures(response, {
+            featureProjection: projection,
+          });
+          features.forEach((f, i) =>
+            f.setProperties({
+              text: `${f.getProperties()[response.objectIdFieldName]}`,
+            })
+          );
+          source.addFeatures(features);
+          debugger;
+          const parent = tree.parent(tileNode);
+          console.assert(parent.quad.some((v) => v === tileNode));
+          console.log(parent.data.feature);
+        } else {
+          const geom = new Circle(
+            getCenter(extent),
+            getWidth(extent) / Math.PI
+          );
+          const feature = new Feature(geom);
+          feature.setProperties({ count, resolution });
+          source.addFeature(feature);
+          tileNode.data.feature = feature;
         }
       }
     } catch (ex) {

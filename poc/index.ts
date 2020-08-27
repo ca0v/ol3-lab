@@ -1,4 +1,4 @@
-import type { Extent } from "@ol/extent";
+import { Extent, getWidth, getCenter } from "@ol/extent";
 import { containsExtent, containsXY } from "@ol/extent";
 import type { Coordinate } from "@ol/coordinate";
 
@@ -59,6 +59,14 @@ export class TileTree<T> {
 
   constructor(options: { extent: Extent }) {
     this.root = this.asTileNode(options.extent);
+  }
+
+  public parent(node: TileNode<T>) {
+    // if using XYZ can just use Z-1
+    const depth =
+      Math.round(getWidth(this.root.extent) / getWidth(node.extent)) - 1;
+    // if using XYZ can just trunc the point to get XY, no searching
+    return this.findByPoint({ point: getCenter(node.extent), zoom: depth });
   }
 
   public findByPoint(

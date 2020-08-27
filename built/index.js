@@ -4580,7 +4580,7 @@ define("node_modules/ol/src/extent", ["require", "exports", "node_modules/ol/src
     }
     exports.wrapX = wrapX;
 });
-define("poc/index", ["require", "exports", "node_modules/ol/src/extent"], function (require, exports, extent_1) {
+define("poc/index", ["require", "exports", "node_modules/ol/src/extent", "node_modules/ol/src/extent"], function (require, exports, extent_1, extent_2) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.TileTree = void 0;
@@ -4622,12 +4622,16 @@ define("poc/index", ["require", "exports", "node_modules/ol/src/extent"], functi
         asTileNode(extent) {
             return { extent, quad: [null, null, null, null], data: {} };
         }
+        parent(node) {
+            const depth = Math.round(extent_1.getWidth(this.root.extent) / extent_1.getWidth(node.extent)) - 1;
+            return this.findByPoint({ point: extent_1.getCenter(node.extent), zoom: depth });
+        }
         findByPoint(args, root = this.root) {
             const { point, zoom: depth } = args;
             const [x, y] = point;
             if (depth < 0)
                 throw "invalid depth";
-            if (!extent_1.containsXY(root.extent, x, y)) {
+            if (!extent_2.containsXY(root.extent, x, y)) {
                 throw "point is outside of extent";
             }
             if (0 === depth)
@@ -4663,7 +4667,7 @@ define("poc/index", ["require", "exports", "node_modules/ol/src/extent"], functi
         find(extent) {
             const info = explode(extent);
             const rootInfo = explode(this.root.extent);
-            if (!extent_1.containsExtent(this.root.extent, extent)) {
+            if (!extent_2.containsExtent(this.root.extent, extent)) {
                 if (isLt(info.xmin, rootInfo.xmin))
                     throw "xmin too small";
                 if (isLt(info.ymin, rootInfo.ymin))
@@ -4685,7 +4689,7 @@ define("poc/index", ["require", "exports", "node_modules/ol/src/extent"], functi
         findNode(root, child) {
             const info = explode(child.extent);
             const rootInfo = explode(root.extent);
-            if (!extent_1.containsExtent(root.extent, child.extent)) {
+            if (!extent_2.containsExtent(root.extent, child.extent)) {
                 if (isLt(info.xmin, rootInfo.xmin))
                     throw "xmin too small";
                 if (isLt(info.ymin, rootInfo.ymin))
@@ -14768,7 +14772,7 @@ define("node_modules/ol/src/source/Vector", ["require", "exports", "node_modules
     }
     exports.default = VectorSource;
 });
-define("poc/fun/createWeightedFeature", ["require", "exports", "node_modules/ol/src/extent", "node_modules/ol/src/geom/Point", "node_modules/ol/src/Feature"], function (require, exports, extent_2, Point_1, Feature_1) {
+define("poc/fun/createWeightedFeature", ["require", "exports", "node_modules/ol/src/extent", "node_modules/ol/src/geom/Point", "node_modules/ol/src/Feature"], function (require, exports, extent_3, Point_1, Feature_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.createWeightedFeature = void 0;
@@ -14784,9 +14788,9 @@ define("poc/fun/createWeightedFeature", ["require", "exports", "node_modules/ol/
             featureCountPerQuadrant[1] -
             featureCountPerQuadrant[2] -
             featureCountPerQuadrant[3];
-        const [cx, cy] = extent_2.getCenter(extent);
-        const width = extent_2.getWidth(extent) / 2;
-        const height = extent_2.getHeight(extent) / 2;
+        const [cx, cy] = extent_3.getCenter(extent);
+        const width = extent_3.getWidth(extent) / 2;
+        const height = extent_3.getHeight(extent) / 2;
         const center = new Point_1.default([
             cx + width * (dx / weight),
             cy + height * (dy / weight),
@@ -22568,7 +22572,404 @@ define("poc/fun/removeAuthority", ["require", "exports"], function (require, exp
     }
     exports.removeAuthority = removeAuthority;
 });
-define("poc/fun/buildLoader", ["require", "exports", "node_modules/ol/src/extent", "node_modules/ol/src/source/Vector", "node_modules/ol/src/geom/Point", "node_modules/ol/src/Feature", "poc/FeatureServiceProxy", "poc/fun/removeAuthority"], function (require, exports, extent_3, Vector_1, Point_2, Feature_2, FeatureServiceProxy_1, removeAuthority_1) {
+define("node_modules/ol/src/format/JSONFeature", ["require", "exports", "node_modules/ol/src/format/Feature", "node_modules/ol/src/format/FormatType", "node_modules/ol/src/util"], function (require, exports, Feature_js_4, FormatType_js_2, util_js_26) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    class JSONFeature extends Feature_js_4.default {
+        constructor() {
+            super();
+        }
+        getType() {
+            return FormatType_js_2.default.JSON;
+        }
+        readFeature(source, opt_options) {
+            return this.readFeatureFromObject(getObject(source), this.getReadOptions(source, opt_options));
+        }
+        readFeatures(source, opt_options) {
+            return this.readFeaturesFromObject(getObject(source), this.getReadOptions(source, opt_options));
+        }
+        readFeatureFromObject(object, opt_options) {
+            return util_js_26.abstract();
+        }
+        readFeaturesFromObject(object, opt_options) {
+            return util_js_26.abstract();
+        }
+        readGeometry(source, opt_options) {
+            return this.readGeometryFromObject(getObject(source), this.getReadOptions(source, opt_options));
+        }
+        readGeometryFromObject(object, opt_options) {
+            return util_js_26.abstract();
+        }
+        readProjection(source) {
+            return this.readProjectionFromObject(getObject(source));
+        }
+        readProjectionFromObject(object) {
+            return util_js_26.abstract();
+        }
+        writeFeature(feature, opt_options) {
+            return JSON.stringify(this.writeFeatureObject(feature, opt_options));
+        }
+        writeFeatureObject(feature, opt_options) {
+            return util_js_26.abstract();
+        }
+        writeFeatures(features, opt_options) {
+            return JSON.stringify(this.writeFeaturesObject(features, opt_options));
+        }
+        writeFeaturesObject(features, opt_options) {
+            return util_js_26.abstract();
+        }
+        writeGeometry(geometry, opt_options) {
+            return JSON.stringify(this.writeGeometryObject(geometry, opt_options));
+        }
+        writeGeometryObject(geometry, opt_options) {
+            return util_js_26.abstract();
+        }
+    }
+    function getObject(source) {
+        if (typeof source === 'string') {
+            const object = JSON.parse(source);
+            return object ? (object) : null;
+        }
+        else if (source !== null) {
+            return source;
+        }
+        else {
+            return null;
+        }
+    }
+    exports.default = JSONFeature;
+});
+define("node_modules/ol/src/format/EsriJSON", ["require", "exports", "node_modules/ol/src/Feature", "node_modules/ol/src/geom/GeometryLayout", "node_modules/ol/src/geom/GeometryType", "node_modules/ol/src/format/JSONFeature", "node_modules/ol/src/geom/LineString", "node_modules/ol/src/geom/LinearRing", "node_modules/ol/src/geom/MultiLineString", "node_modules/ol/src/geom/MultiPoint", "node_modules/ol/src/geom/MultiPolygon", "node_modules/ol/src/geom/Point", "node_modules/ol/src/geom/Polygon", "node_modules/ol/src/asserts", "node_modules/ol/src/obj", "node_modules/ol/src/extent", "node_modules/ol/src/geom/flat/deflate", "node_modules/ol/src/proj", "node_modules/ol/src/geom/flat/orient", "node_modules/ol/src/format/Feature"], function (require, exports, Feature_js_5, GeometryLayout_js_7, GeometryType_js_24, JSONFeature_js_1, LineString_js_3, LinearRing_js_2, MultiLineString_js_2, MultiPoint_js_3, MultiPolygon_js_2, Point_js_6, Polygon_js_10, asserts_js_19, obj_js_20, extent_js_44, deflate_js_9, proj_js_18, orient_js_3, Feature_js_6) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    const GEOMETRY_READERS = {};
+    GEOMETRY_READERS[GeometryType_js_24.default.POINT] = readPointGeometry;
+    GEOMETRY_READERS[GeometryType_js_24.default.LINE_STRING] = readLineStringGeometry;
+    GEOMETRY_READERS[GeometryType_js_24.default.POLYGON] = readPolygonGeometry;
+    GEOMETRY_READERS[GeometryType_js_24.default.MULTI_POINT] = readMultiPointGeometry;
+    GEOMETRY_READERS[GeometryType_js_24.default.MULTI_LINE_STRING] = readMultiLineStringGeometry;
+    GEOMETRY_READERS[GeometryType_js_24.default.MULTI_POLYGON] = readMultiPolygonGeometry;
+    const GEOMETRY_WRITERS = {};
+    GEOMETRY_WRITERS[GeometryType_js_24.default.POINT] = writePointGeometry;
+    GEOMETRY_WRITERS[GeometryType_js_24.default.LINE_STRING] = writeLineStringGeometry;
+    GEOMETRY_WRITERS[GeometryType_js_24.default.POLYGON] = writePolygonGeometry;
+    GEOMETRY_WRITERS[GeometryType_js_24.default.MULTI_POINT] = writeMultiPointGeometry;
+    GEOMETRY_WRITERS[GeometryType_js_24.default.MULTI_LINE_STRING] = writeMultiLineStringGeometry;
+    GEOMETRY_WRITERS[GeometryType_js_24.default.MULTI_POLYGON] = writeMultiPolygonGeometry;
+    class EsriJSON extends JSONFeature_js_1.default {
+        constructor(opt_options) {
+            const options = opt_options ? opt_options : {};
+            super();
+            this.geometryName_ = options.geometryName;
+        }
+        readFeatureFromObject(object, opt_options, opt_idField) {
+            const esriJSONFeature = (object);
+            const geometry = readGeometry(esriJSONFeature.geometry, opt_options);
+            const feature = new Feature_js_5.default();
+            if (this.geometryName_) {
+                feature.setGeometryName(this.geometryName_);
+            }
+            feature.setGeometry(geometry);
+            if (esriJSONFeature.attributes) {
+                feature.setProperties(esriJSONFeature.attributes, true);
+                const id = esriJSONFeature.attributes[opt_idField];
+                if (id !== undefined) {
+                    feature.setId((id));
+                }
+            }
+            return feature;
+        }
+        readFeaturesFromObject(object, opt_options) {
+            const options = opt_options ? opt_options : {};
+            if (object['features']) {
+                const esriJSONFeatureSet = (object);
+                const features = [];
+                const esriJSONFeatures = esriJSONFeatureSet.features;
+                for (let i = 0, ii = esriJSONFeatures.length; i < ii; ++i) {
+                    features.push(this.readFeatureFromObject(esriJSONFeatures[i], options, object.objectIdFieldName));
+                }
+                return features;
+            }
+            else {
+                return [this.readFeatureFromObject(object, options)];
+            }
+        }
+        readGeometryFromObject(object, opt_options) {
+            return readGeometry(object, opt_options);
+        }
+        readProjectionFromObject(object) {
+            if (object['spatialReference'] &&
+                object['spatialReference']['wkid'] !== undefined) {
+                const spatialReference = (object['spatialReference']);
+                const crs = spatialReference.wkid;
+                return proj_js_18.get('EPSG:' + crs);
+            }
+            else {
+                return null;
+            }
+        }
+        writeGeometryObject(geometry, opt_options) {
+            return writeGeometry(geometry, this.adaptOptions(opt_options));
+        }
+        writeFeatureObject(feature, opt_options) {
+            opt_options = this.adaptOptions(opt_options);
+            const object = {};
+            if (!feature.hasProperties()) {
+                object['attributes'] = {};
+                return object;
+            }
+            const properties = feature.getProperties();
+            const geometry = feature.getGeometry();
+            if (geometry) {
+                object['geometry'] = writeGeometry(geometry, opt_options);
+                if (opt_options && opt_options.featureProjection) {
+                    object['geometry']['spatialReference'] = ({
+                        wkid: Number(proj_js_18.get(opt_options.featureProjection)
+                            .getCode()
+                            .split(':')
+                            .pop()),
+                    });
+                }
+                delete properties[feature.getGeometryName()];
+            }
+            if (!obj_js_20.isEmpty(properties)) {
+                object['attributes'] = properties;
+            }
+            else {
+                object['attributes'] = {};
+            }
+            return object;
+        }
+        writeFeaturesObject(features, opt_options) {
+            opt_options = this.adaptOptions(opt_options);
+            const objects = [];
+            for (let i = 0, ii = features.length; i < ii; ++i) {
+                objects.push(this.writeFeatureObject(features[i], opt_options));
+            }
+            return {
+                'features': objects,
+            };
+        }
+    }
+    function readGeometry(object, opt_options) {
+        if (!object) {
+            return null;
+        }
+        let type;
+        if (typeof object['x'] === 'number' && typeof object['y'] === 'number') {
+            type = GeometryType_js_24.default.POINT;
+        }
+        else if (object['points']) {
+            type = GeometryType_js_24.default.MULTI_POINT;
+        }
+        else if (object['paths']) {
+            const esriJSONPolyline = (object);
+            if (esriJSONPolyline.paths.length === 1) {
+                type = GeometryType_js_24.default.LINE_STRING;
+            }
+            else {
+                type = GeometryType_js_24.default.MULTI_LINE_STRING;
+            }
+        }
+        else if (object['rings']) {
+            const esriJSONPolygon = (object);
+            const layout = getGeometryLayout(esriJSONPolygon);
+            const rings = convertRings(esriJSONPolygon.rings, layout);
+            if (rings.length === 1) {
+                type = GeometryType_js_24.default.POLYGON;
+                object = obj_js_20.assign({}, object, { ['rings']: rings[0] });
+            }
+            else {
+                type = GeometryType_js_24.default.MULTI_POLYGON;
+                object = obj_js_20.assign({}, object, { ['rings']: rings });
+            }
+        }
+        const geometryReader = GEOMETRY_READERS[type];
+        return Feature_js_6.transformGeometryWithOptions(geometryReader(object), false, opt_options);
+    }
+    function convertRings(rings, layout) {
+        const flatRing = [];
+        const outerRings = [];
+        const holes = [];
+        let i, ii;
+        for (i = 0, ii = rings.length; i < ii; ++i) {
+            flatRing.length = 0;
+            deflate_js_9.deflateCoordinates(flatRing, 0, rings[i], layout.length);
+            const clockwise = orient_js_3.linearRingIsClockwise(flatRing, 0, flatRing.length, layout.length);
+            if (clockwise) {
+                outerRings.push([rings[i]]);
+            }
+            else {
+                holes.push(rings[i]);
+            }
+        }
+        while (holes.length) {
+            const hole = holes.shift();
+            let matched = false;
+            for (i = outerRings.length - 1; i >= 0; i--) {
+                const outerRing = outerRings[i][0];
+                const containsHole = extent_js_44.containsExtent(new LinearRing_js_2.default(outerRing).getExtent(), new LinearRing_js_2.default(hole).getExtent());
+                if (containsHole) {
+                    outerRings[i].push(hole);
+                    matched = true;
+                    break;
+                }
+            }
+            if (!matched) {
+                outerRings.push([hole.reverse()]);
+            }
+        }
+        return outerRings;
+    }
+    function readPointGeometry(object) {
+        let point;
+        if (object.m !== undefined && object.z !== undefined) {
+            point = new Point_js_6.default([object.x, object.y, object.z, object.m], GeometryLayout_js_7.default.XYZM);
+        }
+        else if (object.z !== undefined) {
+            point = new Point_js_6.default([object.x, object.y, object.z], GeometryLayout_js_7.default.XYZ);
+        }
+        else if (object.m !== undefined) {
+            point = new Point_js_6.default([object.x, object.y, object.m], GeometryLayout_js_7.default.XYM);
+        }
+        else {
+            point = new Point_js_6.default([object.x, object.y]);
+        }
+        return point;
+    }
+    function readLineStringGeometry(object) {
+        const layout = getGeometryLayout(object);
+        return new LineString_js_3.default(object.paths[0], layout);
+    }
+    function readMultiLineStringGeometry(object) {
+        const layout = getGeometryLayout(object);
+        return new MultiLineString_js_2.default(object.paths, layout);
+    }
+    function getGeometryLayout(object) {
+        let layout = GeometryLayout_js_7.default.XY;
+        if (object.hasZ === true && object.hasM === true) {
+            layout = GeometryLayout_js_7.default.XYZM;
+        }
+        else if (object.hasZ === true) {
+            layout = GeometryLayout_js_7.default.XYZ;
+        }
+        else if (object.hasM === true) {
+            layout = GeometryLayout_js_7.default.XYM;
+        }
+        return layout;
+    }
+    function readMultiPointGeometry(object) {
+        const layout = getGeometryLayout(object);
+        return new MultiPoint_js_3.default(object.points, layout);
+    }
+    function readMultiPolygonGeometry(object) {
+        const layout = getGeometryLayout(object);
+        return new MultiPolygon_js_2.default(object.rings, layout);
+    }
+    function readPolygonGeometry(object) {
+        const layout = getGeometryLayout(object);
+        return new Polygon_js_10.default(object.rings, layout);
+    }
+    function writePointGeometry(geometry, opt_options) {
+        const coordinates = geometry.getCoordinates();
+        let esriJSON;
+        const layout = geometry.getLayout();
+        if (layout === GeometryLayout_js_7.default.XYZ) {
+            esriJSON = {
+                x: coordinates[0],
+                y: coordinates[1],
+                z: coordinates[2],
+            };
+        }
+        else if (layout === GeometryLayout_js_7.default.XYM) {
+            esriJSON = {
+                x: coordinates[0],
+                y: coordinates[1],
+                m: coordinates[2],
+            };
+        }
+        else if (layout === GeometryLayout_js_7.default.XYZM) {
+            esriJSON = {
+                x: coordinates[0],
+                y: coordinates[1],
+                z: coordinates[2],
+                m: coordinates[3],
+            };
+        }
+        else if (layout === GeometryLayout_js_7.default.XY) {
+            esriJSON = {
+                x: coordinates[0],
+                y: coordinates[1],
+            };
+        }
+        else {
+            asserts_js_19.assert(false, 34);
+        }
+        return esriJSON;
+    }
+    function getHasZM(geometry) {
+        const layout = geometry.getLayout();
+        return {
+            hasZ: layout === GeometryLayout_js_7.default.XYZ || layout === GeometryLayout_js_7.default.XYZM,
+            hasM: layout === GeometryLayout_js_7.default.XYM || layout === GeometryLayout_js_7.default.XYZM,
+        };
+    }
+    function writeLineStringGeometry(lineString, opt_options) {
+        const hasZM = getHasZM(lineString);
+        return {
+            hasZ: hasZM.hasZ,
+            hasM: hasZM.hasM,
+            paths: [
+                (lineString.getCoordinates()),
+            ],
+        };
+    }
+    function writePolygonGeometry(polygon, opt_options) {
+        const hasZM = getHasZM(polygon);
+        return {
+            hasZ: hasZM.hasZ,
+            hasM: hasZM.hasM,
+            rings: (polygon.getCoordinates(false)),
+        };
+    }
+    function writeMultiLineStringGeometry(multiLineString, opt_options) {
+        const hasZM = getHasZM(multiLineString);
+        return {
+            hasZ: hasZM.hasZ,
+            hasM: hasZM.hasM,
+            paths: (multiLineString.getCoordinates()),
+        };
+    }
+    function writeMultiPointGeometry(multiPoint, opt_options) {
+        const hasZM = getHasZM(multiPoint);
+        return {
+            hasZ: hasZM.hasZ,
+            hasM: hasZM.hasM,
+            points: (multiPoint.getCoordinates()),
+        };
+    }
+    function writeMultiPolygonGeometry(geometry, opt_options) {
+        const hasZM = getHasZM(geometry);
+        const coordinates = geometry.getCoordinates(false);
+        const output = [];
+        for (let i = 0; i < coordinates.length; i++) {
+            for (let x = coordinates[i].length - 1; x >= 0; x--) {
+                output.push(coordinates[i][x]);
+            }
+        }
+        return {
+            hasZ: hasZM.hasZ,
+            hasM: hasZM.hasM,
+            rings: (output),
+        };
+    }
+    function writeGeometry(geometry, opt_options) {
+        const geometryWriter = GEOMETRY_WRITERS[geometry.getType()];
+        return geometryWriter(Feature_js_6.transformGeometryWithOptions(geometry, true, opt_options), opt_options);
+    }
+    exports.default = EsriJSON;
+});
+define("poc/fun/buildLoader", ["require", "exports", "node_modules/ol/src/extent", "node_modules/ol/src/source/Vector", "node_modules/ol/src/geom/Point", "node_modules/ol/src/Feature", "poc/FeatureServiceProxy", "poc/fun/removeAuthority", "node_modules/ol/src/geom/Circle", "node_modules/ol/src/format/EsriJSON"], function (require, exports, extent_4, Vector_1, Point_2, Feature_2, FeatureServiceProxy_1, removeAuthority_1, Circle_1, EsriJSON_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.buildLoader = void 0;
@@ -22580,11 +22981,15 @@ define("poc/fun/buildLoader", ["require", "exports", "node_modules/ol/src/extent
         let source;
         function loader(extent, resolution, projection) {
             return __awaiter(this, void 0, void 0, function* () {
+                source["loadedExtentsRtree_"].clear();
                 const { tree } = options;
                 const tileNode = tree.find(extent);
-                if (typeof tileNode.data.count === "number")
+                if (typeof tileNode.data.count === "number") {
+                    console.log(`already loaded: ${extent.map(Math.round)}, count:${tileNode.data.count}`);
                     return;
+                }
                 tileNode.data.count = 0;
+                console.log(`loading: ${extent.map(Math.round)}`);
                 const proxy = new FeatureServiceProxy_1.FeatureServiceProxy({
                     service: options.url,
                 });
@@ -22609,22 +23014,39 @@ define("poc/fun/buildLoader", ["require", "exports", "node_modules/ol/src/extent
                         .map((v) => Math.round(v))
                         .join(",")}`);
                     if (count > 0) {
-                        const geom = new Point_2.default(extent_3.getCenter(extent));
-                        const feature = new Feature_2.default(geom);
-                        feature.setProperties({ count, resolution });
-                        source.addFeature(feature);
                         if (count > 1000) {
-                            setTimeout(() => {
-                                Promise.all(tree.ensureQuads(tileNode).map((q) => {
-                                    loader(q.extent, resolution / 2, projection);
-                                }));
-                                source.removeFeature(feature);
-                            }, 200);
+                            yield Promise.all(tree.ensureQuads(tileNode).map((q) => {
+                                source.loadFeatures(q.extent, resolution / 2, projection);
+                            }));
+                        }
+                        if (count < 100) {
+                            const esrijsonFormat = new EsriJSON_1.default();
+                            request.returnCountOnly = false;
+                            const response = yield proxy.fetch(request);
+                            console.log(response);
+                            const features = esrijsonFormat.readFeatures(response, {
+                                featureProjection: projection,
+                            });
+                            features.forEach((f, i) => f.setProperties({
+                                text: `${f.getProperties()[response.objectIdFieldName]}`,
+                            }));
+                            source.addFeatures(features);
+                            debugger;
+                            const parent = tree.parent(tileNode);
+                            console.assert(parent.quad.some((v) => v === tileNode));
+                            console.log(parent.data.feature);
+                        }
+                        else {
+                            const geom = new Circle_1.default(extent_4.getCenter(extent), extent_4.getWidth(extent) / Math.PI);
+                            const feature = new Feature_2.default(geom);
+                            feature.setProperties({ count, resolution });
+                            source.addFeature(feature);
+                            tileNode.data.feature = feature;
                         }
                     }
                 }
                 catch (ex) {
-                    const geom = new Point_2.default(extent_3.getCenter(extent));
+                    const geom = new Point_2.default(extent_4.getCenter(extent));
                     const feature = new Feature_2.default(geom);
                     feature.setProperties({ text: ex, count: 0, resolution });
                     source.addFeature(feature);
@@ -22638,7 +23060,7 @@ define("poc/fun/buildLoader", ["require", "exports", "node_modules/ol/src/extent
     }
     exports.buildLoader = buildLoader;
 });
-define("poc/test/index", ["require", "exports", "mocha", "chai", "node_modules/ol/src/extent", "node_modules/ol/src/proj", "poc/index", "node_modules/ol/src/tilegrid", "node_modules/ol/src/loadingstrategy", "node_modules/ol/src/source/VectorEventType", "poc/fun/createWeightedFeature", "node_modules/ol/src/Map", "node_modules/ol/src/View", "node_modules/ol/src/layer/Vector", "poc/fun/buildLoader", "node_modules/ol/src/style", "node_modules/ol/src/style/Circle"], function (require, exports, mocha_1, chai_1, extent_4, proj_1, index_1, tilegrid_1, loadingstrategy_1, VectorEventType_1, createWeightedFeature_1, Map_1, View_1, Vector_2, buildLoader_1, style_1, Circle_1) {
+define("poc/test/index", ["require", "exports", "mocha", "chai", "node_modules/ol/src/extent", "node_modules/ol/src/proj", "poc/index", "node_modules/ol/src/tilegrid", "node_modules/ol/src/loadingstrategy", "node_modules/ol/src/source/VectorEventType", "poc/fun/createWeightedFeature", "node_modules/ol/src/Map", "node_modules/ol/src/View", "node_modules/ol/src/layer/Vector", "poc/fun/buildLoader", "node_modules/ol/src/style", "node_modules/ol/src/style/Circle"], function (require, exports, mocha_1, chai_1, extent_5, proj_1, index_1, tilegrid_1, loadingstrategy_1, VectorEventType_1, createWeightedFeature_1, Map_1, View_1, Vector_2, buildLoader_1, style_1, Circle_2) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     function debounce(cb, wait = 20) {
@@ -22652,15 +23074,6 @@ define("poc/test/index", ["require", "exports", "mocha", "chai", "node_modules/o
     const TINY = 0.0000001;
     function isEq(v1, v2) {
         return TINY > Math.abs(v1 - v2);
-    }
-    function visit(root, cb, init) {
-        let result = cb(init, root);
-        root.quad
-            .filter((q) => !!q)
-            .forEach((q) => {
-            result = visit(q, cb, result);
-        });
-        return result;
     }
     mocha_1.describe("TileTree Tests", () => {
         mocha_1.it("creates a tile tree", () => {
@@ -22701,7 +23114,6 @@ define("poc/test/index", ["require", "exports", "mocha", "chai", "node_modules/o
         mocha_1.it("attaches data to the nodes", () => {
             const extent = [0, 0, 1, 1];
             const tree = new index_1.TileTree({ extent });
-            const root = tree.find(extent);
             const q0 = tree.find([0, 0, 0.25, 0.25]);
             const q1 = tree.find([0.25, 0, 0.5, 0.25]);
             const q2 = tree.find([0, 0.25, 0.25, 0.5]);
@@ -22712,7 +23124,7 @@ define("poc/test/index", ["require", "exports", "mocha", "chai", "node_modules/o
             q2.data.count = 4;
             q3.data.count = 8;
             q33.data.count = 16;
-            const totalCount = visit(root, (a, b) => a + ((b === null || b === void 0 ? void 0 : b.data.count) || 0), 0);
+            const totalCount = tree.visit((a, b) => a + ((b === null || b === void 0 ? void 0 : b.data.count) || 0), 0);
             chai_1.assert.equal(totalCount, 31);
         });
         mocha_1.it("uses 3857 to find a tile for a given depth and coordinate", () => {
@@ -22743,7 +23155,7 @@ define("poc/test/index", ["require", "exports", "mocha", "chai", "node_modules/o
                 const extent = tileGrid.getTileCoordExtent(tileCoord);
                 tree.find(extent).data.tileCoord = tileCoord;
             });
-            const maxX = () => visit(tree.find(extent), (a, b) => Math.max(a, b.data.tileCoord ? b.data.tileCoord[1] : a), 0);
+            const maxX = () => tree.visit((a, b) => Math.max(a, b.data.tileCoord ? b.data.tileCoord[1] : a), 0);
             for (let i = 0; i <= 8; i++) {
                 addTiles(i);
                 chai_1.assert.equal(Math.pow(2, i) - 1, maxX(), `addTiles(${i})`);
@@ -22786,15 +23198,15 @@ define("poc/test/index", ["require", "exports", "mocha", "chai", "node_modules/o
         });
         mocha_1.it("renders on a map", () => {
             const view = new View_1.default({
-                center: extent_4.getCenter([-11114555, 4696291, -10958012, 4852834]),
-                zoom: 6,
+                center: extent_5.getCenter([-11114555, 4696291, -10958012, 4852834]),
+                zoom: 10,
             });
             const target = document.createElement("div");
             target.style.backgroundColor = "black";
             target.className = "map";
             document.body.appendChild(target);
             const url = "http://localhost:3002/mock/sampleserver3/arcgis/rest/services/Petroleum/KSFields/FeatureServer/0/query";
-            const tileGrid = tilegrid_1.createXYZ({ tileSize: 512 });
+            const tileGrid = tilegrid_1.createXYZ({ tileSize: 256 });
             const strategy = loadingstrategy_1.tile(tileGrid);
             const tree = new index_1.TileTree({
                 extent: tileGrid.getExtent(),
@@ -22805,7 +23217,7 @@ define("poc/test/index", ["require", "exports", "mocha", "chai", "node_modules/o
                 style: (feature) => {
                     const { text, count } = feature.getProperties();
                     const style = new style_1.Style({
-                        image: new Circle_1.default({
+                        image: new Circle_2.default({
                             radius: 10 + Math.sqrt(count) / 2,
                             fill: new style_1.Fill({ color: "rgba(200,0,0,0.2)" }),
                             stroke: new style_1.Stroke({ color: "white", width: 1 }),
@@ -22816,7 +23228,10 @@ define("poc/test/index", ["require", "exports", "mocha", "chai", "node_modules/o
                             fill: new style_1.Fill({ color: "white" }),
                         }),
                     });
-                    return style;
+                    const vector = new style_1.Style({
+                        fill: new style_1.Fill({ color: "rgba(200,200,0,0.2)" }),
+                    });
+                    return [style, vector];
                 },
             });
             const layers = [vectorLayer];

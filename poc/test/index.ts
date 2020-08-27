@@ -18,6 +18,7 @@ import VectorLayer from "@ol/layer/Vector";
 import { buildLoader } from "../fun/buildLoader";
 import { Style, Fill, Stroke, Text } from "@ol/style";
 import Circle from "@ol/style/Circle";
+import Polygon from "@ol/geom/Polygon";
 
 function debounce<T extends Function>(cb: T, wait = 20) {
   let h = 0;
@@ -32,20 +33,6 @@ const TINY = 0.0000001;
 
 function isEq(v1: number, v2: number) {
   return TINY > Math.abs(v1 - v2);
-}
-
-function visit<T, Q>(
-  root: TileNode<T>,
-  cb: (a: Q, b: TileNode<T>) => Q,
-  init: Q
-): Q {
-  let result = cb(init, root);
-  root.quad
-    .filter((q) => !!q)
-    .forEach((q) => {
-      result = visit(q, cb, result);
-    });
-  return result;
 }
 
 describe("TileTree Tests", () => {
@@ -91,7 +78,6 @@ describe("TileTree Tests", () => {
   it("attaches data to the nodes", () => {
     const extent = [0, 0, 1, 1] as Extent;
     const tree = new TileTree<{ count: number }>({ extent });
-    const root = tree.find(extent);
     const q0 = tree.find([0, 0, 0.25, 0.25]);
     const q1 = tree.find([0.25, 0, 0.5, 0.25]);
     const q2 = tree.find([0, 0.25, 0.25, 0.5]);
@@ -102,7 +88,7 @@ describe("TileTree Tests", () => {
     q2.data.count = 4;
     q3.data.count = 8;
     q33.data.count = 16;
-    const totalCount = visit(root, (a, b) => a + (b?.data.count || 0), 0);
+    const totalCount = tree.visit((a, b) => a + (b?.data.count || 0), 0);
     assert.equal(totalCount, 31);
   });
 
@@ -144,8 +130,7 @@ describe("TileTree Tests", () => {
       });
 
     const maxX = () =>
-      visit(
-        tree.find(extent),
+      tree.visit(
         (a, b) => Math.max(a, b.data.tileCoord ? b.data.tileCoord[1] : a),
         0
       );
@@ -189,7 +174,7 @@ describe("TileTree Tests", () => {
     const tileGrid = createXYZ({ tileSize: 512 });
     const strategy = tileStrategy(tileGrid);
 
-    const tree = new TileTree<{ count: number }>({
+    const tree = new TileTree<{ count: number; feature: Feature<Polygon> }>({
       extent: tileGrid.getExtent(),
     });
 
@@ -214,7 +199,7 @@ describe("TileTree Tests", () => {
   it("renders on a map", () => {
     const view = new View({
       center: getCenter([-11114555, 4696291, -10958012, 4852834]),
-      zoom: 6,
+      zoom: 10,
     });
     const target = document.createElement("div");
     target.style.backgroundColor = "black";
@@ -223,10 +208,10 @@ describe("TileTree Tests", () => {
 
     const url =
       "http://localhost:3002/mock/sampleserver3/arcgis/rest/services/Petroleum/KSFields/FeatureServer/0/query";
-    const tileGrid = createXYZ({ tileSize: 512 });
+    const tileGrid = createXYZ({ tileSize: 256 });
     const strategy = tileStrategy(tileGrid);
 
-    const tree = new TileTree<{ count: number }>({
+    const tree = new TileTree<{ count: number; feature: Feature<Geometry> }>({
       extent: tileGrid.getExtent(),
     });
 
@@ -247,7 +232,10 @@ describe("TileTree Tests", () => {
             fill: new Fill({ color: "white" }),
           }),
         });
-        return style;
+        const vector = new Style({
+          fill: new Fill({ color: "rgba(200,200,0,0.2)" }),
+        });
+        return [style, vector];
       },
     });
 
