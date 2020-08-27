@@ -2,10 +2,25 @@ import type { Extent } from "@ol/extent";
 import { containsExtent, containsXY } from "@ol/extent";
 import type { Coordinate } from "@ol/coordinate";
 
-export type TileNode = {
+export type TileNode<T> = {
   extent: Extent;
-  quad: [TileNode | null, TileNode | null, TileNode | null, TileNode | null];
+  quad: Array<TileNode<T> | null>;
+  data: T;
 };
+
+function visit<T, Q>(
+  root: TileNode<T>,
+  cb: (a: Q, b: TileNode<T>) => Q,
+  init: Q
+): Q {
+  let result = cb(init, root);
+  root.quad
+    .filter((q) => !!q)
+    .forEach((q) => {
+      result = visit(q, cb, result);
+    });
+  return result;
+}
 
 function explode(extent: Extent) {
   const [xmin, ymin, xmax, ymax] = extent;
@@ -31,12 +46,16 @@ function isGt(v1: number, v2: number) {
   return TINY < v1 - v2;
 }
 
-export class TileTree<T extends TileNode> {
-  asTileNode(extent: Extent): T {
-    return { extent, quad: [null, null, null, null] } as T;
+export class TileTree<T> {
+  ensureQuads(node: TileNode<T>) {
+    return this.defineAllQuads(node).quad;
   }
 
-  private root: T;
+  asTileNode(extent: Extent): TileNode<T> {
+    return { extent, quad: [null, null, null, null], data: {} } as TileNode<T>;
+  }
+
+  private root: TileNode<T>;
 
   constructor(options: { extent: Extent }) {
     this.root = this.asTileNode(options.extent);
@@ -45,7 +64,7 @@ export class TileTree<T extends TileNode> {
   public findByPoint(
     args: { point: Coordinate; zoom: number },
     root = this.root
-  ): T {
+  ): TileNode<T> {
     const { point, zoom: depth } = args;
     const [x, y] = point;
     if (depth < 0) throw "invalid depth";
@@ -62,11 +81,11 @@ export class TileTree<T extends TileNode> {
     }
     return this.findByPoint(
       { point, zoom: depth - 1 },
-      root.quad[quadIndex] as T
+      root.quad[quadIndex] as TileNode<T>
     );
   }
 
-  private defineAllQuads(root: T) {
+  private defineAllQuads(root: TileNode<T>) {
     const rootInfo = explode(root.extent);
     for (let i = 0; i < 4; i++) {
       if (root.quad[i]) break;
@@ -79,6 +98,11 @@ export class TileTree<T extends TileNode> {
         !isTop ? rootInfo.ymid : rootInfo.ymax,
       ]);
     }
+    return root;
+  }
+
+  public visit<Q>(cb: (a: Q, b: TileNode<T>) => Q, init: Q) {
+    return visit(this.root, cb, init);
   }
 
   public find(extent: Extent) {
@@ -103,7 +127,7 @@ export class TileTree<T extends TileNode> {
     return this.findNode(this.root, this.asTileNode(extent));
   }
 
-  private findNode(root: T, child: T): T {
+  private findNode(root: TileNode<T>, child: TileNode<T>): TileNode<T> {
     const info = explode(child.extent);
     const rootInfo = explode(root.extent);
 
@@ -124,6 +148,6 @@ export class TileTree<T extends TileNode> {
     if (!root.quad[quadIndex]) {
       this.defineAllQuads(root);
     }
-    return this.findNode(root.quad[quadIndex] as T, child);
+    return this.findNode(root.quad[quadIndex] as TileNode<T>, child);
   }
 }

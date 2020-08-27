@@ -4584,6 +4584,15 @@ define("poc/index", ["require", "exports", "node_modules/ol/src/extent"], functi
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.TileTree = void 0;
+    function visit(root, cb, init) {
+        let result = cb(init, root);
+        root.quad
+            .filter((q) => !!q)
+            .forEach((q) => {
+            result = visit(q, cb, result);
+        });
+        return result;
+    }
     function explode(extent) {
         const [xmin, ymin, xmax, ymax] = extent;
         const [w, h] = [xmax - xmin, ymax - ymin];
@@ -4607,8 +4616,11 @@ define("poc/index", ["require", "exports", "node_modules/ol/src/extent"], functi
         constructor(options) {
             this.root = this.asTileNode(options.extent);
         }
+        ensureQuads(node) {
+            return this.defineAllQuads(node).quad;
+        }
         asTileNode(extent) {
-            return { extent, quad: [null, null, null, null] };
+            return { extent, quad: [null, null, null, null], data: {} };
         }
         findByPoint(args, root = this.root) {
             const { point, zoom: depth } = args;
@@ -4643,6 +4655,10 @@ define("poc/index", ["require", "exports", "node_modules/ol/src/extent"], functi
                     !isTop ? rootInfo.ymid : rootInfo.ymax,
                 ]);
             }
+            return root;
+        }
+        visit(cb, init) {
+            return visit(this.root, cb, init);
         }
         find(extent) {
             const info = explode(extent);
@@ -14752,6 +14768,7760 @@ define("node_modules/ol/src/source/Vector", ["require", "exports", "node_modules
     }
     exports.default = VectorSource;
 });
+define("poc/fun/createWeightedFeature", ["require", "exports", "node_modules/ol/src/extent", "node_modules/ol/src/geom/Point", "node_modules/ol/src/Feature"], function (require, exports, extent_2, Point_1, Feature_1) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.createWeightedFeature = void 0;
+    function createWeightedFeature(featureCountPerQuadrant, extent) {
+        const weight = featureCountPerQuadrant.reduce((a, b) => a + b, 0);
+        if (!weight)
+            return;
+        const dx = featureCountPerQuadrant[0] +
+            featureCountPerQuadrant[3] -
+            featureCountPerQuadrant[1] -
+            featureCountPerQuadrant[2];
+        const dy = featureCountPerQuadrant[0] +
+            featureCountPerQuadrant[1] -
+            featureCountPerQuadrant[2] -
+            featureCountPerQuadrant[3];
+        const [cx, cy] = extent_2.getCenter(extent);
+        const width = extent_2.getWidth(extent) / 2;
+        const height = extent_2.getHeight(extent) / 2;
+        const center = new Point_1.default([
+            cx + width * (dx / weight),
+            cy + height * (dy / weight),
+        ]);
+        const x = cx + (dx / weight) * (width / 2);
+        const y = cy + (dy / weight) * (height / 2);
+        const feature = new Feature_1.default(new Point_1.default([x, y]));
+        feature.setProperties({ count: weight });
+        return feature;
+    }
+    exports.createWeightedFeature = createWeightedFeature;
+});
+define("node_modules/ol/src/renderer/Composite", ["require", "exports", "node_modules/ol/src/renderer/Map", "node_modules/ol/src/ObjectEventType", "node_modules/ol/src/render/Event", "node_modules/ol/src/render/EventType", "node_modules/ol/src/source/State", "node_modules/ol/src/css", "node_modules/ol/src/render/canvas", "node_modules/ol/src/layer/Layer", "node_modules/ol/src/events", "node_modules/ol/src/dom"], function (require, exports, Map_js_1, ObjectEventType_js_5, Event_js_8, EventType_js_20, State_js_6, css_js_3, canvas_js_6, Layer_js_2, events_js_12, dom_js_7) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    class CompositeMapRenderer extends Map_js_1.default {
+        constructor(map) {
+            super(map);
+            this.fontChangeListenerKey_ = events_js_12.listen(canvas_js_6.checkedFonts, ObjectEventType_js_5.default.PROPERTYCHANGE, map.redrawText.bind(map));
+            this.element_ = document.createElement('div');
+            const style = this.element_.style;
+            style.position = 'absolute';
+            style.width = '100%';
+            style.height = '100%';
+            style.zIndex = '0';
+            this.element_.className = css_js_3.CLASS_UNSELECTABLE + ' ol-layers';
+            const container = map.getViewport();
+            container.insertBefore(this.element_, container.firstChild || null);
+            this.children_ = [];
+            this.renderedVisible_ = true;
+        }
+        dispatchRenderEvent(type, frameState) {
+            const map = this.getMap();
+            if (map.hasListener(type)) {
+                const event = new Event_js_8.default(type, undefined, frameState);
+                map.dispatchEvent(event);
+            }
+        }
+        disposeInternal() {
+            events_js_12.unlistenByKey(this.fontChangeListenerKey_);
+            this.element_.parentNode.removeChild(this.element_);
+            super.disposeInternal();
+        }
+        renderFrame(frameState) {
+            if (!frameState) {
+                if (this.renderedVisible_) {
+                    this.element_.style.display = 'none';
+                    this.renderedVisible_ = false;
+                }
+                return;
+            }
+            this.calculateMatrices2D(frameState);
+            this.dispatchRenderEvent(EventType_js_20.default.PRECOMPOSE, frameState);
+            const layerStatesArray = frameState.layerStatesArray.sort(function (a, b) {
+                return a.zIndex - b.zIndex;
+            });
+            const viewState = frameState.viewState;
+            this.children_.length = 0;
+            let previousElement = null;
+            for (let i = 0, ii = layerStatesArray.length; i < ii; ++i) {
+                const layerState = layerStatesArray[i];
+                frameState.layerIndex = i;
+                if (!Layer_js_2.inView(layerState, viewState) ||
+                    (layerState.sourceState != State_js_6.default.READY &&
+                        layerState.sourceState != State_js_6.default.UNDEFINED)) {
+                    continue;
+                }
+                const layer = layerState.layer;
+                const element = layer.render(frameState, previousElement);
+                if (!element) {
+                    continue;
+                }
+                if (element !== previousElement) {
+                    this.children_.push(element);
+                    previousElement = element;
+                }
+            }
+            super.renderFrame(frameState);
+            dom_js_7.replaceChildren(this.element_, this.children_);
+            this.dispatchRenderEvent(EventType_js_20.default.POSTCOMPOSE, frameState);
+            if (!this.renderedVisible_) {
+                this.element_.style.display = '';
+                this.renderedVisible_ = true;
+            }
+            this.scheduleExpireIconCache(frameState);
+        }
+        forEachLayerAtPixel(pixel, frameState, hitTolerance, callback, layerFilter) {
+            const viewState = frameState.viewState;
+            const layerStates = frameState.layerStatesArray;
+            const numLayers = layerStates.length;
+            for (let i = numLayers - 1; i >= 0; --i) {
+                const layerState = layerStates[i];
+                const layer = layerState.layer;
+                if (layer.hasRenderer() &&
+                    Layer_js_2.inView(layerState, viewState) &&
+                    layerFilter(layer)) {
+                    const layerRenderer = layer.getRenderer();
+                    const data = layerRenderer.getDataAtPixel(pixel, frameState, hitTolerance);
+                    if (data) {
+                        const result = callback(layer, data);
+                        if (result) {
+                            return result;
+                        }
+                    }
+                }
+            }
+            return undefined;
+        }
+    }
+    exports.default = CompositeMapRenderer;
+});
+define("node_modules/ol/src/control/Attribution", ["require", "exports", "node_modules/ol/src/control/Control", "node_modules/ol/src/events/EventType", "node_modules/ol/src/css", "node_modules/ol/src/array", "node_modules/ol/src/layer/Layer", "node_modules/ol/src/dom"], function (require, exports, Control_js_1, EventType_js_21, css_js_4, array_js_16, Layer_js_3, dom_js_8) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    class Attribution extends Control_js_1.default {
+        constructor(opt_options) {
+            const options = opt_options ? opt_options : {};
+            super({
+                element: document.createElement('div'),
+                render: options.render,
+                target: options.target,
+            });
+            this.ulElement_ = document.createElement('ul');
+            this.collapsed_ =
+                options.collapsed !== undefined ? options.collapsed : true;
+            this.overrideCollapsible_ = options.collapsible !== undefined;
+            this.collapsible_ =
+                options.collapsible !== undefined ? options.collapsible : true;
+            if (!this.collapsible_) {
+                this.collapsed_ = false;
+            }
+            const className = options.className !== undefined ? options.className : 'ol-attribution';
+            const tipLabel = options.tipLabel !== undefined ? options.tipLabel : 'Attributions';
+            const collapseLabel = options.collapseLabel !== undefined ? options.collapseLabel : '\u00BB';
+            if (typeof collapseLabel === 'string') {
+                this.collapseLabel_ = document.createElement('span');
+                this.collapseLabel_.textContent = collapseLabel;
+            }
+            else {
+                this.collapseLabel_ = collapseLabel;
+            }
+            const label = options.label !== undefined ? options.label : 'i';
+            if (typeof label === 'string') {
+                this.label_ = document.createElement('span');
+                this.label_.textContent = label;
+            }
+            else {
+                this.label_ = label;
+            }
+            const activeLabel = this.collapsible_ && !this.collapsed_ ? this.collapseLabel_ : this.label_;
+            const button = document.createElement('button');
+            button.setAttribute('type', 'button');
+            button.title = tipLabel;
+            button.appendChild(activeLabel);
+            button.addEventListener(EventType_js_21.default.CLICK, this.handleClick_.bind(this), false);
+            const cssClasses = className +
+                ' ' +
+                css_js_4.CLASS_UNSELECTABLE +
+                ' ' +
+                css_js_4.CLASS_CONTROL +
+                (this.collapsed_ && this.collapsible_ ? ' ' + css_js_4.CLASS_COLLAPSED : '') +
+                (this.collapsible_ ? '' : ' ol-uncollapsible');
+            const element = this.element;
+            element.className = cssClasses;
+            element.appendChild(this.ulElement_);
+            element.appendChild(button);
+            this.renderedAttributions_ = [];
+            this.renderedVisible_ = true;
+        }
+        collectSourceAttributions_(frameState) {
+            const lookup = {};
+            const visibleAttributions = [];
+            const layerStatesArray = frameState.layerStatesArray;
+            for (let i = 0, ii = layerStatesArray.length; i < ii; ++i) {
+                const layerState = layerStatesArray[i];
+                if (!Layer_js_3.inView(layerState, frameState.viewState)) {
+                    continue;
+                }
+                const source = (layerState.layer).getSource();
+                if (!source) {
+                    continue;
+                }
+                const attributionGetter = source.getAttributions();
+                if (!attributionGetter) {
+                    continue;
+                }
+                const attributions = attributionGetter(frameState);
+                if (!attributions) {
+                    continue;
+                }
+                if (!this.overrideCollapsible_ &&
+                    source.getAttributionsCollapsible() === false) {
+                    this.setCollapsible(false);
+                }
+                if (Array.isArray(attributions)) {
+                    for (let j = 0, jj = attributions.length; j < jj; ++j) {
+                        if (!(attributions[j] in lookup)) {
+                            visibleAttributions.push(attributions[j]);
+                            lookup[attributions[j]] = true;
+                        }
+                    }
+                }
+                else {
+                    if (!(attributions in lookup)) {
+                        visibleAttributions.push(attributions);
+                        lookup[attributions] = true;
+                    }
+                }
+            }
+            return visibleAttributions;
+        }
+        updateElement_(frameState) {
+            if (!frameState) {
+                if (this.renderedVisible_) {
+                    this.element.style.display = 'none';
+                    this.renderedVisible_ = false;
+                }
+                return;
+            }
+            const attributions = this.collectSourceAttributions_(frameState);
+            const visible = attributions.length > 0;
+            if (this.renderedVisible_ != visible) {
+                this.element.style.display = visible ? '' : 'none';
+                this.renderedVisible_ = visible;
+            }
+            if (array_js_16.equals(attributions, this.renderedAttributions_)) {
+                return;
+            }
+            dom_js_8.removeChildren(this.ulElement_);
+            for (let i = 0, ii = attributions.length; i < ii; ++i) {
+                const element = document.createElement('li');
+                element.innerHTML = attributions[i];
+                this.ulElement_.appendChild(element);
+            }
+            this.renderedAttributions_ = attributions;
+        }
+        handleClick_(event) {
+            event.preventDefault();
+            this.handleToggle_();
+        }
+        handleToggle_() {
+            this.element.classList.toggle(css_js_4.CLASS_COLLAPSED);
+            if (this.collapsed_) {
+                dom_js_8.replaceNode(this.collapseLabel_, this.label_);
+            }
+            else {
+                dom_js_8.replaceNode(this.label_, this.collapseLabel_);
+            }
+            this.collapsed_ = !this.collapsed_;
+        }
+        getCollapsible() {
+            return this.collapsible_;
+        }
+        setCollapsible(collapsible) {
+            if (this.collapsible_ === collapsible) {
+                return;
+            }
+            this.collapsible_ = collapsible;
+            this.element.classList.toggle('ol-uncollapsible');
+            if (!collapsible && this.collapsed_) {
+                this.handleToggle_();
+            }
+        }
+        setCollapsed(collapsed) {
+            if (!this.collapsible_ || this.collapsed_ === collapsed) {
+                return;
+            }
+            this.handleToggle_();
+        }
+        getCollapsed() {
+            return this.collapsed_;
+        }
+        render(mapEvent) {
+            this.updateElement_(mapEvent.frameState);
+        }
+    }
+    exports.default = Attribution;
+});
+define("node_modules/ol/src/control/Rotate", ["require", "exports", "node_modules/ol/src/control/Control", "node_modules/ol/src/events/EventType", "node_modules/ol/src/css", "node_modules/ol/src/easing"], function (require, exports, Control_js_2, EventType_js_22, css_js_5, easing_js_5) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    class Rotate extends Control_js_2.default {
+        constructor(opt_options) {
+            const options = opt_options ? opt_options : {};
+            super({
+                element: document.createElement('div'),
+                render: options.render,
+                target: options.target,
+            });
+            const className = options.className !== undefined ? options.className : 'ol-rotate';
+            const label = options.label !== undefined ? options.label : '\u21E7';
+            this.label_ = null;
+            if (typeof label === 'string') {
+                this.label_ = document.createElement('span');
+                this.label_.className = 'ol-compass';
+                this.label_.textContent = label;
+            }
+            else {
+                this.label_ = label;
+                this.label_.classList.add('ol-compass');
+            }
+            const tipLabel = options.tipLabel ? options.tipLabel : 'Reset rotation';
+            const button = document.createElement('button');
+            button.className = className + '-reset';
+            button.setAttribute('type', 'button');
+            button.title = tipLabel;
+            button.appendChild(this.label_);
+            button.addEventListener(EventType_js_22.default.CLICK, this.handleClick_.bind(this), false);
+            const cssClasses = className + ' ' + css_js_5.CLASS_UNSELECTABLE + ' ' + css_js_5.CLASS_CONTROL;
+            const element = this.element;
+            element.className = cssClasses;
+            element.appendChild(button);
+            this.callResetNorth_ = options.resetNorth ? options.resetNorth : undefined;
+            this.duration_ = options.duration !== undefined ? options.duration : 250;
+            this.autoHide_ = options.autoHide !== undefined ? options.autoHide : true;
+            this.rotation_ = undefined;
+            if (this.autoHide_) {
+                this.element.classList.add(css_js_5.CLASS_HIDDEN);
+            }
+        }
+        handleClick_(event) {
+            event.preventDefault();
+            if (this.callResetNorth_ !== undefined) {
+                this.callResetNorth_();
+            }
+            else {
+                this.resetNorth_();
+            }
+        }
+        resetNorth_() {
+            const map = this.getMap();
+            const view = map.getView();
+            if (!view) {
+                return;
+            }
+            const rotation = view.getRotation();
+            if (rotation !== undefined) {
+                if (this.duration_ > 0 && rotation % (2 * Math.PI) !== 0) {
+                    view.animate({
+                        rotation: 0,
+                        duration: this.duration_,
+                        easing: easing_js_5.easeOut,
+                    });
+                }
+                else {
+                    view.setRotation(0);
+                }
+            }
+        }
+        render(mapEvent) {
+            const frameState = mapEvent.frameState;
+            if (!frameState) {
+                return;
+            }
+            const rotation = frameState.viewState.rotation;
+            if (rotation != this.rotation_) {
+                const transform = 'rotate(' + rotation + 'rad)';
+                if (this.autoHide_) {
+                    const contains = this.element.classList.contains(css_js_5.CLASS_HIDDEN);
+                    if (!contains && rotation === 0) {
+                        this.element.classList.add(css_js_5.CLASS_HIDDEN);
+                    }
+                    else if (contains && rotation !== 0) {
+                        this.element.classList.remove(css_js_5.CLASS_HIDDEN);
+                    }
+                }
+                this.label_.style.transform = transform;
+            }
+            this.rotation_ = rotation;
+        }
+    }
+    exports.default = Rotate;
+});
+define("node_modules/ol/src/control/Zoom", ["require", "exports", "node_modules/ol/src/control/Control", "node_modules/ol/src/events/EventType", "node_modules/ol/src/css", "node_modules/ol/src/easing"], function (require, exports, Control_js_3, EventType_js_23, css_js_6, easing_js_6) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    class Zoom extends Control_js_3.default {
+        constructor(opt_options) {
+            const options = opt_options ? opt_options : {};
+            super({
+                element: document.createElement('div'),
+                target: options.target,
+            });
+            const className = options.className !== undefined ? options.className : 'ol-zoom';
+            const delta = options.delta !== undefined ? options.delta : 1;
+            const zoomInLabel = options.zoomInLabel !== undefined ? options.zoomInLabel : '+';
+            const zoomOutLabel = options.zoomOutLabel !== undefined ? options.zoomOutLabel : '\u2212';
+            const zoomInTipLabel = options.zoomInTipLabel !== undefined ? options.zoomInTipLabel : 'Zoom in';
+            const zoomOutTipLabel = options.zoomOutTipLabel !== undefined
+                ? options.zoomOutTipLabel
+                : 'Zoom out';
+            const inElement = document.createElement('button');
+            inElement.className = className + '-in';
+            inElement.setAttribute('type', 'button');
+            inElement.title = zoomInTipLabel;
+            inElement.appendChild(typeof zoomInLabel === 'string'
+                ? document.createTextNode(zoomInLabel)
+                : zoomInLabel);
+            inElement.addEventListener(EventType_js_23.default.CLICK, this.handleClick_.bind(this, delta), false);
+            const outElement = document.createElement('button');
+            outElement.className = className + '-out';
+            outElement.setAttribute('type', 'button');
+            outElement.title = zoomOutTipLabel;
+            outElement.appendChild(typeof zoomOutLabel === 'string'
+                ? document.createTextNode(zoomOutLabel)
+                : zoomOutLabel);
+            outElement.addEventListener(EventType_js_23.default.CLICK, this.handleClick_.bind(this, -delta), false);
+            const cssClasses = className + ' ' + css_js_6.CLASS_UNSELECTABLE + ' ' + css_js_6.CLASS_CONTROL;
+            const element = this.element;
+            element.className = cssClasses;
+            element.appendChild(inElement);
+            element.appendChild(outElement);
+            this.duration_ = options.duration !== undefined ? options.duration : 250;
+        }
+        handleClick_(delta, event) {
+            event.preventDefault();
+            this.zoomByDelta_(delta);
+        }
+        zoomByDelta_(delta) {
+            const map = this.getMap();
+            const view = map.getView();
+            if (!view) {
+                return;
+            }
+            const currentZoom = view.getZoom();
+            if (currentZoom !== undefined) {
+                const newZoom = view.getConstrainedZoom(currentZoom + delta);
+                if (this.duration_ > 0) {
+                    if (view.getAnimating()) {
+                        view.cancelAnimations();
+                    }
+                    view.animate({
+                        zoom: newZoom,
+                        duration: this.duration_,
+                        easing: easing_js_6.easeOut,
+                    });
+                }
+                else {
+                    view.setZoom(newZoom);
+                }
+            }
+        }
+    }
+    exports.default = Zoom;
+});
+define("node_modules/ol/src/control/FullScreen", ["require", "exports", "node_modules/ol/src/control/Control", "node_modules/ol/src/events/EventType", "node_modules/ol/src/css", "node_modules/ol/src/events", "node_modules/ol/src/dom"], function (require, exports, Control_js_4, EventType_js_24, css_js_7, events_js_13, dom_js_9) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    const events = [
+        'fullscreenchange',
+        'webkitfullscreenchange',
+        'MSFullscreenChange',
+    ];
+    const FullScreenEventType = {
+        ENTERFULLSCREEN: 'enterfullscreen',
+        LEAVEFULLSCREEN: 'leavefullscreen',
+    };
+    class FullScreen extends Control_js_4.default {
+        constructor(opt_options) {
+            const options = opt_options ? opt_options : {};
+            super({
+                element: document.createElement('div'),
+                target: options.target,
+            });
+            this.cssClassName_ =
+                options.className !== undefined ? options.className : 'ol-full-screen';
+            const label = options.label !== undefined ? options.label : '\u2922';
+            this.labelNode_ =
+                typeof label === 'string' ? document.createTextNode(label) : label;
+            const labelActive = options.labelActive !== undefined ? options.labelActive : '\u00d7';
+            this.labelActiveNode_ =
+                typeof labelActive === 'string'
+                    ? document.createTextNode(labelActive)
+                    : labelActive;
+            this.button_ = document.createElement('button');
+            const tipLabel = options.tipLabel ? options.tipLabel : 'Toggle full-screen';
+            this.setClassName_(this.button_, isFullScreen());
+            this.button_.setAttribute('type', 'button');
+            this.button_.title = tipLabel;
+            this.button_.appendChild(this.labelNode_);
+            this.button_.addEventListener(EventType_js_24.default.CLICK, this.handleClick_.bind(this), false);
+            const cssClasses = this.cssClassName_ +
+                ' ' +
+                css_js_7.CLASS_UNSELECTABLE +
+                ' ' +
+                css_js_7.CLASS_CONTROL +
+                ' ' +
+                (!isFullScreenSupported() ? css_js_7.CLASS_UNSUPPORTED : '');
+            const element = this.element;
+            element.className = cssClasses;
+            element.appendChild(this.button_);
+            this.keys_ = options.keys !== undefined ? options.keys : false;
+            this.source_ = options.source;
+        }
+        handleClick_(event) {
+            event.preventDefault();
+            this.handleFullScreen_();
+        }
+        handleFullScreen_() {
+            if (!isFullScreenSupported()) {
+                return;
+            }
+            const map = this.getMap();
+            if (!map) {
+                return;
+            }
+            if (isFullScreen()) {
+                exitFullScreen();
+            }
+            else {
+                let element;
+                if (this.source_) {
+                    element =
+                        typeof this.source_ === 'string'
+                            ? document.getElementById(this.source_)
+                            : this.source_;
+                }
+                else {
+                    element = map.getTargetElement();
+                }
+                if (this.keys_) {
+                    requestFullScreenWithKeys(element);
+                }
+                else {
+                    requestFullScreen(element);
+                }
+            }
+        }
+        handleFullScreenChange_() {
+            const map = this.getMap();
+            if (isFullScreen()) {
+                this.setClassName_(this.button_, true);
+                dom_js_9.replaceNode(this.labelActiveNode_, this.labelNode_);
+                this.dispatchEvent(FullScreenEventType.ENTERFULLSCREEN);
+            }
+            else {
+                this.setClassName_(this.button_, false);
+                dom_js_9.replaceNode(this.labelNode_, this.labelActiveNode_);
+                this.dispatchEvent(FullScreenEventType.LEAVEFULLSCREEN);
+            }
+            if (map) {
+                map.updateSize();
+            }
+        }
+        setClassName_(element, fullscreen) {
+            const activeClassName = this.cssClassName_ + '-true';
+            const inactiveClassName = this.cssClassName_ + '-false';
+            const nextClassName = fullscreen ? activeClassName : inactiveClassName;
+            element.classList.remove(activeClassName);
+            element.classList.remove(inactiveClassName);
+            element.classList.add(nextClassName);
+        }
+        setMap(map) {
+            super.setMap(map);
+            if (map) {
+                for (let i = 0, ii = events.length; i < ii; ++i) {
+                    this.listenerKeys.push(events_js_13.listen(document, events[i], this.handleFullScreenChange_, this));
+                }
+            }
+        }
+    }
+    function isFullScreenSupported() {
+        const body = document.body;
+        return !!(body['webkitRequestFullscreen'] ||
+            (body['msRequestFullscreen'] && document['msFullscreenEnabled']) ||
+            (body.requestFullscreen && document.fullscreenEnabled));
+    }
+    function isFullScreen() {
+        return !!(document['webkitIsFullScreen'] ||
+            document['msFullscreenElement'] ||
+            document.fullscreenElement);
+    }
+    function requestFullScreen(element) {
+        if (element.requestFullscreen) {
+            element.requestFullscreen();
+        }
+        else if (element['msRequestFullscreen']) {
+            element['msRequestFullscreen']();
+        }
+        else if (element['webkitRequestFullscreen']) {
+            element['webkitRequestFullscreen']();
+        }
+    }
+    function requestFullScreenWithKeys(element) {
+        if (element['webkitRequestFullscreen']) {
+            element['webkitRequestFullscreen']();
+        }
+        else {
+            requestFullScreen(element);
+        }
+    }
+    function exitFullScreen() {
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        }
+        else if (document['msExitFullscreen']) {
+            document['msExitFullscreen']();
+        }
+        else if (document['webkitExitFullscreen']) {
+            document['webkitExitFullscreen']();
+        }
+    }
+    exports.default = FullScreen;
+});
+define("node_modules/ol/src/control/MousePosition", ["require", "exports", "node_modules/ol/src/control/Control", "node_modules/ol/src/pointer/EventType", "node_modules/ol/src/Object", "node_modules/ol/src/proj", "node_modules/ol/src/events"], function (require, exports, Control_js_5, EventType_js_25, Object_js_14, proj_js_10, events_js_14) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    const PROJECTION = 'projection';
+    const COORDINATE_FORMAT = 'coordinateFormat';
+    class MousePosition extends Control_js_5.default {
+        constructor(opt_options) {
+            const options = opt_options ? opt_options : {};
+            const element = document.createElement('div');
+            element.className =
+                options.className !== undefined ? options.className : 'ol-mouse-position';
+            super({
+                element: element,
+                render: options.render,
+                target: options.target,
+            });
+            this.addEventListener(Object_js_14.getChangeEventType(PROJECTION), this.handleProjectionChanged_);
+            if (options.coordinateFormat) {
+                this.setCoordinateFormat(options.coordinateFormat);
+            }
+            if (options.projection) {
+                this.setProjection(options.projection);
+            }
+            this.undefinedHTML_ =
+                options.undefinedHTML !== undefined ? options.undefinedHTML : '&#160;';
+            this.renderOnMouseOut_ = !!this.undefinedHTML_;
+            this.renderedHTML_ = element.innerHTML;
+            this.mapProjection_ = null;
+            this.transform_ = null;
+        }
+        handleProjectionChanged_() {
+            this.transform_ = null;
+        }
+        getCoordinateFormat() {
+            return (this.get(COORDINATE_FORMAT));
+        }
+        getProjection() {
+            return (this.get(PROJECTION));
+        }
+        handleMouseMove(event) {
+            const map = this.getMap();
+            this.updateHTML_(map.getEventPixel(event));
+        }
+        handleMouseOut(event) {
+            this.updateHTML_(null);
+        }
+        setMap(map) {
+            super.setMap(map);
+            if (map) {
+                const viewport = map.getViewport();
+                this.listenerKeys.push(events_js_14.listen(viewport, EventType_js_25.default.POINTERMOVE, this.handleMouseMove, this));
+                if (this.renderOnMouseOut_) {
+                    this.listenerKeys.push(events_js_14.listen(viewport, EventType_js_25.default.POINTEROUT, this.handleMouseOut, this));
+                }
+            }
+        }
+        setCoordinateFormat(format) {
+            this.set(COORDINATE_FORMAT, format);
+        }
+        setProjection(projection) {
+            this.set(PROJECTION, proj_js_10.get(projection));
+        }
+        updateHTML_(pixel) {
+            let html = this.undefinedHTML_;
+            if (pixel && this.mapProjection_) {
+                if (!this.transform_) {
+                    const projection = this.getProjection();
+                    if (projection) {
+                        this.transform_ = proj_js_10.getTransformFromProjections(this.mapProjection_, projection);
+                    }
+                    else {
+                        this.transform_ = proj_js_10.identityTransform;
+                    }
+                }
+                const map = this.getMap();
+                const coordinate = map.getCoordinateFromPixelInternal(pixel);
+                if (coordinate) {
+                    const userProjection = proj_js_10.getUserProjection();
+                    if (userProjection) {
+                        this.transform_ = proj_js_10.getTransformFromProjections(this.mapProjection_, userProjection);
+                    }
+                    this.transform_(coordinate, coordinate);
+                    const coordinateFormat = this.getCoordinateFormat();
+                    if (coordinateFormat) {
+                        html = coordinateFormat(coordinate);
+                    }
+                    else {
+                        html = coordinate.toString();
+                    }
+                }
+            }
+            if (!this.renderedHTML_ || html !== this.renderedHTML_) {
+                this.element.innerHTML = html;
+                this.renderedHTML_ = html;
+            }
+        }
+        render(mapEvent) {
+            const frameState = mapEvent.frameState;
+            if (!frameState) {
+                this.mapProjection_ = null;
+            }
+            else {
+                if (this.mapProjection_ != frameState.viewState.projection) {
+                    this.mapProjection_ = frameState.viewState.projection;
+                    this.transform_ = null;
+                }
+            }
+        }
+    }
+    exports.default = MousePosition;
+});
+define("node_modules/ol/src/control/OverviewMap", ["require", "exports", "node_modules/ol/src/renderer/Composite", "node_modules/ol/src/control/Control", "node_modules/ol/src/events/EventType", "node_modules/ol/src/MapEventType", "node_modules/ol/src/MapProperty", "node_modules/ol/src/ObjectEventType", "node_modules/ol/src/Overlay", "node_modules/ol/src/OverlayPositioning", "node_modules/ol/src/PluggableMap", "node_modules/ol/src/View", "node_modules/ol/src/ViewProperty", "node_modules/ol/src/css", "node_modules/ol/src/extent", "node_modules/ol/src/Object", "node_modules/ol/src/events", "node_modules/ol/src/geom/Polygon", "node_modules/ol/src/dom"], function (require, exports, Composite_js_1, Control_js_6, EventType_js_26, MapEventType_js_4, MapProperty_js_2, ObjectEventType_js_6, Overlay_js_1, OverlayPositioning_js_2, PluggableMap_js_1, View_js_2, ViewProperty_js_2, css_js_8, extent_js_32, Object_js_15, events_js_15, Polygon_js_3, dom_js_10) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    const MAX_RATIO = 0.75;
+    const MIN_RATIO = 0.1;
+    class ControlledMap extends PluggableMap_js_1.default {
+        createRenderer() {
+            return new Composite_js_1.default(this);
+        }
+    }
+    class OverviewMap extends Control_js_6.default {
+        constructor(opt_options) {
+            const options = opt_options ? opt_options : {};
+            super({
+                element: document.createElement('div'),
+                render: options.render,
+                target: options.target,
+            });
+            this.boundHandleRotationChanged_ = this.handleRotationChanged_.bind(this);
+            this.collapsed_ =
+                options.collapsed !== undefined ? options.collapsed : true;
+            this.collapsible_ =
+                options.collapsible !== undefined ? options.collapsible : true;
+            if (!this.collapsible_) {
+                this.collapsed_ = false;
+            }
+            this.rotateWithView_ =
+                options.rotateWithView !== undefined ? options.rotateWithView : false;
+            this.viewExtent_ = undefined;
+            const className = options.className !== undefined ? options.className : 'ol-overviewmap';
+            const tipLabel = options.tipLabel !== undefined ? options.tipLabel : 'Overview map';
+            const collapseLabel = options.collapseLabel !== undefined ? options.collapseLabel : '\u00AB';
+            if (typeof collapseLabel === 'string') {
+                this.collapseLabel_ = document.createElement('span');
+                this.collapseLabel_.textContent = collapseLabel;
+            }
+            else {
+                this.collapseLabel_ = collapseLabel;
+            }
+            const label = options.label !== undefined ? options.label : '\u00BB';
+            if (typeof label === 'string') {
+                this.label_ = document.createElement('span');
+                this.label_.textContent = label;
+            }
+            else {
+                this.label_ = label;
+            }
+            const activeLabel = this.collapsible_ && !this.collapsed_ ? this.collapseLabel_ : this.label_;
+            const button = document.createElement('button');
+            button.setAttribute('type', 'button');
+            button.title = tipLabel;
+            button.appendChild(activeLabel);
+            button.addEventListener(EventType_js_26.default.CLICK, this.handleClick_.bind(this), false);
+            this.ovmapDiv_ = document.createElement('div');
+            this.ovmapDiv_.className = 'ol-overviewmap-map';
+            this.view_ = options.view;
+            this.ovmap_ = new ControlledMap({
+                view: options.view,
+            });
+            const ovmap = this.ovmap_;
+            if (options.layers) {
+                options.layers.forEach(function (layer) {
+                    ovmap.addLayer(layer);
+                });
+            }
+            const box = document.createElement('div');
+            box.className = 'ol-overviewmap-box';
+            box.style.boxSizing = 'border-box';
+            this.boxOverlay_ = new Overlay_js_1.default({
+                position: [0, 0],
+                positioning: OverlayPositioning_js_2.default.CENTER_CENTER,
+                element: box,
+            });
+            this.ovmap_.addOverlay(this.boxOverlay_);
+            const cssClasses = className +
+                ' ' +
+                css_js_8.CLASS_UNSELECTABLE +
+                ' ' +
+                css_js_8.CLASS_CONTROL +
+                (this.collapsed_ && this.collapsible_ ? ' ' + css_js_8.CLASS_COLLAPSED : '') +
+                (this.collapsible_ ? '' : ' ol-uncollapsible');
+            const element = this.element;
+            element.className = cssClasses;
+            element.appendChild(this.ovmapDiv_);
+            element.appendChild(button);
+            const scope = this;
+            const overlay = this.boxOverlay_;
+            const overlayBox = this.boxOverlay_.getElement();
+            const computeDesiredMousePosition = function (mousePosition) {
+                return {
+                    clientX: mousePosition.clientX,
+                    clientY: mousePosition.clientY,
+                };
+            };
+            const move = function (event) {
+                const position = (computeDesiredMousePosition(event));
+                const coordinates = ovmap.getEventCoordinateInternal((position));
+                overlay.setPosition(coordinates);
+            };
+            const endMoving = function (event) {
+                const coordinates = ovmap.getEventCoordinateInternal(event);
+                scope.getMap().getView().setCenterInternal(coordinates);
+                window.removeEventListener('mousemove', move);
+                window.removeEventListener('mouseup', endMoving);
+            };
+            overlayBox.addEventListener('mousedown', function () {
+                window.addEventListener('mousemove', move);
+                window.addEventListener('mouseup', endMoving);
+            });
+        }
+        setMap(map) {
+            const oldMap = this.getMap();
+            if (map === oldMap) {
+                return;
+            }
+            if (oldMap) {
+                const oldView = oldMap.getView();
+                if (oldView) {
+                    this.unbindView_(oldView);
+                }
+                this.ovmap_.setTarget(null);
+            }
+            super.setMap(map);
+            if (map) {
+                this.ovmap_.setTarget(this.ovmapDiv_);
+                this.listenerKeys.push(events_js_15.listen(map, ObjectEventType_js_6.default.PROPERTYCHANGE, this.handleMapPropertyChange_, this));
+                const view = map.getView();
+                if (view) {
+                    this.bindView_(view);
+                    if (view.isDef()) {
+                        this.ovmap_.updateSize();
+                        this.resetExtent_();
+                    }
+                }
+            }
+        }
+        handleMapPropertyChange_(event) {
+            if (event.key === MapProperty_js_2.default.VIEW) {
+                const oldView = (event.oldValue);
+                if (oldView) {
+                    this.unbindView_(oldView);
+                }
+                const newView = this.getMap().getView();
+                this.bindView_(newView);
+            }
+        }
+        bindView_(view) {
+            if (!this.view_) {
+                const newView = new View_js_2.default({
+                    projection: view.getProjection(),
+                });
+                this.ovmap_.setView(newView);
+            }
+            view.addEventListener(Object_js_15.getChangeEventType(ViewProperty_js_2.default.ROTATION), this.boundHandleRotationChanged_);
+            this.handleRotationChanged_();
+        }
+        unbindView_(view) {
+            view.removeEventListener(Object_js_15.getChangeEventType(ViewProperty_js_2.default.ROTATION), this.boundHandleRotationChanged_);
+        }
+        handleRotationChanged_() {
+            if (this.rotateWithView_) {
+                this.ovmap_.getView().setRotation(this.getMap().getView().getRotation());
+            }
+        }
+        validateExtent_() {
+            const map = this.getMap();
+            const ovmap = this.ovmap_;
+            if (!map.isRendered() || !ovmap.isRendered()) {
+                return;
+            }
+            const mapSize = (map.getSize());
+            const view = map.getView();
+            const extent = view.calculateExtentInternal(mapSize);
+            if (this.viewExtent_ && extent_js_32.equals(extent, this.viewExtent_)) {
+                return;
+            }
+            this.viewExtent_ = extent;
+            const ovmapSize = (ovmap.getSize());
+            const ovview = ovmap.getView();
+            const ovextent = ovview.calculateExtentInternal(ovmapSize);
+            const topLeftPixel = ovmap.getPixelFromCoordinateInternal(extent_js_32.getTopLeft(extent));
+            const bottomRightPixel = ovmap.getPixelFromCoordinateInternal(extent_js_32.getBottomRight(extent));
+            const boxWidth = Math.abs(topLeftPixel[0] - bottomRightPixel[0]);
+            const boxHeight = Math.abs(topLeftPixel[1] - bottomRightPixel[1]);
+            const ovmapWidth = ovmapSize[0];
+            const ovmapHeight = ovmapSize[1];
+            if (boxWidth < ovmapWidth * MIN_RATIO ||
+                boxHeight < ovmapHeight * MIN_RATIO ||
+                boxWidth > ovmapWidth * MAX_RATIO ||
+                boxHeight > ovmapHeight * MAX_RATIO) {
+                this.resetExtent_();
+            }
+            else if (!extent_js_32.containsExtent(ovextent, extent)) {
+                this.recenter_();
+            }
+        }
+        resetExtent_() {
+            if (MAX_RATIO === 0 || MIN_RATIO === 0) {
+                return;
+            }
+            const map = this.getMap();
+            const ovmap = this.ovmap_;
+            const mapSize = (map.getSize());
+            const view = map.getView();
+            const extent = view.calculateExtentInternal(mapSize);
+            const ovview = ovmap.getView();
+            const steps = Math.log(MAX_RATIO / MIN_RATIO) / Math.LN2;
+            const ratio = 1 / (Math.pow(2, steps / 2) * MIN_RATIO);
+            extent_js_32.scaleFromCenter(extent, ratio);
+            ovview.fitInternal(Polygon_js_3.fromExtent(extent));
+        }
+        recenter_() {
+            const map = this.getMap();
+            const ovmap = this.ovmap_;
+            const view = map.getView();
+            const ovview = ovmap.getView();
+            ovview.setCenterInternal(view.getCenterInternal());
+        }
+        updateBox_() {
+            const map = this.getMap();
+            const ovmap = this.ovmap_;
+            if (!map.isRendered() || !ovmap.isRendered()) {
+                return;
+            }
+            const mapSize = (map.getSize());
+            const view = map.getView();
+            const ovview = ovmap.getView();
+            const rotation = this.rotateWithView_ ? 0 : -view.getRotation();
+            const overlay = this.boxOverlay_;
+            const box = this.boxOverlay_.getElement();
+            const center = view.getCenterInternal();
+            const resolution = view.getResolution();
+            const ovresolution = ovview.getResolution();
+            const width = (mapSize[0] * resolution) / ovresolution;
+            const height = (mapSize[1] * resolution) / ovresolution;
+            overlay.setPosition(center);
+            if (box) {
+                box.style.width = width + 'px';
+                box.style.height = height + 'px';
+                const transform = 'rotate(' + rotation + 'rad)';
+                box.style.transform = transform;
+            }
+        }
+        handleClick_(event) {
+            event.preventDefault();
+            this.handleToggle_();
+        }
+        handleToggle_() {
+            this.element.classList.toggle(css_js_8.CLASS_COLLAPSED);
+            if (this.collapsed_) {
+                dom_js_10.replaceNode(this.collapseLabel_, this.label_);
+            }
+            else {
+                dom_js_10.replaceNode(this.label_, this.collapseLabel_);
+            }
+            this.collapsed_ = !this.collapsed_;
+            const ovmap = this.ovmap_;
+            if (!this.collapsed_) {
+                if (ovmap.isRendered()) {
+                    this.viewExtent_ = undefined;
+                    ovmap.render();
+                    return;
+                }
+                ovmap.updateSize();
+                this.resetExtent_();
+                events_js_15.listenOnce(ovmap, MapEventType_js_4.default.POSTRENDER, function (event) {
+                    this.updateBox_();
+                }, this);
+            }
+        }
+        getCollapsible() {
+            return this.collapsible_;
+        }
+        setCollapsible(collapsible) {
+            if (this.collapsible_ === collapsible) {
+                return;
+            }
+            this.collapsible_ = collapsible;
+            this.element.classList.toggle('ol-uncollapsible');
+            if (!collapsible && this.collapsed_) {
+                this.handleToggle_();
+            }
+        }
+        setCollapsed(collapsed) {
+            if (!this.collapsible_ || this.collapsed_ === collapsed) {
+                return;
+            }
+            this.handleToggle_();
+        }
+        getCollapsed() {
+            return this.collapsed_;
+        }
+        getRotateWithView() {
+            return this.rotateWithView_;
+        }
+        setRotateWithView(rotateWithView) {
+            if (this.rotateWithView_ === rotateWithView) {
+                return;
+            }
+            this.rotateWithView_ = rotateWithView;
+            if (this.getMap().getView().getRotation() !== 0) {
+                if (this.rotateWithView_) {
+                    this.handleRotationChanged_();
+                }
+                else {
+                    this.ovmap_.getView().setRotation(0);
+                }
+                this.viewExtent_ = undefined;
+                this.validateExtent_();
+                this.updateBox_();
+            }
+        }
+        getOverviewMap() {
+            return this.ovmap_;
+        }
+        render(mapEvent) {
+            this.validateExtent_();
+            this.updateBox_();
+        }
+    }
+    exports.default = OverviewMap;
+});
+define("node_modules/ol/src/control/ScaleLine", ["require", "exports", "node_modules/ol/src/control/Control", "node_modules/ol/src/proj/Units", "node_modules/ol/src/css", "node_modules/ol/src/proj", "node_modules/ol/src/asserts", "node_modules/ol/src/Object"], function (require, exports, Control_js_7, Units_js_9, css_js_9, proj_js_11, asserts_js_15, Object_js_16) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.Units = void 0;
+    const UNITS_PROP = 'units';
+    exports.Units = {
+        DEGREES: 'degrees',
+        IMPERIAL: 'imperial',
+        NAUTICAL: 'nautical',
+        METRIC: 'metric',
+        US: 'us',
+    };
+    const LEADING_DIGITS = [1, 2, 5];
+    const DEFAULT_DPI = 25.4 / 0.28;
+    class ScaleLine extends Control_js_7.default {
+        constructor(opt_options) {
+            const options = opt_options ? opt_options : {};
+            const className = options.className !== undefined
+                ? options.className
+                : options.bar
+                    ? 'ol-scale-bar'
+                    : 'ol-scale-line';
+            super({
+                element: document.createElement('div'),
+                render: options.render,
+                target: options.target,
+            });
+            this.innerElement_ = document.createElement('div');
+            this.innerElement_.className = className + '-inner';
+            this.element.className = className + ' ' + css_js_9.CLASS_UNSELECTABLE;
+            this.element.appendChild(this.innerElement_);
+            this.viewState_ = null;
+            this.minWidth_ = options.minWidth !== undefined ? options.minWidth : 64;
+            this.renderedVisible_ = false;
+            this.renderedWidth_ = undefined;
+            this.renderedHTML_ = '';
+            this.addEventListener(Object_js_16.getChangeEventType(UNITS_PROP), this.handleUnitsChanged_);
+            this.setUnits(options.units || exports.Units.METRIC);
+            this.scaleBar_ = options.bar || false;
+            this.scaleBarSteps_ = options.steps || 4;
+            this.scaleBarText_ = options.text || false;
+            this.dpi_ = options.dpi || undefined;
+        }
+        getUnits() {
+            return this.get(UNITS_PROP);
+        }
+        handleUnitsChanged_() {
+            this.updateElement_();
+        }
+        setUnits(units) {
+            this.set(UNITS_PROP, units);
+        }
+        setDpi(dpi) {
+            this.dpi_ = dpi;
+        }
+        updateElement_() {
+            const viewState = this.viewState_;
+            if (!viewState) {
+                if (this.renderedVisible_) {
+                    this.element.style.display = 'none';
+                    this.renderedVisible_ = false;
+                }
+                return;
+            }
+            const center = viewState.center;
+            const projection = viewState.projection;
+            const units = this.getUnits();
+            const pointResolutionUnits = units == exports.Units.DEGREES ? Units_js_9.default.DEGREES : Units_js_9.default.METERS;
+            let pointResolution = proj_js_11.getPointResolution(projection, viewState.resolution, center, pointResolutionUnits);
+            const minWidth = (this.minWidth_ * (this.dpi_ || DEFAULT_DPI)) / DEFAULT_DPI;
+            let nominalCount = minWidth * pointResolution;
+            let suffix = '';
+            if (units == exports.Units.DEGREES) {
+                const metersPerDegree = proj_js_11.METERS_PER_UNIT[Units_js_9.default.DEGREES];
+                nominalCount *= metersPerDegree;
+                if (nominalCount < metersPerDegree / 60) {
+                    suffix = '\u2033';
+                    pointResolution *= 3600;
+                }
+                else if (nominalCount < metersPerDegree) {
+                    suffix = '\u2032';
+                    pointResolution *= 60;
+                }
+                else {
+                    suffix = '\u00b0';
+                }
+            }
+            else if (units == exports.Units.IMPERIAL) {
+                if (nominalCount < 0.9144) {
+                    suffix = 'in';
+                    pointResolution /= 0.0254;
+                }
+                else if (nominalCount < 1609.344) {
+                    suffix = 'ft';
+                    pointResolution /= 0.3048;
+                }
+                else {
+                    suffix = 'mi';
+                    pointResolution /= 1609.344;
+                }
+            }
+            else if (units == exports.Units.NAUTICAL) {
+                pointResolution /= 1852;
+                suffix = 'nm';
+            }
+            else if (units == exports.Units.METRIC) {
+                if (nominalCount < 0.001) {
+                    suffix = 'μm';
+                    pointResolution *= 1000000;
+                }
+                else if (nominalCount < 1) {
+                    suffix = 'mm';
+                    pointResolution *= 1000;
+                }
+                else if (nominalCount < 1000) {
+                    suffix = 'm';
+                }
+                else {
+                    suffix = 'km';
+                    pointResolution /= 1000;
+                }
+            }
+            else if (units == exports.Units.US) {
+                if (nominalCount < 0.9144) {
+                    suffix = 'in';
+                    pointResolution *= 39.37;
+                }
+                else if (nominalCount < 1609.344) {
+                    suffix = 'ft';
+                    pointResolution /= 0.30480061;
+                }
+                else {
+                    suffix = 'mi';
+                    pointResolution /= 1609.3472;
+                }
+            }
+            else {
+                asserts_js_15.assert(false, 33);
+            }
+            let i = 3 * Math.floor(Math.log(minWidth * pointResolution) / Math.log(10));
+            let count, width, decimalCount;
+            while (true) {
+                decimalCount = Math.floor(i / 3);
+                const decimal = Math.pow(10, decimalCount);
+                count = LEADING_DIGITS[((i % 3) + 3) % 3] * decimal;
+                width = Math.round(count / pointResolution);
+                if (isNaN(width)) {
+                    this.element.style.display = 'none';
+                    this.renderedVisible_ = false;
+                    return;
+                }
+                else if (width >= minWidth) {
+                    break;
+                }
+                ++i;
+            }
+            let html;
+            if (this.scaleBar_) {
+                html = this.createScaleBar(width, count, suffix);
+            }
+            else {
+                html = count.toFixed(decimalCount < 0 ? -decimalCount : 0) + ' ' + suffix;
+            }
+            if (this.renderedHTML_ != html) {
+                this.innerElement_.innerHTML = html;
+                this.renderedHTML_ = html;
+            }
+            if (this.renderedWidth_ != width) {
+                this.innerElement_.style.width = width + 'px';
+                this.renderedWidth_ = width;
+            }
+            if (!this.renderedVisible_) {
+                this.element.style.display = '';
+                this.renderedVisible_ = true;
+            }
+        }
+        createScaleBar(width, scale, suffix) {
+            const mapScale = '1 : ' + Math.round(this.getScaleForResolution()).toLocaleString();
+            const scaleSteps = [];
+            const stepWidth = width / this.scaleBarSteps_;
+            let backgroundColor = '#ffffff';
+            for (let i = 0; i < this.scaleBarSteps_; i++) {
+                if (i === 0) {
+                    scaleSteps.push(this.createMarker('absolute', i));
+                }
+                scaleSteps.push('<div>' +
+                    '<div ' +
+                    'class="ol-scale-singlebar" ' +
+                    'style=' +
+                    '"width: ' +
+                    stepWidth +
+                    'px;' +
+                    'background-color: ' +
+                    backgroundColor +
+                    ';"' +
+                    '>' +
+                    '</div>' +
+                    this.createMarker('relative', i) +
+                    (i % 2 === 0 || this.scaleBarSteps_ === 2
+                        ? this.createStepText(i, width, false, scale, suffix)
+                        : '') +
+                    '</div>');
+                if (i === this.scaleBarSteps_ - 1) {
+                    {
+                    }
+                    scaleSteps.push(this.createStepText(i + 1, width, true, scale, suffix));
+                }
+                if (backgroundColor === '#ffffff') {
+                    backgroundColor = '#000000';
+                }
+                else {
+                    backgroundColor = '#ffffff';
+                }
+            }
+            let scaleBarText;
+            if (this.scaleBarText_) {
+                scaleBarText =
+                    '<div ' +
+                        'class="ol-scale-text" ' +
+                        'style="width: ' +
+                        width +
+                        'px;">' +
+                        mapScale +
+                        '</div>';
+            }
+            else {
+                scaleBarText = '';
+            }
+            const container = '<div ' +
+                'style="display: flex;">' +
+                scaleBarText +
+                scaleSteps.join('') +
+                '</div>';
+            return container;
+        }
+        createMarker(position, i) {
+            const top = position === 'absolute' ? 3 : -10;
+            return ('<div ' +
+                'class="ol-scale-step-marker" ' +
+                'style="position: ' +
+                position +
+                ';' +
+                'top: ' +
+                top +
+                'px;"' +
+                '></div>');
+        }
+        createStepText(i, width, isLast, scale, suffix) {
+            const length = i === 0 ? 0 : Math.round((scale / this.scaleBarSteps_) * i * 100) / 100;
+            const lengthString = length + (i === 0 ? '' : ' ' + suffix);
+            const margin = i === 0 ? -3 : (width / this.scaleBarSteps_) * -1;
+            const minWidth = i === 0 ? 0 : (width / this.scaleBarSteps_) * 2;
+            return ('<div ' +
+                'class="ol-scale-step-text" ' +
+                'style="' +
+                'margin-left: ' +
+                margin +
+                'px;' +
+                'text-align: ' +
+                (i === 0 ? 'left' : 'center') +
+                '; ' +
+                'min-width: ' +
+                minWidth +
+                'px;' +
+                'left: ' +
+                (isLast ? width + 'px' : 'unset') +
+                ';"' +
+                '>' +
+                lengthString +
+                '</div>');
+        }
+        getScaleForResolution() {
+            const resolution = proj_js_11.getPointResolution(this.viewState_.projection, this.viewState_.resolution, this.viewState_.center);
+            const dpi = this.dpi_ || DEFAULT_DPI;
+            const mpu = this.viewState_.projection.getMetersPerUnit();
+            const inchesPerMeter = 39.37;
+            return parseFloat(resolution.toString()) * mpu * inchesPerMeter * dpi;
+        }
+        render(mapEvent) {
+            const frameState = mapEvent.frameState;
+            if (!frameState) {
+                this.viewState_ = null;
+            }
+            else {
+                this.viewState_ = frameState.viewState;
+            }
+            this.updateElement_();
+        }
+    }
+    exports.default = ScaleLine;
+});
+define("node_modules/ol/src/control/ZoomSlider", ["require", "exports", "node_modules/ol/src/control/Control", "node_modules/ol/src/events/EventType", "node_modules/ol/src/pointer/EventType", "node_modules/ol/src/css", "node_modules/ol/src/math", "node_modules/ol/src/easing", "node_modules/ol/src/events", "node_modules/ol/src/events/Event"], function (require, exports, Control_js_8, EventType_js_27, EventType_js_28, css_js_10, math_js_18, easing_js_7, events_js_16, Event_js_9) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    const Direction = {
+        VERTICAL: 0,
+        HORIZONTAL: 1,
+    };
+    class ZoomSlider extends Control_js_8.default {
+        constructor(opt_options) {
+            const options = opt_options ? opt_options : {};
+            super({
+                element: document.createElement('div'),
+                render: options.render,
+            });
+            this.dragListenerKeys_ = [];
+            this.currentResolution_ = undefined;
+            this.direction_ = Direction.VERTICAL;
+            this.dragging_;
+            this.heightLimit_ = 0;
+            this.widthLimit_ = 0;
+            this.startX_;
+            this.startY_;
+            this.thumbSize_ = null;
+            this.sliderInitialized_ = false;
+            this.duration_ = options.duration !== undefined ? options.duration : 200;
+            const className = options.className !== undefined ? options.className : 'ol-zoomslider';
+            const thumbElement = document.createElement('button');
+            thumbElement.setAttribute('type', 'button');
+            thumbElement.className = className + '-thumb ' + css_js_10.CLASS_UNSELECTABLE;
+            const containerElement = this.element;
+            containerElement.className =
+                className + ' ' + css_js_10.CLASS_UNSELECTABLE + ' ' + css_js_10.CLASS_CONTROL;
+            containerElement.appendChild(thumbElement);
+            containerElement.addEventListener(EventType_js_28.default.POINTERDOWN, this.handleDraggerStart_.bind(this), false);
+            containerElement.addEventListener(EventType_js_28.default.POINTERMOVE, this.handleDraggerDrag_.bind(this), false);
+            containerElement.addEventListener(EventType_js_28.default.POINTERUP, this.handleDraggerEnd_.bind(this), false);
+            containerElement.addEventListener(EventType_js_27.default.CLICK, this.handleContainerClick_.bind(this), false);
+            thumbElement.addEventListener(EventType_js_27.default.CLICK, Event_js_9.stopPropagation, false);
+        }
+        setMap(map) {
+            super.setMap(map);
+            if (map) {
+                map.render();
+            }
+        }
+        initSlider_() {
+            const container = this.element;
+            const containerWidth = container.offsetWidth;
+            const containerHeight = container.offsetHeight;
+            if (containerWidth === 0 && containerHeight === 0) {
+                return (this.sliderInitialized_ = false);
+            }
+            const thumb = (container.firstElementChild);
+            const computedStyle = getComputedStyle(thumb);
+            const thumbWidth = thumb.offsetWidth +
+                parseFloat(computedStyle['marginRight']) +
+                parseFloat(computedStyle['marginLeft']);
+            const thumbHeight = thumb.offsetHeight +
+                parseFloat(computedStyle['marginTop']) +
+                parseFloat(computedStyle['marginBottom']);
+            this.thumbSize_ = [thumbWidth, thumbHeight];
+            if (containerWidth > containerHeight) {
+                this.direction_ = Direction.HORIZONTAL;
+                this.widthLimit_ = containerWidth - thumbWidth;
+            }
+            else {
+                this.direction_ = Direction.VERTICAL;
+                this.heightLimit_ = containerHeight - thumbHeight;
+            }
+            return (this.sliderInitialized_ = true);
+        }
+        handleContainerClick_(event) {
+            const view = this.getMap().getView();
+            const relativePosition = this.getRelativePosition_(event.offsetX - this.thumbSize_[0] / 2, event.offsetY - this.thumbSize_[1] / 2);
+            const resolution = this.getResolutionForPosition_(relativePosition);
+            const zoom = view.getConstrainedZoom(view.getZoomForResolution(resolution));
+            view.animateInternal({
+                zoom: zoom,
+                duration: this.duration_,
+                easing: easing_js_7.easeOut,
+            });
+        }
+        handleDraggerStart_(event) {
+            if (!this.dragging_ && event.target === this.element.firstElementChild) {
+                const element = (this.element
+                    .firstElementChild);
+                this.getMap().getView().beginInteraction();
+                this.startX_ = event.clientX - parseFloat(element.style.left);
+                this.startY_ = event.clientY - parseFloat(element.style.top);
+                this.dragging_ = true;
+                if (this.dragListenerKeys_.length === 0) {
+                    const drag = this.handleDraggerDrag_;
+                    const end = this.handleDraggerEnd_;
+                    this.dragListenerKeys_.push(events_js_16.listen(document, EventType_js_28.default.POINTERMOVE, drag, this), events_js_16.listen(document, EventType_js_28.default.POINTERUP, end, this));
+                }
+            }
+        }
+        handleDraggerDrag_(event) {
+            if (this.dragging_) {
+                const deltaX = event.clientX - this.startX_;
+                const deltaY = event.clientY - this.startY_;
+                const relativePosition = this.getRelativePosition_(deltaX, deltaY);
+                this.currentResolution_ = this.getResolutionForPosition_(relativePosition);
+                this.getMap().getView().setResolution(this.currentResolution_);
+            }
+        }
+        handleDraggerEnd_(event) {
+            if (this.dragging_) {
+                const view = this.getMap().getView();
+                view.endInteraction();
+                this.dragging_ = false;
+                this.startX_ = undefined;
+                this.startY_ = undefined;
+                this.dragListenerKeys_.forEach(events_js_16.unlistenByKey);
+                this.dragListenerKeys_.length = 0;
+            }
+        }
+        setThumbPosition_(res) {
+            const position = this.getPositionForResolution_(res);
+            const thumb = (this.element.firstElementChild);
+            if (this.direction_ == Direction.HORIZONTAL) {
+                thumb.style.left = this.widthLimit_ * position + 'px';
+            }
+            else {
+                thumb.style.top = this.heightLimit_ * position + 'px';
+            }
+        }
+        getRelativePosition_(x, y) {
+            let amount;
+            if (this.direction_ === Direction.HORIZONTAL) {
+                amount = x / this.widthLimit_;
+            }
+            else {
+                amount = y / this.heightLimit_;
+            }
+            return math_js_18.clamp(amount, 0, 1);
+        }
+        getResolutionForPosition_(position) {
+            const fn = this.getMap().getView().getResolutionForValueFunction();
+            return fn(1 - position);
+        }
+        getPositionForResolution_(res) {
+            const fn = this.getMap().getView().getValueForResolutionFunction();
+            return math_js_18.clamp(1 - fn(res), 0, 1);
+        }
+        render(mapEvent) {
+            if (!mapEvent.frameState) {
+                return;
+            }
+            if (!this.sliderInitialized_ && !this.initSlider_()) {
+                return;
+            }
+            const res = mapEvent.frameState.viewState.resolution;
+            this.currentResolution_ = res;
+            this.setThumbPosition_(res);
+        }
+    }
+    exports.default = ZoomSlider;
+});
+define("node_modules/ol/src/control/ZoomToExtent", ["require", "exports", "node_modules/ol/src/control/Control", "node_modules/ol/src/events/EventType", "node_modules/ol/src/css", "node_modules/ol/src/geom/Polygon"], function (require, exports, Control_js_9, EventType_js_29, css_js_11, Polygon_js_4) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    class ZoomToExtent extends Control_js_9.default {
+        constructor(opt_options) {
+            const options = opt_options ? opt_options : {};
+            super({
+                element: document.createElement('div'),
+                target: options.target,
+            });
+            this.extent = options.extent ? options.extent : null;
+            const className = options.className !== undefined ? options.className : 'ol-zoom-extent';
+            const label = options.label !== undefined ? options.label : 'E';
+            const tipLabel = options.tipLabel !== undefined ? options.tipLabel : 'Fit to extent';
+            const button = document.createElement('button');
+            button.setAttribute('type', 'button');
+            button.title = tipLabel;
+            button.appendChild(typeof label === 'string' ? document.createTextNode(label) : label);
+            button.addEventListener(EventType_js_29.default.CLICK, this.handleClick_.bind(this), false);
+            const cssClasses = className + ' ' + css_js_11.CLASS_UNSELECTABLE + ' ' + css_js_11.CLASS_CONTROL;
+            const element = this.element;
+            element.className = cssClasses;
+            element.appendChild(button);
+        }
+        handleClick_(event) {
+            event.preventDefault();
+            this.handleZoomToExtent();
+        }
+        handleZoomToExtent() {
+            const map = this.getMap();
+            const view = map.getView();
+            const extent = !this.extent
+                ? view.getProjection().getExtent()
+                : this.extent;
+            view.fitInternal(Polygon_js_4.fromExtent(extent));
+        }
+    }
+    exports.default = ZoomToExtent;
+});
+define("node_modules/ol/src/control", ["require", "exports", "node_modules/ol/src/control/Attribution", "node_modules/ol/src/Collection", "node_modules/ol/src/control/Rotate", "node_modules/ol/src/control/Zoom", "node_modules/ol/src/control/Attribution", "node_modules/ol/src/control/Control", "node_modules/ol/src/control/FullScreen", "node_modules/ol/src/control/MousePosition", "node_modules/ol/src/control/OverviewMap", "node_modules/ol/src/control/Rotate", "node_modules/ol/src/control/ScaleLine", "node_modules/ol/src/control/Zoom", "node_modules/ol/src/control/ZoomSlider", "node_modules/ol/src/control/ZoomToExtent"], function (require, exports, Attribution_js_1, Collection_js_4, Rotate_js_1, Zoom_js_1, Attribution_js_2, Control_js_10, FullScreen_js_1, MousePosition_js_1, OverviewMap_js_1, Rotate_js_2, ScaleLine_js_1, Zoom_js_2, ZoomSlider_js_1, ZoomToExtent_js_1) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.defaults = exports.ZoomToExtent = exports.ZoomSlider = exports.Zoom = exports.ScaleLine = exports.Rotate = exports.OverviewMap = exports.MousePosition = exports.FullScreen = exports.Control = exports.Attribution = void 0;
+    Object.defineProperty(exports, "Attribution", { enumerable: true, get: function () { return Attribution_js_2.default; } });
+    Object.defineProperty(exports, "Control", { enumerable: true, get: function () { return Control_js_10.default; } });
+    Object.defineProperty(exports, "FullScreen", { enumerable: true, get: function () { return FullScreen_js_1.default; } });
+    Object.defineProperty(exports, "MousePosition", { enumerable: true, get: function () { return MousePosition_js_1.default; } });
+    Object.defineProperty(exports, "OverviewMap", { enumerable: true, get: function () { return OverviewMap_js_1.default; } });
+    Object.defineProperty(exports, "Rotate", { enumerable: true, get: function () { return Rotate_js_2.default; } });
+    Object.defineProperty(exports, "ScaleLine", { enumerable: true, get: function () { return ScaleLine_js_1.default; } });
+    Object.defineProperty(exports, "Zoom", { enumerable: true, get: function () { return Zoom_js_2.default; } });
+    Object.defineProperty(exports, "ZoomSlider", { enumerable: true, get: function () { return ZoomSlider_js_1.default; } });
+    Object.defineProperty(exports, "ZoomToExtent", { enumerable: true, get: function () { return ZoomToExtent_js_1.default; } });
+    function defaults(opt_options) {
+        const options = opt_options ? opt_options : {};
+        const controls = new Collection_js_4.default();
+        const zoomControl = options.zoom !== undefined ? options.zoom : true;
+        if (zoomControl) {
+            controls.push(new Zoom_js_1.default(options.zoomOptions));
+        }
+        const rotateControl = options.rotate !== undefined ? options.rotate : true;
+        if (rotateControl) {
+            controls.push(new Rotate_js_1.default(options.rotateOptions));
+        }
+        const attributionControl = options.attribution !== undefined ? options.attribution : true;
+        if (attributionControl) {
+            controls.push(new Attribution_js_1.default(options.attributionOptions));
+        }
+        return controls;
+    }
+    exports.defaults = defaults;
+});
+define("node_modules/ol/src/interaction/DoubleClickZoom", ["require", "exports", "node_modules/ol/src/interaction/Interaction", "node_modules/ol/src/MapBrowserEventType"], function (require, exports, Interaction_js_1, MapBrowserEventType_js_3) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    class DoubleClickZoom extends Interaction_js_1.default {
+        constructor(opt_options) {
+            super();
+            const options = opt_options ? opt_options : {};
+            this.delta_ = options.delta ? options.delta : 1;
+            this.duration_ = options.duration !== undefined ? options.duration : 250;
+        }
+        handleEvent(mapBrowserEvent) {
+            let stopEvent = false;
+            if (mapBrowserEvent.type == MapBrowserEventType_js_3.default.DBLCLICK) {
+                const browserEvent = (mapBrowserEvent.originalEvent);
+                const map = mapBrowserEvent.map;
+                const anchor = mapBrowserEvent.coordinate;
+                const delta = browserEvent.shiftKey ? -this.delta_ : this.delta_;
+                const view = map.getView();
+                Interaction_js_1.zoomByDelta(view, delta, anchor, this.duration_);
+                mapBrowserEvent.preventDefault();
+                stopEvent = true;
+            }
+            return !stopEvent;
+        }
+    }
+    exports.default = DoubleClickZoom;
+});
+define("node_modules/ol/src/interaction/Pointer", ["require", "exports", "node_modules/ol/src/interaction/Interaction", "node_modules/ol/src/MapBrowserEventType", "node_modules/ol/src/obj"], function (require, exports, Interaction_js_2, MapBrowserEventType_js_4, obj_js_14) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.centroid = void 0;
+    class PointerInteraction extends Interaction_js_2.default {
+        constructor(opt_options) {
+            const options = opt_options ? opt_options : {};
+            super((options));
+            if (options.handleDownEvent) {
+                this.handleDownEvent = options.handleDownEvent;
+            }
+            if (options.handleDragEvent) {
+                this.handleDragEvent = options.handleDragEvent;
+            }
+            if (options.handleMoveEvent) {
+                this.handleMoveEvent = options.handleMoveEvent;
+            }
+            if (options.handleUpEvent) {
+                this.handleUpEvent = options.handleUpEvent;
+            }
+            if (options.stopDown) {
+                this.stopDown = options.stopDown;
+            }
+            this.handlingDownUpSequence = false;
+            this.trackedPointers_ = {};
+            this.targetPointers = [];
+        }
+        getPointerCount() {
+            return this.targetPointers.length;
+        }
+        handleDownEvent(mapBrowserEvent) {
+            return false;
+        }
+        handleDragEvent(mapBrowserEvent) { }
+        handleEvent(mapBrowserEvent) {
+            if (!mapBrowserEvent.originalEvent) {
+                return true;
+            }
+            let stopEvent = false;
+            this.updateTrackedPointers_(mapBrowserEvent);
+            if (this.handlingDownUpSequence) {
+                if (mapBrowserEvent.type == MapBrowserEventType_js_4.default.POINTERDRAG) {
+                    this.handleDragEvent(mapBrowserEvent);
+                    mapBrowserEvent.preventDefault();
+                }
+                else if (mapBrowserEvent.type == MapBrowserEventType_js_4.default.POINTERUP) {
+                    const handledUp = this.handleUpEvent(mapBrowserEvent);
+                    this.handlingDownUpSequence =
+                        handledUp && this.targetPointers.length > 0;
+                }
+            }
+            else {
+                if (mapBrowserEvent.type == MapBrowserEventType_js_4.default.POINTERDOWN) {
+                    const handled = this.handleDownEvent(mapBrowserEvent);
+                    this.handlingDownUpSequence = handled;
+                    stopEvent = this.stopDown(handled);
+                }
+                else if (mapBrowserEvent.type == MapBrowserEventType_js_4.default.POINTERMOVE) {
+                    this.handleMoveEvent(mapBrowserEvent);
+                }
+            }
+            return !stopEvent;
+        }
+        handleMoveEvent(mapBrowserEvent) { }
+        handleUpEvent(mapBrowserEvent) {
+            return false;
+        }
+        stopDown(handled) {
+            return handled;
+        }
+        updateTrackedPointers_(mapBrowserEvent) {
+            if (isPointerDraggingEvent(mapBrowserEvent)) {
+                const event = mapBrowserEvent.originalEvent;
+                const id = event.pointerId.toString();
+                if (mapBrowserEvent.type == MapBrowserEventType_js_4.default.POINTERUP) {
+                    delete this.trackedPointers_[id];
+                }
+                else if (mapBrowserEvent.type == MapBrowserEventType_js_4.default.POINTERDOWN) {
+                    this.trackedPointers_[id] = event;
+                }
+                else if (id in this.trackedPointers_) {
+                    this.trackedPointers_[id] = event;
+                }
+                this.targetPointers = obj_js_14.getValues(this.trackedPointers_);
+            }
+        }
+    }
+    function centroid(pointerEvents) {
+        const length = pointerEvents.length;
+        let clientX = 0;
+        let clientY = 0;
+        for (let i = 0; i < length; i++) {
+            clientX += pointerEvents[i].clientX;
+            clientY += pointerEvents[i].clientY;
+        }
+        return [clientX / length, clientY / length];
+    }
+    exports.centroid = centroid;
+    function isPointerDraggingEvent(mapBrowserEvent) {
+        const type = mapBrowserEvent.type;
+        return (type === MapBrowserEventType_js_4.default.POINTERDOWN ||
+            type === MapBrowserEventType_js_4.default.POINTERDRAG ||
+            type === MapBrowserEventType_js_4.default.POINTERUP);
+    }
+    exports.default = PointerInteraction;
+});
+define("node_modules/ol/src/events/condition", ["require", "exports", "node_modules/ol/src/MapBrowserEventType", "node_modules/ol/src/functions", "node_modules/ol/src/has", "node_modules/ol/src/asserts"], function (require, exports, MapBrowserEventType_js_5, functions_js_9, has_js_7, asserts_js_16) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.primaryAction = exports.penOnly = exports.touchOnly = exports.mouseOnly = exports.targetNotEditable = exports.shiftKeyOnly = exports.platformModifierKeyOnly = exports.noModifierKeys = exports.doubleClick = exports.singleClick = exports.pointerMove = exports.never = exports.mouseActionButton = exports.click = exports.always = exports.focusWithTabindex = exports.focus = exports.altShiftKeysOnly = exports.altKeyOnly = exports.all = void 0;
+    function all(var_args) {
+        const conditions = arguments;
+        return function (event) {
+            let pass = true;
+            for (let i = 0, ii = conditions.length; i < ii; ++i) {
+                pass = pass && conditions[i](event);
+                if (!pass) {
+                    break;
+                }
+            }
+            return pass;
+        };
+    }
+    exports.all = all;
+    exports.altKeyOnly = function (mapBrowserEvent) {
+        const originalEvent = (mapBrowserEvent.originalEvent);
+        return (originalEvent.altKey &&
+            !(originalEvent.metaKey || originalEvent.ctrlKey) &&
+            !originalEvent.shiftKey);
+    };
+    exports.altShiftKeysOnly = function (mapBrowserEvent) {
+        const originalEvent = (mapBrowserEvent.originalEvent);
+        return (originalEvent.altKey &&
+            !(originalEvent.metaKey || originalEvent.ctrlKey) &&
+            originalEvent.shiftKey);
+    };
+    exports.focus = function (event) {
+        return event.target.getTargetElement().contains(document.activeElement);
+    };
+    exports.focusWithTabindex = function (event) {
+        return event.map.getTargetElement().hasAttribute('tabindex')
+            ? exports.focus(event)
+            : true;
+    };
+    exports.always = functions_js_9.TRUE;
+    exports.click = function (mapBrowserEvent) {
+        return mapBrowserEvent.type == MapBrowserEventType_js_5.default.CLICK;
+    };
+    exports.mouseActionButton = function (mapBrowserEvent) {
+        const originalEvent = (mapBrowserEvent.originalEvent);
+        return originalEvent.button == 0 && !(has_js_7.WEBKIT && has_js_7.MAC && originalEvent.ctrlKey);
+    };
+    exports.never = functions_js_9.FALSE;
+    exports.pointerMove = function (mapBrowserEvent) {
+        return mapBrowserEvent.type == 'pointermove';
+    };
+    exports.singleClick = function (mapBrowserEvent) {
+        return mapBrowserEvent.type == MapBrowserEventType_js_5.default.SINGLECLICK;
+    };
+    exports.doubleClick = function (mapBrowserEvent) {
+        return mapBrowserEvent.type == MapBrowserEventType_js_5.default.DBLCLICK;
+    };
+    exports.noModifierKeys = function (mapBrowserEvent) {
+        const originalEvent = (mapBrowserEvent.originalEvent);
+        return (!originalEvent.altKey &&
+            !(originalEvent.metaKey || originalEvent.ctrlKey) &&
+            !originalEvent.shiftKey);
+    };
+    exports.platformModifierKeyOnly = function (mapBrowserEvent) {
+        const originalEvent = (mapBrowserEvent.originalEvent);
+        return (!originalEvent.altKey &&
+            (has_js_7.MAC ? originalEvent.metaKey : originalEvent.ctrlKey) &&
+            !originalEvent.shiftKey);
+    };
+    exports.shiftKeyOnly = function (mapBrowserEvent) {
+        const originalEvent = (mapBrowserEvent.originalEvent);
+        return (!originalEvent.altKey &&
+            !(originalEvent.metaKey || originalEvent.ctrlKey) &&
+            originalEvent.shiftKey);
+    };
+    exports.targetNotEditable = function (mapBrowserEvent) {
+        const originalEvent = (mapBrowserEvent.originalEvent);
+        const tagName = (originalEvent.target).tagName;
+        return tagName !== 'INPUT' && tagName !== 'SELECT' && tagName !== 'TEXTAREA';
+    };
+    exports.mouseOnly = function (mapBrowserEvent) {
+        const pointerEvent = (mapBrowserEvent)
+            .originalEvent;
+        asserts_js_16.assert(pointerEvent !== undefined, 56);
+        return pointerEvent.pointerType == 'mouse';
+    };
+    exports.touchOnly = function (mapBrowserEvent) {
+        const pointerEvt = (mapBrowserEvent)
+            .originalEvent;
+        asserts_js_16.assert(pointerEvt !== undefined, 56);
+        return pointerEvt.pointerType === 'touch';
+    };
+    exports.penOnly = function (mapBrowserEvent) {
+        const pointerEvt = (mapBrowserEvent)
+            .originalEvent;
+        asserts_js_16.assert(pointerEvt !== undefined, 56);
+        return pointerEvt.pointerType === 'pen';
+    };
+    exports.primaryAction = function (mapBrowserEvent) {
+        const pointerEvent = (mapBrowserEvent)
+            .originalEvent;
+        asserts_js_16.assert(pointerEvent !== undefined, 56);
+        return pointerEvent.isPrimary && pointerEvent.button === 0;
+    };
+});
+define("node_modules/ol/src/Kinetic", ["require", "exports"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    class Kinetic {
+        constructor(decay, minVelocity, delay) {
+            this.decay_ = decay;
+            this.minVelocity_ = minVelocity;
+            this.delay_ = delay;
+            this.points_ = [];
+            this.angle_ = 0;
+            this.initialVelocity_ = 0;
+        }
+        begin() {
+            this.points_.length = 0;
+            this.angle_ = 0;
+            this.initialVelocity_ = 0;
+        }
+        update(x, y) {
+            this.points_.push(x, y, Date.now());
+        }
+        end() {
+            if (this.points_.length < 6) {
+                return false;
+            }
+            const delay = Date.now() - this.delay_;
+            const lastIndex = this.points_.length - 3;
+            if (this.points_[lastIndex + 2] < delay) {
+                return false;
+            }
+            let firstIndex = lastIndex - 3;
+            while (firstIndex > 0 && this.points_[firstIndex + 2] > delay) {
+                firstIndex -= 3;
+            }
+            const duration = this.points_[lastIndex + 2] - this.points_[firstIndex + 2];
+            if (duration < 1000 / 60) {
+                return false;
+            }
+            const dx = this.points_[lastIndex] - this.points_[firstIndex];
+            const dy = this.points_[lastIndex + 1] - this.points_[firstIndex + 1];
+            this.angle_ = Math.atan2(dy, dx);
+            this.initialVelocity_ = Math.sqrt(dx * dx + dy * dy) / duration;
+            return this.initialVelocity_ > this.minVelocity_;
+        }
+        getDistance() {
+            return (this.minVelocity_ - this.initialVelocity_) / this.decay_;
+        }
+        getAngle() {
+            return this.angle_;
+        }
+    }
+    exports.default = Kinetic;
+});
+define("node_modules/ol/src/interaction/DragPan", ["require", "exports", "node_modules/ol/src/interaction/Pointer", "node_modules/ol/src/functions", "node_modules/ol/src/events/condition", "node_modules/ol/src/easing", "node_modules/ol/src/coordinate"], function (require, exports, Pointer_js_1, functions_js_10, condition_js_1, easing_js_8, coordinate_js_5) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    class DragPan extends Pointer_js_1.default {
+        constructor(opt_options) {
+            super({
+                stopDown: functions_js_10.FALSE,
+            });
+            const options = opt_options ? opt_options : {};
+            this.kinetic_ = options.kinetic;
+            this.lastCentroid = null;
+            this.lastPointersCount_;
+            this.panning_ = false;
+            const condition = options.condition
+                ? options.condition
+                : condition_js_1.all(condition_js_1.noModifierKeys, condition_js_1.primaryAction);
+            this.condition_ = options.onFocusOnly
+                ? condition_js_1.all(condition_js_1.focusWithTabindex, condition)
+                : condition;
+            this.noKinetic_ = false;
+        }
+        handleDragEvent(mapBrowserEvent) {
+            if (!this.panning_) {
+                this.panning_ = true;
+                this.getMap().getView().beginInteraction();
+            }
+            const targetPointers = this.targetPointers;
+            const centroid = Pointer_js_1.centroid(targetPointers);
+            if (targetPointers.length == this.lastPointersCount_) {
+                if (this.kinetic_) {
+                    this.kinetic_.update(centroid[0], centroid[1]);
+                }
+                if (this.lastCentroid) {
+                    const delta = [
+                        this.lastCentroid[0] - centroid[0],
+                        centroid[1] - this.lastCentroid[1],
+                    ];
+                    const map = mapBrowserEvent.map;
+                    const view = map.getView();
+                    coordinate_js_5.scale(delta, view.getResolution());
+                    coordinate_js_5.rotate(delta, view.getRotation());
+                    view.adjustCenterInternal(delta);
+                }
+            }
+            else if (this.kinetic_) {
+                this.kinetic_.begin();
+            }
+            this.lastCentroid = centroid;
+            this.lastPointersCount_ = targetPointers.length;
+            mapBrowserEvent.originalEvent.preventDefault();
+        }
+        handleUpEvent(mapBrowserEvent) {
+            const map = mapBrowserEvent.map;
+            const view = map.getView();
+            if (this.targetPointers.length === 0) {
+                if (!this.noKinetic_ && this.kinetic_ && this.kinetic_.end()) {
+                    const distance = this.kinetic_.getDistance();
+                    const angle = this.kinetic_.getAngle();
+                    const center = view.getCenterInternal();
+                    const centerpx = map.getPixelFromCoordinateInternal(center);
+                    const dest = map.getCoordinateFromPixelInternal([
+                        centerpx[0] - distance * Math.cos(angle),
+                        centerpx[1] - distance * Math.sin(angle),
+                    ]);
+                    view.animateInternal({
+                        center: view.getConstrainedCenter(dest),
+                        duration: 500,
+                        easing: easing_js_8.easeOut,
+                    });
+                }
+                if (this.panning_) {
+                    this.panning_ = false;
+                    view.endInteraction();
+                }
+                return false;
+            }
+            else {
+                if (this.kinetic_) {
+                    this.kinetic_.begin();
+                }
+                this.lastCentroid = null;
+                return true;
+            }
+        }
+        handleDownEvent(mapBrowserEvent) {
+            if (this.targetPointers.length > 0 && this.condition_(mapBrowserEvent)) {
+                const map = mapBrowserEvent.map;
+                const view = map.getView();
+                this.lastCentroid = null;
+                if (view.getAnimating()) {
+                    view.cancelAnimations();
+                }
+                if (this.kinetic_) {
+                    this.kinetic_.begin();
+                }
+                this.noKinetic_ = this.targetPointers.length > 1;
+                return true;
+            }
+            else {
+                return false;
+            }
+        }
+    }
+    exports.default = DragPan;
+});
+define("node_modules/ol/src/interaction/DragRotate", ["require", "exports", "node_modules/ol/src/interaction/Pointer", "node_modules/ol/src/functions", "node_modules/ol/src/events/condition", "node_modules/ol/src/rotationconstraint"], function (require, exports, Pointer_js_2, functions_js_11, condition_js_2, rotationconstraint_js_2) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    class DragRotate extends Pointer_js_2.default {
+        constructor(opt_options) {
+            const options = opt_options ? opt_options : {};
+            super({
+                stopDown: functions_js_11.FALSE,
+            });
+            this.condition_ = options.condition ? options.condition : condition_js_2.altShiftKeysOnly;
+            this.lastAngle_ = undefined;
+            this.duration_ = options.duration !== undefined ? options.duration : 250;
+        }
+        handleDragEvent(mapBrowserEvent) {
+            if (!condition_js_2.mouseOnly(mapBrowserEvent)) {
+                return;
+            }
+            const map = mapBrowserEvent.map;
+            const view = map.getView();
+            if (view.getConstraints().rotation === rotationconstraint_js_2.disable) {
+                return;
+            }
+            const size = map.getSize();
+            const offset = mapBrowserEvent.pixel;
+            const theta = Math.atan2(size[1] / 2 - offset[1], offset[0] - size[0] / 2);
+            if (this.lastAngle_ !== undefined) {
+                const delta = theta - this.lastAngle_;
+                view.adjustRotationInternal(-delta);
+            }
+            this.lastAngle_ = theta;
+        }
+        handleUpEvent(mapBrowserEvent) {
+            if (!condition_js_2.mouseOnly(mapBrowserEvent)) {
+                return true;
+            }
+            const map = mapBrowserEvent.map;
+            const view = map.getView();
+            view.endInteraction(this.duration_);
+            return false;
+        }
+        handleDownEvent(mapBrowserEvent) {
+            if (!condition_js_2.mouseOnly(mapBrowserEvent)) {
+                return false;
+            }
+            if (condition_js_2.mouseActionButton(mapBrowserEvent) &&
+                this.condition_(mapBrowserEvent)) {
+                const map = mapBrowserEvent.map;
+                map.getView().beginInteraction();
+                this.lastAngle_ = undefined;
+                return true;
+            }
+            else {
+                return false;
+            }
+        }
+    }
+    exports.default = DragRotate;
+});
+define("node_modules/ol/src/render/Box", ["require", "exports", "node_modules/ol/src/Disposable", "node_modules/ol/src/geom/Polygon"], function (require, exports, Disposable_js_3, Polygon_js_5) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    class RenderBox extends Disposable_js_3.default {
+        constructor(className) {
+            super();
+            this.geometry_ = null;
+            this.element_ = document.createElement('div');
+            this.element_.style.position = 'absolute';
+            this.element_.style.pointerEvents = 'auto';
+            this.element_.className = 'ol-box ' + className;
+            this.map_ = null;
+            this.startPixel_ = null;
+            this.endPixel_ = null;
+        }
+        disposeInternal() {
+            this.setMap(null);
+        }
+        render_() {
+            const startPixel = this.startPixel_;
+            const endPixel = this.endPixel_;
+            const px = 'px';
+            const style = this.element_.style;
+            style.left = Math.min(startPixel[0], endPixel[0]) + px;
+            style.top = Math.min(startPixel[1], endPixel[1]) + px;
+            style.width = Math.abs(endPixel[0] - startPixel[0]) + px;
+            style.height = Math.abs(endPixel[1] - startPixel[1]) + px;
+        }
+        setMap(map) {
+            if (this.map_) {
+                this.map_.getOverlayContainer().removeChild(this.element_);
+                const style = this.element_.style;
+                style.left = 'inherit';
+                style.top = 'inherit';
+                style.width = 'inherit';
+                style.height = 'inherit';
+            }
+            this.map_ = map;
+            if (this.map_) {
+                this.map_.getOverlayContainer().appendChild(this.element_);
+            }
+        }
+        setPixels(startPixel, endPixel) {
+            this.startPixel_ = startPixel;
+            this.endPixel_ = endPixel;
+            this.createOrUpdateGeometry();
+            this.render_();
+        }
+        createOrUpdateGeometry() {
+            const startPixel = this.startPixel_;
+            const endPixel = this.endPixel_;
+            const pixels = [
+                startPixel,
+                [startPixel[0], endPixel[1]],
+                endPixel,
+                [endPixel[0], startPixel[1]],
+            ];
+            const coordinates = pixels.map(this.map_.getCoordinateFromPixelInternal, this.map_);
+            coordinates[4] = coordinates[0].slice();
+            if (!this.geometry_) {
+                this.geometry_ = new Polygon_js_5.default([coordinates]);
+            }
+            else {
+                this.geometry_.setCoordinates([coordinates]);
+            }
+        }
+        getGeometry() {
+            return this.geometry_;
+        }
+    }
+    exports.default = RenderBox;
+});
+define("node_modules/ol/src/interaction/DragBox", ["require", "exports", "node_modules/ol/src/events/Event", "node_modules/ol/src/interaction/Pointer", "node_modules/ol/src/render/Box", "node_modules/ol/src/events/condition"], function (require, exports, Event_js_10, Pointer_js_3, Box_js_1, condition_js_3) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    const DragBoxEventType = {
+        BOXSTART: 'boxstart',
+        BOXDRAG: 'boxdrag',
+        BOXEND: 'boxend',
+    };
+    class DragBoxEvent extends Event_js_10.default {
+        constructor(type, coordinate, mapBrowserEvent) {
+            super(type);
+            this.coordinate = coordinate;
+            this.mapBrowserEvent = mapBrowserEvent;
+        }
+    }
+    class DragBox extends Pointer_js_3.default {
+        constructor(opt_options) {
+            super();
+            const options = opt_options ? opt_options : {};
+            this.box_ = new Box_js_1.default(options.className || 'ol-dragbox');
+            this.minArea_ = options.minArea !== undefined ? options.minArea : 64;
+            if (options.onBoxEnd) {
+                this.onBoxEnd = options.onBoxEnd;
+            }
+            this.startPixel_ = null;
+            this.condition_ = options.condition ? options.condition : condition_js_3.mouseActionButton;
+            this.boxEndCondition_ = options.boxEndCondition
+                ? options.boxEndCondition
+                : this.defaultBoxEndCondition;
+        }
+        defaultBoxEndCondition(mapBrowserEvent, startPixel, endPixel) {
+            const width = endPixel[0] - startPixel[0];
+            const height = endPixel[1] - startPixel[1];
+            return width * width + height * height >= this.minArea_;
+        }
+        getGeometry() {
+            return this.box_.getGeometry();
+        }
+        handleDragEvent(mapBrowserEvent) {
+            this.box_.setPixels(this.startPixel_, mapBrowserEvent.pixel);
+            this.dispatchEvent(new DragBoxEvent(DragBoxEventType.BOXDRAG, mapBrowserEvent.coordinate, mapBrowserEvent));
+        }
+        handleUpEvent(mapBrowserEvent) {
+            this.box_.setMap(null);
+            if (this.boxEndCondition_(mapBrowserEvent, this.startPixel_, mapBrowserEvent.pixel)) {
+                this.onBoxEnd(mapBrowserEvent);
+                this.dispatchEvent(new DragBoxEvent(DragBoxEventType.BOXEND, mapBrowserEvent.coordinate, mapBrowserEvent));
+            }
+            return false;
+        }
+        handleDownEvent(mapBrowserEvent) {
+            if (this.condition_(mapBrowserEvent)) {
+                this.startPixel_ = mapBrowserEvent.pixel;
+                this.box_.setMap(mapBrowserEvent.map);
+                this.box_.setPixels(this.startPixel_, this.startPixel_);
+                this.dispatchEvent(new DragBoxEvent(DragBoxEventType.BOXSTART, mapBrowserEvent.coordinate, mapBrowserEvent));
+                return true;
+            }
+            else {
+                return false;
+            }
+        }
+        onBoxEnd(event) { }
+    }
+    exports.default = DragBox;
+});
+define("node_modules/ol/src/interaction/DragZoom", ["require", "exports", "node_modules/ol/src/interaction/DragBox", "node_modules/ol/src/extent", "node_modules/ol/src/easing", "node_modules/ol/src/events/condition"], function (require, exports, DragBox_js_1, extent_js_33, easing_js_9, condition_js_4) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    class DragZoom extends DragBox_js_1.default {
+        constructor(opt_options) {
+            const options = opt_options ? opt_options : {};
+            const condition = options.condition ? options.condition : condition_js_4.shiftKeyOnly;
+            super({
+                condition: condition,
+                className: options.className || 'ol-dragzoom',
+                minArea: options.minArea,
+            });
+            this.duration_ = options.duration !== undefined ? options.duration : 200;
+            this.out_ = options.out !== undefined ? options.out : false;
+        }
+        onBoxEnd(event) {
+            const map = this.getMap();
+            const view = (map.getView());
+            const size = (map.getSize());
+            let extent = this.getGeometry().getExtent();
+            if (this.out_) {
+                const mapExtent = view.calculateExtentInternal(size);
+                const boxPixelExtent = extent_js_33.createOrUpdateFromCoordinates([
+                    map.getPixelFromCoordinateInternal(extent_js_33.getBottomLeft(extent)),
+                    map.getPixelFromCoordinateInternal(extent_js_33.getTopRight(extent)),
+                ]);
+                const factor = view.getResolutionForExtentInternal(boxPixelExtent, size);
+                extent_js_33.scaleFromCenter(mapExtent, 1 / factor);
+                extent = mapExtent;
+            }
+            const resolution = view.getConstrainedResolution(view.getResolutionForExtentInternal(extent, size));
+            const center = view.getConstrainedCenter(extent_js_33.getCenter(extent), resolution);
+            view.animateInternal({
+                resolution: resolution,
+                center: center,
+                duration: this.duration_,
+                easing: easing_js_9.easeOut,
+            });
+        }
+    }
+    exports.default = DragZoom;
+});
+define("node_modules/ol/src/events/KeyCode", ["require", "exports"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.default = {
+        LEFT: 37,
+        UP: 38,
+        RIGHT: 39,
+        DOWN: 40,
+    };
+});
+define("node_modules/ol/src/interaction/KeyboardPan", ["require", "exports", "node_modules/ol/src/events/EventType", "node_modules/ol/src/interaction/Interaction", "node_modules/ol/src/events/KeyCode", "node_modules/ol/src/events/condition", "node_modules/ol/src/coordinate"], function (require, exports, EventType_js_30, Interaction_js_3, KeyCode_js_1, condition_js_5, coordinate_js_6) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    class KeyboardPan extends Interaction_js_3.default {
+        constructor(opt_options) {
+            super();
+            const options = opt_options || {};
+            this.defaultCondition_ = function (mapBrowserEvent) {
+                return (condition_js_5.noModifierKeys(mapBrowserEvent) && condition_js_5.targetNotEditable(mapBrowserEvent));
+            };
+            this.condition_ =
+                options.condition !== undefined
+                    ? options.condition
+                    : this.defaultCondition_;
+            this.duration_ = options.duration !== undefined ? options.duration : 100;
+            this.pixelDelta_ =
+                options.pixelDelta !== undefined ? options.pixelDelta : 128;
+        }
+        handleEvent(mapBrowserEvent) {
+            let stopEvent = false;
+            if (mapBrowserEvent.type == EventType_js_30.default.KEYDOWN) {
+                const keyEvent = (mapBrowserEvent.originalEvent);
+                const keyCode = keyEvent.keyCode;
+                if (this.condition_(mapBrowserEvent) &&
+                    (keyCode == KeyCode_js_1.default.DOWN ||
+                        keyCode == KeyCode_js_1.default.LEFT ||
+                        keyCode == KeyCode_js_1.default.RIGHT ||
+                        keyCode == KeyCode_js_1.default.UP)) {
+                    const map = mapBrowserEvent.map;
+                    const view = map.getView();
+                    const mapUnitsDelta = view.getResolution() * this.pixelDelta_;
+                    let deltaX = 0, deltaY = 0;
+                    if (keyCode == KeyCode_js_1.default.DOWN) {
+                        deltaY = -mapUnitsDelta;
+                    }
+                    else if (keyCode == KeyCode_js_1.default.LEFT) {
+                        deltaX = -mapUnitsDelta;
+                    }
+                    else if (keyCode == KeyCode_js_1.default.RIGHT) {
+                        deltaX = mapUnitsDelta;
+                    }
+                    else {
+                        deltaY = mapUnitsDelta;
+                    }
+                    const delta = [deltaX, deltaY];
+                    coordinate_js_6.rotate(delta, view.getRotation());
+                    Interaction_js_3.pan(view, delta, this.duration_);
+                    mapBrowserEvent.preventDefault();
+                    stopEvent = true;
+                }
+            }
+            return !stopEvent;
+        }
+    }
+    exports.default = KeyboardPan;
+});
+define("node_modules/ol/src/interaction/KeyboardZoom", ["require", "exports", "node_modules/ol/src/events/EventType", "node_modules/ol/src/interaction/Interaction", "node_modules/ol/src/events/condition"], function (require, exports, EventType_js_31, Interaction_js_4, condition_js_6) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    class KeyboardZoom extends Interaction_js_4.default {
+        constructor(opt_options) {
+            super();
+            const options = opt_options ? opt_options : {};
+            this.condition_ = options.condition ? options.condition : condition_js_6.targetNotEditable;
+            this.delta_ = options.delta ? options.delta : 1;
+            this.duration_ = options.duration !== undefined ? options.duration : 100;
+        }
+        handleEvent(mapBrowserEvent) {
+            let stopEvent = false;
+            if (mapBrowserEvent.type == EventType_js_31.default.KEYDOWN ||
+                mapBrowserEvent.type == EventType_js_31.default.KEYPRESS) {
+                const keyEvent = (mapBrowserEvent.originalEvent);
+                const charCode = keyEvent.charCode;
+                if (this.condition_(mapBrowserEvent) &&
+                    (charCode == '+'.charCodeAt(0) || charCode == '-'.charCodeAt(0))) {
+                    const map = mapBrowserEvent.map;
+                    const delta = charCode == '+'.charCodeAt(0) ? this.delta_ : -this.delta_;
+                    const view = map.getView();
+                    Interaction_js_4.zoomByDelta(view, delta, undefined, this.duration_);
+                    mapBrowserEvent.preventDefault();
+                    stopEvent = true;
+                }
+            }
+            return !stopEvent;
+        }
+    }
+    exports.default = KeyboardZoom;
+});
+define("node_modules/ol/src/interaction/MouseWheelZoom", ["require", "exports", "node_modules/ol/src/events/EventType", "node_modules/ol/src/interaction/Interaction", "node_modules/ol/src/has", "node_modules/ol/src/events/condition", "node_modules/ol/src/math"], function (require, exports, EventType_js_32, Interaction_js_5, has_js_8, condition_js_7, math_js_19) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.Mode = void 0;
+    exports.Mode = {
+        TRACKPAD: 'trackpad',
+        WHEEL: 'wheel',
+    };
+    class MouseWheelZoom extends Interaction_js_5.default {
+        constructor(opt_options) {
+            const options = opt_options ? opt_options : {};
+            super((options));
+            this.totalDelta_ = 0;
+            this.lastDelta_ = 0;
+            this.maxDelta_ = options.maxDelta !== undefined ? options.maxDelta : 1;
+            this.duration_ = options.duration !== undefined ? options.duration : 250;
+            this.timeout_ = options.timeout !== undefined ? options.timeout : 80;
+            this.useAnchor_ =
+                options.useAnchor !== undefined ? options.useAnchor : true;
+            this.constrainResolution_ =
+                options.constrainResolution !== undefined
+                    ? options.constrainResolution
+                    : false;
+            const condition = options.condition ? options.condition : condition_js_7.always;
+            this.condition_ = options.onFocusOnly
+                ? condition_js_7.all(condition_js_7.focusWithTabindex, condition)
+                : condition;
+            this.lastAnchor_ = null;
+            this.startTime_ = undefined;
+            this.timeoutId_;
+            this.mode_ = undefined;
+            this.trackpadEventGap_ = 400;
+            this.trackpadTimeoutId_;
+            this.deltaPerZoom_ = 300;
+        }
+        endInteraction_() {
+            this.trackpadTimeoutId_ = undefined;
+            const view = this.getMap().getView();
+            view.endInteraction(undefined, this.lastDelta_ ? (this.lastDelta_ > 0 ? 1 : -1) : 0, this.lastAnchor_);
+        }
+        handleEvent(mapBrowserEvent) {
+            if (!this.condition_(mapBrowserEvent)) {
+                return true;
+            }
+            const type = mapBrowserEvent.type;
+            if (type !== EventType_js_32.default.WHEEL) {
+                return true;
+            }
+            mapBrowserEvent.preventDefault();
+            const map = mapBrowserEvent.map;
+            const wheelEvent = (mapBrowserEvent.originalEvent);
+            if (this.useAnchor_) {
+                this.lastAnchor_ = mapBrowserEvent.coordinate;
+            }
+            let delta;
+            if (mapBrowserEvent.type == EventType_js_32.default.WHEEL) {
+                delta = wheelEvent.deltaY;
+                if (has_js_8.FIREFOX && wheelEvent.deltaMode === WheelEvent.DOM_DELTA_PIXEL) {
+                    delta /= has_js_8.DEVICE_PIXEL_RATIO;
+                }
+                if (wheelEvent.deltaMode === WheelEvent.DOM_DELTA_LINE) {
+                    delta *= 40;
+                }
+            }
+            if (delta === 0) {
+                return false;
+            }
+            else {
+                this.lastDelta_ = delta;
+            }
+            const now = Date.now();
+            if (this.startTime_ === undefined) {
+                this.startTime_ = now;
+            }
+            if (!this.mode_ || now - this.startTime_ > this.trackpadEventGap_) {
+                this.mode_ = Math.abs(delta) < 4 ? exports.Mode.TRACKPAD : exports.Mode.WHEEL;
+            }
+            const view = map.getView();
+            if (this.mode_ === exports.Mode.TRACKPAD &&
+                !(view.getConstrainResolution() || this.constrainResolution_)) {
+                if (this.trackpadTimeoutId_) {
+                    clearTimeout(this.trackpadTimeoutId_);
+                }
+                else {
+                    if (view.getAnimating()) {
+                        view.cancelAnimations();
+                    }
+                    view.beginInteraction();
+                }
+                this.trackpadTimeoutId_ = setTimeout(this.endInteraction_.bind(this), this.timeout_);
+                view.adjustZoom(-delta / this.deltaPerZoom_, this.lastAnchor_);
+                this.startTime_ = now;
+                return false;
+            }
+            this.totalDelta_ += delta;
+            const timeLeft = Math.max(this.timeout_ - (now - this.startTime_), 0);
+            clearTimeout(this.timeoutId_);
+            this.timeoutId_ = setTimeout(this.handleWheelZoom_.bind(this, map), timeLeft);
+            return false;
+        }
+        handleWheelZoom_(map) {
+            const view = map.getView();
+            if (view.getAnimating()) {
+                view.cancelAnimations();
+            }
+            let delta = -math_js_19.clamp(this.totalDelta_, -this.maxDelta_ * this.deltaPerZoom_, this.maxDelta_ * this.deltaPerZoom_) / this.deltaPerZoom_;
+            if (view.getConstrainResolution() || this.constrainResolution_) {
+                delta = delta ? (delta > 0 ? 1 : -1) : 0;
+            }
+            Interaction_js_5.zoomByDelta(view, delta, this.lastAnchor_, this.duration_);
+            this.mode_ = undefined;
+            this.totalDelta_ = 0;
+            this.lastAnchor_ = null;
+            this.startTime_ = undefined;
+            this.timeoutId_ = undefined;
+        }
+        setMouseAnchor(useAnchor) {
+            this.useAnchor_ = useAnchor;
+            if (!useAnchor) {
+                this.lastAnchor_ = null;
+            }
+        }
+    }
+    exports.default = MouseWheelZoom;
+});
+define("node_modules/ol/src/interaction/PinchRotate", ["require", "exports", "node_modules/ol/src/interaction/Pointer", "node_modules/ol/src/functions", "node_modules/ol/src/rotationconstraint"], function (require, exports, Pointer_js_4, functions_js_12, rotationconstraint_js_3) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    class PinchRotate extends Pointer_js_4.default {
+        constructor(opt_options) {
+            const options = opt_options ? opt_options : {};
+            const pointerOptions = (options);
+            if (!pointerOptions.stopDown) {
+                pointerOptions.stopDown = functions_js_12.FALSE;
+            }
+            super(pointerOptions);
+            this.anchor_ = null;
+            this.lastAngle_ = undefined;
+            this.rotating_ = false;
+            this.rotationDelta_ = 0.0;
+            this.threshold_ = options.threshold !== undefined ? options.threshold : 0.3;
+            this.duration_ = options.duration !== undefined ? options.duration : 250;
+        }
+        handleDragEvent(mapBrowserEvent) {
+            let rotationDelta = 0.0;
+            const touch0 = this.targetPointers[0];
+            const touch1 = this.targetPointers[1];
+            const angle = Math.atan2(touch1.clientY - touch0.clientY, touch1.clientX - touch0.clientX);
+            if (this.lastAngle_ !== undefined) {
+                const delta = angle - this.lastAngle_;
+                this.rotationDelta_ += delta;
+                if (!this.rotating_ && Math.abs(this.rotationDelta_) > this.threshold_) {
+                    this.rotating_ = true;
+                }
+                rotationDelta = delta;
+            }
+            this.lastAngle_ = angle;
+            const map = mapBrowserEvent.map;
+            const view = map.getView();
+            if (view.getConstraints().rotation === rotationconstraint_js_3.disable) {
+                return;
+            }
+            const viewportPosition = map.getViewport().getBoundingClientRect();
+            const centroid = Pointer_js_4.centroid(this.targetPointers);
+            centroid[0] -= viewportPosition.left;
+            centroid[1] -= viewportPosition.top;
+            this.anchor_ = map.getCoordinateFromPixelInternal(centroid);
+            if (this.rotating_) {
+                map.render();
+                view.adjustRotationInternal(rotationDelta, this.anchor_);
+            }
+        }
+        handleUpEvent(mapBrowserEvent) {
+            if (this.targetPointers.length < 2) {
+                const map = mapBrowserEvent.map;
+                const view = map.getView();
+                view.endInteraction(this.duration_);
+                return false;
+            }
+            else {
+                return true;
+            }
+        }
+        handleDownEvent(mapBrowserEvent) {
+            if (this.targetPointers.length >= 2) {
+                const map = mapBrowserEvent.map;
+                this.anchor_ = null;
+                this.lastAngle_ = undefined;
+                this.rotating_ = false;
+                this.rotationDelta_ = 0.0;
+                if (!this.handlingDownUpSequence) {
+                    map.getView().beginInteraction();
+                }
+                return true;
+            }
+            else {
+                return false;
+            }
+        }
+    }
+    exports.default = PinchRotate;
+});
+define("node_modules/ol/src/interaction/PinchZoom", ["require", "exports", "node_modules/ol/src/interaction/Pointer", "node_modules/ol/src/functions"], function (require, exports, Pointer_js_5, functions_js_13) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    class PinchZoom extends Pointer_js_5.default {
+        constructor(opt_options) {
+            const options = opt_options ? opt_options : {};
+            const pointerOptions = (options);
+            if (!pointerOptions.stopDown) {
+                pointerOptions.stopDown = functions_js_13.FALSE;
+            }
+            super(pointerOptions);
+            this.anchor_ = null;
+            this.duration_ = options.duration !== undefined ? options.duration : 400;
+            this.lastDistance_ = undefined;
+            this.lastScaleDelta_ = 1;
+        }
+        handleDragEvent(mapBrowserEvent) {
+            let scaleDelta = 1.0;
+            const touch0 = this.targetPointers[0];
+            const touch1 = this.targetPointers[1];
+            const dx = touch0.clientX - touch1.clientX;
+            const dy = touch0.clientY - touch1.clientY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            if (this.lastDistance_ !== undefined) {
+                scaleDelta = this.lastDistance_ / distance;
+            }
+            this.lastDistance_ = distance;
+            const map = mapBrowserEvent.map;
+            const view = map.getView();
+            if (scaleDelta != 1.0) {
+                this.lastScaleDelta_ = scaleDelta;
+            }
+            const viewportPosition = map.getViewport().getBoundingClientRect();
+            const centroid = Pointer_js_5.centroid(this.targetPointers);
+            centroid[0] -= viewportPosition.left;
+            centroid[1] -= viewportPosition.top;
+            this.anchor_ = map.getCoordinateFromPixelInternal(centroid);
+            map.render();
+            view.adjustResolutionInternal(scaleDelta, this.anchor_);
+        }
+        handleUpEvent(mapBrowserEvent) {
+            if (this.targetPointers.length < 2) {
+                const map = mapBrowserEvent.map;
+                const view = map.getView();
+                const direction = this.lastScaleDelta_ > 1 ? 1 : -1;
+                view.endInteraction(this.duration_, direction);
+                return false;
+            }
+            else {
+                return true;
+            }
+        }
+        handleDownEvent(mapBrowserEvent) {
+            if (this.targetPointers.length >= 2) {
+                const map = mapBrowserEvent.map;
+                this.anchor_ = null;
+                this.lastDistance_ = undefined;
+                this.lastScaleDelta_ = 1;
+                if (!this.handlingDownUpSequence) {
+                    map.getView().beginInteraction();
+                }
+                return true;
+            }
+            else {
+                return false;
+            }
+        }
+    }
+    exports.default = PinchZoom;
+});
+define("node_modules/ol/src/interaction/DragAndDrop", ["require", "exports", "node_modules/ol/src/events/Event", "node_modules/ol/src/events/EventType", "node_modules/ol/src/interaction/Interaction", "node_modules/ol/src/functions", "node_modules/ol/src/proj", "node_modules/ol/src/events"], function (require, exports, Event_js_11, EventType_js_33, Interaction_js_6, functions_js_14, proj_js_12, events_js_17) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    const DragAndDropEventType = {
+        ADD_FEATURES: 'addfeatures',
+    };
+    class DragAndDropEvent extends Event_js_11.default {
+        constructor(type, file, opt_features, opt_projection) {
+            super(type);
+            this.features = opt_features;
+            this.file = file;
+            this.projection = opt_projection;
+        }
+    }
+    class DragAndDrop extends Interaction_js_6.default {
+        constructor(opt_options) {
+            const options = opt_options ? opt_options : {};
+            super({
+                handleEvent: functions_js_14.TRUE,
+            });
+            this.formatConstructors_ = options.formatConstructors
+                ? options.formatConstructors
+                : [];
+            this.projection_ = options.projection
+                ? proj_js_12.get(options.projection)
+                : null;
+            this.dropListenKeys_ = null;
+            this.source_ = options.source || null;
+            this.target = options.target ? options.target : null;
+        }
+        handleResult_(file, event) {
+            const result = event.target.result;
+            const map = this.getMap();
+            let projection = this.projection_;
+            if (!projection) {
+                const view = map.getView();
+                projection = view.getProjection();
+            }
+            const formatConstructors = this.formatConstructors_;
+            for (let i = 0, ii = formatConstructors.length; i < ii; ++i) {
+                const format = new formatConstructors[i]();
+                const features = this.tryReadFeatures_(format, result, {
+                    featureProjection: projection,
+                });
+                if (features && features.length > 0) {
+                    if (this.source_) {
+                        this.source_.clear();
+                        this.source_.addFeatures(features);
+                    }
+                    this.dispatchEvent(new DragAndDropEvent(DragAndDropEventType.ADD_FEATURES, file, features, projection));
+                    break;
+                }
+            }
+        }
+        registerListeners_() {
+            const map = this.getMap();
+            if (map) {
+                const dropArea = this.target ? this.target : map.getViewport();
+                this.dropListenKeys_ = [
+                    events_js_17.listen(dropArea, EventType_js_33.default.DROP, this.handleDrop, this),
+                    events_js_17.listen(dropArea, EventType_js_33.default.DRAGENTER, this.handleStop, this),
+                    events_js_17.listen(dropArea, EventType_js_33.default.DRAGOVER, this.handleStop, this),
+                    events_js_17.listen(dropArea, EventType_js_33.default.DROP, this.handleStop, this),
+                ];
+            }
+        }
+        setActive(active) {
+            if (!this.getActive() && active) {
+                this.registerListeners_();
+            }
+            if (this.getActive() && !active) {
+                this.unregisterListeners_();
+            }
+            super.setActive(active);
+        }
+        setMap(map) {
+            this.unregisterListeners_();
+            super.setMap(map);
+            if (this.getActive()) {
+                this.registerListeners_();
+            }
+        }
+        tryReadFeatures_(format, text, options) {
+            try {
+                return ((format.readFeatures(text, options)));
+            }
+            catch (e) {
+                return null;
+            }
+        }
+        unregisterListeners_() {
+            if (this.dropListenKeys_) {
+                this.dropListenKeys_.forEach(events_js_17.unlistenByKey);
+                this.dropListenKeys_ = null;
+            }
+        }
+        handleDrop(event) {
+            const files = event.dataTransfer.files;
+            for (let i = 0, ii = files.length; i < ii; ++i) {
+                const file = files.item(i);
+                const reader = new FileReader();
+                reader.addEventListener(EventType_js_33.default.LOAD, this.handleResult_.bind(this, file));
+                reader.readAsText(file);
+            }
+        }
+        handleStop(event) {
+            event.stopPropagation();
+            event.preventDefault();
+            event.dataTransfer.dropEffect = 'copy';
+        }
+    }
+    exports.default = DragAndDrop;
+});
+define("node_modules/ol/src/interaction/DragRotateAndZoom", ["require", "exports", "node_modules/ol/src/interaction/Pointer", "node_modules/ol/src/events/condition"], function (require, exports, Pointer_js_6, condition_js_8) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    class DragRotateAndZoom extends Pointer_js_6.default {
+        constructor(opt_options) {
+            const options = opt_options ? opt_options : {};
+            super((options));
+            this.condition_ = options.condition ? options.condition : condition_js_8.shiftKeyOnly;
+            this.lastAngle_ = undefined;
+            this.lastMagnitude_ = undefined;
+            this.lastScaleDelta_ = 0;
+            this.duration_ = options.duration !== undefined ? options.duration : 400;
+        }
+        handleDragEvent(mapBrowserEvent) {
+            if (!condition_js_8.mouseOnly(mapBrowserEvent)) {
+                return;
+            }
+            const map = mapBrowserEvent.map;
+            const size = map.getSize();
+            const offset = mapBrowserEvent.pixel;
+            const deltaX = offset[0] - size[0] / 2;
+            const deltaY = size[1] / 2 - offset[1];
+            const theta = Math.atan2(deltaY, deltaX);
+            const magnitude = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+            const view = map.getView();
+            if (this.lastAngle_ !== undefined) {
+                const angleDelta = this.lastAngle_ - theta;
+                view.adjustRotationInternal(angleDelta);
+            }
+            this.lastAngle_ = theta;
+            if (this.lastMagnitude_ !== undefined) {
+                view.adjustResolutionInternal(this.lastMagnitude_ / magnitude);
+            }
+            if (this.lastMagnitude_ !== undefined) {
+                this.lastScaleDelta_ = this.lastMagnitude_ / magnitude;
+            }
+            this.lastMagnitude_ = magnitude;
+        }
+        handleUpEvent(mapBrowserEvent) {
+            if (!condition_js_8.mouseOnly(mapBrowserEvent)) {
+                return true;
+            }
+            const map = mapBrowserEvent.map;
+            const view = map.getView();
+            const direction = this.lastScaleDelta_ > 1 ? 1 : -1;
+            view.endInteraction(this.duration_, direction);
+            this.lastScaleDelta_ = 0;
+            return false;
+        }
+        handleDownEvent(mapBrowserEvent) {
+            if (!condition_js_8.mouseOnly(mapBrowserEvent)) {
+                return false;
+            }
+            if (this.condition_(mapBrowserEvent)) {
+                mapBrowserEvent.map.getView().beginInteraction();
+                this.lastAngle_ = undefined;
+                this.lastMagnitude_ = undefined;
+                return true;
+            }
+            else {
+                return false;
+            }
+        }
+    }
+    exports.default = DragRotateAndZoom;
+});
+define("node_modules/ol/src/source/TileEventType", ["require", "exports"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.default = {
+        TILELOADSTART: 'tileloadstart',
+        TILELOADEND: 'tileloadend',
+        TILELOADERROR: 'tileloaderror',
+    };
+});
+define("node_modules/ol/src/tileurlfunction", ["require", "exports", "node_modules/ol/src/asserts", "node_modules/ol/src/math", "node_modules/ol/src/tilecoord"], function (require, exports, asserts_js_17, math_js_20, tilecoord_js_4) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.expandUrl = exports.nullTileUrlFunction = exports.createFromTileUrlFunctions = exports.createFromTemplates = exports.createFromTemplate = void 0;
+    function createFromTemplate(template, tileGrid) {
+        const zRegEx = /\{z\}/g;
+        const xRegEx = /\{x\}/g;
+        const yRegEx = /\{y\}/g;
+        const dashYRegEx = /\{-y\}/g;
+        return (function (tileCoord, pixelRatio, projection) {
+            if (!tileCoord) {
+                return undefined;
+            }
+            else {
+                return template
+                    .replace(zRegEx, tileCoord[0].toString())
+                    .replace(xRegEx, tileCoord[1].toString())
+                    .replace(yRegEx, tileCoord[2].toString())
+                    .replace(dashYRegEx, function () {
+                    const z = tileCoord[0];
+                    const range = tileGrid.getFullTileRange(z);
+                    asserts_js_17.assert(range, 55);
+                    const y = range.getHeight() - tileCoord[2] - 1;
+                    return y.toString();
+                });
+            }
+        });
+    }
+    exports.createFromTemplate = createFromTemplate;
+    function createFromTemplates(templates, tileGrid) {
+        const len = templates.length;
+        const tileUrlFunctions = new Array(len);
+        for (let i = 0; i < len; ++i) {
+            tileUrlFunctions[i] = createFromTemplate(templates[i], tileGrid);
+        }
+        return createFromTileUrlFunctions(tileUrlFunctions);
+    }
+    exports.createFromTemplates = createFromTemplates;
+    function createFromTileUrlFunctions(tileUrlFunctions) {
+        if (tileUrlFunctions.length === 1) {
+            return tileUrlFunctions[0];
+        }
+        return (function (tileCoord, pixelRatio, projection) {
+            if (!tileCoord) {
+                return undefined;
+            }
+            else {
+                const h = tilecoord_js_4.hash(tileCoord);
+                const index = math_js_20.modulo(h, tileUrlFunctions.length);
+                return tileUrlFunctions[index](tileCoord, pixelRatio, projection);
+            }
+        });
+    }
+    exports.createFromTileUrlFunctions = createFromTileUrlFunctions;
+    function nullTileUrlFunction(tileCoord, pixelRatio, projection) {
+        return undefined;
+    }
+    exports.nullTileUrlFunction = nullTileUrlFunction;
+    function expandUrl(url) {
+        const urls = [];
+        let match = /\{([a-z])-([a-z])\}/.exec(url);
+        if (match) {
+            const startCharCode = match[1].charCodeAt(0);
+            const stopCharCode = match[2].charCodeAt(0);
+            let charCode;
+            for (charCode = startCharCode; charCode <= stopCharCode; ++charCode) {
+                urls.push(url.replace(match[0], String.fromCharCode(charCode)));
+            }
+            return urls;
+        }
+        match = /\{(\d+)-(\d+)\}/.exec(url);
+        if (match) {
+            const stop = parseInt(match[2], 10);
+            for (let i = parseInt(match[1], 10); i <= stop; i++) {
+                urls.push(url.replace(match[0], i.toString()));
+            }
+            return urls;
+        }
+        urls.push(url);
+        return urls;
+    }
+    exports.expandUrl = expandUrl;
+});
+define("node_modules/ol/src/source/UrlTile", ["require", "exports", "node_modules/ol/src/source/TileEventType", "node_modules/ol/src/source/Tile", "node_modules/ol/src/TileState", "node_modules/ol/src/tileurlfunction", "node_modules/ol/src/tilecoord", "node_modules/ol/src/util"], function (require, exports, TileEventType_js_1, Tile_js_2, TileState_js_5, tileurlfunction_js_1, tilecoord_js_5, util_js_19) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    class UrlTile extends Tile_js_2.default {
+        constructor(options) {
+            super({
+                attributions: options.attributions,
+                cacheSize: options.cacheSize,
+                opaque: options.opaque,
+                projection: options.projection,
+                state: options.state,
+                tileGrid: options.tileGrid,
+                tilePixelRatio: options.tilePixelRatio,
+                wrapX: options.wrapX,
+                transition: options.transition,
+                key: options.key,
+                attributionsCollapsible: options.attributionsCollapsible,
+                zDirection: options.zDirection,
+            });
+            this.generateTileUrlFunction_ =
+                this.tileUrlFunction === UrlTile.prototype.tileUrlFunction;
+            this.tileLoadFunction = options.tileLoadFunction;
+            if (options.tileUrlFunction) {
+                this.tileUrlFunction = options.tileUrlFunction.bind(this);
+            }
+            this.urls = null;
+            if (options.urls) {
+                this.setUrls(options.urls);
+            }
+            else if (options.url) {
+                this.setUrl(options.url);
+            }
+            this.tileLoadingKeys_ = {};
+        }
+        getTileLoadFunction() {
+            return this.tileLoadFunction;
+        }
+        getTileUrlFunction() {
+            return this.tileUrlFunction;
+        }
+        getUrls() {
+            return this.urls;
+        }
+        handleTileChange(event) {
+            const tile = (event.target);
+            const uid = util_js_19.getUid(tile);
+            const tileState = tile.getState();
+            let type;
+            if (tileState == TileState_js_5.default.LOADING) {
+                this.tileLoadingKeys_[uid] = true;
+                type = TileEventType_js_1.default.TILELOADSTART;
+            }
+            else if (uid in this.tileLoadingKeys_) {
+                delete this.tileLoadingKeys_[uid];
+                type =
+                    tileState == TileState_js_5.default.ERROR
+                        ? TileEventType_js_1.default.TILELOADERROR
+                        : tileState == TileState_js_5.default.LOADED
+                            ? TileEventType_js_1.default.TILELOADEND
+                            : undefined;
+            }
+            if (type != undefined) {
+                this.dispatchEvent(new Tile_js_2.TileSourceEvent(type, tile));
+            }
+        }
+        setTileLoadFunction(tileLoadFunction) {
+            this.tileCache.clear();
+            this.tileLoadFunction = tileLoadFunction;
+            this.changed();
+        }
+        setTileUrlFunction(tileUrlFunction, key) {
+            this.tileUrlFunction = tileUrlFunction;
+            this.tileCache.pruneExceptNewestZ();
+            if (typeof key !== 'undefined') {
+                this.setKey(key);
+            }
+            else {
+                this.changed();
+            }
+        }
+        setUrl(url) {
+            const urls = tileurlfunction_js_1.expandUrl(url);
+            this.urls = urls;
+            this.setUrls(urls);
+        }
+        setUrls(urls) {
+            this.urls = urls;
+            const key = urls.join('\n');
+            if (this.generateTileUrlFunction_) {
+                this.setTileUrlFunction(tileurlfunction_js_1.createFromTemplates(urls, this.tileGrid), key);
+            }
+            else {
+                this.setKey(key);
+            }
+        }
+        tileUrlFunction(tileCoord, pixelRatio, projection) {
+            return undefined;
+        }
+        useTile(z, x, y) {
+            const tileCoordKey = tilecoord_js_5.getKeyZXY(z, x, y);
+            if (this.tileCache.containsKey(tileCoordKey)) {
+                this.tileCache.get(tileCoordKey);
+            }
+        }
+    }
+    exports.default = UrlTile;
+});
+define("node_modules/ol/src/geom/flat/textpath", ["require", "exports", "node_modules/ol/src/math", "node_modules/ol/src/geom/flat/transform"], function (require, exports, math_js_21, transform_js_13) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.drawTextOnPath = void 0;
+    function drawTextOnPath(flatCoordinates, offset, end, stride, text, startM, maxAngle, scale, measureAndCacheTextWidth, font, cache, rotation) {
+        const result = [];
+        let reverse;
+        if (rotation) {
+            const rotatedCoordinates = transform_js_13.rotate(flatCoordinates, offset, end, stride, rotation, [flatCoordinates[offset], flatCoordinates[offset + 1]]);
+            reverse =
+                rotatedCoordinates[0] >
+                    rotatedCoordinates[rotatedCoordinates.length - stride];
+        }
+        else {
+            reverse = flatCoordinates[offset] > flatCoordinates[end - stride];
+        }
+        const numChars = text.length;
+        let x1 = flatCoordinates[offset];
+        let y1 = flatCoordinates[offset + 1];
+        offset += stride;
+        let x2 = flatCoordinates[offset];
+        let y2 = flatCoordinates[offset + 1];
+        let segmentM = 0;
+        let segmentLength = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+        let angleChanged = false;
+        let index, previousAngle;
+        for (let i = 0; i < numChars; ++i) {
+            index = reverse ? numChars - i - 1 : i;
+            const char = text[index];
+            const charLength = scale * measureAndCacheTextWidth(font, char, cache);
+            const charM = startM + charLength / 2;
+            while (offset < end - stride && segmentM + segmentLength < charM) {
+                x1 = x2;
+                y1 = y2;
+                offset += stride;
+                x2 = flatCoordinates[offset];
+                y2 = flatCoordinates[offset + 1];
+                segmentM += segmentLength;
+                segmentLength = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+            }
+            const segmentPos = charM - segmentM;
+            let angle = Math.atan2(y2 - y1, x2 - x1);
+            if (reverse) {
+                angle += angle > 0 ? -Math.PI : Math.PI;
+            }
+            if (previousAngle !== undefined) {
+                let delta = angle - previousAngle;
+                angleChanged = angleChanged || delta !== 0;
+                delta +=
+                    delta > Math.PI ? -2 * Math.PI : delta < -Math.PI ? 2 * Math.PI : 0;
+                if (Math.abs(delta) > maxAngle) {
+                    return null;
+                }
+            }
+            previousAngle = angle;
+            const interpolate = segmentPos / segmentLength;
+            const x = math_js_21.lerp(x1, x2, interpolate);
+            const y = math_js_21.lerp(y1, y2, interpolate);
+            result[index] = [x, y, charLength / 2, angle, char];
+            startM += charLength;
+        }
+        return angleChanged
+            ? result
+            : [[result[0][0], result[0][1], result[0][2], result[0][3], text]];
+    }
+    exports.drawTextOnPath = drawTextOnPath;
+});
+define("node_modules/ol/src/render/canvas/Executor", ["require", "exports", "node_modules/ol/src/render/canvas/Instruction", "node_modules/rbush/index", "node_modules/ol/src/render/canvas/TextBuilder", "node_modules/ol/src/has", "node_modules/ol/src/transform", "node_modules/ol/src/extent", "node_modules/ol/src/render/canvas", "node_modules/ol/src/render/canvas", "node_modules/ol/src/geom/flat/textpath", "node_modules/ol/src/array", "node_modules/ol/src/geom/flat/length", "node_modules/ol/src/geom/flat/transform"], function (require, exports, Instruction_js_6, rbush_js_2, TextBuilder_js_2, has_js_9, transform_js_14, extent_js_34, canvas_js_7, canvas_js_8, textpath_js_1, array_js_17, length_js_2, transform_js_15) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    const tmpExtent = extent_js_34.createEmpty();
+    const tmpTransform = transform_js_14.create();
+    const p1 = [];
+    const p2 = [];
+    const p3 = [];
+    const p4 = [];
+    class Executor {
+        constructor(resolution, pixelRatio, overlaps, instructions, renderBuffer) {
+            this.overlaps = overlaps;
+            this.pixelRatio = pixelRatio;
+            this.resolution = resolution;
+            this.alignFill_;
+            this.declutterItems = [];
+            this.instructions = instructions.instructions;
+            this.coordinates = instructions.coordinates;
+            this.coordinateCache_ = {};
+            this.renderBuffer_ = renderBuffer;
+            this.renderedTransform_ = transform_js_14.create();
+            this.hitDetectionInstructions = instructions.hitDetectionInstructions;
+            this.pixelCoordinates_ = null;
+            this.viewRotation_ = 0;
+            this.fillStates = instructions.fillStates || {};
+            this.strokeStates = instructions.strokeStates || {};
+            this.textStates = instructions.textStates || {};
+            this.widths_ = {};
+            this.labels_ = {};
+        }
+        createLabel(text, textKey, fillKey, strokeKey) {
+            const key = text + textKey + fillKey + strokeKey;
+            if (this.labels_[key]) {
+                return this.labels_[key];
+            }
+            const strokeState = strokeKey ? this.strokeStates[strokeKey] : null;
+            const fillState = fillKey ? this.fillStates[fillKey] : null;
+            const textState = this.textStates[textKey];
+            const pixelRatio = this.pixelRatio;
+            const scale = [
+                textState.scale[0] * pixelRatio,
+                textState.scale[1] * pixelRatio,
+            ];
+            const align = TextBuilder_js_2.TEXT_ALIGN[textState.textAlign || canvas_js_8.defaultTextAlign];
+            const strokeWidth = strokeKey && strokeState.lineWidth ? strokeState.lineWidth : 0;
+            const lines = text.split('\n');
+            const numLines = lines.length;
+            const widths = [];
+            const width = canvas_js_8.measureTextWidths(textState.font, lines, widths);
+            const lineHeight = canvas_js_8.measureTextHeight(textState.font);
+            const height = lineHeight * numLines;
+            const renderWidth = width + strokeWidth;
+            const contextInstructions = [];
+            const w = (renderWidth + 2) * scale[0];
+            const h = (height + strokeWidth) * scale[1];
+            const label = {
+                width: w < 0 ? Math.floor(w) : Math.ceil(w),
+                height: h < 0 ? Math.floor(h) : Math.ceil(h),
+                contextInstructions: contextInstructions,
+            };
+            if (scale[0] != 1 || scale[1] != 1) {
+                contextInstructions.push('scale', scale);
+            }
+            contextInstructions.push('font', textState.font);
+            if (strokeKey) {
+                contextInstructions.push('strokeStyle', strokeState.strokeStyle);
+                contextInstructions.push('lineWidth', strokeWidth);
+                contextInstructions.push('lineCap', strokeState.lineCap);
+                contextInstructions.push('lineJoin', strokeState.lineJoin);
+                contextInstructions.push('miterLimit', strokeState.miterLimit);
+                const Context = has_js_9.WORKER_OFFSCREEN_CANVAS ? OffscreenCanvasRenderingContext2D : CanvasRenderingContext2D;
+                if (Context.prototype.setLineDash) {
+                    contextInstructions.push('setLineDash', [strokeState.lineDash]);
+                    contextInstructions.push('lineDashOffset', strokeState.lineDashOffset);
+                }
+            }
+            if (fillKey) {
+                contextInstructions.push('fillStyle', fillState.fillStyle);
+            }
+            contextInstructions.push('textBaseline', 'middle');
+            contextInstructions.push('textAlign', 'center');
+            const leftRight = 0.5 - align;
+            const x = align * renderWidth + leftRight * strokeWidth;
+            let i;
+            if (strokeKey) {
+                for (i = 0; i < numLines; ++i) {
+                    contextInstructions.push('strokeText', [
+                        lines[i],
+                        x + leftRight * widths[i],
+                        0.5 * (strokeWidth + lineHeight) + i * lineHeight,
+                    ]);
+                }
+            }
+            if (fillKey) {
+                for (i = 0; i < numLines; ++i) {
+                    contextInstructions.push('fillText', [
+                        lines[i],
+                        x + leftRight * widths[i],
+                        0.5 * (strokeWidth + lineHeight) + i * lineHeight,
+                    ]);
+                }
+            }
+            this.labels_[key] = label;
+            return label;
+        }
+        replayTextBackground_(context, p1, p2, p3, p4, fillInstruction, strokeInstruction, declutter) {
+            context.beginPath();
+            context.moveTo.apply(context, p1);
+            context.lineTo.apply(context, p2);
+            context.lineTo.apply(context, p3);
+            context.lineTo.apply(context, p4);
+            context.lineTo.apply(context, p1);
+            if (fillInstruction) {
+                this.alignFill_ = (fillInstruction[2]);
+                if (declutter) {
+                    context.fillStyle = (fillInstruction[1]);
+                }
+                this.fill_(context);
+            }
+            if (strokeInstruction) {
+                this.setStrokeStyle_(context, (strokeInstruction));
+                context.stroke();
+            }
+        }
+        replayImageOrLabel_(context, contextScale, x, y, imageOrLabel, anchorX, anchorY, declutterGroup, height, opacity, originX, originY, rotation, scale, snapToPixel, width, padding, fillInstruction, strokeInstruction) {
+            const fillStroke = fillInstruction || strokeInstruction;
+            anchorX *= scale[0];
+            anchorY *= scale[1];
+            x -= anchorX;
+            y -= anchorY;
+            const w = width + originX > imageOrLabel.width
+                ? imageOrLabel.width - originX
+                : width;
+            const h = height + originY > imageOrLabel.height
+                ? imageOrLabel.height - originY
+                : height;
+            const boxW = padding[3] + w * scale[0] + padding[1];
+            const boxH = padding[0] + h * scale[1] + padding[2];
+            const boxX = x - padding[3];
+            const boxY = y - padding[0];
+            if (fillStroke || rotation !== 0) {
+                p1[0] = boxX;
+                p4[0] = boxX;
+                p1[1] = boxY;
+                p2[1] = boxY;
+                p2[0] = boxX + boxW;
+                p3[0] = p2[0];
+                p3[1] = boxY + boxH;
+                p4[1] = p3[1];
+            }
+            let transform = null;
+            if (rotation !== 0) {
+                const centerX = x + anchorX;
+                const centerY = y + anchorY;
+                transform = transform_js_14.compose(tmpTransform, centerX, centerY, 1, 1, rotation, -centerX, -centerY);
+                transform_js_14.apply(tmpTransform, p1);
+                transform_js_14.apply(tmpTransform, p2);
+                transform_js_14.apply(tmpTransform, p3);
+                transform_js_14.apply(tmpTransform, p4);
+                extent_js_34.createOrUpdate(Math.min(p1[0], p2[0], p3[0], p4[0]), Math.min(p1[1], p2[1], p3[1], p4[1]), Math.max(p1[0], p2[0], p3[0], p4[0]), Math.max(p1[1], p2[1], p3[1], p4[1]), tmpExtent);
+            }
+            else {
+                extent_js_34.createOrUpdate(boxX, boxY, boxX + boxW, boxY + boxH, tmpExtent);
+            }
+            let renderBufferX = 0;
+            let renderBufferY = 0;
+            if (declutterGroup) {
+                const renderBuffer = this.renderBuffer_;
+                renderBuffer[0] = Math.max(renderBuffer[0], extent_js_34.getWidth(tmpExtent));
+                renderBufferX = renderBuffer[0];
+                renderBuffer[1] = Math.max(renderBuffer[1], extent_js_34.getHeight(tmpExtent));
+                renderBufferY = renderBuffer[1];
+            }
+            const canvas = context.canvas;
+            const strokePadding = strokeInstruction
+                ? (strokeInstruction[2] * scale[0]) / 2
+                : 0;
+            const intersects = tmpExtent[0] - strokePadding <=
+                (canvas.width + renderBufferX) / contextScale &&
+                tmpExtent[2] + strokePadding >= -renderBufferX / contextScale &&
+                tmpExtent[1] - strokePadding <=
+                    (canvas.height + renderBufferY) / contextScale &&
+                tmpExtent[3] + strokePadding >= -renderBufferY / contextScale;
+            if (snapToPixel) {
+                x = Math.round(x);
+                y = Math.round(y);
+            }
+            if (declutterGroup) {
+                if (!intersects && declutterGroup[0] == 1) {
+                    return false;
+                }
+                const declutterArgs = intersects
+                    ? [
+                        context,
+                        transform ? transform.slice(0) : null,
+                        opacity,
+                        imageOrLabel,
+                        originX,
+                        originY,
+                        w,
+                        h,
+                        x,
+                        y,
+                        scale,
+                        tmpExtent.slice(),
+                    ]
+                    : null;
+                if (declutterArgs) {
+                    if (fillStroke) {
+                        declutterArgs.push(fillInstruction, strokeInstruction, p1.slice(0), p2.slice(0), p3.slice(0), p4.slice(0));
+                    }
+                    declutterGroup.push(declutterArgs);
+                }
+            }
+            else if (intersects) {
+                if (fillStroke) {
+                    this.replayTextBackground_(context, p1, p2, p3, p4, (fillInstruction), (strokeInstruction), false);
+                }
+                canvas_js_7.drawImageOrLabel(context, transform, opacity, imageOrLabel, originX, originY, w, h, x, y, scale);
+            }
+            return true;
+        }
+        fill_(context) {
+            if (this.alignFill_) {
+                const origin = transform_js_14.apply(this.renderedTransform_, [0, 0]);
+                const repeatSize = 512 * this.pixelRatio;
+                context.save();
+                context.translate(origin[0] % repeatSize, origin[1] % repeatSize);
+                context.rotate(this.viewRotation_);
+            }
+            context.fill();
+            if (this.alignFill_) {
+                context.restore();
+            }
+        }
+        setStrokeStyle_(context, instruction) {
+            context.strokeStyle = (instruction[1]);
+            context.lineWidth = (instruction[2]);
+            context.lineCap = (instruction[3]);
+            context.lineJoin = (instruction[4]);
+            context.miterLimit = (instruction[5]);
+            if (context.setLineDash) {
+                context.lineDashOffset = (instruction[7]);
+                context.setLineDash((instruction[6]));
+            }
+        }
+        renderDeclutter(declutterGroup, feature, opacity, declutterTree) {
+            const boxes = [];
+            for (let i = 1, ii = declutterGroup.length; i < ii; ++i) {
+                const declutterData = declutterGroup[i];
+                const box = declutterData[11];
+                boxes.push({
+                    minX: box[0],
+                    minY: box[1],
+                    maxX: box[2],
+                    maxY: box[3],
+                    value: feature,
+                });
+            }
+            if (!declutterTree) {
+                declutterTree = new rbush_js_2.default(9);
+            }
+            let collides = false;
+            for (let i = 0, ii = boxes.length; i < ii; ++i) {
+                if (declutterTree.collides(boxes[i])) {
+                    collides = true;
+                    break;
+                }
+            }
+            if (!collides) {
+                declutterTree.load(boxes);
+                for (let j = 1, jj = declutterGroup.length; j < jj; ++j) {
+                    const declutterData = (declutterGroup[j]);
+                    const context = declutterData[0];
+                    const currentAlpha = context.globalAlpha;
+                    if (currentAlpha !== opacity) {
+                        context.globalAlpha = opacity;
+                    }
+                    if (declutterData.length > 12) {
+                        this.replayTextBackground_(declutterData[0], declutterData[14], declutterData[15], declutterData[16], declutterData[17], declutterData[12], declutterData[13], true);
+                    }
+                    canvas_js_7.drawImageOrLabel.apply(undefined, declutterData);
+                    if (currentAlpha !== opacity) {
+                        context.globalAlpha = currentAlpha;
+                    }
+                }
+            }
+            declutterGroup.length = 1;
+            return declutterTree;
+        }
+        drawLabelWithPointPlacement_(text, textKey, strokeKey, fillKey) {
+            const textState = this.textStates[textKey];
+            const label = this.createLabel(text, textKey, fillKey, strokeKey);
+            const strokeState = this.strokeStates[strokeKey];
+            const pixelRatio = this.pixelRatio;
+            const align = TextBuilder_js_2.TEXT_ALIGN[textState.textAlign || canvas_js_8.defaultTextAlign];
+            const baseline = TextBuilder_js_2.TEXT_ALIGN[textState.textBaseline || canvas_js_7.defaultTextBaseline];
+            const strokeWidth = strokeState && strokeState.lineWidth ? strokeState.lineWidth : 0;
+            const width = label.width / pixelRatio - 2 * textState.scale[0];
+            const anchorX = align * width + 2 * (0.5 - align) * strokeWidth;
+            const anchorY = (baseline * label.height) / pixelRatio +
+                2 * (0.5 - baseline) * strokeWidth;
+            return {
+                label: label,
+                anchorX: anchorX,
+                anchorY: anchorY,
+            };
+        }
+        execute_(context, contextScale, transform, instructions, snapToPixel, featureCallback, opt_hitExtent) {
+            this.declutterItems.length = 0;
+            let pixelCoordinates;
+            if (this.pixelCoordinates_ && array_js_17.equals(transform, this.renderedTransform_)) {
+                pixelCoordinates = this.pixelCoordinates_;
+            }
+            else {
+                if (!this.pixelCoordinates_) {
+                    this.pixelCoordinates_ = [];
+                }
+                pixelCoordinates = transform_js_15.transform2D(this.coordinates, 0, this.coordinates.length, 2, transform, this.pixelCoordinates_);
+                transform_js_14.setFromArray(this.renderedTransform_, transform);
+            }
+            let i = 0;
+            const ii = instructions.length;
+            let d = 0;
+            let dd;
+            let anchorX, anchorY, prevX, prevY, roundX, roundY, declutterGroup, declutterGroups, image, text, textKey;
+            let strokeKey, fillKey;
+            let pendingFill = 0;
+            let pendingStroke = 0;
+            let lastFillInstruction = null;
+            let lastStrokeInstruction = null;
+            const coordinateCache = this.coordinateCache_;
+            const viewRotation = this.viewRotation_;
+            const viewRotationFromTransform = Math.round(Math.atan2(-transform[1], transform[0]) * 1e12) / 1e12;
+            const state = ({
+                context: context,
+                pixelRatio: this.pixelRatio,
+                resolution: this.resolution,
+                rotation: viewRotation,
+            });
+            const batchSize = this.instructions != instructions || this.overlaps ? 0 : 200;
+            let feature;
+            let x, y;
+            while (i < ii) {
+                const instruction = instructions[i];
+                const type = (instruction[0]);
+                switch (type) {
+                    case Instruction_js_6.default.BEGIN_GEOMETRY:
+                        feature = (instruction[1]);
+                        if (!feature.getGeometry()) {
+                            i = (instruction[2]);
+                        }
+                        else if (opt_hitExtent !== undefined &&
+                            !extent_js_34.intersects(opt_hitExtent, instruction[3])) {
+                            i = (instruction[2]) + 1;
+                        }
+                        else {
+                            ++i;
+                        }
+                        break;
+                    case Instruction_js_6.default.BEGIN_PATH:
+                        if (pendingFill > batchSize) {
+                            this.fill_(context);
+                            pendingFill = 0;
+                        }
+                        if (pendingStroke > batchSize) {
+                            context.stroke();
+                            pendingStroke = 0;
+                        }
+                        if (!pendingFill && !pendingStroke) {
+                            context.beginPath();
+                            prevX = NaN;
+                            prevY = NaN;
+                        }
+                        ++i;
+                        break;
+                    case Instruction_js_6.default.CIRCLE:
+                        d = (instruction[1]);
+                        const x1 = pixelCoordinates[d];
+                        const y1 = pixelCoordinates[d + 1];
+                        const x2 = pixelCoordinates[d + 2];
+                        const y2 = pixelCoordinates[d + 3];
+                        const dx = x2 - x1;
+                        const dy = y2 - y1;
+                        const r = Math.sqrt(dx * dx + dy * dy);
+                        context.moveTo(x1 + r, y1);
+                        context.arc(x1, y1, r, 0, 2 * Math.PI, true);
+                        ++i;
+                        break;
+                    case Instruction_js_6.default.CLOSE_PATH:
+                        context.closePath();
+                        ++i;
+                        break;
+                    case Instruction_js_6.default.CUSTOM:
+                        d = (instruction[1]);
+                        dd = instruction[2];
+                        const geometry = (instruction[3]);
+                        const renderer = instruction[4];
+                        const fn = instruction.length == 6 ? instruction[5] : undefined;
+                        state.geometry = geometry;
+                        state.feature = feature;
+                        if (!(i in coordinateCache)) {
+                            coordinateCache[i] = [];
+                        }
+                        const coords = coordinateCache[i];
+                        if (fn) {
+                            fn(pixelCoordinates, d, dd, 2, coords);
+                        }
+                        else {
+                            coords[0] = pixelCoordinates[d];
+                            coords[1] = pixelCoordinates[d + 1];
+                            coords.length = 2;
+                        }
+                        renderer(coords, state);
+                        ++i;
+                        break;
+                    case Instruction_js_6.default.DRAW_IMAGE:
+                        d = (instruction[1]);
+                        dd = (instruction[2]);
+                        image = (instruction[3]);
+                        anchorX = (instruction[4]);
+                        anchorY = (instruction[5]);
+                        declutterGroups = featureCallback ? null : instruction[6];
+                        let height = (instruction[7]);
+                        const opacity = (instruction[8]);
+                        const originX = (instruction[9]);
+                        const originY = (instruction[10]);
+                        const rotateWithView = (instruction[11]);
+                        let rotation = (instruction[12]);
+                        const scale = (instruction[13]);
+                        let width = (instruction[14]);
+                        if (!image && instruction.length >= 19) {
+                            text = (instruction[18]);
+                            textKey = (instruction[19]);
+                            strokeKey = (instruction[20]);
+                            fillKey = (instruction[21]);
+                            const labelWithAnchor = this.drawLabelWithPointPlacement_(text, textKey, strokeKey, fillKey);
+                            image = labelWithAnchor.label;
+                            instruction[3] = image;
+                            const textOffsetX = (instruction[22]);
+                            anchorX = (labelWithAnchor.anchorX - textOffsetX) * this.pixelRatio;
+                            instruction[4] = anchorX;
+                            const textOffsetY = (instruction[23]);
+                            anchorY = (labelWithAnchor.anchorY - textOffsetY) * this.pixelRatio;
+                            instruction[5] = anchorY;
+                            height = image.height;
+                            instruction[7] = height;
+                            width = image.width;
+                            instruction[14] = width;
+                        }
+                        let geometryWidths;
+                        if (instruction.length > 24) {
+                            geometryWidths = (instruction[24]);
+                        }
+                        let padding, backgroundFill, backgroundStroke;
+                        if (instruction.length > 16) {
+                            padding = (instruction[15]);
+                            backgroundFill = (instruction[16]);
+                            backgroundStroke = (instruction[17]);
+                        }
+                        else {
+                            padding = canvas_js_7.defaultPadding;
+                            backgroundFill = false;
+                            backgroundStroke = false;
+                        }
+                        if (rotateWithView && viewRotationFromTransform) {
+                            rotation += viewRotation;
+                        }
+                        else if (!rotateWithView && !viewRotationFromTransform) {
+                            rotation -= viewRotation;
+                        }
+                        let widthIndex = 0;
+                        let declutterGroupIndex = 0;
+                        for (; d < dd; d += 2) {
+                            if (geometryWidths &&
+                                geometryWidths[widthIndex++] < width / this.pixelRatio) {
+                                continue;
+                            }
+                            if (declutterGroups) {
+                                const index = Math.floor(declutterGroupIndex);
+                                declutterGroup =
+                                    declutterGroups.length < index + 1
+                                        ? [declutterGroups[0][0]]
+                                        : declutterGroups[index];
+                            }
+                            const rendered = this.replayImageOrLabel_(context, contextScale, pixelCoordinates[d], pixelCoordinates[d + 1], image, anchorX, anchorY, declutterGroup, height, opacity, originX, originY, rotation, scale, snapToPixel, width, padding, backgroundFill
+                                ? (lastFillInstruction)
+                                : null, backgroundStroke
+                                ? (lastStrokeInstruction)
+                                : null);
+                            if (rendered &&
+                                declutterGroup &&
+                                declutterGroups[declutterGroups.length - 1] !== declutterGroup) {
+                                declutterGroups.push(declutterGroup);
+                            }
+                            if (declutterGroup) {
+                                if (declutterGroup.length - 1 === declutterGroup[0]) {
+                                    this.declutterItems.push(this, declutterGroup, feature);
+                                }
+                                declutterGroupIndex += 1 / declutterGroup[0];
+                            }
+                        }
+                        ++i;
+                        break;
+                    case Instruction_js_6.default.DRAW_CHARS:
+                        const begin = (instruction[1]);
+                        const end = (instruction[2]);
+                        const baseline = (instruction[3]);
+                        declutterGroup = featureCallback ? null : instruction[4];
+                        const overflow = (instruction[5]);
+                        fillKey = (instruction[6]);
+                        const maxAngle = (instruction[7]);
+                        const measurePixelRatio = (instruction[8]);
+                        const offsetY = (instruction[9]);
+                        strokeKey = (instruction[10]);
+                        const strokeWidth = (instruction[11]);
+                        text = (instruction[12]);
+                        textKey = (instruction[13]);
+                        const pixelRatioScale = [
+                            (instruction[14]),
+                            (instruction[14]),
+                        ];
+                        const textState = this.textStates[textKey];
+                        const font = textState.font;
+                        const textScale = [
+                            textState.scale[0] * measurePixelRatio,
+                            textState.scale[1] * measurePixelRatio,
+                        ];
+                        let cachedWidths;
+                        if (font in this.widths_) {
+                            cachedWidths = this.widths_[font];
+                        }
+                        else {
+                            cachedWidths = {};
+                            this.widths_[font] = cachedWidths;
+                        }
+                        const pathLength = length_js_2.lineStringLength(pixelCoordinates, begin, end, 2);
+                        const textLength = Math.abs(textScale[0]) *
+                            canvas_js_8.measureAndCacheTextWidth(font, text, cachedWidths);
+                        if (overflow || textLength <= pathLength) {
+                            const textAlign = this.textStates[textKey].textAlign;
+                            const startM = (pathLength - textLength) * TextBuilder_js_2.TEXT_ALIGN[textAlign];
+                            const parts = textpath_js_1.drawTextOnPath(pixelCoordinates, begin, end, 2, text, startM, maxAngle, Math.abs(textScale[0]), canvas_js_8.measureAndCacheTextWidth, font, cachedWidths, viewRotationFromTransform ? 0 : this.viewRotation_);
+                            if (parts) {
+                                let rendered = false;
+                                let c, cc, chars, label, part;
+                                if (strokeKey) {
+                                    for (c = 0, cc = parts.length; c < cc; ++c) {
+                                        part = parts[c];
+                                        chars = (part[4]);
+                                        label = this.createLabel(chars, textKey, '', strokeKey);
+                                        anchorX = (part[2]) + strokeWidth;
+                                        anchorY =
+                                            baseline * label.height +
+                                                ((0.5 - baseline) * 2 * strokeWidth * textScale[1]) /
+                                                    textScale[0] -
+                                                offsetY;
+                                        rendered =
+                                            this.replayImageOrLabel_(context, contextScale, (part[0]), (part[1]), label, anchorX, anchorY, declutterGroup, label.height, 1, 0, 0, (part[3]), pixelRatioScale, false, label.width, canvas_js_7.defaultPadding, null, null) || rendered;
+                                    }
+                                }
+                                if (fillKey) {
+                                    for (c = 0, cc = parts.length; c < cc; ++c) {
+                                        part = parts[c];
+                                        chars = (part[4]);
+                                        label = this.createLabel(chars, textKey, fillKey, '');
+                                        anchorX = (part[2]);
+                                        anchorY = baseline * label.height - offsetY;
+                                        rendered =
+                                            this.replayImageOrLabel_(context, contextScale, (part[0]), (part[1]), label, anchorX, anchorY, declutterGroup, label.height, 1, 0, 0, (part[3]), pixelRatioScale, false, label.width, canvas_js_7.defaultPadding, null, null) || rendered;
+                                    }
+                                }
+                                if (rendered) {
+                                    this.declutterItems.push(this, declutterGroup, feature);
+                                }
+                            }
+                        }
+                        ++i;
+                        break;
+                    case Instruction_js_6.default.END_GEOMETRY:
+                        if (featureCallback !== undefined) {
+                            feature = (instruction[1]);
+                            const result = featureCallback(feature);
+                            if (result) {
+                                return result;
+                            }
+                        }
+                        ++i;
+                        break;
+                    case Instruction_js_6.default.FILL:
+                        if (batchSize) {
+                            pendingFill++;
+                        }
+                        else {
+                            this.fill_(context);
+                        }
+                        ++i;
+                        break;
+                    case Instruction_js_6.default.MOVE_TO_LINE_TO:
+                        d = (instruction[1]);
+                        dd = (instruction[2]);
+                        x = pixelCoordinates[d];
+                        y = pixelCoordinates[d + 1];
+                        roundX = (x + 0.5) | 0;
+                        roundY = (y + 0.5) | 0;
+                        if (roundX !== prevX || roundY !== prevY) {
+                            context.moveTo(x, y);
+                            prevX = roundX;
+                            prevY = roundY;
+                        }
+                        for (d += 2; d < dd; d += 2) {
+                            x = pixelCoordinates[d];
+                            y = pixelCoordinates[d + 1];
+                            roundX = (x + 0.5) | 0;
+                            roundY = (y + 0.5) | 0;
+                            if (d == dd - 2 || roundX !== prevX || roundY !== prevY) {
+                                context.lineTo(x, y);
+                                prevX = roundX;
+                                prevY = roundY;
+                            }
+                        }
+                        ++i;
+                        break;
+                    case Instruction_js_6.default.SET_FILL_STYLE:
+                        lastFillInstruction = instruction;
+                        this.alignFill_ = instruction[2];
+                        if (pendingFill) {
+                            this.fill_(context);
+                            pendingFill = 0;
+                            if (pendingStroke) {
+                                context.stroke();
+                                pendingStroke = 0;
+                            }
+                        }
+                        context.fillStyle = (instruction[1]);
+                        ++i;
+                        break;
+                    case Instruction_js_6.default.SET_STROKE_STYLE:
+                        lastStrokeInstruction = instruction;
+                        if (pendingStroke) {
+                            context.stroke();
+                            pendingStroke = 0;
+                        }
+                        this.setStrokeStyle_(context, (instruction));
+                        ++i;
+                        break;
+                    case Instruction_js_6.default.STROKE:
+                        if (batchSize) {
+                            pendingStroke++;
+                        }
+                        else {
+                            context.stroke();
+                        }
+                        ++i;
+                        break;
+                    default:
+                        ++i;
+                        break;
+                }
+            }
+            if (pendingFill) {
+                this.fill_(context);
+            }
+            if (pendingStroke) {
+                context.stroke();
+            }
+            return undefined;
+        }
+        execute(context, contextScale, transform, viewRotation, snapToPixel) {
+            this.viewRotation_ = viewRotation;
+            this.execute_(context, contextScale, transform, this.instructions, snapToPixel, undefined, undefined);
+        }
+        executeHitDetection(context, transform, viewRotation, opt_featureCallback, opt_hitExtent) {
+            this.viewRotation_ = viewRotation;
+            return this.execute_(context, 1, transform, this.hitDetectionInstructions, true, opt_featureCallback, opt_hitExtent);
+        }
+    }
+    exports.default = Executor;
+});
+define("node_modules/ol/src/render/canvas/ExecutorGroup", ["require", "exports", "node_modules/ol/src/render/canvas/BuilderType", "node_modules/ol/src/render/canvas/Executor", "node_modules/ol/src/extent", "node_modules/ol/src/transform", "node_modules/ol/src/dom", "node_modules/ol/src/obj", "node_modules/ol/src/array", "node_modules/ol/src/geom/flat/transform"], function (require, exports, BuilderType_js_2, Executor_js_1, extent_js_35, transform_js_16, dom_js_11, obj_js_15, array_js_18, transform_js_17) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.replayDeclutter = exports.getCircleArray = void 0;
+    const ORDER = [
+        BuilderType_js_2.default.POLYGON,
+        BuilderType_js_2.default.CIRCLE,
+        BuilderType_js_2.default.LINE_STRING,
+        BuilderType_js_2.default.IMAGE,
+        BuilderType_js_2.default.TEXT,
+        BuilderType_js_2.default.DEFAULT,
+    ];
+    class ExecutorGroup {
+        constructor(maxExtent, resolution, pixelRatio, overlaps, allInstructions, opt_renderBuffer) {
+            this.maxExtent_ = maxExtent;
+            this.overlaps_ = overlaps;
+            this.pixelRatio_ = pixelRatio;
+            this.resolution_ = resolution;
+            this.renderBuffer_ = opt_renderBuffer;
+            this.executorsByZIndex_ = {};
+            this.hitDetectionContext_ = null;
+            this.hitDetectionTransform_ = transform_js_16.create();
+            this.createExecutors_(allInstructions);
+        }
+        clip(context, transform) {
+            const flatClipCoords = this.getClipCoords(transform);
+            context.beginPath();
+            context.moveTo(flatClipCoords[0], flatClipCoords[1]);
+            context.lineTo(flatClipCoords[2], flatClipCoords[3]);
+            context.lineTo(flatClipCoords[4], flatClipCoords[5]);
+            context.lineTo(flatClipCoords[6], flatClipCoords[7]);
+            context.clip();
+        }
+        createExecutors_(allInstructions) {
+            for (const zIndex in allInstructions) {
+                let executors = this.executorsByZIndex_[zIndex];
+                if (executors === undefined) {
+                    executors = {};
+                    this.executorsByZIndex_[zIndex] = executors;
+                }
+                const instructionByZindex = allInstructions[zIndex];
+                const renderBuffer = [this.renderBuffer_ || 0, this.renderBuffer_ || 0];
+                for (const builderType in instructionByZindex) {
+                    const instructions = instructionByZindex[builderType];
+                    executors[builderType] = new Executor_js_1.default(this.resolution_, this.pixelRatio_, this.overlaps_, instructions, renderBuffer);
+                }
+            }
+        }
+        hasExecutors(executors) {
+            for (const zIndex in this.executorsByZIndex_) {
+                const candidates = this.executorsByZIndex_[zIndex];
+                for (let i = 0, ii = executors.length; i < ii; ++i) {
+                    if (executors[i] in candidates) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+        forEachFeatureAtCoordinate(coordinate, resolution, rotation, hitTolerance, callback, declutteredFeatures) {
+            hitTolerance = Math.round(hitTolerance);
+            const contextSize = hitTolerance * 2 + 1;
+            const transform = transform_js_16.compose(this.hitDetectionTransform_, hitTolerance + 0.5, hitTolerance + 0.5, 1 / resolution, -1 / resolution, -rotation, -coordinate[0], -coordinate[1]);
+            if (!this.hitDetectionContext_) {
+                this.hitDetectionContext_ = dom_js_11.createCanvasContext2D(contextSize, contextSize);
+            }
+            const context = this.hitDetectionContext_;
+            if (context.canvas.width !== contextSize ||
+                context.canvas.height !== contextSize) {
+                context.canvas.width = contextSize;
+                context.canvas.height = contextSize;
+            }
+            else {
+                context.clearRect(0, 0, contextSize, contextSize);
+            }
+            let hitExtent;
+            if (this.renderBuffer_ !== undefined) {
+                hitExtent = extent_js_35.createEmpty();
+                extent_js_35.extendCoordinate(hitExtent, coordinate);
+                extent_js_35.buffer(hitExtent, resolution * (this.renderBuffer_ + hitTolerance), hitExtent);
+            }
+            const mask = getCircleArray(hitTolerance);
+            let builderType;
+            function featureCallback(feature) {
+                const imageData = context.getImageData(0, 0, contextSize, contextSize)
+                    .data;
+                for (let i = 0; i < contextSize; i++) {
+                    for (let j = 0; j < contextSize; j++) {
+                        if (mask[i][j]) {
+                            if (imageData[(j * contextSize + i) * 4 + 3] > 0) {
+                                let result;
+                                if (!(declutteredFeatures &&
+                                    (builderType == BuilderType_js_2.default.IMAGE ||
+                                        builderType == BuilderType_js_2.default.TEXT)) ||
+                                    declutteredFeatures.indexOf(feature) !== -1) {
+                                    result = callback(feature);
+                                }
+                                if (result) {
+                                    return result;
+                                }
+                                else {
+                                    context.clearRect(0, 0, contextSize, contextSize);
+                                    return undefined;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            const zs = Object.keys(this.executorsByZIndex_).map(Number);
+            zs.sort(array_js_18.numberSafeCompareFunction);
+            let i, j, executors, executor, result;
+            for (i = zs.length - 1; i >= 0; --i) {
+                const zIndexKey = zs[i].toString();
+                executors = this.executorsByZIndex_[zIndexKey];
+                for (j = ORDER.length - 1; j >= 0; --j) {
+                    builderType = ORDER[j];
+                    executor = executors[builderType];
+                    if (executor !== undefined) {
+                        result = executor.executeHitDetection(context, transform, rotation, featureCallback, hitExtent);
+                        if (result) {
+                            return result;
+                        }
+                    }
+                }
+            }
+            return undefined;
+        }
+        getClipCoords(transform) {
+            const maxExtent = this.maxExtent_;
+            if (!maxExtent) {
+                return null;
+            }
+            const minX = maxExtent[0];
+            const minY = maxExtent[1];
+            const maxX = maxExtent[2];
+            const maxY = maxExtent[3];
+            const flatClipCoords = [minX, minY, minX, maxY, maxX, maxY, maxX, minY];
+            transform_js_17.transform2D(flatClipCoords, 0, 8, 2, transform, flatClipCoords);
+            return flatClipCoords;
+        }
+        isEmpty() {
+            return obj_js_15.isEmpty(this.executorsByZIndex_);
+        }
+        execute(context, contextScale, transform, viewRotation, snapToPixel, opt_builderTypes, opt_declutterReplays) {
+            const zs = Object.keys(this.executorsByZIndex_).map(Number);
+            zs.sort(array_js_18.numberSafeCompareFunction);
+            if (this.maxExtent_) {
+                context.save();
+                this.clip(context, transform);
+            }
+            const builderTypes = opt_builderTypes ? opt_builderTypes : ORDER;
+            let i, ii, j, jj, replays, replay;
+            for (i = 0, ii = zs.length; i < ii; ++i) {
+                const zIndexKey = zs[i].toString();
+                replays = this.executorsByZIndex_[zIndexKey];
+                for (j = 0, jj = builderTypes.length; j < jj; ++j) {
+                    const builderType = builderTypes[j];
+                    replay = replays[builderType];
+                    if (replay !== undefined) {
+                        if (opt_declutterReplays &&
+                            (builderType == BuilderType_js_2.default.IMAGE ||
+                                builderType == BuilderType_js_2.default.TEXT)) {
+                            const declutter = opt_declutterReplays[zIndexKey];
+                            if (!declutter) {
+                                opt_declutterReplays[zIndexKey] = [replay, transform.slice(0)];
+                            }
+                            else {
+                                declutter.push(replay, transform.slice(0));
+                            }
+                        }
+                        else {
+                            replay.execute(context, contextScale, transform, viewRotation, snapToPixel);
+                        }
+                    }
+                }
+            }
+            if (this.maxExtent_) {
+                context.restore();
+            }
+        }
+    }
+    const circleArrayCache = {
+        0: [[true]],
+    };
+    function fillCircleArrayRowToMiddle(array, x, y) {
+        let i;
+        const radius = Math.floor(array.length / 2);
+        if (x >= radius) {
+            for (i = radius; i < x; i++) {
+                array[i][y] = true;
+            }
+        }
+        else if (x < radius) {
+            for (i = x + 1; i < radius; i++) {
+                array[i][y] = true;
+            }
+        }
+    }
+    function getCircleArray(radius) {
+        if (circleArrayCache[radius] !== undefined) {
+            return circleArrayCache[radius];
+        }
+        const arraySize = radius * 2 + 1;
+        const arr = new Array(arraySize);
+        for (let i = 0; i < arraySize; i++) {
+            arr[i] = new Array(arraySize);
+        }
+        let x = radius;
+        let y = 0;
+        let error = 0;
+        while (x >= y) {
+            fillCircleArrayRowToMiddle(arr, radius + x, radius + y);
+            fillCircleArrayRowToMiddle(arr, radius + y, radius + x);
+            fillCircleArrayRowToMiddle(arr, radius - y, radius + x);
+            fillCircleArrayRowToMiddle(arr, radius - x, radius + y);
+            fillCircleArrayRowToMiddle(arr, radius - x, radius - y);
+            fillCircleArrayRowToMiddle(arr, radius - y, radius - x);
+            fillCircleArrayRowToMiddle(arr, radius + y, radius - x);
+            fillCircleArrayRowToMiddle(arr, radius + x, radius - y);
+            y++;
+            error += 1 + 2 * y;
+            if (2 * (error - x) + 1 > 0) {
+                x -= 1;
+                error += 1 - 2 * x;
+            }
+        }
+        circleArrayCache[radius] = arr;
+        return arr;
+    }
+    exports.getCircleArray = getCircleArray;
+    function replayDeclutter(declutterReplays, context, rotation, opacity, snapToPixel, declutterItems) {
+        const zs = Object.keys(declutterReplays)
+            .map(Number)
+            .sort(array_js_18.numberSafeCompareFunction);
+        for (let z = 0, zz = zs.length; z < zz; ++z) {
+            const executorData = declutterReplays[zs[z].toString()];
+            let currentExecutor;
+            for (let i = 0, ii = executorData.length; i < ii;) {
+                const executor = executorData[i++];
+                const transform = executorData[i++];
+                executor.execute(context, 1, transform, rotation, snapToPixel);
+                if (executor !== currentExecutor && executor.declutterItems.length > 0) {
+                    currentExecutor = executor;
+                    declutterItems.push({
+                        items: executor.declutterItems,
+                        opacity: opacity,
+                    });
+                }
+            }
+        }
+    }
+    exports.replayDeclutter = replayDeclutter;
+    exports.default = ExecutorGroup;
+});
+define("node_modules/ol/src/VectorRenderTile", ["require", "exports", "node_modules/ol/src/Tile", "node_modules/ol/src/dom", "node_modules/ol/src/util"], function (require, exports, Tile_js_3, dom_js_12, util_js_20) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    const canvasPool = [];
+    class VectorRenderTile extends Tile_js_3.default {
+        constructor(tileCoord, state, urlTileCoord, getSourceTiles) {
+            super(tileCoord, state, { transition: 0 });
+            this.context_ = {};
+            this.executorGroups = {};
+            this.loadingSourceTiles = 0;
+            this.errorSourceTileKeys = {};
+            this.hitDetectionImageData = {};
+            this.replayState_ = {};
+            this.sourceTiles = null;
+            this.wantedResolution;
+            this.getSourceTiles = getSourceTiles.bind(undefined, this);
+            this.sourceZ = -1;
+            this.hifi = false;
+            this.wrappedTileCoord = urlTileCoord;
+        }
+        getContext(layer) {
+            const key = util_js_20.getUid(layer);
+            if (!(key in this.context_)) {
+                this.context_[key] = dom_js_12.createCanvasContext2D(1, 1, canvasPool);
+            }
+            return this.context_[key];
+        }
+        hasContext(layer) {
+            return util_js_20.getUid(layer) in this.context_;
+        }
+        getImage(layer) {
+            return this.hasContext(layer) ? this.getContext(layer).canvas : null;
+        }
+        getReplayState(layer) {
+            const key = util_js_20.getUid(layer);
+            if (!(key in this.replayState_)) {
+                this.replayState_[key] = {
+                    dirty: false,
+                    renderedRenderOrder: null,
+                    renderedResolution: NaN,
+                    renderedRevision: -1,
+                    renderedTileResolution: NaN,
+                    renderedTileRevision: -1,
+                    renderedZ: -1,
+                    renderedTileZ: -1,
+                };
+            }
+            return this.replayState_[key];
+        }
+        load() {
+            this.getSourceTiles();
+        }
+        release() {
+            for (const key in this.context_) {
+                canvasPool.push(this.context_[key].canvas);
+            }
+            super.release();
+        }
+    }
+    exports.default = VectorRenderTile;
+});
+define("node_modules/ol/src/source/VectorTile", ["require", "exports", "node_modules/ol/src/events/EventType", "node_modules/ol/src/VectorTile", "node_modules/ol/src/TileCache", "node_modules/ol/src/TileState", "node_modules/ol/src/source/UrlTile", "node_modules/ol/src/VectorRenderTile", "node_modules/ol/src/extent", "node_modules/ol/src/tilegrid", "node_modules/ol/src/array", "node_modules/ol/src/tilecoord", "node_modules/ol/src/featureloader", "node_modules/ol/src/size"], function (require, exports, EventType_js_34, VectorTile_js_1, TileCache_js_2, TileState_js_6, UrlTile_js_1, VectorRenderTile_js_1, extent_js_36, tilegrid_js_2, array_js_19, tilecoord_js_6, featureloader_js_2, size_js_7) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.defaultLoadFunction = void 0;
+    class VectorTile extends UrlTile_js_1.default {
+        constructor(options) {
+            const projection = options.projection || 'EPSG:3857';
+            const extent = options.extent || tilegrid_js_2.extentFromProjection(projection);
+            const tileGrid = options.tileGrid ||
+                tilegrid_js_2.createXYZ({
+                    extent: extent,
+                    maxResolution: options.maxResolution,
+                    maxZoom: options.maxZoom !== undefined ? options.maxZoom : 22,
+                    minZoom: options.minZoom,
+                    tileSize: options.tileSize || 512,
+                });
+            super({
+                attributions: options.attributions,
+                attributionsCollapsible: options.attributionsCollapsible,
+                cacheSize: options.cacheSize,
+                opaque: false,
+                projection: projection,
+                state: options.state,
+                tileGrid: tileGrid,
+                tileLoadFunction: options.tileLoadFunction
+                    ? options.tileLoadFunction
+                    : defaultLoadFunction,
+                tileUrlFunction: options.tileUrlFunction,
+                url: options.url,
+                urls: options.urls,
+                wrapX: options.wrapX === undefined ? true : options.wrapX,
+                transition: options.transition,
+                zDirection: options.zDirection === undefined ? 1 : options.zDirection,
+            });
+            this.format_ = options.format ? options.format : null;
+            this.loadingTiles_ = {};
+            this.sourceTileCache = new TileCache_js_2.default(this.tileCache.highWaterMark);
+            this.overlaps_ = options.overlaps == undefined ? true : options.overlaps;
+            this.tileClass = options.tileClass ? options.tileClass : VectorTile_js_1.default;
+            this.tileGrids_ = {};
+        }
+        getFeaturesInExtent(extent) {
+            const features = [];
+            const tileCache = this.tileCache;
+            if (tileCache.getCount() === 0) {
+                return features;
+            }
+            const z = tilecoord_js_6.fromKey(tileCache.peekFirstKey())[0];
+            const tileGrid = this.tileGrid;
+            tileCache.forEach(function (tile) {
+                if (tile.tileCoord[0] !== z || tile.getState() !== TileState_js_6.default.LOADED) {
+                    return;
+                }
+                const sourceTiles = tile.getSourceTiles();
+                for (let i = 0, ii = sourceTiles.length; i < ii; ++i) {
+                    const sourceTile = sourceTiles[i];
+                    const tileCoord = sourceTile.tileCoord;
+                    if (extent_js_36.intersects(extent, tileGrid.getTileCoordExtent(tileCoord))) {
+                        const tileFeatures = sourceTile.getFeatures();
+                        if (tileFeatures) {
+                            for (let j = 0, jj = tileFeatures.length; j < jj; ++j) {
+                                const candidate = tileFeatures[j];
+                                const geometry = candidate.getGeometry();
+                                if (extent_js_36.intersects(extent, geometry.getExtent())) {
+                                    features.push(candidate);
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            return features;
+        }
+        getOverlaps() {
+            return this.overlaps_;
+        }
+        clear() {
+            this.tileCache.clear();
+            this.sourceTileCache.clear();
+        }
+        expireCache(projection, usedTiles) {
+            super.expireCache(projection, usedTiles);
+            this.sourceTileCache.expireCache({});
+        }
+        getSourceTiles(pixelRatio, projection, tile) {
+            const urlTileCoord = tile.wrappedTileCoord;
+            const tileGrid = this.getTileGridForProjection(projection);
+            const extent = tileGrid.getTileCoordExtent(urlTileCoord);
+            const z = urlTileCoord[0];
+            const resolution = tileGrid.getResolution(z);
+            extent_js_36.buffer(extent, -resolution, extent);
+            const sourceTileGrid = this.tileGrid;
+            const sourceExtent = sourceTileGrid.getExtent();
+            if (sourceExtent) {
+                extent_js_36.getIntersection(extent, sourceExtent, extent);
+            }
+            const sourceZ = sourceTileGrid.getZForResolution(resolution, 1);
+            const minZoom = sourceTileGrid.getMinZoom();
+            const previousSourceTiles = tile.sourceTiles;
+            let sourceTiles, covered, loadedZ;
+            if (previousSourceTiles &&
+                previousSourceTiles.length > 0 &&
+                previousSourceTiles[0].tileCoord[0] === sourceZ) {
+                sourceTiles = previousSourceTiles;
+                covered = true;
+                loadedZ = sourceZ;
+            }
+            else {
+                sourceTiles = [];
+                loadedZ = sourceZ + 1;
+                do {
+                    --loadedZ;
+                    covered = true;
+                    sourceTileGrid.forEachTileCoord(extent, loadedZ, function (sourceTileCoord) {
+                        const tileUrl = this.tileUrlFunction(sourceTileCoord, pixelRatio, projection);
+                        let sourceTile;
+                        if (tileUrl !== undefined) {
+                            if (this.sourceTileCache.containsKey(tileUrl)) {
+                                sourceTile = this.sourceTileCache.get(tileUrl);
+                                const state = sourceTile.getState();
+                                if (state === TileState_js_6.default.LOADED ||
+                                    state === TileState_js_6.default.ERROR ||
+                                    state === TileState_js_6.default.EMPTY) {
+                                    sourceTiles.push(sourceTile);
+                                    return;
+                                }
+                            }
+                            else if (loadedZ === sourceZ) {
+                                sourceTile = new this.tileClass(sourceTileCoord, TileState_js_6.default.IDLE, tileUrl, this.format_, this.tileLoadFunction);
+                                sourceTile.extent = sourceTileGrid.getTileCoordExtent(sourceTileCoord);
+                                sourceTile.projection = projection;
+                                sourceTile.resolution = sourceTileGrid.getResolution(sourceTileCoord[0]);
+                                this.sourceTileCache.set(tileUrl, sourceTile);
+                                sourceTile.addEventListener(EventType_js_34.default.CHANGE, this.handleTileChange.bind(this));
+                                sourceTile.load();
+                            }
+                        }
+                        covered =
+                            covered &&
+                                sourceTile &&
+                                sourceTile.getState() === TileState_js_6.default.LOADED;
+                        if (!sourceTile) {
+                            return;
+                        }
+                        if (sourceTile.getState() !== TileState_js_6.default.EMPTY &&
+                            tile.getState() === TileState_js_6.default.IDLE) {
+                            tile.loadingSourceTiles++;
+                            sourceTile.addEventListener(EventType_js_34.default.CHANGE, function listenChange() {
+                                const state = sourceTile.getState();
+                                const sourceTileKey = sourceTile.getKey();
+                                if (state === TileState_js_6.default.LOADED || state === TileState_js_6.default.ERROR) {
+                                    if (state === TileState_js_6.default.LOADED) {
+                                        sourceTile.removeEventListener(EventType_js_34.default.CHANGE, listenChange);
+                                        tile.loadingSourceTiles--;
+                                        delete tile.errorSourceTileKeys[sourceTileKey];
+                                    }
+                                    else if (state === TileState_js_6.default.ERROR) {
+                                        tile.errorSourceTileKeys[sourceTileKey] = true;
+                                    }
+                                    const errorTileCount = Object.keys(tile.errorSourceTileKeys)
+                                        .length;
+                                    if (tile.loadingSourceTiles - errorTileCount === 0) {
+                                        tile.hifi = errorTileCount === 0;
+                                        tile.sourceZ = sourceZ;
+                                        tile.setState(TileState_js_6.default.LOADED);
+                                    }
+                                }
+                            });
+                        }
+                    }.bind(this));
+                    if (!covered) {
+                        sourceTiles.length = 0;
+                    }
+                } while (!covered && loadedZ > minZoom);
+            }
+            if (tile.getState() === TileState_js_6.default.IDLE) {
+                tile.setState(TileState_js_6.default.LOADING);
+            }
+            if (covered) {
+                tile.hifi = sourceZ === loadedZ;
+                tile.sourceZ = loadedZ;
+                if (tile.getState() < TileState_js_6.default.LOADED) {
+                    tile.setState(TileState_js_6.default.LOADED);
+                }
+                else if (!previousSourceTiles ||
+                    !array_js_19.equals(sourceTiles, previousSourceTiles)) {
+                    tile.sourceTiles = sourceTiles;
+                }
+            }
+            return sourceTiles;
+        }
+        getTile(z, x, y, pixelRatio, projection) {
+            const coordKey = tilecoord_js_6.getKeyZXY(z, x, y);
+            const key = this.getKey();
+            let tile;
+            if (this.tileCache.containsKey(coordKey)) {
+                tile = this.tileCache.get(coordKey);
+                if (tile.key === key) {
+                    return tile;
+                }
+            }
+            const tileCoord = [z, x, y];
+            let urlTileCoord = this.getTileCoordForTileUrlFunction(tileCoord, projection);
+            const sourceExtent = this.getTileGrid().getExtent();
+            const tileGrid = this.getTileGridForProjection(projection);
+            if (urlTileCoord && sourceExtent) {
+                const tileExtent = tileGrid.getTileCoordExtent(urlTileCoord);
+                extent_js_36.buffer(tileExtent, -tileGrid.getResolution(z), tileExtent);
+                if (!extent_js_36.intersects(sourceExtent, tileExtent)) {
+                    urlTileCoord = null;
+                }
+            }
+            let empty = true;
+            if (urlTileCoord !== null) {
+                const sourceTileGrid = this.tileGrid;
+                const resolution = tileGrid.getResolution(z);
+                const sourceZ = sourceTileGrid.getZForResolution(resolution, 1);
+                const extent = tileGrid.getTileCoordExtent(urlTileCoord);
+                extent_js_36.buffer(extent, -resolution, extent);
+                sourceTileGrid.forEachTileCoord(extent, sourceZ, function (sourceTileCoord) {
+                    empty =
+                        empty &&
+                            !this.tileUrlFunction(sourceTileCoord, pixelRatio, projection);
+                }.bind(this));
+            }
+            const newTile = new VectorRenderTile_js_1.default(tileCoord, empty ? TileState_js_6.default.EMPTY : TileState_js_6.default.IDLE, urlTileCoord, this.getSourceTiles.bind(this, pixelRatio, projection));
+            newTile.key = key;
+            if (tile) {
+                newTile.interimTile = tile;
+                newTile.refreshInterimChain();
+                this.tileCache.replace(coordKey, newTile);
+            }
+            else {
+                this.tileCache.set(coordKey, newTile);
+            }
+            return newTile;
+        }
+        getTileGridForProjection(projection) {
+            const code = projection.getCode();
+            let tileGrid = this.tileGrids_[code];
+            if (!tileGrid) {
+                const sourceTileGrid = this.tileGrid;
+                tileGrid = tilegrid_js_2.createForProjection(projection, undefined, sourceTileGrid
+                    ? sourceTileGrid.getTileSize(sourceTileGrid.getMinZoom())
+                    : undefined);
+                this.tileGrids_[code] = tileGrid;
+            }
+            return tileGrid;
+        }
+        getTilePixelRatio(pixelRatio) {
+            return pixelRatio;
+        }
+        getTilePixelSize(z, pixelRatio, projection) {
+            const tileGrid = this.getTileGridForProjection(projection);
+            const tileSize = size_js_7.toSize(tileGrid.getTileSize(z), this.tmpSize);
+            return [
+                Math.round(tileSize[0] * pixelRatio),
+                Math.round(tileSize[1] * pixelRatio),
+            ];
+        }
+        updateCacheSize(tileCount, projection) {
+            super.updateCacheSize(tileCount * 2, projection);
+        }
+    }
+    exports.default = VectorTile;
+    function defaultLoadFunction(tile, url) {
+        const loader = featureloader_js_2.loadFeaturesXhr(url, tile.getFormat(), tile.onLoad.bind(tile), tile.onError.bind(tile));
+        tile.setLoader(loader);
+    }
+    exports.defaultLoadFunction = defaultLoadFunction;
+});
+define("node_modules/ol/src/layer/BaseVector", ["require", "exports", "node_modules/ol/src/layer/Layer", "node_modules/ol/src/obj", "node_modules/ol/src/style/Style"], function (require, exports, Layer_js_4, obj_js_16, Style_js_1) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    const Property = {
+        RENDER_ORDER: 'renderOrder',
+    };
+    class BaseVectorLayer extends Layer_js_4.default {
+        constructor(opt_options) {
+            const options = opt_options ? opt_options : {};
+            const baseOptions = obj_js_16.assign({}, options);
+            delete baseOptions.style;
+            delete baseOptions.renderBuffer;
+            delete baseOptions.updateWhileAnimating;
+            delete baseOptions.updateWhileInteracting;
+            super(baseOptions);
+            this.declutter_ =
+                options.declutter !== undefined ? options.declutter : false;
+            this.renderBuffer_ =
+                options.renderBuffer !== undefined ? options.renderBuffer : 100;
+            this.style_ = null;
+            this.styleFunction_ = undefined;
+            this.setStyle(options.style);
+            this.updateWhileAnimating_ =
+                options.updateWhileAnimating !== undefined
+                    ? options.updateWhileAnimating
+                    : false;
+            this.updateWhileInteracting_ =
+                options.updateWhileInteracting !== undefined
+                    ? options.updateWhileInteracting
+                    : false;
+        }
+        getDeclutter() {
+            return this.declutter_;
+        }
+        getFeatures(pixel) {
+            return super.getFeatures(pixel);
+        }
+        getRenderBuffer() {
+            return this.renderBuffer_;
+        }
+        getRenderOrder() {
+            return (this.get(Property.RENDER_ORDER));
+        }
+        getStyle() {
+            return this.style_;
+        }
+        getStyleFunction() {
+            return this.styleFunction_;
+        }
+        getUpdateWhileAnimating() {
+            return this.updateWhileAnimating_;
+        }
+        getUpdateWhileInteracting() {
+            return this.updateWhileInteracting_;
+        }
+        setRenderOrder(renderOrder) {
+            this.set(Property.RENDER_ORDER, renderOrder);
+        }
+        setStyle(opt_style) {
+            this.style_ = opt_style !== undefined ? opt_style : Style_js_1.createDefaultStyle;
+            this.styleFunction_ =
+                opt_style === null ? undefined : Style_js_1.toFunction(this.style_);
+            this.changed();
+        }
+    }
+    exports.default = BaseVectorLayer;
+});
+define("node_modules/ol/src/renderer/canvas/Layer", ["require", "exports", "node_modules/ol/src/renderer/Layer", "node_modules/ol/src/render/Event", "node_modules/ol/src/render/EventType", "node_modules/ol/src/transform", "node_modules/ol/src/dom", "node_modules/ol/src/extent", "node_modules/ol/src/render/canvas"], function (require, exports, Layer_js_5, Event_js_12, EventType_js_35, transform_js_18, dom_js_13, extent_js_37, canvas_js_9) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    class CanvasLayerRenderer extends Layer_js_5.default {
+        constructor(layer) {
+            super(layer);
+            this.container = null;
+            this.renderedResolution;
+            this.tempTransform = transform_js_18.create();
+            this.pixelTransform = transform_js_18.create();
+            this.inversePixelTransform = transform_js_18.create();
+            this.context = null;
+            this.containerReused = false;
+        }
+        useContainer(target, transform, opacity) {
+            const layerClassName = this.getLayer().getClassName();
+            let container, context;
+            if (target &&
+                target.style.opacity === '' &&
+                target.className === layerClassName) {
+                const canvas = target.firstElementChild;
+                if (canvas instanceof HTMLCanvasElement) {
+                    context = canvas.getContext('2d');
+                }
+            }
+            if (context &&
+                (context.canvas.width === 0 ||
+                    context.canvas.style.transform === transform)) {
+                this.container = target;
+                this.context = context;
+                this.containerReused = true;
+            }
+            else if (this.containerReused) {
+                this.container = null;
+                this.context = null;
+                this.containerReused = false;
+            }
+            if (!this.container) {
+                container = document.createElement('div');
+                container.className = layerClassName;
+                let style = container.style;
+                style.position = 'absolute';
+                style.width = '100%';
+                style.height = '100%';
+                context = dom_js_13.createCanvasContext2D();
+                const canvas = context.canvas;
+                container.appendChild(canvas);
+                style = canvas.style;
+                style.position = 'absolute';
+                style.left = '0';
+                style.transformOrigin = 'top left';
+                this.container = container;
+                this.context = context;
+            }
+        }
+        clip(context, frameState, extent) {
+            const pixelRatio = frameState.pixelRatio;
+            const halfWidth = (frameState.size[0] * pixelRatio) / 2;
+            const halfHeight = (frameState.size[1] * pixelRatio) / 2;
+            const rotation = frameState.viewState.rotation;
+            const topLeft = extent_js_37.getTopLeft(extent);
+            const topRight = extent_js_37.getTopRight(extent);
+            const bottomRight = extent_js_37.getBottomRight(extent);
+            const bottomLeft = extent_js_37.getBottomLeft(extent);
+            transform_js_18.apply(frameState.coordinateToPixelTransform, topLeft);
+            transform_js_18.apply(frameState.coordinateToPixelTransform, topRight);
+            transform_js_18.apply(frameState.coordinateToPixelTransform, bottomRight);
+            transform_js_18.apply(frameState.coordinateToPixelTransform, bottomLeft);
+            context.save();
+            canvas_js_9.rotateAtOffset(context, -rotation, halfWidth, halfHeight);
+            context.beginPath();
+            context.moveTo(topLeft[0] * pixelRatio, topLeft[1] * pixelRatio);
+            context.lineTo(topRight[0] * pixelRatio, topRight[1] * pixelRatio);
+            context.lineTo(bottomRight[0] * pixelRatio, bottomRight[1] * pixelRatio);
+            context.lineTo(bottomLeft[0] * pixelRatio, bottomLeft[1] * pixelRatio);
+            context.clip();
+            canvas_js_9.rotateAtOffset(context, rotation, halfWidth, halfHeight);
+        }
+        clipUnrotated(context, frameState, extent) {
+            const topLeft = extent_js_37.getTopLeft(extent);
+            const topRight = extent_js_37.getTopRight(extent);
+            const bottomRight = extent_js_37.getBottomRight(extent);
+            const bottomLeft = extent_js_37.getBottomLeft(extent);
+            transform_js_18.apply(frameState.coordinateToPixelTransform, topLeft);
+            transform_js_18.apply(frameState.coordinateToPixelTransform, topRight);
+            transform_js_18.apply(frameState.coordinateToPixelTransform, bottomRight);
+            transform_js_18.apply(frameState.coordinateToPixelTransform, bottomLeft);
+            const inverted = this.inversePixelTransform;
+            transform_js_18.apply(inverted, topLeft);
+            transform_js_18.apply(inverted, topRight);
+            transform_js_18.apply(inverted, bottomRight);
+            transform_js_18.apply(inverted, bottomLeft);
+            context.save();
+            context.beginPath();
+            context.moveTo(Math.round(topLeft[0]), Math.round(topLeft[1]));
+            context.lineTo(Math.round(topRight[0]), Math.round(topRight[1]));
+            context.lineTo(Math.round(bottomRight[0]), Math.round(bottomRight[1]));
+            context.lineTo(Math.round(bottomLeft[0]), Math.round(bottomLeft[1]));
+            context.clip();
+        }
+        dispatchRenderEvent_(type, context, frameState) {
+            const layer = this.getLayer();
+            if (layer.hasListener(type)) {
+                const event = new Event_js_12.default(type, this.inversePixelTransform, frameState, context);
+                layer.dispatchEvent(event);
+            }
+        }
+        preRender(context, frameState) {
+            this.dispatchRenderEvent_(EventType_js_35.default.PRERENDER, context, frameState);
+        }
+        postRender(context, frameState) {
+            this.dispatchRenderEvent_(EventType_js_35.default.POSTRENDER, context, frameState);
+        }
+        getRenderTransform(center, resolution, rotation, pixelRatio, width, height, offsetX) {
+            const dx1 = width / 2;
+            const dy1 = height / 2;
+            const sx = pixelRatio / resolution;
+            const sy = -sx;
+            const dx2 = -center[0] + offsetX;
+            const dy2 = -center[1];
+            return transform_js_18.compose(this.tempTransform, dx1, dy1, sx, sy, -rotation, dx2, dy2);
+        }
+        getDataAtPixel(pixel, frameState, hitTolerance) {
+            const renderPixel = transform_js_18.apply(this.inversePixelTransform, pixel.slice());
+            const context = this.context;
+            let data;
+            try {
+                const x = Math.round(renderPixel[0]);
+                const y = Math.round(renderPixel[1]);
+                const newCanvas = document.createElement('canvas');
+                const newContext = newCanvas.getContext('2d');
+                newCanvas.width = 1;
+                newCanvas.height = 1;
+                newContext.clearRect(0, 0, 1, 1);
+                newContext.drawImage(context.canvas, x, y, 1, 1, 0, 0, 1, 1);
+                data = newContext.getImageData(0, 0, 1, 1).data;
+            }
+            catch (err) {
+                if (err.name === 'SecurityError') {
+                    return new Uint8Array();
+                }
+                return data;
+            }
+            if (data[3] === 0) {
+                return null;
+            }
+            return data;
+        }
+    }
+    exports.default = CanvasLayerRenderer;
+});
+define("node_modules/ol/src/style/IconAnchorUnits", ["require", "exports"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.default = {
+        FRACTION: 'fraction',
+        PIXELS: 'pixels',
+    };
+});
+define("node_modules/ol/src/style/IconOrigin", ["require", "exports"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.default = {
+        BOTTOM_LEFT: 'bottom-left',
+        BOTTOM_RIGHT: 'bottom-right',
+        TOP_LEFT: 'top-left',
+        TOP_RIGHT: 'top-right',
+    };
+});
+define("node_modules/ol/src/style/Icon", ["require", "exports", "node_modules/ol/src/events/EventType", "node_modules/ol/src/style/IconAnchorUnits", "node_modules/ol/src/style/IconOrigin", "node_modules/ol/src/ImageState", "node_modules/ol/src/style/Image", "node_modules/ol/src/color", "node_modules/ol/src/asserts", "node_modules/ol/src/style/IconImage", "node_modules/ol/src/util"], function (require, exports, EventType_js_36, IconAnchorUnits_js_1, IconOrigin_js_1, ImageState_js_6, Image_js_3, color_js_4, asserts_js_18, IconImage_js_1, util_js_21) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    class Icon extends Image_js_3.default {
+        constructor(opt_options) {
+            const options = opt_options || {};
+            const opacity = options.opacity !== undefined ? options.opacity : 1;
+            const rotation = options.rotation !== undefined ? options.rotation : 0;
+            const scale = options.scale !== undefined ? options.scale : 1;
+            const rotateWithView = options.rotateWithView !== undefined ? options.rotateWithView : false;
+            super({
+                opacity: opacity,
+                rotation: rotation,
+                scale: scale,
+                displacement: options.displacement !== undefined ? options.displacement : [0, 0],
+                rotateWithView: rotateWithView,
+            });
+            this.anchor_ = options.anchor !== undefined ? options.anchor : [0.5, 0.5];
+            this.normalizedAnchor_ = null;
+            this.anchorOrigin_ =
+                options.anchorOrigin !== undefined
+                    ? options.anchorOrigin
+                    : IconOrigin_js_1.default.TOP_LEFT;
+            this.anchorXUnits_ =
+                options.anchorXUnits !== undefined
+                    ? options.anchorXUnits
+                    : IconAnchorUnits_js_1.default.FRACTION;
+            this.anchorYUnits_ =
+                options.anchorYUnits !== undefined
+                    ? options.anchorYUnits
+                    : IconAnchorUnits_js_1.default.FRACTION;
+            this.crossOrigin_ =
+                options.crossOrigin !== undefined ? options.crossOrigin : null;
+            const image = options.img !== undefined ? options.img : null;
+            const imgSize = options.imgSize !== undefined ? options.imgSize : null;
+            let src = options.src;
+            asserts_js_18.assert(!(src !== undefined && image), 4);
+            asserts_js_18.assert(!image || (image && imgSize), 5);
+            if ((src === undefined || src.length === 0) && image) {
+                src = (image).src || util_js_21.getUid(image);
+            }
+            asserts_js_18.assert(src !== undefined && src.length > 0, 6);
+            const imageState = options.src !== undefined ? ImageState_js_6.default.IDLE : ImageState_js_6.default.LOADED;
+            this.color_ = options.color !== undefined ? color_js_4.asArray(options.color) : null;
+            this.iconImage_ = IconImage_js_1.get(image, (src), imgSize, this.crossOrigin_, imageState, this.color_);
+            this.offset_ = options.offset !== undefined ? options.offset : [0, 0];
+            this.offsetOrigin_ =
+                options.offsetOrigin !== undefined
+                    ? options.offsetOrigin
+                    : IconOrigin_js_1.default.TOP_LEFT;
+            this.origin_ = null;
+            this.size_ = options.size !== undefined ? options.size : null;
+        }
+        clone() {
+            const scale = this.getScale();
+            return new Icon({
+                anchor: this.anchor_.slice(),
+                anchorOrigin: this.anchorOrigin_,
+                anchorXUnits: this.anchorXUnits_,
+                anchorYUnits: this.anchorYUnits_,
+                crossOrigin: this.crossOrigin_,
+                color: this.color_ && this.color_.slice
+                    ? this.color_.slice()
+                    : this.color_ || undefined,
+                src: this.getSrc(),
+                offset: this.offset_.slice(),
+                offsetOrigin: this.offsetOrigin_,
+                size: this.size_ !== null ? this.size_.slice() : undefined,
+                opacity: this.getOpacity(),
+                scale: Array.isArray(scale) ? scale.slice() : scale,
+                rotation: this.getRotation(),
+                rotateWithView: this.getRotateWithView(),
+            });
+        }
+        getAnchor() {
+            if (this.normalizedAnchor_) {
+                return this.normalizedAnchor_;
+            }
+            let anchor = this.anchor_;
+            const size = this.getSize();
+            if (this.anchorXUnits_ == IconAnchorUnits_js_1.default.FRACTION ||
+                this.anchorYUnits_ == IconAnchorUnits_js_1.default.FRACTION) {
+                if (!size) {
+                    return null;
+                }
+                anchor = this.anchor_.slice();
+                if (this.anchorXUnits_ == IconAnchorUnits_js_1.default.FRACTION) {
+                    anchor[0] *= size[0];
+                }
+                if (this.anchorYUnits_ == IconAnchorUnits_js_1.default.FRACTION) {
+                    anchor[1] *= size[1];
+                }
+            }
+            if (this.anchorOrigin_ != IconOrigin_js_1.default.TOP_LEFT) {
+                if (!size) {
+                    return null;
+                }
+                if (anchor === this.anchor_) {
+                    anchor = this.anchor_.slice();
+                }
+                if (this.anchorOrigin_ == IconOrigin_js_1.default.TOP_RIGHT ||
+                    this.anchorOrigin_ == IconOrigin_js_1.default.BOTTOM_RIGHT) {
+                    anchor[0] = -anchor[0] + size[0];
+                }
+                if (this.anchorOrigin_ == IconOrigin_js_1.default.BOTTOM_LEFT ||
+                    this.anchorOrigin_ == IconOrigin_js_1.default.BOTTOM_RIGHT) {
+                    anchor[1] = -anchor[1] + size[1];
+                }
+            }
+            this.normalizedAnchor_ = anchor;
+            return this.normalizedAnchor_;
+        }
+        setAnchor(anchor) {
+            this.anchor_ = anchor;
+            this.normalizedAnchor_ = null;
+        }
+        getColor() {
+            return this.color_;
+        }
+        getImage(pixelRatio) {
+            return this.iconImage_.getImage(pixelRatio);
+        }
+        getPixelRatio(pixelRatio) {
+            return this.iconImage_.getPixelRatio(pixelRatio);
+        }
+        getImageSize() {
+            return this.iconImage_.getSize();
+        }
+        getHitDetectionImageSize() {
+            return this.getImageSize();
+        }
+        getImageState() {
+            return this.iconImage_.getImageState();
+        }
+        getHitDetectionImage() {
+            return this.iconImage_.getHitDetectionImage();
+        }
+        getOrigin() {
+            if (this.origin_) {
+                return this.origin_;
+            }
+            let offset = this.offset_;
+            const displacement = this.getDisplacement();
+            if (this.offsetOrigin_ != IconOrigin_js_1.default.TOP_LEFT) {
+                const size = this.getSize();
+                const iconImageSize = this.iconImage_.getSize();
+                if (!size || !iconImageSize) {
+                    return null;
+                }
+                offset = offset.slice();
+                if (this.offsetOrigin_ == IconOrigin_js_1.default.TOP_RIGHT ||
+                    this.offsetOrigin_ == IconOrigin_js_1.default.BOTTOM_RIGHT) {
+                    offset[0] = iconImageSize[0] - size[0] - offset[0];
+                }
+                if (this.offsetOrigin_ == IconOrigin_js_1.default.BOTTOM_LEFT ||
+                    this.offsetOrigin_ == IconOrigin_js_1.default.BOTTOM_RIGHT) {
+                    offset[1] = iconImageSize[1] - size[1] - offset[1];
+                }
+            }
+            offset[0] += displacement[0];
+            offset[1] += displacement[1];
+            this.origin_ = offset;
+            return this.origin_;
+        }
+        getSrc() {
+            return this.iconImage_.getSrc();
+        }
+        getSize() {
+            return !this.size_ ? this.iconImage_.getSize() : this.size_;
+        }
+        listenImageChange(listener) {
+            this.iconImage_.addEventListener(EventType_js_36.default.CHANGE, listener);
+        }
+        load() {
+            this.iconImage_.load();
+        }
+        unlistenImageChange(listener) {
+            this.iconImage_.removeEventListener(EventType_js_36.default.CHANGE, listener);
+        }
+    }
+    exports.default = Icon;
+});
+define("node_modules/ol/src/style", ["require", "exports", "node_modules/ol/src/style/Circle", "node_modules/ol/src/style/Fill", "node_modules/ol/src/style/Icon", "node_modules/ol/src/style/IconImage", "node_modules/ol/src/style/Image", "node_modules/ol/src/style/RegularShape", "node_modules/ol/src/style/Stroke", "node_modules/ol/src/style/Style", "node_modules/ol/src/style/Text"], function (require, exports, Circle_js_2, Fill_js_3, Icon_js_1, IconImage_js_2, Image_js_4, RegularShape_js_2, Stroke_js_2, Style_js_2, Text_js_1) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.Text = exports.Style = exports.Stroke = exports.RegularShape = exports.Image = exports.IconImage = exports.Icon = exports.Fill = exports.Circle = void 0;
+    Object.defineProperty(exports, "Circle", { enumerable: true, get: function () { return Circle_js_2.default; } });
+    Object.defineProperty(exports, "Fill", { enumerable: true, get: function () { return Fill_js_3.default; } });
+    Object.defineProperty(exports, "Icon", { enumerable: true, get: function () { return Icon_js_1.default; } });
+    Object.defineProperty(exports, "IconImage", { enumerable: true, get: function () { return IconImage_js_2.default; } });
+    Object.defineProperty(exports, "Image", { enumerable: true, get: function () { return Image_js_4.default; } });
+    Object.defineProperty(exports, "RegularShape", { enumerable: true, get: function () { return RegularShape_js_2.default; } });
+    Object.defineProperty(exports, "Stroke", { enumerable: true, get: function () { return Stroke_js_2.default; } });
+    Object.defineProperty(exports, "Style", { enumerable: true, get: function () { return Style_js_2.default; } });
+    Object.defineProperty(exports, "Text", { enumerable: true, get: function () { return Text_js_1.default; } });
+});
+define("node_modules/ol/src/render/canvas/hitdetect", ["require", "exports", "node_modules/ol/src/render/canvas/Immediate", "node_modules/ol/src/geom/GeometryType", "node_modules/ol/src/style/IconAnchorUnits", "node_modules/ol/src/style", "node_modules/ol/src/dom", "node_modules/ol/src/extent", "node_modules/ol/src/array"], function (require, exports, Immediate_js_2, GeometryType_js_18, IconAnchorUnits_js_2, style_js_1, dom_js_14, extent_js_38, array_js_20) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.hitDetect = exports.createHitDetectionImageData = void 0;
+    function createHitDetectionImageData(size, transforms, features, styleFunction, extent, resolution, rotation) {
+        const width = size[0] / 2;
+        const height = size[1] / 2;
+        const context = dom_js_14.createCanvasContext2D(width, height);
+        context.imageSmoothingEnabled = false;
+        const canvas = context.canvas;
+        const renderer = new Immediate_js_2.default(context, 0.5, extent, null, rotation);
+        const featureCount = features.length;
+        const indexFactor = Math.floor((256 * 256 * 256 - 1) / featureCount);
+        const featuresByZIndex = {};
+        for (let i = 1; i <= featureCount; ++i) {
+            const feature = features[i - 1];
+            const featureStyleFunction = feature.getStyleFunction() || styleFunction;
+            if (!styleFunction) {
+                continue;
+            }
+            let styles = featureStyleFunction(feature, resolution);
+            if (!styles) {
+                continue;
+            }
+            if (!Array.isArray(styles)) {
+                styles = [styles];
+            }
+            const index = i * indexFactor;
+            const color = '#' + ('000000' + index.toString(16)).slice(-6);
+            for (let j = 0, jj = styles.length; j < jj; ++j) {
+                const originalStyle = styles[j];
+                const style = originalStyle.clone();
+                const fill = style.getFill();
+                if (fill) {
+                    fill.setColor(color);
+                }
+                const stroke = style.getStroke();
+                if (stroke) {
+                    stroke.setColor(color);
+                }
+                style.setText(undefined);
+                const image = originalStyle.getImage();
+                if (image) {
+                    const imgSize = image.getImageSize();
+                    if (!imgSize) {
+                        continue;
+                    }
+                    const canvas = document.createElement('canvas');
+                    canvas.width = imgSize[0];
+                    canvas.height = imgSize[1];
+                    const imgContext = canvas.getContext('2d', { alpha: false });
+                    imgContext.fillStyle = color;
+                    const img = imgContext.canvas;
+                    imgContext.fillRect(0, 0, img.width, img.height);
+                    const width = imgSize ? imgSize[0] : img.width;
+                    const height = imgSize ? imgSize[1] : img.height;
+                    const iconContext = dom_js_14.createCanvasContext2D(width, height);
+                    iconContext.drawImage(img, 0, 0);
+                    style.setImage(new style_js_1.Icon({
+                        img: img,
+                        imgSize: imgSize,
+                        anchor: image.getAnchor(),
+                        anchorXUnits: IconAnchorUnits_js_2.default.PIXELS,
+                        anchorYUnits: IconAnchorUnits_js_2.default.PIXELS,
+                        offset: image.getOrigin(),
+                        size: image.getSize(),
+                        opacity: image.getOpacity(),
+                        scale: image.getScale(),
+                        rotation: image.getRotation(),
+                        rotateWithView: image.getRotateWithView(),
+                    }));
+                }
+                const zIndex = Number(style.getZIndex());
+                let byGeometryType = featuresByZIndex[zIndex];
+                if (!byGeometryType) {
+                    byGeometryType = {};
+                    featuresByZIndex[zIndex] = byGeometryType;
+                    byGeometryType[GeometryType_js_18.default.POLYGON] = [];
+                    byGeometryType[GeometryType_js_18.default.CIRCLE] = [];
+                    byGeometryType[GeometryType_js_18.default.LINE_STRING] = [];
+                    byGeometryType[GeometryType_js_18.default.POINT] = [];
+                }
+                const geometry = style.getGeometryFunction()(feature);
+                if (geometry && extent_js_38.intersects(extent, geometry.getExtent())) {
+                    byGeometryType[geometry.getType().replace('Multi', '')].push(geometry, style);
+                }
+            }
+        }
+        const zIndexKeys = Object.keys(featuresByZIndex)
+            .map(Number)
+            .sort(array_js_20.numberSafeCompareFunction);
+        for (let i = 0, ii = zIndexKeys.length; i < ii; ++i) {
+            const byGeometryType = featuresByZIndex[zIndexKeys[i]];
+            for (const type in byGeometryType) {
+                const geomAndStyle = byGeometryType[type];
+                for (let j = 0, jj = geomAndStyle.length; j < jj; j += 2) {
+                    renderer.setStyle(geomAndStyle[j + 1]);
+                    for (let k = 0, kk = transforms.length; k < kk; ++k) {
+                        renderer.setTransform(transforms[k]);
+                        renderer.drawGeometry(geomAndStyle[j]);
+                    }
+                }
+            }
+        }
+        return context.getImageData(0, 0, canvas.width, canvas.height);
+    }
+    exports.createHitDetectionImageData = createHitDetectionImageData;
+    function hitDetect(pixel, features, imageData) {
+        const resultFeatures = [];
+        if (imageData) {
+            const index = (Math.round(pixel[0] / 2) + Math.round(pixel[1] / 2) * imageData.width) *
+                4;
+            const r = imageData.data[index];
+            const g = imageData.data[index + 1];
+            const b = imageData.data[index + 2];
+            const i = b + 256 * (g + 256 * r);
+            const indexFactor = Math.floor((256 * 256 * 256 - 1) / features.length);
+            if (i && i % indexFactor === 0) {
+                resultFeatures.push(features[i / indexFactor - 1]);
+            }
+        }
+        return resultFeatures;
+    }
+    exports.hitDetect = hitDetect;
+});
+define("node_modules/ol/src/renderer/canvas/VectorLayer", ["require", "exports", "node_modules/ol/src/render/canvas/BuilderGroup", "node_modules/ol/src/renderer/canvas/Layer", "node_modules/ol/src/render/canvas/ExecutorGroup", "node_modules/ol/src/ViewHint", "node_modules/ol/src/transform", "node_modules/ol/src/extent", "node_modules/ol/src/render/canvas/hitdetect", "node_modules/ol/src/renderer/vector", "node_modules/ol/src/proj", "node_modules/ol/src/util", "node_modules/ol/src/coordinate"], function (require, exports, BuilderGroup_js_1, Layer_js_6, ExecutorGroup_js_1, ViewHint_js_3, transform_js_19, extent_js_39, hitdetect_js_1, vector_js_2, proj_js_13, util_js_22, coordinate_js_7) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    class CanvasVectorLayerRenderer extends Layer_js_6.default {
+        constructor(vectorLayer) {
+            super(vectorLayer);
+            this.boundHandleStyleImageChange_ = this.handleStyleImageChange_.bind(this);
+            this.animatingOrInteracting_;
+            this.dirty_ = false;
+            this.hitDetectionImageData_ = null;
+            this.renderedFeatures_ = null;
+            this.renderedRevision_ = -1;
+            this.renderedResolution_ = NaN;
+            this.renderedExtent_ = extent_js_39.createEmpty();
+            this.renderedRotation_;
+            this.renderedCenter_ = null;
+            this.renderedProjection_ = null;
+            this.renderedRenderOrder_ = null;
+            this.replayGroup_ = null;
+            this.replayGroupChanged = true;
+            this.clipping = true;
+        }
+        useContainer(target, transform, opacity) {
+            if (opacity < 1) {
+                target = null;
+            }
+            super.useContainer(target, transform, opacity);
+        }
+        renderFrame(frameState, target) {
+            const pixelRatio = frameState.pixelRatio;
+            const layerState = frameState.layerStatesArray[frameState.layerIndex];
+            transform_js_19.makeScale(this.pixelTransform, 1 / pixelRatio, 1 / pixelRatio);
+            transform_js_19.makeInverse(this.inversePixelTransform, this.pixelTransform);
+            const canvasTransform = transform_js_19.toString(this.pixelTransform);
+            this.useContainer(target, canvasTransform, layerState.opacity);
+            const context = this.context;
+            const canvas = context.canvas;
+            const replayGroup = this.replayGroup_;
+            if (!replayGroup || replayGroup.isEmpty()) {
+                if (!this.containerReused && canvas.width > 0) {
+                    canvas.width = 0;
+                }
+                return this.container;
+            }
+            const width = Math.round(frameState.size[0] * pixelRatio);
+            const height = Math.round(frameState.size[1] * pixelRatio);
+            if (canvas.width != width || canvas.height != height) {
+                canvas.width = width;
+                canvas.height = height;
+                if (canvas.style.transform !== canvasTransform) {
+                    canvas.style.transform = canvasTransform;
+                }
+            }
+            else if (!this.containerReused) {
+                context.clearRect(0, 0, width, height);
+            }
+            this.preRender(context, frameState);
+            const extent = frameState.extent;
+            const viewState = frameState.viewState;
+            const center = viewState.center;
+            const resolution = viewState.resolution;
+            const projection = viewState.projection;
+            const rotation = viewState.rotation;
+            const projectionExtent = projection.getExtent();
+            const vectorSource = this.getLayer().getSource();
+            let clipped = false;
+            if (layerState.extent && this.clipping) {
+                const layerExtent = proj_js_13.fromUserExtent(layerState.extent, projection);
+                clipped =
+                    !extent_js_39.containsExtent(layerExtent, frameState.extent) &&
+                        extent_js_39.intersects(layerExtent, frameState.extent);
+                if (clipped) {
+                    this.clipUnrotated(context, frameState, layerExtent);
+                }
+            }
+            const viewHints = frameState.viewHints;
+            const snapToPixel = !(viewHints[ViewHint_js_3.default.ANIMATING] || viewHints[ViewHint_js_3.default.INTERACTING]);
+            const transform = this.getRenderTransform(center, resolution, rotation, pixelRatio, width, height, 0);
+            const declutterReplays = this.getLayer().getDeclutter() ? {} : null;
+            replayGroup.execute(context, 1, transform, rotation, snapToPixel, undefined, declutterReplays);
+            if (vectorSource.getWrapX() &&
+                projection.canWrapX() &&
+                !extent_js_39.containsExtent(projectionExtent, extent)) {
+                let startX = extent[0];
+                const worldWidth = extent_js_39.getWidth(projectionExtent);
+                let world = 0;
+                let offsetX;
+                while (startX < projectionExtent[0]) {
+                    --world;
+                    offsetX = worldWidth * world;
+                    const transform = this.getRenderTransform(center, resolution, rotation, pixelRatio, width, height, offsetX);
+                    replayGroup.execute(context, 1, transform, rotation, snapToPixel, undefined, declutterReplays);
+                    startX += worldWidth;
+                }
+                world = 0;
+                startX = extent[2];
+                while (startX > projectionExtent[2]) {
+                    ++world;
+                    offsetX = worldWidth * world;
+                    const transform = this.getRenderTransform(center, resolution, rotation, pixelRatio, width, height, offsetX);
+                    replayGroup.execute(context, 1, transform, rotation, snapToPixel, undefined, declutterReplays);
+                    startX -= worldWidth;
+                }
+            }
+            if (declutterReplays) {
+                const viewHints = frameState.viewHints;
+                const hifi = !(viewHints[ViewHint_js_3.default.ANIMATING] || viewHints[ViewHint_js_3.default.INTERACTING]);
+                ExecutorGroup_js_1.replayDeclutter(declutterReplays, context, rotation, 1, hifi, frameState.declutterItems);
+            }
+            if (clipped) {
+                context.restore();
+            }
+            this.postRender(context, frameState);
+            const opacity = layerState.opacity;
+            const container = this.container;
+            if (opacity !== parseFloat(container.style.opacity)) {
+                container.style.opacity = opacity === 1 ? '' : String(opacity);
+            }
+            if (this.renderedRotation_ !== viewState.rotation) {
+                this.renderedRotation_ = viewState.rotation;
+                this.hitDetectionImageData_ = null;
+            }
+            return this.container;
+        }
+        getFeatures(pixel) {
+            return new Promise(function (resolve, reject) {
+                if (!this.hitDetectionImageData_ && !this.animatingOrInteracting_) {
+                    const size = [this.context.canvas.width, this.context.canvas.height];
+                    transform_js_19.apply(this.pixelTransform, size);
+                    const center = this.renderedCenter_;
+                    const resolution = this.renderedResolution_;
+                    const rotation = this.renderedRotation_;
+                    const projection = this.renderedProjection_;
+                    const extent = this.renderedExtent_;
+                    const layer = this.getLayer();
+                    const transforms = [];
+                    const width = size[0] / 2;
+                    const height = size[1] / 2;
+                    transforms.push(this.getRenderTransform(center, resolution, rotation, 0.5, width, height, 0).slice());
+                    const source = layer.getSource();
+                    const projectionExtent = projection.getExtent();
+                    if (source.getWrapX() &&
+                        projection.canWrapX() &&
+                        !extent_js_39.containsExtent(projectionExtent, extent)) {
+                        let startX = extent[0];
+                        const worldWidth = extent_js_39.getWidth(projectionExtent);
+                        let world = 0;
+                        let offsetX;
+                        while (startX < projectionExtent[0]) {
+                            --world;
+                            offsetX = worldWidth * world;
+                            transforms.push(this.getRenderTransform(center, resolution, rotation, 0.5, width, height, offsetX).slice());
+                            startX += worldWidth;
+                        }
+                        world = 0;
+                        startX = extent[2];
+                        while (startX > projectionExtent[2]) {
+                            ++world;
+                            offsetX = worldWidth * world;
+                            transforms.push(this.getRenderTransform(center, resolution, rotation, 0.5, width, height, offsetX).slice());
+                            startX -= worldWidth;
+                        }
+                    }
+                    this.hitDetectionImageData_ = hitdetect_js_1.createHitDetectionImageData(size, transforms, this.renderedFeatures_, layer.getStyleFunction(), extent, resolution, rotation);
+                }
+                resolve(hitdetect_js_1.hitDetect(pixel, this.renderedFeatures_, this.hitDetectionImageData_));
+            }.bind(this));
+        }
+        forEachFeatureAtCoordinate(coordinate, frameState, hitTolerance, callback, declutteredFeatures) {
+            if (!this.replayGroup_) {
+                return undefined;
+            }
+            else {
+                const resolution = frameState.viewState.resolution;
+                const rotation = frameState.viewState.rotation;
+                const layer = this.getLayer();
+                const features = {};
+                const result = this.replayGroup_.forEachFeatureAtCoordinate(coordinate, resolution, rotation, hitTolerance, function (feature) {
+                    const key = util_js_22.getUid(feature);
+                    if (!(key in features)) {
+                        features[key] = true;
+                        return callback(feature, layer);
+                    }
+                }, layer.getDeclutter() ? declutteredFeatures : null);
+                return result;
+            }
+        }
+        handleFontsChanged() {
+            const layer = this.getLayer();
+            if (layer.getVisible() && this.replayGroup_) {
+                layer.changed();
+            }
+        }
+        handleStyleImageChange_(event) {
+            this.renderIfReadyAndVisible();
+        }
+        prepareFrame(frameState) {
+            const vectorLayer = this.getLayer();
+            const vectorSource = vectorLayer.getSource();
+            if (!vectorSource) {
+                return false;
+            }
+            const animating = frameState.viewHints[ViewHint_js_3.default.ANIMATING];
+            const interacting = frameState.viewHints[ViewHint_js_3.default.INTERACTING];
+            const updateWhileAnimating = vectorLayer.getUpdateWhileAnimating();
+            const updateWhileInteracting = vectorLayer.getUpdateWhileInteracting();
+            if ((!this.dirty_ && !updateWhileAnimating && animating) ||
+                (!updateWhileInteracting && interacting)) {
+                this.animatingOrInteracting_ = true;
+                return true;
+            }
+            this.animatingOrInteracting_ = false;
+            const frameStateExtent = frameState.extent;
+            const viewState = frameState.viewState;
+            const projection = viewState.projection;
+            const resolution = viewState.resolution;
+            const pixelRatio = frameState.pixelRatio;
+            const vectorLayerRevision = vectorLayer.getRevision();
+            const vectorLayerRenderBuffer = vectorLayer.getRenderBuffer();
+            let vectorLayerRenderOrder = vectorLayer.getRenderOrder();
+            if (vectorLayerRenderOrder === undefined) {
+                vectorLayerRenderOrder = vector_js_2.defaultOrder;
+            }
+            const center = viewState.center.slice();
+            const extent = extent_js_39.buffer(frameStateExtent, vectorLayerRenderBuffer * resolution);
+            const loadExtents = [extent.slice()];
+            const projectionExtent = projection.getExtent();
+            if (vectorSource.getWrapX() &&
+                projection.canWrapX() &&
+                !extent_js_39.containsExtent(projectionExtent, frameState.extent)) {
+                const worldWidth = extent_js_39.getWidth(projectionExtent);
+                const gutter = Math.max(extent_js_39.getWidth(extent) / 2, worldWidth);
+                extent[0] = projectionExtent[0] - gutter;
+                extent[2] = projectionExtent[2] + gutter;
+                coordinate_js_7.wrapX(center, projection);
+                const loadExtent = extent_js_39.wrapX(loadExtents[0], projection);
+                if (loadExtent[0] < projectionExtent[0] &&
+                    loadExtent[2] < projectionExtent[2]) {
+                    loadExtents.push([
+                        loadExtent[0] + worldWidth,
+                        loadExtent[1],
+                        loadExtent[2] + worldWidth,
+                        loadExtent[3],
+                    ]);
+                }
+                else if (loadExtent[0] > projectionExtent[0] &&
+                    loadExtent[2] > projectionExtent[2]) {
+                    loadExtents.push([
+                        loadExtent[0] - worldWidth,
+                        loadExtent[1],
+                        loadExtent[2] - worldWidth,
+                        loadExtent[3],
+                    ]);
+                }
+            }
+            if (!this.dirty_ &&
+                this.renderedResolution_ == resolution &&
+                this.renderedRevision_ == vectorLayerRevision &&
+                this.renderedRenderOrder_ == vectorLayerRenderOrder &&
+                extent_js_39.containsExtent(this.renderedExtent_, extent)) {
+                this.replayGroupChanged = false;
+                return true;
+            }
+            this.replayGroup_ = null;
+            this.dirty_ = false;
+            const replayGroup = new BuilderGroup_js_1.default(vector_js_2.getTolerance(resolution, pixelRatio), extent, resolution, pixelRatio, vectorLayer.getDeclutter());
+            const userProjection = proj_js_13.getUserProjection();
+            let userTransform;
+            if (userProjection) {
+                for (let i = 0, ii = loadExtents.length; i < ii; ++i) {
+                    vectorSource.loadFeatures(proj_js_13.toUserExtent(loadExtents[i], projection), resolution, userProjection);
+                }
+                userTransform = proj_js_13.getTransformFromProjections(userProjection, projection);
+            }
+            else {
+                for (let i = 0, ii = loadExtents.length; i < ii; ++i) {
+                    vectorSource.loadFeatures(loadExtents[i], resolution, projection);
+                }
+            }
+            const squaredTolerance = vector_js_2.getSquaredTolerance(resolution, pixelRatio);
+            const render = function (feature) {
+                let styles;
+                const styleFunction = feature.getStyleFunction() || vectorLayer.getStyleFunction();
+                if (styleFunction) {
+                    styles = styleFunction(feature, resolution);
+                }
+                if (styles) {
+                    const dirty = this.renderFeature(feature, squaredTolerance, styles, replayGroup, userTransform);
+                    this.dirty_ = this.dirty_ || dirty;
+                }
+            }.bind(this);
+            const userExtent = proj_js_13.toUserExtent(extent, projection);
+            const features = vectorSource.getFeaturesInExtent(userExtent);
+            if (vectorLayerRenderOrder) {
+                features.sort(vectorLayerRenderOrder);
+            }
+            for (let i = 0, ii = features.length; i < ii; ++i) {
+                render(features[i]);
+            }
+            this.renderedFeatures_ = features;
+            const replayGroupInstructions = replayGroup.finish();
+            const executorGroup = new ExecutorGroup_js_1.default(extent, resolution, pixelRatio, vectorSource.getOverlaps(), replayGroupInstructions, vectorLayer.getRenderBuffer());
+            this.renderedResolution_ = resolution;
+            this.renderedRevision_ = vectorLayerRevision;
+            this.renderedRenderOrder_ = vectorLayerRenderOrder;
+            this.renderedExtent_ = extent;
+            this.renderedCenter_ = center;
+            this.renderedProjection_ = projection;
+            this.replayGroup_ = executorGroup;
+            this.hitDetectionImageData_ = null;
+            this.replayGroupChanged = true;
+            return true;
+        }
+        renderFeature(feature, squaredTolerance, styles, builderGroup, opt_transform) {
+            if (!styles) {
+                return false;
+            }
+            let loading = false;
+            if (Array.isArray(styles)) {
+                for (let i = 0, ii = styles.length; i < ii; ++i) {
+                    loading =
+                        vector_js_2.renderFeature(builderGroup, feature, styles[i], squaredTolerance, this.boundHandleStyleImageChange_, opt_transform) || loading;
+                }
+            }
+            else {
+                loading = vector_js_2.renderFeature(builderGroup, feature, styles, squaredTolerance, this.boundHandleStyleImageChange_, opt_transform);
+            }
+            return loading;
+        }
+    }
+    exports.default = CanvasVectorLayerRenderer;
+});
+define("node_modules/ol/src/layer/Vector", ["require", "exports", "node_modules/ol/src/layer/BaseVector", "node_modules/ol/src/renderer/canvas/VectorLayer"], function (require, exports, BaseVector_js_1, VectorLayer_js_1) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    class VectorLayer extends BaseVector_js_1.default {
+        constructor(opt_options) {
+            super(opt_options);
+        }
+        createRenderer() {
+            return new VectorLayer_js_1.default(this);
+        }
+    }
+    exports.default = VectorLayer;
+});
+define("node_modules/ol/src/interaction/Draw", ["require", "exports", "node_modules/ol/src/geom/Circle", "node_modules/ol/src/events/Event", "node_modules/ol/src/events/EventType", "node_modules/ol/src/Feature", "node_modules/ol/src/geom/GeometryType", "node_modules/ol/src/interaction/Property", "node_modules/ol/src/geom/LineString", "node_modules/ol/src/MapBrowserEvent", "node_modules/ol/src/MapBrowserEventType", "node_modules/ol/src/geom/MultiLineString", "node_modules/ol/src/geom/MultiPoint", "node_modules/ol/src/geom/MultiPolygon", "node_modules/ol/src/geom/Point", "node_modules/ol/src/interaction/Pointer", "node_modules/ol/src/geom/Polygon", "node_modules/ol/src/layer/Vector", "node_modules/ol/src/source/Vector", "node_modules/ol/src/functions", "node_modules/ol/src/events/condition", "node_modules/ol/src/extent", "node_modules/ol/src/style/Style", "node_modules/ol/src/proj", "node_modules/ol/src/Object", "node_modules/ol/src/coordinate"], function (require, exports, Circle_js_3, Event_js_13, EventType_js_37, Feature_js_1, GeometryType_js_19, Property_js_4, LineString_js_2, MapBrowserEvent_js_3, MapBrowserEventType_js_6, MultiLineString_js_1, MultiPoint_js_2, MultiPolygon_js_1, Point_js_3, Pointer_js_7, Polygon_js_6, Vector_js_1, Vector_js_2, functions_js_15, condition_js_9, extent_js_40, Style_js_3, proj_js_14, Object_js_17, coordinate_js_8) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.createBox = exports.createRegularPolygon = void 0;
+    const Mode = {
+        POINT: 'Point',
+        LINE_STRING: 'LineString',
+        POLYGON: 'Polygon',
+        CIRCLE: 'Circle',
+    };
+    const DrawEventType = {
+        DRAWSTART: 'drawstart',
+        DRAWEND: 'drawend',
+        DRAWABORT: 'drawabort',
+    };
+    class DrawEvent extends Event_js_13.default {
+        constructor(type, feature) {
+            super(type);
+            this.feature = feature;
+        }
+    }
+    class Draw extends Pointer_js_7.default {
+        constructor(options) {
+            const pointerOptions = (options);
+            if (!pointerOptions.stopDown) {
+                pointerOptions.stopDown = functions_js_15.FALSE;
+            }
+            super(pointerOptions);
+            this.shouldHandle_ = false;
+            this.downPx_ = null;
+            this.downTimeout_;
+            this.lastDragTime_;
+            this.freehand_ = false;
+            this.source_ = options.source ? options.source : null;
+            this.features_ = options.features ? options.features : null;
+            this.snapTolerance_ = options.snapTolerance ? options.snapTolerance : 12;
+            this.type_ = (options.type);
+            this.mode_ = getMode(this.type_);
+            this.stopClick_ = !!options.stopClick;
+            this.minPoints_ = options.minPoints
+                ? options.minPoints
+                : this.mode_ === Mode.POLYGON
+                    ? 3
+                    : 2;
+            this.maxPoints_ = options.maxPoints ? options.maxPoints : Infinity;
+            this.finishCondition_ = options.finishCondition
+                ? options.finishCondition
+                : functions_js_15.TRUE;
+            let geometryFunction = options.geometryFunction;
+            if (!geometryFunction) {
+                if (this.type_ === GeometryType_js_19.default.CIRCLE) {
+                    geometryFunction = function (coordinates, opt_geometry, projection) {
+                        const circle = opt_geometry
+                            ? (opt_geometry)
+                            : new Circle_js_3.default([NaN, NaN]);
+                        const center = proj_js_14.fromUserCoordinate(coordinates[0], projection);
+                        const squaredLength = coordinate_js_8.squaredDistance(center, proj_js_14.fromUserCoordinate(coordinates[1], projection));
+                        circle.setCenterAndRadius(center, Math.sqrt(squaredLength));
+                        const userProjection = proj_js_14.getUserProjection();
+                        if (userProjection) {
+                            circle.transform(projection, userProjection);
+                        }
+                        return circle;
+                    };
+                }
+                else {
+                    let Constructor;
+                    const mode = this.mode_;
+                    if (mode === Mode.POINT) {
+                        Constructor = Point_js_3.default;
+                    }
+                    else if (mode === Mode.LINE_STRING) {
+                        Constructor = LineString_js_2.default;
+                    }
+                    else if (mode === Mode.POLYGON) {
+                        Constructor = Polygon_js_6.default;
+                    }
+                    geometryFunction = function (coordinates, opt_geometry, projection) {
+                        let geometry = opt_geometry;
+                        if (geometry) {
+                            if (mode === Mode.POLYGON) {
+                                if (coordinates[0].length) {
+                                    geometry.setCoordinates([
+                                        coordinates[0].concat([coordinates[0][0]]),
+                                    ]);
+                                }
+                                else {
+                                    geometry.setCoordinates([]);
+                                }
+                            }
+                            else {
+                                geometry.setCoordinates(coordinates);
+                            }
+                        }
+                        else {
+                            geometry = new Constructor(coordinates);
+                        }
+                        return geometry;
+                    };
+                }
+            }
+            this.geometryFunction_ = geometryFunction;
+            this.dragVertexDelay_ =
+                options.dragVertexDelay !== undefined ? options.dragVertexDelay : 500;
+            this.finishCoordinate_ = null;
+            this.sketchFeature_ = null;
+            this.sketchPoint_ = null;
+            this.sketchCoords_ = null;
+            this.sketchLine_ = null;
+            this.sketchLineCoords_ = null;
+            this.squaredClickTolerance_ = options.clickTolerance
+                ? options.clickTolerance * options.clickTolerance
+                : 36;
+            this.overlay_ = new Vector_js_1.default({
+                source: new Vector_js_2.default({
+                    useSpatialIndex: false,
+                    wrapX: options.wrapX ? options.wrapX : false,
+                }),
+                style: options.style ? options.style : getDefaultStyleFunction(),
+                updateWhileInteracting: true,
+            });
+            this.geometryName_ = options.geometryName;
+            this.condition_ = options.condition ? options.condition : condition_js_9.noModifierKeys;
+            this.freehandCondition_;
+            if (options.freehand) {
+                this.freehandCondition_ = condition_js_9.always;
+            }
+            else {
+                this.freehandCondition_ = options.freehandCondition
+                    ? options.freehandCondition
+                    : condition_js_9.shiftKeyOnly;
+            }
+            this.addEventListener(Object_js_17.getChangeEventType(Property_js_4.default.ACTIVE), this.updateState_);
+        }
+        setMap(map) {
+            super.setMap(map);
+            this.updateState_();
+        }
+        getOverlay() {
+            return this.overlay_;
+        }
+        handleEvent(event) {
+            if (event.originalEvent.type === EventType_js_37.default.CONTEXTMENU) {
+                event.preventDefault();
+            }
+            this.freehand_ =
+                this.mode_ !== Mode.POINT && this.freehandCondition_(event);
+            let move = event.type === MapBrowserEventType_js_6.default.POINTERMOVE;
+            let pass = true;
+            if (!this.freehand_ &&
+                this.lastDragTime_ &&
+                event.type === MapBrowserEventType_js_6.default.POINTERDRAG) {
+                const now = Date.now();
+                if (now - this.lastDragTime_ >= this.dragVertexDelay_) {
+                    this.downPx_ = event.pixel;
+                    this.shouldHandle_ = !this.freehand_;
+                    move = true;
+                }
+                else {
+                    this.lastDragTime_ = undefined;
+                }
+                if (this.shouldHandle_ && this.downTimeout_ !== undefined) {
+                    clearTimeout(this.downTimeout_);
+                    this.downTimeout_ = undefined;
+                }
+            }
+            if (this.freehand_ &&
+                event.type === MapBrowserEventType_js_6.default.POINTERDRAG &&
+                this.sketchFeature_ !== null) {
+                this.addToDrawing_(event.coordinate);
+                pass = false;
+            }
+            else if (this.freehand_ &&
+                event.type === MapBrowserEventType_js_6.default.POINTERDOWN) {
+                pass = false;
+            }
+            else if (move) {
+                pass = event.type === MapBrowserEventType_js_6.default.POINTERMOVE;
+                if (pass && this.freehand_) {
+                    this.handlePointerMove_(event);
+                    if (this.shouldHandle_) {
+                        event.preventDefault();
+                    }
+                }
+                else if (event.originalEvent.pointerType == 'mouse' ||
+                    (event.type === MapBrowserEventType_js_6.default.POINTERDRAG &&
+                        this.downTimeout_ === undefined)) {
+                    this.handlePointerMove_(event);
+                }
+            }
+            else if (event.type === MapBrowserEventType_js_6.default.DBLCLICK) {
+                pass = false;
+            }
+            return super.handleEvent(event) && pass;
+        }
+        handleDownEvent(event) {
+            this.shouldHandle_ = !this.freehand_;
+            if (this.freehand_) {
+                this.downPx_ = event.pixel;
+                if (!this.finishCoordinate_) {
+                    this.startDrawing_(event);
+                }
+                return true;
+            }
+            else if (this.condition_(event)) {
+                this.lastDragTime_ = Date.now();
+                this.downTimeout_ = setTimeout(function () {
+                    this.handlePointerMove_(new MapBrowserEvent_js_3.default(MapBrowserEventType_js_6.default.POINTERMOVE, event.map, event.originalEvent, false, event.frameState));
+                }.bind(this), this.dragVertexDelay_);
+                this.downPx_ = event.pixel;
+                return true;
+            }
+            else {
+                this.lastDragTime_ = undefined;
+                return false;
+            }
+        }
+        handleUpEvent(event) {
+            let pass = true;
+            if (this.downTimeout_) {
+                clearTimeout(this.downTimeout_);
+                this.downTimeout_ = undefined;
+            }
+            this.handlePointerMove_(event);
+            const circleMode = this.mode_ === Mode.CIRCLE;
+            if (this.shouldHandle_) {
+                if (!this.finishCoordinate_) {
+                    this.startDrawing_(event);
+                    if (this.mode_ === Mode.POINT) {
+                        this.finishDrawing();
+                    }
+                }
+                else if (this.freehand_ || circleMode) {
+                    this.finishDrawing();
+                }
+                else if (this.atFinish_(event)) {
+                    if (this.finishCondition_(event)) {
+                        this.finishDrawing();
+                    }
+                }
+                else {
+                    this.addToDrawing_(event.coordinate);
+                }
+                pass = false;
+            }
+            else if (this.freehand_) {
+                this.abortDrawing();
+            }
+            if (!pass && this.stopClick_) {
+                event.stopPropagation();
+            }
+            return pass;
+        }
+        handlePointerMove_(event) {
+            if (this.downPx_ &&
+                ((!this.freehand_ && this.shouldHandle_) ||
+                    (this.freehand_ && !this.shouldHandle_))) {
+                const downPx = this.downPx_;
+                const clickPx = event.pixel;
+                const dx = downPx[0] - clickPx[0];
+                const dy = downPx[1] - clickPx[1];
+                const squaredDistance = dx * dx + dy * dy;
+                this.shouldHandle_ = this.freehand_
+                    ? squaredDistance > this.squaredClickTolerance_
+                    : squaredDistance <= this.squaredClickTolerance_;
+                if (!this.shouldHandle_) {
+                    return;
+                }
+            }
+            if (this.finishCoordinate_) {
+                this.modifyDrawing_(event);
+            }
+            else {
+                this.createOrUpdateSketchPoint_(event);
+            }
+        }
+        atFinish_(event) {
+            let at = false;
+            if (this.sketchFeature_) {
+                let potentiallyDone = false;
+                let potentiallyFinishCoordinates = [this.finishCoordinate_];
+                if (this.mode_ === Mode.LINE_STRING) {
+                    potentiallyDone = this.sketchCoords_.length > this.minPoints_;
+                }
+                else if (this.mode_ === Mode.POLYGON) {
+                    const sketchCoords = (this.sketchCoords_);
+                    potentiallyDone = sketchCoords[0].length > this.minPoints_;
+                    potentiallyFinishCoordinates = [
+                        sketchCoords[0][0],
+                        sketchCoords[0][sketchCoords[0].length - 2],
+                    ];
+                }
+                if (potentiallyDone) {
+                    const map = event.map;
+                    for (let i = 0, ii = potentiallyFinishCoordinates.length; i < ii; i++) {
+                        const finishCoordinate = potentiallyFinishCoordinates[i];
+                        const finishPixel = map.getPixelFromCoordinate(finishCoordinate);
+                        const pixel = event.pixel;
+                        const dx = pixel[0] - finishPixel[0];
+                        const dy = pixel[1] - finishPixel[1];
+                        const snapTolerance = this.freehand_ ? 1 : this.snapTolerance_;
+                        at = Math.sqrt(dx * dx + dy * dy) <= snapTolerance;
+                        if (at) {
+                            this.finishCoordinate_ = finishCoordinate;
+                            break;
+                        }
+                    }
+                }
+            }
+            return at;
+        }
+        createOrUpdateSketchPoint_(event) {
+            const coordinates = event.coordinate.slice();
+            if (!this.sketchPoint_) {
+                this.sketchPoint_ = new Feature_js_1.default(new Point_js_3.default(coordinates));
+                this.updateSketchFeatures_();
+            }
+            else {
+                const sketchPointGeom = this.sketchPoint_.getGeometry();
+                sketchPointGeom.setCoordinates(coordinates);
+            }
+        }
+        startDrawing_(event) {
+            const start = event.coordinate;
+            const projection = event.map.getView().getProjection();
+            this.finishCoordinate_ = start;
+            if (this.mode_ === Mode.POINT) {
+                this.sketchCoords_ = start.slice();
+            }
+            else if (this.mode_ === Mode.POLYGON) {
+                this.sketchCoords_ = [[start.slice(), start.slice()]];
+                this.sketchLineCoords_ = this.sketchCoords_[0];
+            }
+            else {
+                this.sketchCoords_ = [start.slice(), start.slice()];
+            }
+            if (this.sketchLineCoords_) {
+                this.sketchLine_ = new Feature_js_1.default(new LineString_js_2.default(this.sketchLineCoords_));
+            }
+            const geometry = this.geometryFunction_(this.sketchCoords_, undefined, projection);
+            this.sketchFeature_ = new Feature_js_1.default();
+            if (this.geometryName_) {
+                this.sketchFeature_.setGeometryName(this.geometryName_);
+            }
+            this.sketchFeature_.setGeometry(geometry);
+            this.updateSketchFeatures_();
+            this.dispatchEvent(new DrawEvent(DrawEventType.DRAWSTART, this.sketchFeature_));
+        }
+        modifyDrawing_(event) {
+            let coordinate = event.coordinate;
+            const geometry = this.sketchFeature_.getGeometry();
+            const projection = event.map.getView().getProjection();
+            let coordinates, last;
+            if (this.mode_ === Mode.POINT) {
+                last = this.sketchCoords_;
+            }
+            else if (this.mode_ === Mode.POLYGON) {
+                coordinates = (this.sketchCoords_)[0];
+                last = coordinates[coordinates.length - 1];
+                if (this.atFinish_(event)) {
+                    coordinate = this.finishCoordinate_.slice();
+                }
+            }
+            else {
+                coordinates = this.sketchCoords_;
+                last = coordinates[coordinates.length - 1];
+            }
+            last[0] = coordinate[0];
+            last[1] = coordinate[1];
+            this.geometryFunction_((this.sketchCoords_), geometry, projection);
+            if (this.sketchPoint_) {
+                const sketchPointGeom = this.sketchPoint_.getGeometry();
+                sketchPointGeom.setCoordinates(coordinate);
+            }
+            let sketchLineGeom;
+            if (geometry.getType() == GeometryType_js_19.default.POLYGON &&
+                this.mode_ !== Mode.POLYGON) {
+                if (!this.sketchLine_) {
+                    this.sketchLine_ = new Feature_js_1.default();
+                }
+                const ring = geometry.getLinearRing(0);
+                sketchLineGeom = this.sketchLine_.getGeometry();
+                if (!sketchLineGeom) {
+                    sketchLineGeom = new LineString_js_2.default(ring.getFlatCoordinates(), ring.getLayout());
+                    this.sketchLine_.setGeometry(sketchLineGeom);
+                }
+                else {
+                    sketchLineGeom.setFlatCoordinates(ring.getLayout(), ring.getFlatCoordinates());
+                    sketchLineGeom.changed();
+                }
+            }
+            else if (this.sketchLineCoords_) {
+                sketchLineGeom = this.sketchLine_.getGeometry();
+                sketchLineGeom.setCoordinates(this.sketchLineCoords_);
+            }
+            this.updateSketchFeatures_();
+        }
+        addToDrawing_(coordinate) {
+            const geometry = this.sketchFeature_.getGeometry();
+            const projection = this.getMap().getView().getProjection();
+            let done;
+            let coordinates;
+            if (this.mode_ === Mode.LINE_STRING) {
+                this.finishCoordinate_ = coordinate.slice();
+                coordinates = (this.sketchCoords_);
+                if (coordinates.length >= this.maxPoints_) {
+                    if (this.freehand_) {
+                        coordinates.pop();
+                    }
+                    else {
+                        done = true;
+                    }
+                }
+                coordinates.push(coordinate.slice());
+                this.geometryFunction_(coordinates, geometry, projection);
+            }
+            else if (this.mode_ === Mode.POLYGON) {
+                coordinates = (this.sketchCoords_)[0];
+                if (coordinates.length >= this.maxPoints_) {
+                    if (this.freehand_) {
+                        coordinates.pop();
+                    }
+                    else {
+                        done = true;
+                    }
+                }
+                coordinates.push(coordinate.slice());
+                if (done) {
+                    this.finishCoordinate_ = coordinates[0];
+                }
+                this.geometryFunction_(this.sketchCoords_, geometry, projection);
+            }
+            this.updateSketchFeatures_();
+            if (done) {
+                this.finishDrawing();
+            }
+        }
+        removeLastPoint() {
+            if (!this.sketchFeature_) {
+                return;
+            }
+            const geometry = this.sketchFeature_.getGeometry();
+            const projection = this.getMap().getView().getProjection();
+            let coordinates;
+            let sketchLineGeom;
+            if (this.mode_ === Mode.LINE_STRING) {
+                coordinates = (this.sketchCoords_);
+                coordinates.splice(-2, 1);
+                this.geometryFunction_(coordinates, geometry, projection);
+                if (coordinates.length >= 2) {
+                    this.finishCoordinate_ = coordinates[coordinates.length - 2].slice();
+                }
+            }
+            else if (this.mode_ === Mode.POLYGON) {
+                coordinates = (this.sketchCoords_)[0];
+                coordinates.splice(-2, 1);
+                sketchLineGeom = this.sketchLine_.getGeometry();
+                sketchLineGeom.setCoordinates(coordinates);
+                this.geometryFunction_(this.sketchCoords_, geometry, projection);
+            }
+            if (coordinates.length === 0) {
+                this.abortDrawing();
+            }
+            this.updateSketchFeatures_();
+        }
+        finishDrawing() {
+            const sketchFeature = this.abortDrawing_();
+            if (!sketchFeature) {
+                return;
+            }
+            let coordinates = this.sketchCoords_;
+            const geometry = sketchFeature.getGeometry();
+            const projection = this.getMap().getView().getProjection();
+            if (this.mode_ === Mode.LINE_STRING) {
+                coordinates.pop();
+                this.geometryFunction_(coordinates, geometry, projection);
+            }
+            else if (this.mode_ === Mode.POLYGON) {
+                (coordinates)[0].pop();
+                this.geometryFunction_(coordinates, geometry, projection);
+                coordinates = geometry.getCoordinates();
+            }
+            if (this.type_ === GeometryType_js_19.default.MULTI_POINT) {
+                sketchFeature.setGeometry(new MultiPoint_js_2.default([(coordinates)]));
+            }
+            else if (this.type_ === GeometryType_js_19.default.MULTI_LINE_STRING) {
+                sketchFeature.setGeometry(new MultiLineString_js_1.default([(coordinates)]));
+            }
+            else if (this.type_ === GeometryType_js_19.default.MULTI_POLYGON) {
+                sketchFeature.setGeometry(new MultiPolygon_js_1.default([(coordinates)]));
+            }
+            this.dispatchEvent(new DrawEvent(DrawEventType.DRAWEND, sketchFeature));
+            if (this.features_) {
+                this.features_.push(sketchFeature);
+            }
+            if (this.source_) {
+                this.source_.addFeature(sketchFeature);
+            }
+        }
+        abortDrawing_() {
+            this.finishCoordinate_ = null;
+            const sketchFeature = this.sketchFeature_;
+            this.sketchFeature_ = null;
+            this.sketchPoint_ = null;
+            this.sketchLine_ = null;
+            this.overlay_.getSource().clear(true);
+            return sketchFeature;
+        }
+        abortDrawing() {
+            const sketchFeature = this.abortDrawing_();
+            if (sketchFeature) {
+                this.dispatchEvent(new DrawEvent(DrawEventType.DRAWABORT, sketchFeature));
+            }
+        }
+        appendCoordinates(coordinates) {
+            const mode = this.mode_;
+            let sketchCoords = [];
+            if (mode === Mode.LINE_STRING) {
+                sketchCoords = this.sketchCoords_;
+            }
+            else if (mode === Mode.POLYGON) {
+                sketchCoords =
+                    this.sketchCoords_ && this.sketchCoords_.length
+                        ? (this.sketchCoords_)[0]
+                        : [];
+            }
+            const ending = sketchCoords.pop();
+            for (let i = 0; i < coordinates.length; i++) {
+                this.addToDrawing_(coordinates[i]);
+            }
+            this.addToDrawing_(ending);
+        }
+        extend(feature) {
+            const geometry = feature.getGeometry();
+            const lineString = geometry;
+            this.sketchFeature_ = feature;
+            this.sketchCoords_ = lineString.getCoordinates();
+            const last = this.sketchCoords_[this.sketchCoords_.length - 1];
+            this.finishCoordinate_ = last.slice();
+            this.sketchCoords_.push(last.slice());
+            this.updateSketchFeatures_();
+            this.dispatchEvent(new DrawEvent(DrawEventType.DRAWSTART, this.sketchFeature_));
+        }
+        updateSketchFeatures_() {
+            const sketchFeatures = [];
+            if (this.sketchFeature_) {
+                sketchFeatures.push(this.sketchFeature_);
+            }
+            if (this.sketchLine_) {
+                sketchFeatures.push(this.sketchLine_);
+            }
+            if (this.sketchPoint_) {
+                sketchFeatures.push(this.sketchPoint_);
+            }
+            const overlaySource = this.overlay_.getSource();
+            overlaySource.clear(true);
+            overlaySource.addFeatures(sketchFeatures);
+        }
+        updateState_() {
+            const map = this.getMap();
+            const active = this.getActive();
+            if (!map || !active) {
+                this.abortDrawing();
+            }
+            this.overlay_.setMap(active ? map : null);
+        }
+    }
+    function getDefaultStyleFunction() {
+        const styles = Style_js_3.createEditingStyle();
+        return function (feature, resolution) {
+            return styles[feature.getGeometry().getType()];
+        };
+    }
+    function createRegularPolygon(opt_sides, opt_angle) {
+        return function (coordinates, opt_geometry, projection) {
+            const center = proj_js_14.fromUserCoordinate((coordinates)[0], projection);
+            const end = proj_js_14.fromUserCoordinate((coordinates)[1], projection);
+            const radius = Math.sqrt(coordinate_js_8.squaredDistance(center, end));
+            const geometry = opt_geometry
+                ? (opt_geometry)
+                : Polygon_js_6.fromCircle(new Circle_js_3.default(center), opt_sides);
+            let angle = opt_angle;
+            if (!opt_angle) {
+                const x = end[0] - center[0];
+                const y = end[1] - center[1];
+                angle = Math.atan(y / x) - (x < 0 ? Math.PI : 0);
+            }
+            Polygon_js_6.makeRegular(geometry, center, radius, angle);
+            const userProjection = proj_js_14.getUserProjection();
+            if (userProjection) {
+                geometry.transform(projection, userProjection);
+            }
+            return geometry;
+        };
+    }
+    exports.createRegularPolygon = createRegularPolygon;
+    function createBox() {
+        return function (coordinates, opt_geometry, projection) {
+            const extent = extent_js_40.boundingExtent((coordinates).map(function (coordinate) {
+                return proj_js_14.fromUserCoordinate(coordinate, projection);
+            }));
+            const boxCoordinates = [
+                [
+                    extent_js_40.getBottomLeft(extent),
+                    extent_js_40.getBottomRight(extent),
+                    extent_js_40.getTopRight(extent),
+                    extent_js_40.getTopLeft(extent),
+                    extent_js_40.getBottomLeft(extent),
+                ],
+            ];
+            let geometry = opt_geometry;
+            if (geometry) {
+                geometry.setCoordinates(boxCoordinates);
+            }
+            else {
+                geometry = new Polygon_js_6.default(boxCoordinates);
+            }
+            const userProjection = proj_js_14.getUserProjection();
+            if (userProjection) {
+                geometry.transform(projection, userProjection);
+            }
+            return geometry;
+        };
+    }
+    exports.createBox = createBox;
+    function getMode(type) {
+        let mode;
+        if (type === GeometryType_js_19.default.POINT || type === GeometryType_js_19.default.MULTI_POINT) {
+            mode = Mode.POINT;
+        }
+        else if (type === GeometryType_js_19.default.LINE_STRING ||
+            type === GeometryType_js_19.default.MULTI_LINE_STRING) {
+            mode = Mode.LINE_STRING;
+        }
+        else if (type === GeometryType_js_19.default.POLYGON ||
+            type === GeometryType_js_19.default.MULTI_POLYGON) {
+            mode = Mode.POLYGON;
+        }
+        else if (type === GeometryType_js_19.default.CIRCLE) {
+            mode = Mode.CIRCLE;
+        }
+        return (mode);
+    }
+    exports.default = Draw;
+});
+define("node_modules/ol/src/interaction/Extent", ["require", "exports", "node_modules/ol/src/events/Event", "node_modules/ol/src/Feature", "node_modules/ol/src/geom/GeometryType", "node_modules/ol/src/MapBrowserEventType", "node_modules/ol/src/geom/Point", "node_modules/ol/src/interaction/Pointer", "node_modules/ol/src/layer/Vector", "node_modules/ol/src/source/Vector", "node_modules/ol/src/events/condition", "node_modules/ol/src/extent", "node_modules/ol/src/coordinate", "node_modules/ol/src/style/Style", "node_modules/ol/src/geom/Polygon", "node_modules/ol/src/proj"], function (require, exports, Event_js_14, Feature_js_2, GeometryType_js_20, MapBrowserEventType_js_7, Point_js_4, Pointer_js_8, Vector_js_3, Vector_js_4, condition_js_10, extent_js_41, coordinate_js_9, Style_js_4, Polygon_js_7, proj_js_15) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    const ExtentEventType = {
+        EXTENTCHANGED: 'extentchanged',
+    };
+    class ExtentEvent extends Event_js_14.default {
+        constructor(extent) {
+            super(ExtentEventType.EXTENTCHANGED);
+            this.extent = extent;
+        }
+    }
+    class Extent extends Pointer_js_8.default {
+        constructor(opt_options) {
+            const options = opt_options || {};
+            super((options));
+            this.condition_ = options.condition ? options.condition : condition_js_10.always;
+            this.extent_ = null;
+            this.pointerHandler_ = null;
+            this.pixelTolerance_ =
+                options.pixelTolerance !== undefined ? options.pixelTolerance : 10;
+            this.snappedToVertex_ = false;
+            this.extentFeature_ = null;
+            this.vertexFeature_ = null;
+            if (!opt_options) {
+                opt_options = {};
+            }
+            this.extentOverlay_ = new Vector_js_3.default({
+                source: new Vector_js_4.default({
+                    useSpatialIndex: false,
+                    wrapX: !!opt_options.wrapX,
+                }),
+                style: opt_options.boxStyle
+                    ? opt_options.boxStyle
+                    : getDefaultExtentStyleFunction(),
+                updateWhileAnimating: true,
+                updateWhileInteracting: true,
+            });
+            this.vertexOverlay_ = new Vector_js_3.default({
+                source: new Vector_js_4.default({
+                    useSpatialIndex: false,
+                    wrapX: !!opt_options.wrapX,
+                }),
+                style: opt_options.pointerStyle
+                    ? opt_options.pointerStyle
+                    : getDefaultPointerStyleFunction(),
+                updateWhileAnimating: true,
+                updateWhileInteracting: true,
+            });
+            if (opt_options.extent) {
+                this.setExtent(opt_options.extent);
+            }
+        }
+        snapToVertex_(pixel, map) {
+            const pixelCoordinate = map.getCoordinateFromPixelInternal(pixel);
+            const sortByDistance = function (a, b) {
+                return (coordinate_js_9.squaredDistanceToSegment(pixelCoordinate, a) -
+                    coordinate_js_9.squaredDistanceToSegment(pixelCoordinate, b));
+            };
+            const extent = this.getExtentInternal();
+            if (extent) {
+                const segments = getSegments(extent);
+                segments.sort(sortByDistance);
+                const closestSegment = segments[0];
+                let vertex = coordinate_js_9.closestOnSegment(pixelCoordinate, closestSegment);
+                const vertexPixel = map.getPixelFromCoordinateInternal(vertex);
+                if (coordinate_js_9.distance(pixel, vertexPixel) <= this.pixelTolerance_) {
+                    const pixel1 = map.getPixelFromCoordinateInternal(closestSegment[0]);
+                    const pixel2 = map.getPixelFromCoordinateInternal(closestSegment[1]);
+                    const squaredDist1 = coordinate_js_9.squaredDistance(vertexPixel, pixel1);
+                    const squaredDist2 = coordinate_js_9.squaredDistance(vertexPixel, pixel2);
+                    const dist = Math.sqrt(Math.min(squaredDist1, squaredDist2));
+                    this.snappedToVertex_ = dist <= this.pixelTolerance_;
+                    if (this.snappedToVertex_) {
+                        vertex =
+                            squaredDist1 > squaredDist2 ? closestSegment[1] : closestSegment[0];
+                    }
+                    return vertex;
+                }
+            }
+            return null;
+        }
+        handlePointerMove_(mapBrowserEvent) {
+            const pixel = mapBrowserEvent.pixel;
+            const map = mapBrowserEvent.map;
+            let vertex = this.snapToVertex_(pixel, map);
+            if (!vertex) {
+                vertex = map.getCoordinateFromPixelInternal(pixel);
+            }
+            this.createOrUpdatePointerFeature_(vertex);
+        }
+        createOrUpdateExtentFeature_(extent) {
+            let extentFeature = this.extentFeature_;
+            if (!extentFeature) {
+                if (!extent) {
+                    extentFeature = new Feature_js_2.default({});
+                }
+                else {
+                    extentFeature = new Feature_js_2.default(Polygon_js_7.fromExtent(extent));
+                }
+                this.extentFeature_ = extentFeature;
+                this.extentOverlay_.getSource().addFeature(extentFeature);
+            }
+            else {
+                if (!extent) {
+                    extentFeature.setGeometry(undefined);
+                }
+                else {
+                    extentFeature.setGeometry(Polygon_js_7.fromExtent(extent));
+                }
+            }
+            return extentFeature;
+        }
+        createOrUpdatePointerFeature_(vertex) {
+            let vertexFeature = this.vertexFeature_;
+            if (!vertexFeature) {
+                vertexFeature = new Feature_js_2.default(new Point_js_4.default(vertex));
+                this.vertexFeature_ = vertexFeature;
+                this.vertexOverlay_.getSource().addFeature(vertexFeature);
+            }
+            else {
+                const geometry = vertexFeature.getGeometry();
+                geometry.setCoordinates(vertex);
+            }
+            return vertexFeature;
+        }
+        handleEvent(mapBrowserEvent) {
+            if (!mapBrowserEvent.originalEvent || !this.condition_(mapBrowserEvent)) {
+                return true;
+            }
+            if (mapBrowserEvent.type == MapBrowserEventType_js_7.default.POINTERMOVE &&
+                !this.handlingDownUpSequence) {
+                this.handlePointerMove_(mapBrowserEvent);
+            }
+            super.handleEvent(mapBrowserEvent);
+            return false;
+        }
+        handleDownEvent(mapBrowserEvent) {
+            const pixel = mapBrowserEvent.pixel;
+            const map = mapBrowserEvent.map;
+            const extent = this.getExtentInternal();
+            let vertex = this.snapToVertex_(pixel, map);
+            const getOpposingPoint = function (point) {
+                let x_ = null;
+                let y_ = null;
+                if (point[0] == extent[0]) {
+                    x_ = extent[2];
+                }
+                else if (point[0] == extent[2]) {
+                    x_ = extent[0];
+                }
+                if (point[1] == extent[1]) {
+                    y_ = extent[3];
+                }
+                else if (point[1] == extent[3]) {
+                    y_ = extent[1];
+                }
+                if (x_ !== null && y_ !== null) {
+                    return [x_, y_];
+                }
+                return null;
+            };
+            if (vertex && extent) {
+                const x = vertex[0] == extent[0] || vertex[0] == extent[2] ? vertex[0] : null;
+                const y = vertex[1] == extent[1] || vertex[1] == extent[3] ? vertex[1] : null;
+                if (x !== null && y !== null) {
+                    this.pointerHandler_ = getPointHandler(getOpposingPoint(vertex));
+                }
+                else if (x !== null) {
+                    this.pointerHandler_ = getEdgeHandler(getOpposingPoint([x, extent[1]]), getOpposingPoint([x, extent[3]]));
+                }
+                else if (y !== null) {
+                    this.pointerHandler_ = getEdgeHandler(getOpposingPoint([extent[0], y]), getOpposingPoint([extent[2], y]));
+                }
+            }
+            else {
+                vertex = map.getCoordinateFromPixelInternal(pixel);
+                this.setExtent([vertex[0], vertex[1], vertex[0], vertex[1]]);
+                this.pointerHandler_ = getPointHandler(vertex);
+            }
+            return true;
+        }
+        handleDragEvent(mapBrowserEvent) {
+            if (this.pointerHandler_) {
+                const pixelCoordinate = mapBrowserEvent.coordinate;
+                this.setExtent(this.pointerHandler_(pixelCoordinate));
+                this.createOrUpdatePointerFeature_(pixelCoordinate);
+            }
+        }
+        handleUpEvent(mapBrowserEvent) {
+            this.pointerHandler_ = null;
+            const extent = this.getExtentInternal();
+            if (!extent || extent_js_41.getArea(extent) === 0) {
+                this.setExtent(null);
+            }
+            return false;
+        }
+        setMap(map) {
+            this.extentOverlay_.setMap(map);
+            this.vertexOverlay_.setMap(map);
+            super.setMap(map);
+        }
+        getExtent() {
+            return proj_js_15.toUserExtent(this.getExtentInternal(), this.getMap().getView().getProjection());
+        }
+        getExtentInternal() {
+            return this.extent_;
+        }
+        setExtent(extent) {
+            this.extent_ = extent ? extent : null;
+            this.createOrUpdateExtentFeature_(extent);
+            this.dispatchEvent(new ExtentEvent(this.extent_));
+        }
+    }
+    function getDefaultExtentStyleFunction() {
+        const style = Style_js_4.createEditingStyle();
+        return function (feature, resolution) {
+            return style[GeometryType_js_20.default.POLYGON];
+        };
+    }
+    function getDefaultPointerStyleFunction() {
+        const style = Style_js_4.createEditingStyle();
+        return function (feature, resolution) {
+            return style[GeometryType_js_20.default.POINT];
+        };
+    }
+    function getPointHandler(fixedPoint) {
+        return function (point) {
+            return extent_js_41.boundingExtent([fixedPoint, point]);
+        };
+    }
+    function getEdgeHandler(fixedP1, fixedP2) {
+        if (fixedP1[0] == fixedP2[0]) {
+            return function (point) {
+                return extent_js_41.boundingExtent([fixedP1, [point[0], fixedP2[1]]]);
+            };
+        }
+        else if (fixedP1[1] == fixedP2[1]) {
+            return function (point) {
+                return extent_js_41.boundingExtent([fixedP1, [fixedP2[0], point[1]]]);
+            };
+        }
+        else {
+            return null;
+        }
+    }
+    function getSegments(extent) {
+        return [
+            [
+                [extent[0], extent[1]],
+                [extent[0], extent[3]],
+            ],
+            [
+                [extent[0], extent[3]],
+                [extent[2], extent[3]],
+            ],
+            [
+                [extent[2], extent[3]],
+                [extent[2], extent[1]],
+            ],
+            [
+                [extent[2], extent[1]],
+                [extent[0], extent[1]],
+            ],
+        ];
+    }
+    exports.default = Extent;
+});
+define("node_modules/ol/src/interaction/Modify", ["require", "exports", "node_modules/ol/src/Collection", "node_modules/ol/src/CollectionEventType", "node_modules/ol/src/events/Event", "node_modules/ol/src/events/EventType", "node_modules/ol/src/Feature", "node_modules/ol/src/geom/GeometryType", "node_modules/ol/src/MapBrowserEventType", "node_modules/ol/src/geom/Point", "node_modules/ol/src/interaction/Pointer", "node_modules/ol/src/structs/RBush", "node_modules/ol/src/source/VectorEventType", "node_modules/ol/src/layer/Vector", "node_modules/ol/src/source/Vector", "node_modules/ol/src/events/condition", "node_modules/ol/src/extent", "node_modules/ol/src/coordinate", "node_modules/ol/src/style/Style", "node_modules/ol/src/array", "node_modules/ol/src/geom/Polygon", "node_modules/ol/src/proj", "node_modules/ol/src/util"], function (require, exports, Collection_js_5, CollectionEventType_js_5, Event_js_15, EventType_js_38, Feature_js_3, GeometryType_js_21, MapBrowserEventType_js_8, Point_js_5, Pointer_js_9, RBush_js_2, VectorEventType_js_2, Vector_js_5, Vector_js_6, condition_js_11, extent_js_42, coordinate_js_10, Style_js_5, array_js_21, Polygon_js_8, proj_js_16, util_js_23) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.ModifyEvent = void 0;
+    const CIRCLE_CENTER_INDEX = 0;
+    const CIRCLE_CIRCUMFERENCE_INDEX = 1;
+    const tempExtent = [0, 0, 0, 0];
+    const tempSegment = [];
+    const ModifyEventType = {
+        MODIFYSTART: 'modifystart',
+        MODIFYEND: 'modifyend',
+    };
+    class ModifyEvent extends Event_js_15.default {
+        constructor(type, features, MapBrowserEvent) {
+            super(type);
+            this.features = features;
+            this.mapBrowserEvent = MapBrowserEvent;
+        }
+    }
+    exports.ModifyEvent = ModifyEvent;
+    class Modify extends Pointer_js_9.default {
+        constructor(options) {
+            super((options));
+            this.boundHandleFeatureChange_ = this.handleFeatureChange_.bind(this);
+            this.condition_ = options.condition ? options.condition : condition_js_11.primaryAction;
+            this.defaultDeleteCondition_ = function (mapBrowserEvent) {
+                return condition_js_11.altKeyOnly(mapBrowserEvent) && condition_js_11.singleClick(mapBrowserEvent);
+            };
+            this.deleteCondition_ = options.deleteCondition
+                ? options.deleteCondition
+                : this.defaultDeleteCondition_;
+            this.insertVertexCondition_ = options.insertVertexCondition
+                ? options.insertVertexCondition
+                : condition_js_11.always;
+            this.vertexFeature_ = null;
+            this.vertexSegments_ = null;
+            this.lastPixel_ = [0, 0];
+            this.ignoreNextSingleClick_ = false;
+            this.modified_ = false;
+            this.rBush_ = new RBush_js_2.default();
+            this.pixelTolerance_ =
+                options.pixelTolerance !== undefined ? options.pixelTolerance : 10;
+            this.snappedToVertex_ = false;
+            this.changingFeature_ = false;
+            this.dragSegments_ = [];
+            this.overlay_ = new Vector_js_5.default({
+                source: new Vector_js_6.default({
+                    useSpatialIndex: false,
+                    wrapX: !!options.wrapX,
+                }),
+                style: options.style ? options.style : getDefaultStyleFunction(),
+                updateWhileAnimating: true,
+                updateWhileInteracting: true,
+            });
+            this.SEGMENT_WRITERS_ = {
+                'Point': this.writePointGeometry_.bind(this),
+                'LineString': this.writeLineStringGeometry_.bind(this),
+                'LinearRing': this.writeLineStringGeometry_.bind(this),
+                'Polygon': this.writePolygonGeometry_.bind(this),
+                'MultiPoint': this.writeMultiPointGeometry_.bind(this),
+                'MultiLineString': this.writeMultiLineStringGeometry_.bind(this),
+                'MultiPolygon': this.writeMultiPolygonGeometry_.bind(this),
+                'Circle': this.writeCircleGeometry_.bind(this),
+                'GeometryCollection': this.writeGeometryCollectionGeometry_.bind(this),
+            };
+            this.source_ = null;
+            let features;
+            if (options.source) {
+                this.source_ = options.source;
+                features = new Collection_js_5.default(this.source_.getFeatures());
+                this.source_.addEventListener(VectorEventType_js_2.default.ADDFEATURE, this.handleSourceAdd_.bind(this));
+                this.source_.addEventListener(VectorEventType_js_2.default.REMOVEFEATURE, this.handleSourceRemove_.bind(this));
+            }
+            else {
+                features = options.features;
+            }
+            if (!features) {
+                throw new Error('The modify interaction requires features or a source');
+            }
+            this.features_ = features;
+            this.features_.forEach(this.addFeature_.bind(this));
+            this.features_.addEventListener(CollectionEventType_js_5.default.ADD, this.handleFeatureAdd_.bind(this));
+            this.features_.addEventListener(CollectionEventType_js_5.default.REMOVE, this.handleFeatureRemove_.bind(this));
+            this.lastPointerEvent_ = null;
+        }
+        addFeature_(feature) {
+            const geometry = feature.getGeometry();
+            if (geometry) {
+                const writer = this.SEGMENT_WRITERS_[geometry.getType()];
+                if (writer) {
+                    writer(feature, geometry);
+                }
+            }
+            const map = this.getMap();
+            if (map && map.isRendered() && this.getActive()) {
+                this.handlePointerAtPixel_(this.lastPixel_, map);
+            }
+            feature.addEventListener(EventType_js_38.default.CHANGE, this.boundHandleFeatureChange_);
+        }
+        willModifyFeatures_(evt) {
+            if (!this.modified_) {
+                this.modified_ = true;
+                this.dispatchEvent(new ModifyEvent(ModifyEventType.MODIFYSTART, this.features_, evt));
+            }
+        }
+        removeFeature_(feature) {
+            this.removeFeatureSegmentData_(feature);
+            if (this.vertexFeature_ && this.features_.getLength() === 0) {
+                this.overlay_.getSource().removeFeature(this.vertexFeature_);
+                this.vertexFeature_ = null;
+            }
+            feature.removeEventListener(EventType_js_38.default.CHANGE, this.boundHandleFeatureChange_);
+        }
+        removeFeatureSegmentData_(feature) {
+            const rBush = this.rBush_;
+            const nodesToRemove = [];
+            rBush.forEach(function (node) {
+                if (feature === node.feature) {
+                    nodesToRemove.push(node);
+                }
+            });
+            for (let i = nodesToRemove.length - 1; i >= 0; --i) {
+                const nodeToRemove = nodesToRemove[i];
+                for (let j = this.dragSegments_.length - 1; j >= 0; --j) {
+                    if (this.dragSegments_[j][0] === nodeToRemove) {
+                        this.dragSegments_.splice(j, 1);
+                    }
+                }
+                rBush.remove(nodeToRemove);
+            }
+        }
+        setActive(active) {
+            if (this.vertexFeature_ && !active) {
+                this.overlay_.getSource().removeFeature(this.vertexFeature_);
+                this.vertexFeature_ = null;
+            }
+            super.setActive(active);
+        }
+        setMap(map) {
+            this.overlay_.setMap(map);
+            super.setMap(map);
+        }
+        getOverlay() {
+            return this.overlay_;
+        }
+        handleSourceAdd_(event) {
+            if (event.feature) {
+                this.features_.push(event.feature);
+            }
+        }
+        handleSourceRemove_(event) {
+            if (event.feature) {
+                this.features_.remove(event.feature);
+            }
+        }
+        handleFeatureAdd_(evt) {
+            this.addFeature_((evt.element));
+        }
+        handleFeatureChange_(evt) {
+            if (!this.changingFeature_) {
+                const feature = (evt.target);
+                this.removeFeature_(feature);
+                this.addFeature_(feature);
+            }
+        }
+        handleFeatureRemove_(evt) {
+            const feature = (evt.element);
+            this.removeFeature_(feature);
+        }
+        writePointGeometry_(feature, geometry) {
+            const coordinates = geometry.getCoordinates();
+            const segmentData = {
+                feature: feature,
+                geometry: geometry,
+                segment: [coordinates, coordinates],
+            };
+            this.rBush_.insert(geometry.getExtent(), segmentData);
+        }
+        writeMultiPointGeometry_(feature, geometry) {
+            const points = geometry.getCoordinates();
+            for (let i = 0, ii = points.length; i < ii; ++i) {
+                const coordinates = points[i];
+                const segmentData = {
+                    feature: feature,
+                    geometry: geometry,
+                    depth: [i],
+                    index: i,
+                    segment: [coordinates, coordinates],
+                };
+                this.rBush_.insert(geometry.getExtent(), segmentData);
+            }
+        }
+        writeLineStringGeometry_(feature, geometry) {
+            const coordinates = geometry.getCoordinates();
+            for (let i = 0, ii = coordinates.length - 1; i < ii; ++i) {
+                const segment = coordinates.slice(i, i + 2);
+                const segmentData = {
+                    feature: feature,
+                    geometry: geometry,
+                    index: i,
+                    segment: segment,
+                };
+                this.rBush_.insert(extent_js_42.boundingExtent(segment), segmentData);
+            }
+        }
+        writeMultiLineStringGeometry_(feature, geometry) {
+            const lines = geometry.getCoordinates();
+            for (let j = 0, jj = lines.length; j < jj; ++j) {
+                const coordinates = lines[j];
+                for (let i = 0, ii = coordinates.length - 1; i < ii; ++i) {
+                    const segment = coordinates.slice(i, i + 2);
+                    const segmentData = {
+                        feature: feature,
+                        geometry: geometry,
+                        depth: [j],
+                        index: i,
+                        segment: segment,
+                    };
+                    this.rBush_.insert(extent_js_42.boundingExtent(segment), segmentData);
+                }
+            }
+        }
+        writePolygonGeometry_(feature, geometry) {
+            const rings = geometry.getCoordinates();
+            for (let j = 0, jj = rings.length; j < jj; ++j) {
+                const coordinates = rings[j];
+                for (let i = 0, ii = coordinates.length - 1; i < ii; ++i) {
+                    const segment = coordinates.slice(i, i + 2);
+                    const segmentData = {
+                        feature: feature,
+                        geometry: geometry,
+                        depth: [j],
+                        index: i,
+                        segment: segment,
+                    };
+                    this.rBush_.insert(extent_js_42.boundingExtent(segment), segmentData);
+                }
+            }
+        }
+        writeMultiPolygonGeometry_(feature, geometry) {
+            const polygons = geometry.getCoordinates();
+            for (let k = 0, kk = polygons.length; k < kk; ++k) {
+                const rings = polygons[k];
+                for (let j = 0, jj = rings.length; j < jj; ++j) {
+                    const coordinates = rings[j];
+                    for (let i = 0, ii = coordinates.length - 1; i < ii; ++i) {
+                        const segment = coordinates.slice(i, i + 2);
+                        const segmentData = {
+                            feature: feature,
+                            geometry: geometry,
+                            depth: [j, k],
+                            index: i,
+                            segment: segment,
+                        };
+                        this.rBush_.insert(extent_js_42.boundingExtent(segment), segmentData);
+                    }
+                }
+            }
+        }
+        writeCircleGeometry_(feature, geometry) {
+            const coordinates = geometry.getCenter();
+            const centerSegmentData = {
+                feature: feature,
+                geometry: geometry,
+                index: CIRCLE_CENTER_INDEX,
+                segment: [coordinates, coordinates],
+            };
+            const circumferenceSegmentData = {
+                feature: feature,
+                geometry: geometry,
+                index: CIRCLE_CIRCUMFERENCE_INDEX,
+                segment: [coordinates, coordinates],
+            };
+            const featureSegments = [centerSegmentData, circumferenceSegmentData];
+            centerSegmentData.featureSegments = featureSegments;
+            circumferenceSegmentData.featureSegments = featureSegments;
+            this.rBush_.insert(extent_js_42.createOrUpdateFromCoordinate(coordinates), centerSegmentData);
+            let circleGeometry = (geometry);
+            const userProjection = proj_js_16.getUserProjection();
+            if (userProjection && this.getMap()) {
+                const projection = this.getMap().getView().getProjection();
+                circleGeometry = circleGeometry
+                    .clone()
+                    .transform(userProjection, projection);
+                circleGeometry = Polygon_js_8.fromCircle((circleGeometry)).transform(projection, userProjection);
+            }
+            this.rBush_.insert(circleGeometry.getExtent(), circumferenceSegmentData);
+        }
+        writeGeometryCollectionGeometry_(feature, geometry) {
+            const geometries = geometry.getGeometriesArray();
+            for (let i = 0; i < geometries.length; ++i) {
+                const geometry = geometries[i];
+                const writer = this.SEGMENT_WRITERS_[geometry.getType()];
+                writer(feature, geometry);
+            }
+        }
+        createOrUpdateVertexFeature_(coordinates) {
+            let vertexFeature = this.vertexFeature_;
+            if (!vertexFeature) {
+                vertexFeature = new Feature_js_3.default(new Point_js_5.default(coordinates));
+                this.vertexFeature_ = vertexFeature;
+                this.overlay_.getSource().addFeature(vertexFeature);
+            }
+            else {
+                const geometry = vertexFeature.getGeometry();
+                geometry.setCoordinates(coordinates);
+            }
+            return vertexFeature;
+        }
+        handleEvent(mapBrowserEvent) {
+            if (!mapBrowserEvent.originalEvent) {
+                return true;
+            }
+            this.lastPointerEvent_ = mapBrowserEvent;
+            let handled;
+            if (!mapBrowserEvent.map.getView().getInteracting() &&
+                mapBrowserEvent.type == MapBrowserEventType_js_8.default.POINTERMOVE &&
+                !this.handlingDownUpSequence) {
+                this.handlePointerMove_(mapBrowserEvent);
+            }
+            if (this.vertexFeature_ && this.deleteCondition_(mapBrowserEvent)) {
+                if (mapBrowserEvent.type != MapBrowserEventType_js_8.default.SINGLECLICK ||
+                    !this.ignoreNextSingleClick_) {
+                    handled = this.removePoint();
+                }
+                else {
+                    handled = true;
+                }
+            }
+            if (mapBrowserEvent.type == MapBrowserEventType_js_8.default.SINGLECLICK) {
+                this.ignoreNextSingleClick_ = false;
+            }
+            return super.handleEvent(mapBrowserEvent) && !handled;
+        }
+        handleDragEvent(evt) {
+            this.ignoreNextSingleClick_ = false;
+            this.willModifyFeatures_(evt);
+            const vertex = evt.coordinate;
+            for (let i = 0, ii = this.dragSegments_.length; i < ii; ++i) {
+                const dragSegment = this.dragSegments_[i];
+                const segmentData = dragSegment[0];
+                const depth = segmentData.depth;
+                const geometry = segmentData.geometry;
+                let coordinates;
+                const segment = segmentData.segment;
+                const index = dragSegment[1];
+                while (vertex.length < geometry.getStride()) {
+                    vertex.push(segment[index][vertex.length]);
+                }
+                switch (geometry.getType()) {
+                    case GeometryType_js_21.default.POINT:
+                        coordinates = vertex;
+                        segment[0] = vertex;
+                        segment[1] = vertex;
+                        break;
+                    case GeometryType_js_21.default.MULTI_POINT:
+                        coordinates = geometry.getCoordinates();
+                        coordinates[segmentData.index] = vertex;
+                        segment[0] = vertex;
+                        segment[1] = vertex;
+                        break;
+                    case GeometryType_js_21.default.LINE_STRING:
+                        coordinates = geometry.getCoordinates();
+                        coordinates[segmentData.index + index] = vertex;
+                        segment[index] = vertex;
+                        break;
+                    case GeometryType_js_21.default.MULTI_LINE_STRING:
+                        coordinates = geometry.getCoordinates();
+                        coordinates[depth[0]][segmentData.index + index] = vertex;
+                        segment[index] = vertex;
+                        break;
+                    case GeometryType_js_21.default.POLYGON:
+                        coordinates = geometry.getCoordinates();
+                        coordinates[depth[0]][segmentData.index + index] = vertex;
+                        segment[index] = vertex;
+                        break;
+                    case GeometryType_js_21.default.MULTI_POLYGON:
+                        coordinates = geometry.getCoordinates();
+                        coordinates[depth[1]][depth[0]][segmentData.index + index] = vertex;
+                        segment[index] = vertex;
+                        break;
+                    case GeometryType_js_21.default.CIRCLE:
+                        segment[0] = vertex;
+                        segment[1] = vertex;
+                        if (segmentData.index === CIRCLE_CENTER_INDEX) {
+                            this.changingFeature_ = true;
+                            geometry.setCenter(vertex);
+                            this.changingFeature_ = false;
+                        }
+                        else {
+                            this.changingFeature_ = true;
+                            const projection = evt.map.getView().getProjection();
+                            let radius = coordinate_js_10.distance(proj_js_16.fromUserCoordinate(geometry.getCenter(), projection), proj_js_16.fromUserCoordinate(vertex, projection));
+                            const userProjection = proj_js_16.getUserProjection();
+                            if (userProjection) {
+                                const circleGeometry = geometry
+                                    .clone()
+                                    .transform(userProjection, projection);
+                                circleGeometry.setRadius(radius);
+                                radius = circleGeometry
+                                    .transform(projection, userProjection)
+                                    .getRadius();
+                            }
+                            geometry.setRadius(radius);
+                            this.changingFeature_ = false;
+                        }
+                        break;
+                    default:
+                }
+                if (coordinates) {
+                    this.setGeometryCoordinates_(geometry, coordinates);
+                }
+            }
+            this.createOrUpdateVertexFeature_(vertex);
+        }
+        handleDownEvent(evt) {
+            if (!this.condition_(evt)) {
+                return false;
+            }
+            const pixelCoordinate = evt.coordinate;
+            this.handlePointerAtPixel_(evt.pixel, evt.map, pixelCoordinate);
+            this.dragSegments_.length = 0;
+            this.modified_ = false;
+            const vertexFeature = this.vertexFeature_;
+            if (vertexFeature) {
+                const projection = evt.map.getView().getProjection();
+                const insertVertices = [];
+                const vertex = vertexFeature.getGeometry().getCoordinates();
+                const vertexExtent = extent_js_42.boundingExtent([vertex]);
+                const segmentDataMatches = this.rBush_.getInExtent(vertexExtent);
+                const componentSegments = {};
+                segmentDataMatches.sort(compareIndexes);
+                for (let i = 0, ii = segmentDataMatches.length; i < ii; ++i) {
+                    const segmentDataMatch = segmentDataMatches[i];
+                    const segment = segmentDataMatch.segment;
+                    let uid = util_js_23.getUid(segmentDataMatch.geometry);
+                    const depth = segmentDataMatch.depth;
+                    if (depth) {
+                        uid += '-' + depth.join('-');
+                    }
+                    if (!componentSegments[uid]) {
+                        componentSegments[uid] = new Array(2);
+                    }
+                    if (segmentDataMatch.geometry.getType() === GeometryType_js_21.default.CIRCLE &&
+                        segmentDataMatch.index === CIRCLE_CIRCUMFERENCE_INDEX) {
+                        const closestVertex = closestOnSegmentData(pixelCoordinate, segmentDataMatch, projection);
+                        if (coordinate_js_10.equals(closestVertex, vertex) &&
+                            !componentSegments[uid][0]) {
+                            this.dragSegments_.push([segmentDataMatch, 0]);
+                            componentSegments[uid][0] = segmentDataMatch;
+                        }
+                        continue;
+                    }
+                    if (coordinate_js_10.equals(segment[0], vertex) &&
+                        !componentSegments[uid][0]) {
+                        this.dragSegments_.push([segmentDataMatch, 0]);
+                        componentSegments[uid][0] = segmentDataMatch;
+                        continue;
+                    }
+                    if (coordinate_js_10.equals(segment[1], vertex) &&
+                        !componentSegments[uid][1]) {
+                        if ((segmentDataMatch.geometry.getType() === GeometryType_js_21.default.LINE_STRING ||
+                            segmentDataMatch.geometry.getType() ===
+                                GeometryType_js_21.default.MULTI_LINE_STRING) &&
+                            componentSegments[uid][0] &&
+                            componentSegments[uid][0].index === 0) {
+                            continue;
+                        }
+                        this.dragSegments_.push([segmentDataMatch, 1]);
+                        componentSegments[uid][1] = segmentDataMatch;
+                        continue;
+                    }
+                    if (util_js_23.getUid(segment) in this.vertexSegments_ &&
+                        !componentSegments[uid][0] &&
+                        !componentSegments[uid][1] &&
+                        this.insertVertexCondition_(evt)) {
+                        insertVertices.push([segmentDataMatch, vertex]);
+                    }
+                }
+                if (insertVertices.length) {
+                    this.willModifyFeatures_(evt);
+                }
+                for (let j = insertVertices.length - 1; j >= 0; --j) {
+                    this.insertVertex_.apply(this, insertVertices[j]);
+                }
+            }
+            return !!this.vertexFeature_;
+        }
+        handleUpEvent(evt) {
+            for (let i = this.dragSegments_.length - 1; i >= 0; --i) {
+                const segmentData = this.dragSegments_[i][0];
+                const geometry = segmentData.geometry;
+                if (geometry.getType() === GeometryType_js_21.default.CIRCLE) {
+                    const coordinates = geometry.getCenter();
+                    const centerSegmentData = segmentData.featureSegments[0];
+                    const circumferenceSegmentData = segmentData.featureSegments[1];
+                    centerSegmentData.segment[0] = coordinates;
+                    centerSegmentData.segment[1] = coordinates;
+                    circumferenceSegmentData.segment[0] = coordinates;
+                    circumferenceSegmentData.segment[1] = coordinates;
+                    this.rBush_.update(extent_js_42.createOrUpdateFromCoordinate(coordinates), centerSegmentData);
+                    let circleGeometry = geometry;
+                    const userProjection = proj_js_16.getUserProjection();
+                    if (userProjection) {
+                        const projection = evt.map.getView().getProjection();
+                        circleGeometry = circleGeometry
+                            .clone()
+                            .transform(userProjection, projection);
+                        circleGeometry = Polygon_js_8.fromCircle(circleGeometry).transform(projection, userProjection);
+                    }
+                    this.rBush_.update(circleGeometry.getExtent(), circumferenceSegmentData);
+                }
+                else {
+                    this.rBush_.update(extent_js_42.boundingExtent(segmentData.segment), segmentData);
+                }
+            }
+            if (this.modified_) {
+                this.dispatchEvent(new ModifyEvent(ModifyEventType.MODIFYEND, this.features_, evt));
+                this.modified_ = false;
+            }
+            return false;
+        }
+        handlePointerMove_(evt) {
+            this.lastPixel_ = evt.pixel;
+            this.handlePointerAtPixel_(evt.pixel, evt.map, evt.coordinate);
+        }
+        handlePointerAtPixel_(pixel, map, opt_coordinate) {
+            const pixelCoordinate = opt_coordinate || map.getCoordinateFromPixel(pixel);
+            const projection = map.getView().getProjection();
+            const sortByDistance = function (a, b) {
+                return (projectedDistanceToSegmentDataSquared(pixelCoordinate, a, projection) -
+                    projectedDistanceToSegmentDataSquared(pixelCoordinate, b, projection));
+            };
+            const viewExtent = proj_js_16.fromUserExtent(extent_js_42.createOrUpdateFromCoordinate(pixelCoordinate, tempExtent), projection);
+            const buffer = map.getView().getResolution() * this.pixelTolerance_;
+            const box = proj_js_16.toUserExtent(extent_js_42.buffer(viewExtent, buffer, tempExtent), projection);
+            const rBush = this.rBush_;
+            const nodes = rBush.getInExtent(box);
+            if (nodes.length > 0) {
+                nodes.sort(sortByDistance);
+                const node = nodes[0];
+                const closestSegment = node.segment;
+                let vertex = closestOnSegmentData(pixelCoordinate, node, projection);
+                const vertexPixel = map.getPixelFromCoordinate(vertex);
+                let dist = coordinate_js_10.distance(pixel, vertexPixel);
+                if (dist <= this.pixelTolerance_) {
+                    const vertexSegments = {};
+                    if (node.geometry.getType() === GeometryType_js_21.default.CIRCLE &&
+                        node.index === CIRCLE_CIRCUMFERENCE_INDEX) {
+                        this.snappedToVertex_ = true;
+                        this.createOrUpdateVertexFeature_(vertex);
+                    }
+                    else {
+                        const pixel1 = map.getPixelFromCoordinate(closestSegment[0]);
+                        const pixel2 = map.getPixelFromCoordinate(closestSegment[1]);
+                        const squaredDist1 = coordinate_js_10.squaredDistance(vertexPixel, pixel1);
+                        const squaredDist2 = coordinate_js_10.squaredDistance(vertexPixel, pixel2);
+                        dist = Math.sqrt(Math.min(squaredDist1, squaredDist2));
+                        this.snappedToVertex_ = dist <= this.pixelTolerance_;
+                        if (this.snappedToVertex_) {
+                            vertex =
+                                squaredDist1 > squaredDist2
+                                    ? closestSegment[1]
+                                    : closestSegment[0];
+                        }
+                        this.createOrUpdateVertexFeature_(vertex);
+                        for (let i = 1, ii = nodes.length; i < ii; ++i) {
+                            const segment = nodes[i].segment;
+                            if ((coordinate_js_10.equals(closestSegment[0], segment[0]) &&
+                                coordinate_js_10.equals(closestSegment[1], segment[1])) ||
+                                (coordinate_js_10.equals(closestSegment[0], segment[1]) &&
+                                    coordinate_js_10.equals(closestSegment[1], segment[0]))) {
+                                vertexSegments[util_js_23.getUid(segment)] = true;
+                            }
+                            else {
+                                break;
+                            }
+                        }
+                    }
+                    vertexSegments[util_js_23.getUid(closestSegment)] = true;
+                    this.vertexSegments_ = vertexSegments;
+                    return;
+                }
+            }
+            if (this.vertexFeature_) {
+                this.overlay_.getSource().removeFeature(this.vertexFeature_);
+                this.vertexFeature_ = null;
+            }
+        }
+        insertVertex_(segmentData, vertex) {
+            const segment = segmentData.segment;
+            const feature = segmentData.feature;
+            const geometry = segmentData.geometry;
+            const depth = segmentData.depth;
+            const index = segmentData.index;
+            let coordinates;
+            while (vertex.length < geometry.getStride()) {
+                vertex.push(0);
+            }
+            switch (geometry.getType()) {
+                case GeometryType_js_21.default.MULTI_LINE_STRING:
+                    coordinates = geometry.getCoordinates();
+                    coordinates[depth[0]].splice(index + 1, 0, vertex);
+                    break;
+                case GeometryType_js_21.default.POLYGON:
+                    coordinates = geometry.getCoordinates();
+                    coordinates[depth[0]].splice(index + 1, 0, vertex);
+                    break;
+                case GeometryType_js_21.default.MULTI_POLYGON:
+                    coordinates = geometry.getCoordinates();
+                    coordinates[depth[1]][depth[0]].splice(index + 1, 0, vertex);
+                    break;
+                case GeometryType_js_21.default.LINE_STRING:
+                    coordinates = geometry.getCoordinates();
+                    coordinates.splice(index + 1, 0, vertex);
+                    break;
+                default:
+                    return;
+            }
+            this.setGeometryCoordinates_(geometry, coordinates);
+            const rTree = this.rBush_;
+            rTree.remove(segmentData);
+            this.updateSegmentIndices_(geometry, index, depth, 1);
+            const newSegmentData = {
+                segment: [segment[0], vertex],
+                feature: feature,
+                geometry: geometry,
+                depth: depth,
+                index: index,
+            };
+            rTree.insert(extent_js_42.boundingExtent(newSegmentData.segment), newSegmentData);
+            this.dragSegments_.push([newSegmentData, 1]);
+            const newSegmentData2 = {
+                segment: [vertex, segment[1]],
+                feature: feature,
+                geometry: geometry,
+                depth: depth,
+                index: index + 1,
+            };
+            rTree.insert(extent_js_42.boundingExtent(newSegmentData2.segment), newSegmentData2);
+            this.dragSegments_.push([newSegmentData2, 0]);
+            this.ignoreNextSingleClick_ = true;
+        }
+        removePoint() {
+            if (this.lastPointerEvent_ &&
+                this.lastPointerEvent_.type != MapBrowserEventType_js_8.default.POINTERDRAG) {
+                const evt = this.lastPointerEvent_;
+                this.willModifyFeatures_(evt);
+                const removed = this.removeVertex_();
+                this.dispatchEvent(new ModifyEvent(ModifyEventType.MODIFYEND, this.features_, evt));
+                this.modified_ = false;
+                return removed;
+            }
+            return false;
+        }
+        removeVertex_() {
+            const dragSegments = this.dragSegments_;
+            const segmentsByFeature = {};
+            let deleted = false;
+            let component, coordinates, dragSegment, geometry, i, index, left;
+            let newIndex, right, segmentData, uid;
+            for (i = dragSegments.length - 1; i >= 0; --i) {
+                dragSegment = dragSegments[i];
+                segmentData = dragSegment[0];
+                uid = util_js_23.getUid(segmentData.feature);
+                if (segmentData.depth) {
+                    uid += '-' + segmentData.depth.join('-');
+                }
+                if (!(uid in segmentsByFeature)) {
+                    segmentsByFeature[uid] = {};
+                }
+                if (dragSegment[1] === 0) {
+                    segmentsByFeature[uid].right = segmentData;
+                    segmentsByFeature[uid].index = segmentData.index;
+                }
+                else if (dragSegment[1] == 1) {
+                    segmentsByFeature[uid].left = segmentData;
+                    segmentsByFeature[uid].index = segmentData.index + 1;
+                }
+            }
+            for (uid in segmentsByFeature) {
+                right = segmentsByFeature[uid].right;
+                left = segmentsByFeature[uid].left;
+                index = segmentsByFeature[uid].index;
+                newIndex = index - 1;
+                if (left !== undefined) {
+                    segmentData = left;
+                }
+                else {
+                    segmentData = right;
+                }
+                if (newIndex < 0) {
+                    newIndex = 0;
+                }
+                geometry = segmentData.geometry;
+                coordinates = geometry.getCoordinates();
+                component = coordinates;
+                deleted = false;
+                switch (geometry.getType()) {
+                    case GeometryType_js_21.default.MULTI_LINE_STRING:
+                        if (coordinates[segmentData.depth[0]].length > 2) {
+                            coordinates[segmentData.depth[0]].splice(index, 1);
+                            deleted = true;
+                        }
+                        break;
+                    case GeometryType_js_21.default.LINE_STRING:
+                        if (coordinates.length > 2) {
+                            coordinates.splice(index, 1);
+                            deleted = true;
+                        }
+                        break;
+                    case GeometryType_js_21.default.MULTI_POLYGON:
+                        component = component[segmentData.depth[1]];
+                    case GeometryType_js_21.default.POLYGON:
+                        component = component[segmentData.depth[0]];
+                        if (component.length > 4) {
+                            if (index == component.length - 1) {
+                                index = 0;
+                            }
+                            component.splice(index, 1);
+                            deleted = true;
+                            if (index === 0) {
+                                component.pop();
+                                component.push(component[0]);
+                                newIndex = component.length - 1;
+                            }
+                        }
+                        break;
+                    default:
+                }
+                if (deleted) {
+                    this.setGeometryCoordinates_(geometry, coordinates);
+                    const segments = [];
+                    if (left !== undefined) {
+                        this.rBush_.remove(left);
+                        segments.push(left.segment[0]);
+                    }
+                    if (right !== undefined) {
+                        this.rBush_.remove(right);
+                        segments.push(right.segment[1]);
+                    }
+                    if (left !== undefined && right !== undefined) {
+                        const newSegmentData = {
+                            depth: segmentData.depth,
+                            feature: segmentData.feature,
+                            geometry: segmentData.geometry,
+                            index: newIndex,
+                            segment: segments,
+                        };
+                        this.rBush_.insert(extent_js_42.boundingExtent(newSegmentData.segment), newSegmentData);
+                    }
+                    this.updateSegmentIndices_(geometry, index, segmentData.depth, -1);
+                    if (this.vertexFeature_) {
+                        this.overlay_.getSource().removeFeature(this.vertexFeature_);
+                        this.vertexFeature_ = null;
+                    }
+                    dragSegments.length = 0;
+                }
+            }
+            return deleted;
+        }
+        setGeometryCoordinates_(geometry, coordinates) {
+            this.changingFeature_ = true;
+            geometry.setCoordinates(coordinates);
+            this.changingFeature_ = false;
+        }
+        updateSegmentIndices_(geometry, index, depth, delta) {
+            this.rBush_.forEachInExtent(geometry.getExtent(), function (segmentDataMatch) {
+                if (segmentDataMatch.geometry === geometry &&
+                    (depth === undefined ||
+                        segmentDataMatch.depth === undefined ||
+                        array_js_21.equals(segmentDataMatch.depth, depth)) &&
+                    segmentDataMatch.index > index) {
+                    segmentDataMatch.index += delta;
+                }
+            });
+        }
+    }
+    function compareIndexes(a, b) {
+        return a.index - b.index;
+    }
+    function projectedDistanceToSegmentDataSquared(pointCoordinates, segmentData, projection) {
+        const geometry = segmentData.geometry;
+        if (geometry.getType() === GeometryType_js_21.default.CIRCLE) {
+            let circleGeometry = (geometry);
+            if (segmentData.index === CIRCLE_CIRCUMFERENCE_INDEX) {
+                const userProjection = proj_js_16.getUserProjection();
+                if (userProjection) {
+                    circleGeometry = (circleGeometry
+                        .clone()
+                        .transform(userProjection, projection));
+                }
+                const distanceToCenterSquared = coordinate_js_10.squaredDistance(circleGeometry.getCenter(), proj_js_16.fromUserCoordinate(pointCoordinates, projection));
+                const distanceToCircumference = Math.sqrt(distanceToCenterSquared) - circleGeometry.getRadius();
+                return distanceToCircumference * distanceToCircumference;
+            }
+        }
+        const coordinate = proj_js_16.fromUserCoordinate(pointCoordinates, projection);
+        tempSegment[0] = proj_js_16.fromUserCoordinate(segmentData.segment[0], projection);
+        tempSegment[1] = proj_js_16.fromUserCoordinate(segmentData.segment[1], projection);
+        return coordinate_js_10.squaredDistanceToSegment(coordinate, tempSegment);
+    }
+    function closestOnSegmentData(pointCoordinates, segmentData, projection) {
+        const geometry = segmentData.geometry;
+        if (geometry.getType() === GeometryType_js_21.default.CIRCLE &&
+            segmentData.index === CIRCLE_CIRCUMFERENCE_INDEX) {
+            let circleGeometry = (geometry);
+            const userProjection = proj_js_16.getUserProjection();
+            if (userProjection) {
+                circleGeometry = (circleGeometry
+                    .clone()
+                    .transform(userProjection, projection));
+            }
+            return proj_js_16.toUserCoordinate(circleGeometry.getClosestPoint(proj_js_16.fromUserCoordinate(pointCoordinates, projection)), projection);
+        }
+        const coordinate = proj_js_16.fromUserCoordinate(pointCoordinates, projection);
+        tempSegment[0] = proj_js_16.fromUserCoordinate(segmentData.segment[0], projection);
+        tempSegment[1] = proj_js_16.fromUserCoordinate(segmentData.segment[1], projection);
+        return proj_js_16.toUserCoordinate(coordinate_js_10.closestOnSegment(coordinate, tempSegment), projection);
+    }
+    function getDefaultStyleFunction() {
+        const style = Style_js_5.createEditingStyle();
+        return function (feature, resolution) {
+            return style[GeometryType_js_21.default.POINT];
+        };
+    }
+    exports.default = Modify;
+});
+define("node_modules/ol/src/interaction/Select", ["require", "exports", "node_modules/ol/src/Collection", "node_modules/ol/src/CollectionEventType", "node_modules/ol/src/events/Event", "node_modules/ol/src/geom/GeometryType", "node_modules/ol/src/interaction/Interaction", "node_modules/ol/src/functions", "node_modules/ol/src/obj", "node_modules/ol/src/style/Style", "node_modules/ol/src/array", "node_modules/ol/src/util", "node_modules/ol/src/events/condition"], function (require, exports, Collection_js_6, CollectionEventType_js_6, Event_js_16, GeometryType_js_22, Interaction_js_7, functions_js_16, obj_js_17, Style_js_6, array_js_22, util_js_24, condition_js_12) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    const SelectEventType = {
+        SELECT: 'select',
+    };
+    class SelectEvent extends Event_js_16.default {
+        constructor(type, selected, deselected, mapBrowserEvent) {
+            super(type);
+            this.selected = selected;
+            this.deselected = deselected;
+            this.mapBrowserEvent = mapBrowserEvent;
+        }
+    }
+    const originalFeatureStyles = {};
+    class Select extends Interaction_js_7.default {
+        constructor(opt_options) {
+            super();
+            const options = opt_options ? opt_options : {};
+            this.boundAddFeature_ = this.addFeature_.bind(this);
+            this.boundRemoveFeature_ = this.removeFeature_.bind(this);
+            this.condition_ = options.condition ? options.condition : condition_js_12.singleClick;
+            this.addCondition_ = options.addCondition ? options.addCondition : condition_js_12.never;
+            this.removeCondition_ = options.removeCondition
+                ? options.removeCondition
+                : condition_js_12.never;
+            this.toggleCondition_ = options.toggleCondition
+                ? options.toggleCondition
+                : condition_js_12.shiftKeyOnly;
+            this.multi_ = options.multi ? options.multi : false;
+            this.filter_ = options.filter ? options.filter : functions_js_16.TRUE;
+            this.hitTolerance_ = options.hitTolerance ? options.hitTolerance : 0;
+            this.style_ =
+                options.style !== undefined ? options.style : getDefaultStyleFunction();
+            this.features_ = options.features || new Collection_js_6.default();
+            let layerFilter;
+            if (options.layers) {
+                if (typeof options.layers === 'function') {
+                    layerFilter = options.layers;
+                }
+                else {
+                    const layers = options.layers;
+                    layerFilter = function (layer) {
+                        return array_js_22.includes(layers, layer);
+                    };
+                }
+            }
+            else {
+                layerFilter = functions_js_16.TRUE;
+            }
+            this.layerFilter_ = layerFilter;
+            this.featureLayerAssociation_ = {};
+        }
+        addFeatureLayerAssociation_(feature, layer) {
+            this.featureLayerAssociation_[util_js_24.getUid(feature)] = layer;
+        }
+        getFeatures() {
+            return this.features_;
+        }
+        getHitTolerance() {
+            return this.hitTolerance_;
+        }
+        getLayer(feature) {
+            return (this
+                .featureLayerAssociation_[util_js_24.getUid(feature)]);
+        }
+        setHitTolerance(hitTolerance) {
+            this.hitTolerance_ = hitTolerance;
+        }
+        setMap(map) {
+            const currentMap = this.getMap();
+            if (currentMap && this.style_) {
+                this.features_.forEach(this.restorePreviousStyle_.bind(this));
+            }
+            super.setMap(map);
+            if (map) {
+                this.features_.addEventListener(CollectionEventType_js_6.default.ADD, this.boundAddFeature_);
+                this.features_.addEventListener(CollectionEventType_js_6.default.REMOVE, this.boundRemoveFeature_);
+                if (this.style_) {
+                    this.features_.forEach(this.applySelectedStyle_.bind(this));
+                }
+            }
+            else {
+                this.features_.removeEventListener(CollectionEventType_js_6.default.ADD, this.boundAddFeature_);
+                this.features_.removeEventListener(CollectionEventType_js_6.default.REMOVE, this.boundRemoveFeature_);
+            }
+        }
+        addFeature_(evt) {
+            const feature = evt.element;
+            if (this.style_) {
+                this.applySelectedStyle_(feature);
+            }
+        }
+        removeFeature_(evt) {
+            const feature = evt.element;
+            if (this.style_) {
+                this.restorePreviousStyle_(feature);
+            }
+        }
+        getStyle() {
+            return this.style_;
+        }
+        applySelectedStyle_(feature) {
+            const key = util_js_24.getUid(feature);
+            if (!(key in originalFeatureStyles)) {
+                originalFeatureStyles[key] = feature.getStyle();
+            }
+            feature.setStyle(this.style_);
+        }
+        restorePreviousStyle_(feature) {
+            const key = util_js_24.getUid(feature);
+            const selectInteractions = (this.getMap()
+                .getInteractions()
+                .getArray()
+                .filter(function (interaction) {
+                return (interaction instanceof Select &&
+                    interaction.getStyle() &&
+                    interaction.getFeatures().getArray().indexOf(feature) !== -1);
+            }));
+            if (selectInteractions.length > 0) {
+                feature.setStyle(selectInteractions[selectInteractions.length - 1].getStyle());
+            }
+            else {
+                feature.setStyle(originalFeatureStyles[key]);
+                delete originalFeatureStyles[key];
+            }
+        }
+        removeFeatureLayerAssociation_(feature) {
+            delete this.featureLayerAssociation_[util_js_24.getUid(feature)];
+        }
+        handleEvent(mapBrowserEvent) {
+            if (!this.condition_(mapBrowserEvent)) {
+                return true;
+            }
+            const add = this.addCondition_(mapBrowserEvent);
+            const remove = this.removeCondition_(mapBrowserEvent);
+            const toggle = this.toggleCondition_(mapBrowserEvent);
+            const set = !add && !remove && !toggle;
+            const map = mapBrowserEvent.map;
+            const features = this.getFeatures();
+            const deselected = [];
+            const selected = [];
+            if (set) {
+                obj_js_17.clear(this.featureLayerAssociation_);
+                map.forEachFeatureAtPixel(mapBrowserEvent.pixel, function (feature, layer) {
+                    if (this.filter_(feature, layer)) {
+                        selected.push(feature);
+                        this.addFeatureLayerAssociation_(feature, layer);
+                        return !this.multi_;
+                    }
+                }.bind(this), {
+                    layerFilter: this.layerFilter_,
+                    hitTolerance: this.hitTolerance_,
+                });
+                for (let i = features.getLength() - 1; i >= 0; --i) {
+                    const feature = features.item(i);
+                    const index = selected.indexOf(feature);
+                    if (index > -1) {
+                        selected.splice(index, 1);
+                    }
+                    else {
+                        features.remove(feature);
+                        deselected.push(feature);
+                    }
+                }
+                if (selected.length !== 0) {
+                    features.extend(selected);
+                }
+            }
+            else {
+                map.forEachFeatureAtPixel(mapBrowserEvent.pixel, function (feature, layer) {
+                    if (this.filter_(feature, layer)) {
+                        if ((add || toggle) && !array_js_22.includes(features.getArray(), feature)) {
+                            selected.push(feature);
+                            this.addFeatureLayerAssociation_(feature, layer);
+                        }
+                        else if ((remove || toggle) &&
+                            array_js_22.includes(features.getArray(), feature)) {
+                            deselected.push(feature);
+                            this.removeFeatureLayerAssociation_(feature);
+                        }
+                        return !this.multi_;
+                    }
+                }.bind(this), {
+                    layerFilter: this.layerFilter_,
+                    hitTolerance: this.hitTolerance_,
+                });
+                for (let j = deselected.length - 1; j >= 0; --j) {
+                    features.remove(deselected[j]);
+                }
+                features.extend(selected);
+            }
+            if (selected.length > 0 || deselected.length > 0) {
+                this.dispatchEvent(new SelectEvent(SelectEventType.SELECT, selected, deselected, mapBrowserEvent));
+            }
+            return true;
+        }
+    }
+    function getDefaultStyleFunction() {
+        const styles = Style_js_6.createEditingStyle();
+        array_js_22.extend(styles[GeometryType_js_22.default.POLYGON], styles[GeometryType_js_22.default.LINE_STRING]);
+        array_js_22.extend(styles[GeometryType_js_22.default.GEOMETRY_COLLECTION], styles[GeometryType_js_22.default.LINE_STRING]);
+        return function (feature) {
+            if (!feature.getGeometry()) {
+                return null;
+            }
+            return styles[feature.getGeometry().getType()];
+        };
+    }
+    exports.default = Select;
+});
+define("node_modules/ol/src/interaction/Snap", ["require", "exports", "node_modules/ol/src/CollectionEventType", "node_modules/ol/src/events/EventType", "node_modules/ol/src/geom/GeometryType", "node_modules/ol/src/interaction/Pointer", "node_modules/ol/src/structs/RBush", "node_modules/ol/src/source/VectorEventType", "node_modules/ol/src/functions", "node_modules/ol/src/extent", "node_modules/ol/src/coordinate", "node_modules/ol/src/geom/Polygon", "node_modules/ol/src/proj", "node_modules/ol/src/util", "node_modules/ol/src/obj", "node_modules/ol/src/events"], function (require, exports, CollectionEventType_js_7, EventType_js_39, GeometryType_js_23, Pointer_js_10, RBush_js_3, VectorEventType_js_3, functions_js_17, extent_js_43, coordinate_js_11, Polygon_js_9, proj_js_17, util_js_25, obj_js_18, events_js_18) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    function getFeatureFromEvent(evt) {
+        if ((evt).feature) {
+            return (evt)
+                .feature;
+        }
+        else if ((evt).element) {
+            return ((evt).element);
+        }
+    }
+    const tempSegment = [];
+    class Snap extends Pointer_js_10.default {
+        constructor(opt_options) {
+            const options = opt_options ? opt_options : {};
+            const pointerOptions = (options);
+            if (!pointerOptions.handleDownEvent) {
+                pointerOptions.handleDownEvent = functions_js_17.TRUE;
+            }
+            if (!pointerOptions.stopDown) {
+                pointerOptions.stopDown = functions_js_17.FALSE;
+            }
+            super(pointerOptions);
+            this.source_ = options.source ? options.source : null;
+            this.vertex_ = options.vertex !== undefined ? options.vertex : true;
+            this.edge_ = options.edge !== undefined ? options.edge : true;
+            this.features_ = options.features ? options.features : null;
+            this.featuresListenerKeys_ = [];
+            this.featureChangeListenerKeys_ = {};
+            this.indexedFeaturesExtents_ = {};
+            this.pendingFeatures_ = {};
+            this.pixelTolerance_ =
+                options.pixelTolerance !== undefined ? options.pixelTolerance : 10;
+            this.rBush_ = new RBush_js_3.default();
+            this.SEGMENT_WRITERS_ = {
+                'Point': this.writePointGeometry_.bind(this),
+                'LineString': this.writeLineStringGeometry_.bind(this),
+                'LinearRing': this.writeLineStringGeometry_.bind(this),
+                'Polygon': this.writePolygonGeometry_.bind(this),
+                'MultiPoint': this.writeMultiPointGeometry_.bind(this),
+                'MultiLineString': this.writeMultiLineStringGeometry_.bind(this),
+                'MultiPolygon': this.writeMultiPolygonGeometry_.bind(this),
+                'GeometryCollection': this.writeGeometryCollectionGeometry_.bind(this),
+                'Circle': this.writeCircleGeometry_.bind(this),
+            };
+        }
+        addFeature(feature, opt_listen) {
+            const register = opt_listen !== undefined ? opt_listen : true;
+            const feature_uid = util_js_25.getUid(feature);
+            const geometry = feature.getGeometry();
+            if (geometry) {
+                const segmentWriter = this.SEGMENT_WRITERS_[geometry.getType()];
+                if (segmentWriter) {
+                    this.indexedFeaturesExtents_[feature_uid] = geometry.getExtent(extent_js_43.createEmpty());
+                    segmentWriter(feature, geometry);
+                }
+            }
+            if (register) {
+                this.featureChangeListenerKeys_[feature_uid] = events_js_18.listen(feature, EventType_js_39.default.CHANGE, this.handleFeatureChange_, this);
+            }
+        }
+        forEachFeatureAdd_(feature) {
+            this.addFeature(feature);
+        }
+        forEachFeatureRemove_(feature) {
+            this.removeFeature(feature);
+        }
+        getFeatures_() {
+            let features;
+            if (this.features_) {
+                features = this.features_;
+            }
+            else if (this.source_) {
+                features = this.source_.getFeatures();
+            }
+            return features;
+        }
+        handleEvent(evt) {
+            const result = this.snapTo(evt.pixel, evt.coordinate, evt.map);
+            if (result.snapped) {
+                evt.coordinate = result.vertex.slice(0, 2);
+                evt.pixel = result.vertexPixel;
+            }
+            return super.handleEvent(evt);
+        }
+        handleFeatureAdd_(evt) {
+            const feature = getFeatureFromEvent(evt);
+            this.addFeature(feature);
+        }
+        handleFeatureRemove_(evt) {
+            const feature = getFeatureFromEvent(evt);
+            this.removeFeature(feature);
+        }
+        handleFeatureChange_(evt) {
+            const feature = (evt.target);
+            if (this.handlingDownUpSequence) {
+                const uid = util_js_25.getUid(feature);
+                if (!(uid in this.pendingFeatures_)) {
+                    this.pendingFeatures_[uid] = feature;
+                }
+            }
+            else {
+                this.updateFeature_(feature);
+            }
+        }
+        handleUpEvent(evt) {
+            const featuresToUpdate = obj_js_18.getValues(this.pendingFeatures_);
+            if (featuresToUpdate.length) {
+                featuresToUpdate.forEach(this.updateFeature_.bind(this));
+                this.pendingFeatures_ = {};
+            }
+            return false;
+        }
+        removeFeature(feature, opt_unlisten) {
+            const unregister = opt_unlisten !== undefined ? opt_unlisten : true;
+            const feature_uid = util_js_25.getUid(feature);
+            const extent = this.indexedFeaturesExtents_[feature_uid];
+            if (extent) {
+                const rBush = this.rBush_;
+                const nodesToRemove = [];
+                rBush.forEachInExtent(extent, function (node) {
+                    if (feature === node.feature) {
+                        nodesToRemove.push(node);
+                    }
+                });
+                for (let i = nodesToRemove.length - 1; i >= 0; --i) {
+                    rBush.remove(nodesToRemove[i]);
+                }
+            }
+            if (unregister) {
+                events_js_18.unlistenByKey(this.featureChangeListenerKeys_[feature_uid]);
+                delete this.featureChangeListenerKeys_[feature_uid];
+            }
+        }
+        setMap(map) {
+            const currentMap = this.getMap();
+            const keys = this.featuresListenerKeys_;
+            const features = (this.getFeatures_());
+            if (currentMap) {
+                keys.forEach(events_js_18.unlistenByKey);
+                keys.length = 0;
+                features.forEach(this.forEachFeatureRemove_.bind(this));
+            }
+            super.setMap(map);
+            if (map) {
+                if (this.features_) {
+                    keys.push(events_js_18.listen(this.features_, CollectionEventType_js_7.default.ADD, this.handleFeatureAdd_, this), events_js_18.listen(this.features_, CollectionEventType_js_7.default.REMOVE, this.handleFeatureRemove_, this));
+                }
+                else if (this.source_) {
+                    keys.push(events_js_18.listen(this.source_, VectorEventType_js_3.default.ADDFEATURE, this.handleFeatureAdd_, this), events_js_18.listen(this.source_, VectorEventType_js_3.default.REMOVEFEATURE, this.handleFeatureRemove_, this));
+                }
+                features.forEach(this.forEachFeatureAdd_.bind(this));
+            }
+        }
+        snapTo(pixel, pixelCoordinate, map) {
+            const lowerLeft = map.getCoordinateFromPixel([
+                pixel[0] - this.pixelTolerance_,
+                pixel[1] + this.pixelTolerance_,
+            ]);
+            const upperRight = map.getCoordinateFromPixel([
+                pixel[0] + this.pixelTolerance_,
+                pixel[1] - this.pixelTolerance_,
+            ]);
+            const box = extent_js_43.boundingExtent([lowerLeft, upperRight]);
+            let segments = this.rBush_.getInExtent(box);
+            if (this.vertex_ && !this.edge_) {
+                segments = segments.filter(function (segment) {
+                    return segment.feature.getGeometry().getType() !== GeometryType_js_23.default.CIRCLE;
+                });
+            }
+            let snapped = false;
+            let vertex = null;
+            let vertexPixel = null;
+            if (segments.length === 0) {
+                return {
+                    snapped: snapped,
+                    vertex: vertex,
+                    vertexPixel: vertexPixel,
+                };
+            }
+            const projection = map.getView().getProjection();
+            const projectedCoordinate = proj_js_17.fromUserCoordinate(pixelCoordinate, projection);
+            let closestSegmentData;
+            let minSquaredDistance = Infinity;
+            for (let i = 0; i < segments.length; ++i) {
+                const segmentData = segments[i];
+                tempSegment[0] = proj_js_17.fromUserCoordinate(segmentData.segment[0], projection);
+                tempSegment[1] = proj_js_17.fromUserCoordinate(segmentData.segment[1], projection);
+                const delta = coordinate_js_11.squaredDistanceToSegment(projectedCoordinate, tempSegment);
+                if (delta < minSquaredDistance) {
+                    closestSegmentData = segmentData;
+                    minSquaredDistance = delta;
+                }
+            }
+            const closestSegment = closestSegmentData.segment;
+            if (this.vertex_ && !this.edge_) {
+                const pixel1 = map.getPixelFromCoordinate(closestSegment[0]);
+                const pixel2 = map.getPixelFromCoordinate(closestSegment[1]);
+                const squaredDist1 = coordinate_js_11.squaredDistance(pixel, pixel1);
+                const squaredDist2 = coordinate_js_11.squaredDistance(pixel, pixel2);
+                const dist = Math.sqrt(Math.min(squaredDist1, squaredDist2));
+                if (dist <= this.pixelTolerance_) {
+                    snapped = true;
+                    vertex =
+                        squaredDist1 > squaredDist2 ? closestSegment[1] : closestSegment[0];
+                    vertexPixel = map.getPixelFromCoordinate(vertex);
+                }
+            }
+            else if (this.edge_) {
+                const isCircle = closestSegmentData.feature.getGeometry().getType() ===
+                    GeometryType_js_23.default.CIRCLE;
+                if (isCircle) {
+                    let circleGeometry = closestSegmentData.feature.getGeometry();
+                    const userProjection = proj_js_17.getUserProjection();
+                    if (userProjection) {
+                        circleGeometry = circleGeometry
+                            .clone()
+                            .transform(userProjection, projection);
+                    }
+                    vertex = proj_js_17.toUserCoordinate(coordinate_js_11.closestOnCircle(projectedCoordinate, (circleGeometry)), projection);
+                }
+                else {
+                    tempSegment[0] = proj_js_17.fromUserCoordinate(closestSegment[0], projection);
+                    tempSegment[1] = proj_js_17.fromUserCoordinate(closestSegment[1], projection);
+                    vertex = proj_js_17.toUserCoordinate(coordinate_js_11.closestOnSegment(projectedCoordinate, tempSegment), projection);
+                }
+                vertexPixel = map.getPixelFromCoordinate(vertex);
+                if (coordinate_js_11.distance(pixel, vertexPixel) <= this.pixelTolerance_) {
+                    snapped = true;
+                    if (this.vertex_ && !isCircle) {
+                        const pixel1 = map.getPixelFromCoordinate(closestSegment[0]);
+                        const pixel2 = map.getPixelFromCoordinate(closestSegment[1]);
+                        const squaredDist1 = coordinate_js_11.squaredDistance(vertexPixel, pixel1);
+                        const squaredDist2 = coordinate_js_11.squaredDistance(vertexPixel, pixel2);
+                        const dist = Math.sqrt(Math.min(squaredDist1, squaredDist2));
+                        if (dist <= this.pixelTolerance_) {
+                            vertex =
+                                squaredDist1 > squaredDist2
+                                    ? closestSegment[1]
+                                    : closestSegment[0];
+                            vertexPixel = map.getPixelFromCoordinate(vertex);
+                        }
+                    }
+                }
+            }
+            if (snapped) {
+                vertexPixel = [Math.round(vertexPixel[0]), Math.round(vertexPixel[1])];
+            }
+            return {
+                snapped: snapped,
+                vertex: vertex,
+                vertexPixel: vertexPixel,
+            };
+        }
+        updateFeature_(feature) {
+            this.removeFeature(feature, false);
+            this.addFeature(feature, false);
+        }
+        writeCircleGeometry_(feature, geometry) {
+            const projection = this.getMap().getView().getProjection();
+            let circleGeometry = geometry;
+            const userProjection = proj_js_17.getUserProjection();
+            if (userProjection) {
+                circleGeometry = (circleGeometry
+                    .clone()
+                    .transform(userProjection, projection));
+            }
+            const polygon = Polygon_js_9.fromCircle(circleGeometry);
+            if (userProjection) {
+                polygon.transform(projection, userProjection);
+            }
+            const coordinates = polygon.getCoordinates()[0];
+            for (let i = 0, ii = coordinates.length - 1; i < ii; ++i) {
+                const segment = coordinates.slice(i, i + 2);
+                const segmentData = {
+                    feature: feature,
+                    segment: segment,
+                };
+                this.rBush_.insert(extent_js_43.boundingExtent(segment), segmentData);
+            }
+        }
+        writeGeometryCollectionGeometry_(feature, geometry) {
+            const geometries = geometry.getGeometriesArray();
+            for (let i = 0; i < geometries.length; ++i) {
+                const segmentWriter = this.SEGMENT_WRITERS_[geometries[i].getType()];
+                if (segmentWriter) {
+                    segmentWriter(feature, geometries[i]);
+                }
+            }
+        }
+        writeLineStringGeometry_(feature, geometry) {
+            const coordinates = geometry.getCoordinates();
+            for (let i = 0, ii = coordinates.length - 1; i < ii; ++i) {
+                const segment = coordinates.slice(i, i + 2);
+                const segmentData = {
+                    feature: feature,
+                    segment: segment,
+                };
+                this.rBush_.insert(extent_js_43.boundingExtent(segment), segmentData);
+            }
+        }
+        writeMultiLineStringGeometry_(feature, geometry) {
+            const lines = geometry.getCoordinates();
+            for (let j = 0, jj = lines.length; j < jj; ++j) {
+                const coordinates = lines[j];
+                for (let i = 0, ii = coordinates.length - 1; i < ii; ++i) {
+                    const segment = coordinates.slice(i, i + 2);
+                    const segmentData = {
+                        feature: feature,
+                        segment: segment,
+                    };
+                    this.rBush_.insert(extent_js_43.boundingExtent(segment), segmentData);
+                }
+            }
+        }
+        writeMultiPointGeometry_(feature, geometry) {
+            const points = geometry.getCoordinates();
+            for (let i = 0, ii = points.length; i < ii; ++i) {
+                const coordinates = points[i];
+                const segmentData = {
+                    feature: feature,
+                    segment: [coordinates, coordinates],
+                };
+                this.rBush_.insert(geometry.getExtent(), segmentData);
+            }
+        }
+        writeMultiPolygonGeometry_(feature, geometry) {
+            const polygons = geometry.getCoordinates();
+            for (let k = 0, kk = polygons.length; k < kk; ++k) {
+                const rings = polygons[k];
+                for (let j = 0, jj = rings.length; j < jj; ++j) {
+                    const coordinates = rings[j];
+                    for (let i = 0, ii = coordinates.length - 1; i < ii; ++i) {
+                        const segment = coordinates.slice(i, i + 2);
+                        const segmentData = {
+                            feature: feature,
+                            segment: segment,
+                        };
+                        this.rBush_.insert(extent_js_43.boundingExtent(segment), segmentData);
+                    }
+                }
+            }
+        }
+        writePointGeometry_(feature, geometry) {
+            const coordinates = geometry.getCoordinates();
+            const segmentData = {
+                feature: feature,
+                segment: [coordinates, coordinates],
+            };
+            this.rBush_.insert(geometry.getExtent(), segmentData);
+        }
+        writePolygonGeometry_(feature, geometry) {
+            const rings = geometry.getCoordinates();
+            for (let j = 0, jj = rings.length; j < jj; ++j) {
+                const coordinates = rings[j];
+                for (let i = 0, ii = coordinates.length - 1; i < ii; ++i) {
+                    const segment = coordinates.slice(i, i + 2);
+                    const segmentData = {
+                        feature: feature,
+                        segment: segment,
+                    };
+                    this.rBush_.insert(extent_js_43.boundingExtent(segment), segmentData);
+                }
+            }
+        }
+    }
+    exports.default = Snap;
+});
+define("node_modules/ol/src/interaction/Translate", ["require", "exports", "node_modules/ol/src/Collection", "node_modules/ol/src/events/Event", "node_modules/ol/src/interaction/Property", "node_modules/ol/src/interaction/Pointer", "node_modules/ol/src/functions", "node_modules/ol/src/Object", "node_modules/ol/src/array"], function (require, exports, Collection_js_7, Event_js_17, Property_js_5, Pointer_js_11, functions_js_18, Object_js_18, array_js_23) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.TranslateEvent = void 0;
+    const TranslateEventType = {
+        TRANSLATESTART: 'translatestart',
+        TRANSLATING: 'translating',
+        TRANSLATEEND: 'translateend',
+    };
+    class TranslateEvent extends Event_js_17.default {
+        constructor(type, features, coordinate, startCoordinate, mapBrowserEvent) {
+            super(type);
+            this.features = features;
+            this.coordinate = coordinate;
+            this.startCoordinate = startCoordinate;
+            this.mapBrowserEvent = mapBrowserEvent;
+        }
+    }
+    exports.TranslateEvent = TranslateEvent;
+    class Translate extends Pointer_js_11.default {
+        constructor(opt_options) {
+            const options = opt_options ? opt_options : {};
+            super((options));
+            this.lastCoordinate_ = null;
+            this.startCoordinate_ = null;
+            this.features_ = options.features !== undefined ? options.features : null;
+            let layerFilter;
+            if (options.layers) {
+                if (typeof options.layers === 'function') {
+                    layerFilter = options.layers;
+                }
+                else {
+                    const layers = options.layers;
+                    layerFilter = function (layer) {
+                        return array_js_23.includes(layers, layer);
+                    };
+                }
+            }
+            else {
+                layerFilter = functions_js_18.TRUE;
+            }
+            this.layerFilter_ = layerFilter;
+            this.filter_ = options.filter ? options.filter : functions_js_18.TRUE;
+            this.hitTolerance_ = options.hitTolerance ? options.hitTolerance : 0;
+            this.lastFeature_ = null;
+            this.addEventListener(Object_js_18.getChangeEventType(Property_js_5.default.ACTIVE), this.handleActiveChanged_);
+        }
+        handleDownEvent(event) {
+            this.lastFeature_ = this.featuresAtPixel_(event.pixel, event.map);
+            if (!this.lastCoordinate_ && this.lastFeature_) {
+                this.startCoordinate_ = event.coordinate;
+                this.lastCoordinate_ = event.coordinate;
+                this.handleMoveEvent(event);
+                const features = this.features_ || new Collection_js_7.default([this.lastFeature_]);
+                this.dispatchEvent(new TranslateEvent(TranslateEventType.TRANSLATESTART, features, event.coordinate, this.startCoordinate_, event));
+                return true;
+            }
+            return false;
+        }
+        handleUpEvent(event) {
+            if (this.lastCoordinate_) {
+                this.lastCoordinate_ = null;
+                this.handleMoveEvent(event);
+                const features = this.features_ || new Collection_js_7.default([this.lastFeature_]);
+                this.dispatchEvent(new TranslateEvent(TranslateEventType.TRANSLATEEND, features, event.coordinate, this.startCoordinate_, event));
+                this.startCoordinate_ = null;
+                return true;
+            }
+            return false;
+        }
+        handleDragEvent(event) {
+            if (this.lastCoordinate_) {
+                const newCoordinate = event.coordinate;
+                const deltaX = newCoordinate[0] - this.lastCoordinate_[0];
+                const deltaY = newCoordinate[1] - this.lastCoordinate_[1];
+                const features = this.features_ || new Collection_js_7.default([this.lastFeature_]);
+                features.forEach(function (feature) {
+                    const geom = feature.getGeometry();
+                    geom.translate(deltaX, deltaY);
+                    feature.setGeometry(geom);
+                });
+                this.lastCoordinate_ = newCoordinate;
+                this.dispatchEvent(new TranslateEvent(TranslateEventType.TRANSLATING, features, newCoordinate, this.startCoordinate_, event));
+            }
+        }
+        handleMoveEvent(event) {
+            const elem = event.map.getViewport();
+            if (this.featuresAtPixel_(event.pixel, event.map)) {
+                elem.classList.remove(this.lastCoordinate_ ? 'ol-grab' : 'ol-grabbing');
+                elem.classList.add(this.lastCoordinate_ ? 'ol-grabbing' : 'ol-grab');
+            }
+            else {
+                elem.classList.remove('ol-grab', 'ol-grabbing');
+            }
+        }
+        featuresAtPixel_(pixel, map) {
+            return map.forEachFeatureAtPixel(pixel, function (feature, layer) {
+                if (this.filter_(feature, layer)) {
+                    if (!this.features_ || array_js_23.includes(this.features_.getArray(), feature)) {
+                        return feature;
+                    }
+                }
+            }.bind(this), {
+                layerFilter: this.layerFilter_,
+                hitTolerance: this.hitTolerance_,
+            });
+        }
+        getHitTolerance() {
+            return this.hitTolerance_;
+        }
+        setHitTolerance(hitTolerance) {
+            this.hitTolerance_ = hitTolerance;
+        }
+        setMap(map) {
+            const oldMap = this.getMap();
+            super.setMap(map);
+            this.updateState_(oldMap);
+        }
+        handleActiveChanged_() {
+            this.updateState_(null);
+        }
+        updateState_(oldMap) {
+            let map = this.getMap();
+            const active = this.getActive();
+            if (!map || !active) {
+                map = map || oldMap;
+                if (map) {
+                    const elem = map.getViewport();
+                    elem.classList.remove('ol-grab', 'ol-grabbing');
+                }
+            }
+        }
+    }
+    exports.default = Translate;
+});
+define("node_modules/ol/src/interaction", ["require", "exports", "node_modules/ol/src/Collection", "node_modules/ol/src/interaction/DoubleClickZoom", "node_modules/ol/src/interaction/DragPan", "node_modules/ol/src/interaction/DragRotate", "node_modules/ol/src/interaction/DragZoom", "node_modules/ol/src/interaction/KeyboardPan", "node_modules/ol/src/interaction/KeyboardZoom", "node_modules/ol/src/Kinetic", "node_modules/ol/src/interaction/MouseWheelZoom", "node_modules/ol/src/interaction/PinchRotate", "node_modules/ol/src/interaction/PinchZoom", "node_modules/ol/src/interaction/DoubleClickZoom", "node_modules/ol/src/interaction/DragAndDrop", "node_modules/ol/src/interaction/DragBox", "node_modules/ol/src/interaction/DragPan", "node_modules/ol/src/interaction/DragRotate", "node_modules/ol/src/interaction/DragRotateAndZoom", "node_modules/ol/src/interaction/DragZoom", "node_modules/ol/src/interaction/Draw", "node_modules/ol/src/interaction/Extent", "node_modules/ol/src/interaction/Interaction", "node_modules/ol/src/interaction/KeyboardPan", "node_modules/ol/src/interaction/KeyboardZoom", "node_modules/ol/src/interaction/Modify", "node_modules/ol/src/interaction/MouseWheelZoom", "node_modules/ol/src/interaction/PinchRotate", "node_modules/ol/src/interaction/PinchZoom", "node_modules/ol/src/interaction/Pointer", "node_modules/ol/src/interaction/Select", "node_modules/ol/src/interaction/Snap", "node_modules/ol/src/interaction/Translate"], function (require, exports, Collection_js_8, DoubleClickZoom_js_1, DragPan_js_1, DragRotate_js_1, DragZoom_js_1, KeyboardPan_js_1, KeyboardZoom_js_1, Kinetic_js_1, MouseWheelZoom_js_1, PinchRotate_js_1, PinchZoom_js_1, DoubleClickZoom_js_2, DragAndDrop_js_1, DragBox_js_2, DragPan_js_2, DragRotate_js_2, DragRotateAndZoom_js_1, DragZoom_js_2, Draw_js_1, Extent_js_1, Interaction_js_8, KeyboardPan_js_2, KeyboardZoom_js_2, Modify_js_1, MouseWheelZoom_js_2, PinchRotate_js_2, PinchZoom_js_2, Pointer_js_12, Select_js_1, Snap_js_1, Translate_js_1) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.defaults = exports.Translate = exports.Snap = exports.Select = exports.Pointer = exports.PinchZoom = exports.PinchRotate = exports.MouseWheelZoom = exports.Modify = exports.KeyboardZoom = exports.KeyboardPan = exports.Interaction = exports.Extent = exports.Draw = exports.DragZoom = exports.DragRotateAndZoom = exports.DragRotate = exports.DragPan = exports.DragBox = exports.DragAndDrop = exports.DoubleClickZoom = void 0;
+    Object.defineProperty(exports, "DoubleClickZoom", { enumerable: true, get: function () { return DoubleClickZoom_js_2.default; } });
+    Object.defineProperty(exports, "DragAndDrop", { enumerable: true, get: function () { return DragAndDrop_js_1.default; } });
+    Object.defineProperty(exports, "DragBox", { enumerable: true, get: function () { return DragBox_js_2.default; } });
+    Object.defineProperty(exports, "DragPan", { enumerable: true, get: function () { return DragPan_js_2.default; } });
+    Object.defineProperty(exports, "DragRotate", { enumerable: true, get: function () { return DragRotate_js_2.default; } });
+    Object.defineProperty(exports, "DragRotateAndZoom", { enumerable: true, get: function () { return DragRotateAndZoom_js_1.default; } });
+    Object.defineProperty(exports, "DragZoom", { enumerable: true, get: function () { return DragZoom_js_2.default; } });
+    Object.defineProperty(exports, "Draw", { enumerable: true, get: function () { return Draw_js_1.default; } });
+    Object.defineProperty(exports, "Extent", { enumerable: true, get: function () { return Extent_js_1.default; } });
+    Object.defineProperty(exports, "Interaction", { enumerable: true, get: function () { return Interaction_js_8.default; } });
+    Object.defineProperty(exports, "KeyboardPan", { enumerable: true, get: function () { return KeyboardPan_js_2.default; } });
+    Object.defineProperty(exports, "KeyboardZoom", { enumerable: true, get: function () { return KeyboardZoom_js_2.default; } });
+    Object.defineProperty(exports, "Modify", { enumerable: true, get: function () { return Modify_js_1.default; } });
+    Object.defineProperty(exports, "MouseWheelZoom", { enumerable: true, get: function () { return MouseWheelZoom_js_2.default; } });
+    Object.defineProperty(exports, "PinchRotate", { enumerable: true, get: function () { return PinchRotate_js_2.default; } });
+    Object.defineProperty(exports, "PinchZoom", { enumerable: true, get: function () { return PinchZoom_js_2.default; } });
+    Object.defineProperty(exports, "Pointer", { enumerable: true, get: function () { return Pointer_js_12.default; } });
+    Object.defineProperty(exports, "Select", { enumerable: true, get: function () { return Select_js_1.default; } });
+    Object.defineProperty(exports, "Snap", { enumerable: true, get: function () { return Snap_js_1.default; } });
+    Object.defineProperty(exports, "Translate", { enumerable: true, get: function () { return Translate_js_1.default; } });
+    function defaults(opt_options) {
+        const options = opt_options ? opt_options : {};
+        const interactions = new Collection_js_8.default();
+        const kinetic = new Kinetic_js_1.default(-0.005, 0.05, 100);
+        const altShiftDragRotate = options.altShiftDragRotate !== undefined
+            ? options.altShiftDragRotate
+            : true;
+        if (altShiftDragRotate) {
+            interactions.push(new DragRotate_js_1.default());
+        }
+        const doubleClickZoom = options.doubleClickZoom !== undefined ? options.doubleClickZoom : true;
+        if (doubleClickZoom) {
+            interactions.push(new DoubleClickZoom_js_1.default({
+                delta: options.zoomDelta,
+                duration: options.zoomDuration,
+            }));
+        }
+        const dragPan = options.dragPan !== undefined ? options.dragPan : true;
+        if (dragPan) {
+            interactions.push(new DragPan_js_1.default({
+                onFocusOnly: options.onFocusOnly,
+                kinetic: kinetic,
+            }));
+        }
+        const pinchRotate = options.pinchRotate !== undefined ? options.pinchRotate : true;
+        if (pinchRotate) {
+            interactions.push(new PinchRotate_js_1.default());
+        }
+        const pinchZoom = options.pinchZoom !== undefined ? options.pinchZoom : true;
+        if (pinchZoom) {
+            interactions.push(new PinchZoom_js_1.default({
+                duration: options.zoomDuration,
+            }));
+        }
+        const keyboard = options.keyboard !== undefined ? options.keyboard : true;
+        if (keyboard) {
+            interactions.push(new KeyboardPan_js_1.default());
+            interactions.push(new KeyboardZoom_js_1.default({
+                delta: options.zoomDelta,
+                duration: options.zoomDuration,
+            }));
+        }
+        const mouseWheelZoom = options.mouseWheelZoom !== undefined ? options.mouseWheelZoom : true;
+        if (mouseWheelZoom) {
+            interactions.push(new MouseWheelZoom_js_1.default({
+                onFocusOnly: options.onFocusOnly,
+                duration: options.zoomDuration,
+            }));
+        }
+        const shiftDragZoom = options.shiftDragZoom !== undefined ? options.shiftDragZoom : true;
+        if (shiftDragZoom) {
+            interactions.push(new DragZoom_js_1.default({
+                duration: options.zoomDuration,
+            }));
+        }
+        return interactions;
+    }
+    exports.defaults = defaults;
+});
+define("node_modules/ol/src/Map", ["require", "exports", "node_modules/ol/src/renderer/Composite", "node_modules/ol/src/PluggableMap", "node_modules/ol/src/obj", "node_modules/ol/src/control", "node_modules/ol/src/interaction"], function (require, exports, Composite_js_2, PluggableMap_js_2, obj_js_19, control_js_1, interaction_js_1) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    class Map extends PluggableMap_js_2.default {
+        constructor(options) {
+            options = obj_js_19.assign({}, options);
+            if (!options.controls) {
+                options.controls = control_js_1.defaults();
+            }
+            if (!options.interactions) {
+                options.interactions = interaction_js_1.defaults({
+                    onFocusOnly: true,
+                });
+            }
+            super(options);
+        }
+        createRenderer() {
+            return new Composite_js_2.default(this);
+        }
+    }
+    exports.default = Map;
+});
 define("poc/FeatureServiceRequest", ["require", "exports"], function (require, exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
@@ -14798,49 +22568,86 @@ define("poc/fun/removeAuthority", ["require", "exports"], function (require, exp
     }
     exports.removeAuthority = removeAuthority;
 });
-define("poc/fun/createWeightedFeature", ["require", "exports", "node_modules/ol/src/extent", "node_modules/ol/src/geom/Point", "node_modules/ol/src/Feature"], function (require, exports, extent_2, Point_1, Feature_1) {
+define("poc/fun/buildLoader", ["require", "exports", "node_modules/ol/src/extent", "node_modules/ol/src/source/Vector", "node_modules/ol/src/geom/Point", "node_modules/ol/src/Feature", "poc/FeatureServiceProxy", "poc/fun/removeAuthority"], function (require, exports, extent_3, Vector_1, Point_2, Feature_2, FeatureServiceProxy_1, removeAuthority_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    exports.createWeightedFeature = void 0;
-    function createWeightedFeature(featureCountPerQuadrant, extent) {
-        const weight = featureCountPerQuadrant.reduce((a, b) => a + b, 0);
-        if (!weight)
-            return;
-        const dx = featureCountPerQuadrant[0] +
-            featureCountPerQuadrant[3] -
-            featureCountPerQuadrant[1] -
-            featureCountPerQuadrant[2];
-        const dy = featureCountPerQuadrant[0] +
-            featureCountPerQuadrant[1] -
-            featureCountPerQuadrant[2] -
-            featureCountPerQuadrant[3];
-        const [cx, cy] = extent_2.getCenter(extent);
-        const width = extent_2.getWidth(extent) / 2;
-        const height = extent_2.getHeight(extent) / 2;
-        const center = new Point_1.default([
-            cx + width * (dx / weight),
-            cy + height * (dy / weight),
-        ]);
-        const x = cx + (dx / weight) * (width / 2);
-        const y = cy + (dy / weight) * (height / 2);
-        const feature = new Feature_1.default(new Point_1.default([x, y]));
-        feature.setProperties({ count: weight });
-        return feature;
-    }
-    exports.createWeightedFeature = createWeightedFeature;
-});
-define("poc/test/index", ["require", "exports", "mocha", "chai", "node_modules/ol/src/extent", "node_modules/ol/src/proj", "poc/index", "node_modules/ol/src/tilegrid", "node_modules/ol/src/loadingstrategy", "node_modules/ol/src/source/Vector", "node_modules/ol/src/geom/Point", "node_modules/ol/src/Feature", "node_modules/ol/src/source/VectorEventType", "poc/FeatureServiceProxy", "poc/fun/removeAuthority", "poc/fun/createWeightedFeature"], function (require, exports, mocha_1, chai_1, extent_3, proj_1, index_1, tilegrid_1, loadingstrategy_1, Vector_1, Point_2, Feature_2, VectorEventType_1, FeatureServiceProxy_1, removeAuthority_1, createWeightedFeature_1) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    function removeFeaturesFromSource(extent, resolution, source) {
-        const featuresToRemove = source
-            .getFeaturesInExtent(extent)
-            .filter((f) => f.getProperties().resolution > resolution);
-        featuresToRemove.forEach((f) => source.removeFeature(f));
-    }
+    exports.buildLoader = void 0;
     function bbox(extent) {
         const [xmin, ymin, xmax, ymax] = extent;
         return JSON.stringify({ xmin, ymin, xmax, ymax });
+    }
+    function buildLoader(options) {
+        let source;
+        function loader(extent, resolution, projection) {
+            return __awaiter(this, void 0, void 0, function* () {
+                const { tree } = options;
+                const tileNode = tree.find(extent);
+                if (typeof tileNode.data.count === "number")
+                    return;
+                tileNode.data.count = 0;
+                const proxy = new FeatureServiceProxy_1.FeatureServiceProxy({
+                    service: options.url,
+                });
+                const request = {
+                    f: "json",
+                    geometry: "",
+                    geometryType: "esriGeometryEnvelope",
+                    inSR: removeAuthority_1.removeAuthority(projection.getCode()),
+                    outFields: "*",
+                    outSR: removeAuthority_1.removeAuthority(projection.getCode()),
+                    returnGeometry: true,
+                    returnCountOnly: false,
+                    spatialRel: "esriSpatialRelIntersects",
+                };
+                request.geometry = bbox(extent);
+                request.returnCountOnly = true;
+                try {
+                    const response = yield proxy.fetch(request);
+                    const count = response.count;
+                    tileNode.data.count = count;
+                    console.log(`found ${count} features in ${extent
+                        .map((v) => Math.round(v))
+                        .join(",")}`);
+                    if (count > 0) {
+                        const geom = new Point_2.default(extent_3.getCenter(extent));
+                        const feature = new Feature_2.default(geom);
+                        feature.setProperties({ count, resolution });
+                        source.addFeature(feature);
+                        if (count > 1000) {
+                            setTimeout(() => {
+                                Promise.all(tree.ensureQuads(tileNode).map((q) => {
+                                    loader(q.extent, resolution / 2, projection);
+                                }));
+                                source.removeFeature(feature);
+                            }, 200);
+                        }
+                    }
+                }
+                catch (ex) {
+                    const geom = new Point_2.default(extent_3.getCenter(extent));
+                    const feature = new Feature_2.default(geom);
+                    feature.setProperties({ text: ex, count: 0, resolution });
+                    source.addFeature(feature);
+                }
+            });
+        }
+        return (source = new Vector_1.default({
+            loader,
+            strategy: options.strategy,
+        }));
+    }
+    exports.buildLoader = buildLoader;
+});
+define("poc/test/index", ["require", "exports", "mocha", "chai", "node_modules/ol/src/extent", "node_modules/ol/src/proj", "poc/index", "node_modules/ol/src/tilegrid", "node_modules/ol/src/loadingstrategy", "node_modules/ol/src/source/VectorEventType", "poc/fun/createWeightedFeature", "node_modules/ol/src/Map", "node_modules/ol/src/View", "node_modules/ol/src/layer/Vector", "poc/fun/buildLoader", "node_modules/ol/src/style", "node_modules/ol/src/style/Circle"], function (require, exports, mocha_1, chai_1, extent_4, proj_1, index_1, tilegrid_1, loadingstrategy_1, VectorEventType_1, createWeightedFeature_1, Map_1, View_1, Vector_2, buildLoader_1, style_1, Circle_1) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    function debounce(cb, wait = 20) {
+        let h = 0;
+        let callable = (...args) => {
+            clearTimeout(h);
+            h = setTimeout(() => cb(...args), wait);
+        };
+        return callable;
     }
     const TINY = 0.0000001;
     function isEq(v1, v2) {
@@ -14900,12 +22707,12 @@ define("poc/test/index", ["require", "exports", "mocha", "chai", "node_modules/o
             const q2 = tree.find([0, 0.25, 0.25, 0.5]);
             const q3 = tree.find([0.25, 0.25, 0.5, 0.5]);
             const q33 = tree.find([0.375, 0.375, 0.5, 0.5]);
-            q0.count = 1;
-            q1.count = 2;
-            q2.count = 4;
-            q3.count = 8;
-            q33.count = 16;
-            const totalCount = visit(root, (a, b) => a + ((b === null || b === void 0 ? void 0 : b.count) || 0), 0);
+            q0.data.count = 1;
+            q1.data.count = 2;
+            q2.data.count = 4;
+            q3.data.count = 8;
+            q33.data.count = 16;
+            const totalCount = visit(root, (a, b) => a + ((b === null || b === void 0 ? void 0 : b.data.count) || 0), 0);
             chai_1.assert.equal(totalCount, 31);
         });
         mocha_1.it("uses 3857 to find a tile for a given depth and coordinate", () => {
@@ -14934,9 +22741,9 @@ define("poc/test/index", ["require", "exports", "mocha", "chai", "node_modules/o
             const addTiles = (level) => tileGrid.forEachTileCoord(extent, level, (tileCoord) => {
                 const [z, x, y] = tileCoord;
                 const extent = tileGrid.getTileCoordExtent(tileCoord);
-                tree.find(extent).tileCoord = tileCoord;
+                tree.find(extent).data.tileCoord = tileCoord;
             });
-            const maxX = () => visit(tree.find(extent), (a, b) => Math.max(a, b.tileCoord ? b.tileCoord[1] : a), 0);
+            const maxX = () => visit(tree.find(extent), (a, b) => Math.max(a, b.data.tileCoord ? b.data.tileCoord[1] : a), 0);
             for (let i = 0; i <= 8; i++) {
                 addTiles(i);
                 chai_1.assert.equal(Math.pow(2, i) - 1, maxX(), `addTiles(${i})`);
@@ -14969,36 +22776,7 @@ define("poc/test/index", ["require", "exports", "mocha", "chai", "node_modules/o
             const tree = new index_1.TileTree({
                 extent: tileGrid.getExtent(),
             });
-            const loader = (extent, resolution, projection) => __awaiter(void 0, void 0, void 0, function* () {
-                const tileNode = tree.find(extent);
-                if (tileNode.count)
-                    return;
-                const proxy = new FeatureServiceProxy_1.FeatureServiceProxy({
-                    service: url,
-                });
-                const request = {
-                    f: "json",
-                    geometry: "",
-                    geometryType: "esriGeometryEnvelope",
-                    inSR: removeAuthority_1.removeAuthority(projection.getCode()),
-                    outFields: "*",
-                    outSR: removeAuthority_1.removeAuthority(projection.getCode()),
-                    returnGeometry: true,
-                    returnCountOnly: false,
-                    spatialRel: "esriSpatialRelIntersects",
-                };
-                request.geometry = bbox(extent);
-                request.returnCountOnly = true;
-                const response = yield proxy.fetch(request);
-                const count = response.count;
-                tileNode.count = count;
-                const geom = new Point_2.default(extent_3.getCenter(extent));
-                const feature = new Feature_2.default(geom);
-                feature.setProperties({ count, resolution });
-                source.addFeature(feature);
-                removeFeaturesFromSource(extent, resolution, source);
-            });
-            const source = new Vector_1.default({ strategy, loader });
+            const source = buildLoader_1.buildLoader({ tree, strategy, url });
             source.loadFeatures(tileGrid.getExtent(), tileGrid.getResolution(0), projection);
             source.on(VectorEventType_1.default.ADDFEATURE, (args) => {
                 const { count, resolution } = args.feature.getProperties();
@@ -15006,6 +22784,48 @@ define("poc/test/index", ["require", "exports", "mocha", "chai", "node_modules/o
                 createWeightedFeature_1.createWeightedFeature;
             });
         });
+        mocha_1.it("renders on a map", () => {
+            const view = new View_1.default({
+                center: extent_4.getCenter([-11114555, 4696291, -10958012, 4852834]),
+                zoom: 6,
+            });
+            const target = document.createElement("div");
+            target.style.backgroundColor = "black";
+            target.className = "map";
+            document.body.appendChild(target);
+            const url = "http://localhost:3002/mock/sampleserver3/arcgis/rest/services/Petroleum/KSFields/FeatureServer/0/query";
+            const tileGrid = tilegrid_1.createXYZ({ tileSize: 512 });
+            const strategy = loadingstrategy_1.tile(tileGrid);
+            const tree = new index_1.TileTree({
+                extent: tileGrid.getExtent(),
+            });
+            const vectorSource = buildLoader_1.buildLoader({ tree, url, strategy });
+            const vectorLayer = new Vector_2.default({
+                source: vectorSource,
+                style: (feature) => {
+                    const { text, count } = feature.getProperties();
+                    const style = new style_1.Style({
+                        image: new Circle_1.default({
+                            radius: 10 + Math.sqrt(count) / 2,
+                            fill: new style_1.Fill({ color: "rgba(200,0,0,0.2)" }),
+                            stroke: new style_1.Stroke({ color: "white", width: 1 }),
+                        }),
+                        text: new style_1.Text({
+                            text: text || count + "",
+                            stroke: new style_1.Stroke({ color: "black", width: 1 }),
+                            fill: new style_1.Fill({ color: "white" }),
+                        }),
+                    });
+                    return style;
+                },
+            });
+            const layers = [vectorLayer];
+            const map = new Map_1.default({ view, target, layers });
+            setTimeout(() => {
+                target.remove();
+                map.dispose();
+            }, 60 * 1000);
+        }).timeout(10000);
     });
 });
 define("index", ["require", "exports", "poc/test/index"], function (require, exports) {

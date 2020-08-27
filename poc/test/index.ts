@@ -2,7 +2,7 @@ import { describe, it } from "mocha";
 import { assert } from "chai";
 
 import { Extent, getCenter } from "@ol/extent";
-import { get as getProjection, Projection } from "@ol/proj";
+import { get as getProjection } from "@ol/proj";
 import { TileTree, TileNode } from "../index";
 import { createXYZ } from "@ol/tilegrid";
 import { tile as tileStrategy } from "@ol/loadingstrategy";
@@ -11,25 +11,21 @@ import Point from "@ol/geom/Point";
 import Feature from "@ol/Feature";
 import Geometry from "@ol/geom/Geometry";
 import VectorEventType from "@ol/source/VectorEventType";
-import { FeatureServiceProxy } from "../FeatureServiceProxy";
-import { removeAuthority } from "../fun/removeAuthority";
-import { FeatureServiceRequest } from "../FeatureServiceRequest";
 import { createWeightedFeature } from "../fun/createWeightedFeature";
+import Map from "@ol/Map";
+import View from "@ol/View";
+import VectorLayer from "@ol/layer/Vector";
+import { buildLoader } from "../fun/buildLoader";
+import { Style, Fill, Stroke, Text } from "@ol/style";
+import Circle from "@ol/style/Circle";
 
-function removeFeaturesFromSource(
-  extent: Extent,
-  resolution: number,
-  source: VectorSource<Geometry>
-) {
-  const featuresToRemove = source
-    .getFeaturesInExtent(extent)
-    .filter((f) => f.getProperties().resolution > resolution);
-  featuresToRemove.forEach((f) => source.removeFeature(f));
-}
-
-function bbox(extent: Extent) {
-  const [xmin, ymin, xmax, ymax] = extent;
-  return JSON.stringify({ xmin, ymin, xmax, ymax });
+function debounce<T extends Function>(cb: T, wait = 20) {
+  let h = 0;
+  let callable = (...args: any) => {
+    clearTimeout(h);
+    h = setTimeout(() => cb(...args), wait);
+  };
+  return <T>(<any>callable);
 }
 
 const TINY = 0.0000001;
@@ -38,9 +34,9 @@ function isEq(v1: number, v2: number) {
   return TINY > Math.abs(v1 - v2);
 }
 
-function visit<T extends TileNode, Q>(
-  root: T,
-  cb: (a: Q, b: T) => Q,
+function visit<T, Q>(
+  root: TileNode<T>,
+  cb: (a: Q, b: TileNode<T>) => Q,
   init: Q
 ): Q {
   let result = cb(init, root);
@@ -94,25 +90,25 @@ describe("TileTree Tests", () => {
 
   it("attaches data to the nodes", () => {
     const extent = [0, 0, 1, 1] as Extent;
-    const tree = new TileTree<TileNode & { count: number }>({ extent });
+    const tree = new TileTree<{ count: number }>({ extent });
     const root = tree.find(extent);
     const q0 = tree.find([0, 0, 0.25, 0.25]);
     const q1 = tree.find([0.25, 0, 0.5, 0.25]);
     const q2 = tree.find([0, 0.25, 0.25, 0.5]);
     const q3 = tree.find([0.25, 0.25, 0.5, 0.5]);
     const q33 = tree.find([0.375, 0.375, 0.5, 0.5]);
-    q0.count = 1;
-    q1.count = 2;
-    q2.count = 4;
-    q3.count = 8;
-    q33.count = 16;
-    const totalCount = visit(root, (a, b) => a + (b?.count || 0), 0);
+    q0.data.count = 1;
+    q1.data.count = 2;
+    q2.data.count = 4;
+    q3.data.count = 8;
+    q33.data.count = 16;
+    const totalCount = visit(root, (a, b) => a + (b?.data.count || 0), 0);
     assert.equal(totalCount, 31);
   });
 
   it("uses 3857 to find a tile for a given depth and coordinate", () => {
     const extent = getProjection("EPSG:3857").getExtent();
-    const tree = new TileTree<TileNode & { count: number }>({ extent });
+    const tree = new TileTree<TileNode<{ count: number }>>({ extent });
     const q0 = tree.findByPoint({ zoom: 3, point: [-1, -1] });
     const q1 = tree.findByPoint({ zoom: 3, point: [1, -1] });
     const q2 = tree.findByPoint({ zoom: 3, point: [-1, 1] });
@@ -134,7 +130,7 @@ describe("TileTree Tests", () => {
 
   it("can cache tiles from a TileGrid", () => {
     const extent = getProjection("EPSG:3857").getExtent() as Extent;
-    const tree = new TileTree<TileNode & { tileCoord?: number[] }>({
+    const tree = new TileTree<{ tileCoord?: number[] }>({
       extent,
     });
 
@@ -144,13 +140,13 @@ describe("TileTree Tests", () => {
       tileGrid.forEachTileCoord(extent, level, (tileCoord) => {
         const [z, x, y] = tileCoord;
         const extent = tileGrid.getTileCoordExtent(tileCoord) as Extent;
-        tree.find(extent).tileCoord = tileCoord;
+        tree.find(extent).data.tileCoord = tileCoord;
       });
 
     const maxX = () =>
       visit(
         tree.find(extent),
-        (a, b) => Math.max(a, b.tileCoord ? b.tileCoord[1] : a),
+        (a, b) => Math.max(a, b.data.tileCoord ? b.data.tileCoord[1] : a),
         0
       );
 
@@ -162,7 +158,7 @@ describe("TileTree Tests", () => {
 
   it("integrates with a tiling strategy", () => {
     const extent = getProjection("EPSG:3857").getExtent() as Extent;
-    const tree = new TileTree<TileNode & { count: number }>({ extent });
+    const tree = new TileTree<{ count: number }>({ extent });
     const tileGrid = createXYZ({ extent });
     const strategy = tileStrategy(tileGrid);
     const resolutions = tileGrid.getResolutions();
@@ -193,50 +189,11 @@ describe("TileTree Tests", () => {
     const tileGrid = createXYZ({ tileSize: 512 });
     const strategy = tileStrategy(tileGrid);
 
-    const tree = new TileTree<TileNode & { count: number }>({
+    const tree = new TileTree<{ count: number }>({
       extent: tileGrid.getExtent(),
     });
 
-    const loader = async (
-      extent: Extent,
-      resolution: number,
-      projection: Projection
-    ) => {
-      const tileNode = tree.find(extent);
-      if (tileNode.count) return;
-
-      const proxy = new FeatureServiceProxy({
-        service: url,
-      });
-
-      const request: FeatureServiceRequest = {
-        f: "json",
-        geometry: "",
-        geometryType: "esriGeometryEnvelope",
-        inSR: removeAuthority(projection.getCode()),
-        outFields: "*",
-        outSR: removeAuthority(projection.getCode()),
-        returnGeometry: true,
-        returnCountOnly: false,
-        spatialRel: "esriSpatialRelIntersects",
-      };
-
-      request.geometry = bbox(extent);
-      request.returnCountOnly = true;
-
-      const response = await proxy.fetch<{ count: number }>(request);
-      const count = response.count;
-      tileNode.count = count;
-
-      const geom = new Point(getCenter(extent));
-      const feature = new Feature(geom);
-      feature.setProperties({ count, resolution });
-      source.addFeature(feature);
-
-      removeFeaturesFromSource(extent, resolution, source);
-    };
-
-    const source = new VectorSource({ strategy, loader });
+    const source = buildLoader({ tree, strategy, url });
 
     source.loadFeatures(
       tileGrid.getExtent(),
@@ -253,4 +210,53 @@ describe("TileTree Tests", () => {
       }
     );
   });
+
+  it("renders on a map", () => {
+    const view = new View({
+      center: getCenter([-11114555, 4696291, -10958012, 4852834]),
+      zoom: 6,
+    });
+    const target = document.createElement("div");
+    target.style.backgroundColor = "black";
+    target.className = "map";
+    document.body.appendChild(target);
+
+    const url =
+      "http://localhost:3002/mock/sampleserver3/arcgis/rest/services/Petroleum/KSFields/FeatureServer/0/query";
+    const tileGrid = createXYZ({ tileSize: 512 });
+    const strategy = tileStrategy(tileGrid);
+
+    const tree = new TileTree<{ count: number }>({
+      extent: tileGrid.getExtent(),
+    });
+
+    const vectorSource = buildLoader({ tree, url, strategy });
+    const vectorLayer = new VectorLayer({
+      source: vectorSource,
+      style: (feature: Feature<Geometry>) => {
+        const { text, count } = feature.getProperties();
+        const style = new Style({
+          image: new Circle({
+            radius: 10 + Math.sqrt(count) / 2,
+            fill: new Fill({ color: "rgba(200,0,0,0.2)" }),
+            stroke: new Stroke({ color: "white", width: 1 }),
+          }),
+          text: new Text({
+            text: text || count + "",
+            stroke: new Stroke({ color: "black", width: 1 }),
+            fill: new Fill({ color: "white" }),
+          }),
+        });
+        return style;
+      },
+    });
+
+    const layers = [vectorLayer];
+    const map = new Map({ view, target, layers });
+
+    setTimeout(() => {
+      target.remove();
+      map.dispose();
+    }, 60 * 1000);
+  }).timeout(10000);
 });

@@ -22,7 +22,8 @@
     "build:all": "npm run build-for-loaders && npm run build",
     "start": "parcel index.html",
     "build": "parcel build --public-url . .index.html",
-    "rollup": "rollup ./built/index.js --file ./built/bundle.js --format iife"
+    "rollup": "rollup ./built/index.js --file ./built/bundle.js --format iife",
+    "proxy": "cd ../reverse-proxy-cache && start npm run server"
   },
   "dependencies": {},
   "devDependencies": {
