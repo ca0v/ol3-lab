@@ -19,7 +19,7 @@
     <script>
         (function () {
             console.log(mocha);
-            mocha.setup("bdd");
+            mocha.setup({ ui: "bdd", bail: true, timeout: 5000 });
             define("mocha", { describe, it });
             define("chai", chai);
             requirejs.config({

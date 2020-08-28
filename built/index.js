@@ -1,3 +1,4 @@
+"use strict";
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -4580,134 +4581,188 @@ define("node_modules/ol/src/extent", ["require", "exports", "node_modules/ol/src
     }
     exports.wrapX = wrapX;
 });
-define("poc/index", ["require", "exports", "node_modules/ol/src/extent", "node_modules/ol/src/extent"], function (require, exports, extent_1, extent_2) {
+define("poc/explode", ["require", "exports"], function (require, exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    exports.TileTree = void 0;
-    function visit(root, cb, init) {
-        let result = cb(init, root);
-        root.quad
-            .filter((q) => !!q)
-            .forEach((q) => {
-            result = visit(q, cb, result);
-        });
-        return result;
-    }
+    exports.explode = void 0;
     function explode(extent) {
         const [xmin, ymin, xmax, ymax] = extent;
         const [w, h] = [xmax - xmin, ymax - ymin];
         const [xmid, ymid] = [xmin + w / 2, ymin + h / 2];
         return { xmin, ymin, xmax, ymax, w, h, xmid, ymid };
     }
-    const TINY = 0.00000001;
+    exports.explode = explode;
+});
+define("poc/XYZ", ["require", "exports"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+});
+define("poc/index", ["require", "exports"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.isGt = exports.isLt = exports.isEq = exports.isInt = void 0;
+    const TINY = Math.pow(2, -24);
     function isInt(value) {
         return TINY > Math.abs(value - Math.round(value));
     }
-    function isEq(v1, v2) {
-        return TINY > Math.abs(v1 - v2);
+    exports.isInt = isInt;
+    function isEq(v1, v2, tiny = TINY) {
+        return tiny > Math.abs(v1 - v2);
     }
+    exports.isEq = isEq;
     function isLt(v1, v2) {
         return TINY < v2 - v1;
     }
+    exports.isLt = isLt;
     function isGt(v1, v2) {
         return TINY < v1 - v2;
     }
+    exports.isGt = isGt;
+});
+define("poc/asXYZ", ["require", "exports", "poc/explode", "poc/index"], function (require, exports, explode_1, index_1) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.asXYZ = void 0;
+    function asXYZ(rootExtent, extent) {
+        const rootInfo = explode_1.explode(rootExtent);
+        const nodeInfo = explode_1.explode(extent);
+        const z = Math.log2(rootInfo.w / nodeInfo.w);
+        const Z = Math.round(z);
+        const x = (Math.pow(2, Z) * (nodeInfo.xmin - rootInfo.xmin)) / rootInfo.w;
+        const y = (Math.pow(2, Z) * (nodeInfo.ymin - rootInfo.ymin)) / rootInfo.h;
+        const X = Math.round(x);
+        const Y = Math.round(y);
+        const TINY = Math.pow(2, -10);
+        if (!index_1.isEq(Z - z, 0, TINY)) {
+            debugger;
+            throw "invalid extent: zoom";
+        }
+        if (!index_1.isEq(X - x, 0, TINY)) {
+            debugger;
+            throw "invalid extent: xmin";
+        }
+        if (!index_1.isEq(Y - y, 0, TINY)) {
+            debugger;
+            throw "invalid extent: ymin";
+        }
+        return { X, Y, Z };
+    }
+    exports.asXYZ = asXYZ;
+});
+define("poc/asExtent", ["require", "exports", "poc/explode"], function (require, exports, explode_2) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.asExtent = void 0;
+    function asExtent(rootExtent, point) {
+        const { X, Y, Z } = point;
+        const scale = Math.pow(2, -Z);
+        const rootInfo = explode_2.explode(rootExtent);
+        const dx = rootInfo.w * scale;
+        const xmin = rootInfo.xmin + dx * X;
+        const ymin = rootInfo.ymin + dx * Y;
+        return [xmin, ymin, xmin + dx, ymin + dx];
+    }
+    exports.asExtent = asExtent;
+});
+define("poc/TileNode", ["require", "exports"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+});
+define("poc/TileTree", ["require", "exports", "node_modules/ol/src/extent", "poc/explode", "poc/asXYZ", "poc/asExtent", "poc/index"], function (require, exports, extent_1, explode_3, asXYZ_1, asExtent_1, index_2) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.TileTree = void 0;
     class TileTree {
         constructor(options) {
             this.root = this.asTileNode(options.extent);
-        }
-        ensureQuads(node) {
-            return this.defineAllQuads(node).quad;
+            this.tileCache = [[[this.root]]];
         }
         asTileNode(extent) {
-            return { extent, quad: [null, null, null, null], data: {} };
+            return { extent, data: {} };
+        }
+        asXYZ(node) {
+            const { X, Y, Z } = asXYZ_1.asXYZ(this.root.extent, node.extent);
+            const check = asExtent_1.asExtent(this.root.extent, { X, Y, Z });
+            if (!check.every((v, i) => index_2.isEq(v, node.extent[i])))
+                throw "invalid extent";
+            return { X, Y, Z };
+        }
+        asExtent(tileName) {
+            return asExtent_1.asExtent(this.root.extent, tileName);
         }
         parent(node) {
-            const depth = Math.round(extent_1.getWidth(this.root.extent) / extent_1.getWidth(node.extent)) - 1;
-            return this.findByPoint({ point: extent_1.getCenter(node.extent), zoom: depth });
+            let { X, Y, Z } = this.asXYZ(node);
+            X = Math.floor(X / 2);
+            Y = Math.floor(Y / 2);
+            Z = Z - 1;
+            return this.findByXYZ({ X, Y, Z });
         }
-        findByPoint(args, root = this.root) {
+        findByXYZ(point, options) {
+            const { X, Y, Z } = point;
+            if (Z < 0)
+                throw "invalid Z";
+            if (X < 0)
+                throw "invalid X";
+            if (Y < 0)
+                throw "invalid Y";
+            const scale = Math.pow(2, Z);
+            if (X >= scale)
+                throw "invalid X";
+            if (Y >= scale)
+                throw "invalid Y";
+            this.tileCache[Z] = this.tileCache[Z] || [];
+            this.tileCache[Z][X] = this.tileCache[Z][X] || [];
+            if (!this.tileCache[Z][X][Y] && (options === null || options === void 0 ? void 0 : options.force)) {
+                const extent = this.asExtent(point);
+                this.tileCache[Z][X][Y] = this.asTileNode(extent);
+            }
+            return this.tileCache[Z][X][Y];
+        }
+        findByPoint(args) {
             const { point, zoom: depth } = args;
             const [x, y] = point;
             if (depth < 0)
                 throw "invalid depth";
-            if (!extent_2.containsXY(root.extent, x, y)) {
+            if (!extent_1.containsXY(this.root.extent, x, y)) {
                 throw "point is outside of extent";
             }
             if (0 === depth)
-                return root;
-            const rootInfo = explode(root.extent);
-            const isRightQuad = x >= rootInfo.xmid;
-            const isTopQuad = y >= rootInfo.ymid;
-            const quadIndex = (isTopQuad ? 2 : 0) + (isRightQuad ? 1 : 0);
-            if (null === root.quad[quadIndex]) {
-                this.defineAllQuads(root);
-            }
-            return this.findByPoint({ point, zoom: depth - 1 }, root.quad[quadIndex]);
+                return this.root;
+            const rootInfo = explode_3.explode(this.root.extent);
+            const Z = depth;
+            const X = Math.floor((Math.pow(2, Z) * (x - rootInfo.xmin)) / rootInfo.w);
+            const Y = Math.floor((Math.pow(2, Z) * (y - rootInfo.ymin)) / rootInfo.h);
+            return this.findByXYZ({ X, Y, Z }, { force: true });
         }
-        defineAllQuads(root) {
-            const rootInfo = explode(root.extent);
-            for (let i = 0; i < 4; i++) {
-                if (root.quad[i])
-                    break;
-                const isTop = 2 === (i & 2);
-                const isRight = 1 === (i & 1);
-                root.quad[i] = this.asTileNode([
-                    !isRight ? rootInfo.xmin : rootInfo.xmid,
-                    !isTop ? rootInfo.ymin : rootInfo.ymid,
-                    !isRight ? rootInfo.xmid : rootInfo.xmax,
-                    !isTop ? rootInfo.ymid : rootInfo.ymax,
-                ]);
-            }
-            return root;
+        ensureQuads(root) {
+            const { X, Y, Z } = this.asXYZ(root);
+            const x = X * 2;
+            const y = Y * 2;
+            const z = Z + 1;
+            const q0 = this.findByXYZ({ X: X, Y: Y, Z: z }, { force: true });
+            const q1 = this.findByXYZ({ X: X, Y: Y + 1, Z: z }, { force: true });
+            const q2 = this.findByXYZ({ X: X + 1, Y: Y + 1, Z: z }, { force: true });
+            const q3 = this.findByXYZ({ X: X + 1, Y: Y, Z: z }, { force: true });
+            return [q0, q1, q2, q3];
         }
         visit(cb, init) {
-            return visit(this.root, cb, init);
+            let result = init;
+            const Zs = Object.keys(this.tileCache);
+            Zs.forEach((Z) => {
+                const Xs = Object.keys(this.tileCache[Z]);
+                Xs.forEach((X) => {
+                    const Ys = Object.keys(this.tileCache[Z][X]);
+                    Ys.forEach((Y) => {
+                        const node = this.tileCache[Z][X][Y];
+                        result = cb(result, node);
+                    });
+                });
+            });
+            return result;
         }
         find(extent) {
-            const info = explode(extent);
-            const rootInfo = explode(this.root.extent);
-            if (!extent_2.containsExtent(this.root.extent, extent)) {
-                if (isLt(info.xmin, rootInfo.xmin))
-                    throw "xmin too small";
-                if (isLt(info.ymin, rootInfo.ymin))
-                    throw "ymin too small";
-                if (isGt(info.xmax, rootInfo.xmax))
-                    throw `xmax too large: ${info.xmax} > ${rootInfo.xmax}`;
-                if (isGt(info.ymax, rootInfo.ymax))
-                    throw "ymax too large";
-            }
-            if (!isEq(info.w, info.h))
-                throw "not square";
-            if (isEq(info.w, 0))
-                throw "too small";
-            if (!isInt(Math.log2(rootInfo.w / info.w))) {
-                throw "wrong power";
-            }
-            return this.findNode(this.root, this.asTileNode(extent));
-        }
-        findNode(root, child) {
-            const info = explode(child.extent);
-            const rootInfo = explode(root.extent);
-            if (!extent_2.containsExtent(root.extent, child.extent)) {
-                if (isLt(info.xmin, rootInfo.xmin))
-                    throw "xmin too small";
-                if (isLt(info.ymin, rootInfo.ymin))
-                    throw "ymin too small";
-                if (isGt(info.xmax, rootInfo.xmax))
-                    throw `xmax too large: ${info.xmax} > ${rootInfo.xmax}`;
-                if (isGt(info.ymax, rootInfo.ymax))
-                    throw "ymax too large";
-            }
-            if (isEq(info.w, rootInfo.w))
-                return root;
-            const isLeftQuad = isLt(info.xmin, rootInfo.xmid) ? 1 : 0;
-            const isBottomQuad = isLt(info.ymin, rootInfo.ymid) ? 1 : 0;
-            const quadIndex = (1 - isLeftQuad) * 1 + (1 - isBottomQuad) * 2;
-            if (!root.quad[quadIndex]) {
-                this.defineAllQuads(root);
-            }
-            return this.findNode(root.quad[quadIndex], child);
+            const tile = this.asXYZ({ extent });
+            return this.findByXYZ(tile, { force: true });
         }
     }
     exports.TileTree = TileTree;
@@ -4821,740 +4876,6 @@ define("node_modules/ol/src/loadingstrategy", ["require", "exports"], function (
         });
     }
     exports.tile = tile;
-});
-define("node_modules/ol/src/CollectionEventType", ["require", "exports"], function (require, exports) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    exports.default = {
-        ADD: 'add',
-        REMOVE: 'remove',
-    };
-});
-define("node_modules/ol/src/Collection", ["require", "exports", "node_modules/ol/src/AssertionError", "node_modules/ol/src/Object", "node_modules/ol/src/CollectionEventType", "node_modules/ol/src/events/Event"], function (require, exports, AssertionError_js_2, Object_js_2, CollectionEventType_js_1, Event_js_3) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    exports.CollectionEvent = void 0;
-    const Property = {
-        LENGTH: 'length',
-    };
-    class CollectionEvent extends Event_js_3.default {
-        constructor(type, opt_element, opt_index) {
-            super(type);
-            this.element = opt_element;
-            this.index = opt_index;
-        }
-    }
-    exports.CollectionEvent = CollectionEvent;
-    class Collection extends Object_js_2.default {
-        constructor(opt_array, opt_options) {
-            super();
-            const options = opt_options || {};
-            this.unique_ = !!options.unique;
-            this.array_ = opt_array ? opt_array : [];
-            if (this.unique_) {
-                for (let i = 0, ii = this.array_.length; i < ii; ++i) {
-                    this.assertUnique_(this.array_[i], i);
-                }
-            }
-            this.updateLength_();
-        }
-        clear() {
-            while (this.getLength() > 0) {
-                this.pop();
-            }
-        }
-        extend(arr) {
-            for (let i = 0, ii = arr.length; i < ii; ++i) {
-                this.push(arr[i]);
-            }
-            return this;
-        }
-        forEach(f) {
-            const array = this.array_;
-            for (let i = 0, ii = array.length; i < ii; ++i) {
-                f(array[i], i, array);
-            }
-        }
-        getArray() {
-            return this.array_;
-        }
-        item(index) {
-            return this.array_[index];
-        }
-        getLength() {
-            return this.get(Property.LENGTH);
-        }
-        insertAt(index, elem) {
-            if (this.unique_) {
-                this.assertUnique_(elem);
-            }
-            this.array_.splice(index, 0, elem);
-            this.updateLength_();
-            this.dispatchEvent(new CollectionEvent(CollectionEventType_js_1.default.ADD, elem, index));
-        }
-        pop() {
-            return this.removeAt(this.getLength() - 1);
-        }
-        push(elem) {
-            if (this.unique_) {
-                this.assertUnique_(elem);
-            }
-            const n = this.getLength();
-            this.insertAt(n, elem);
-            return this.getLength();
-        }
-        remove(elem) {
-            const arr = this.array_;
-            for (let i = 0, ii = arr.length; i < ii; ++i) {
-                if (arr[i] === elem) {
-                    return this.removeAt(i);
-                }
-            }
-            return undefined;
-        }
-        removeAt(index) {
-            const prev = this.array_[index];
-            this.array_.splice(index, 1);
-            this.updateLength_();
-            this.dispatchEvent(new CollectionEvent(CollectionEventType_js_1.default.REMOVE, prev, index));
-            return prev;
-        }
-        setAt(index, elem) {
-            const n = this.getLength();
-            if (index < n) {
-                if (this.unique_) {
-                    this.assertUnique_(elem, index);
-                }
-                const prev = this.array_[index];
-                this.array_[index] = elem;
-                this.dispatchEvent(new CollectionEvent(CollectionEventType_js_1.default.REMOVE, prev, index));
-                this.dispatchEvent(new CollectionEvent(CollectionEventType_js_1.default.ADD, elem, index));
-            }
-            else {
-                for (let j = n; j < index; ++j) {
-                    this.insertAt(j, undefined);
-                }
-                this.insertAt(index, elem);
-            }
-        }
-        updateLength_() {
-            this.set(Property.LENGTH, this.array_.length);
-        }
-        assertUnique_(elem, opt_except) {
-            for (let i = 0, ii = this.array_.length; i < ii; ++i) {
-                if (this.array_[i] === elem && i !== opt_except) {
-                    throw new AssertionError_js_2.default(58);
-                }
-            }
-        }
-    }
-    exports.default = Collection;
-});
-define("node_modules/quickselect/index", ["require", "exports"], function (require, exports) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    function quickselect(arr, k, left, right, compare) {
-        quickselectStep(arr, k, left || 0, right || (arr.length - 1), compare || defaultCompare);
-    }
-    exports.default = quickselect;
-    function quickselectStep(arr, k, left, right, compare) {
-        while (right > left) {
-            if (right - left > 600) {
-                var n = right - left + 1;
-                var m = k - left + 1;
-                var z = Math.log(n);
-                var s = 0.5 * Math.exp(2 * z / 3);
-                var sd = 0.5 * Math.sqrt(z * s * (n - s) / n) * (m - n / 2 < 0 ? -1 : 1);
-                var newLeft = Math.max(left, Math.floor(k - m * s / n + sd));
-                var newRight = Math.min(right, Math.floor(k + (n - m) * s / n + sd));
-                quickselectStep(arr, k, newLeft, newRight, compare);
-            }
-            var t = arr[k];
-            var i = left;
-            var j = right;
-            swap(arr, left, k);
-            if (compare(arr[right], t) > 0)
-                swap(arr, left, right);
-            while (i < j) {
-                swap(arr, i, j);
-                i++;
-                j--;
-                while (compare(arr[i], t) < 0)
-                    i++;
-                while (compare(arr[j], t) > 0)
-                    j--;
-            }
-            if (compare(arr[left], t) === 0)
-                swap(arr, left, j);
-            else {
-                j++;
-                swap(arr, j, right);
-            }
-            if (j <= k)
-                left = j + 1;
-            if (k <= j)
-                right = j - 1;
-        }
-    }
-    function swap(arr, i, j) {
-        var tmp = arr[i];
-        arr[i] = arr[j];
-        arr[j] = tmp;
-    }
-    function defaultCompare(a, b) {
-        return a < b ? -1 : a > b ? 1 : 0;
-    }
-});
-define("node_modules/rbush/index", ["require", "exports", "node_modules/quickselect/index"], function (require, exports, quickselect_1) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    class RBush {
-        constructor(maxEntries = 9) {
-            this._maxEntries = Math.max(4, maxEntries);
-            this._minEntries = Math.max(2, Math.ceil(this._maxEntries * 0.4));
-            this.clear();
-        }
-        all() {
-            return this._all(this.data, []);
-        }
-        search(bbox) {
-            let node = this.data;
-            const result = [];
-            if (!intersects(bbox, node))
-                return result;
-            const toBBox = this.toBBox;
-            const nodesToSearch = [];
-            while (node) {
-                for (let i = 0; i < node.children.length; i++) {
-                    const child = node.children[i];
-                    const childBBox = node.leaf ? toBBox(child) : child;
-                    if (intersects(bbox, childBBox)) {
-                        if (node.leaf)
-                            result.push(child);
-                        else if (contains(bbox, childBBox))
-                            this._all(child, result);
-                        else
-                            nodesToSearch.push(child);
-                    }
-                }
-                node = nodesToSearch.pop();
-            }
-            return result;
-        }
-        collides(bbox) {
-            let node = this.data;
-            if (!intersects(bbox, node))
-                return false;
-            const nodesToSearch = [];
-            while (node) {
-                for (let i = 0; i < node.children.length; i++) {
-                    const child = node.children[i];
-                    const childBBox = node.leaf ? this.toBBox(child) : child;
-                    if (intersects(bbox, childBBox)) {
-                        if (node.leaf || contains(bbox, childBBox))
-                            return true;
-                        nodesToSearch.push(child);
-                    }
-                }
-                node = nodesToSearch.pop();
-            }
-            return false;
-        }
-        load(data) {
-            if (!(data && data.length))
-                return this;
-            if (data.length < this._minEntries) {
-                for (let i = 0; i < data.length; i++) {
-                    this.insert(data[i]);
-                }
-                return this;
-            }
-            let node = this._build(data.slice(), 0, data.length - 1, 0);
-            if (!this.data.children.length) {
-                this.data = node;
-            }
-            else if (this.data.height === node.height) {
-                this._splitRoot(this.data, node);
-            }
-            else {
-                if (this.data.height < node.height) {
-                    const tmpNode = this.data;
-                    this.data = node;
-                    node = tmpNode;
-                }
-                this._insert(node, this.data.height - node.height - 1, true);
-            }
-            return this;
-        }
-        insert(item) {
-            if (item)
-                this._insert(item, this.data.height - 1);
-            return this;
-        }
-        clear() {
-            this.data = createNode([]);
-            return this;
-        }
-        remove(item, equalsFn) {
-            if (!item)
-                return this;
-            let node = this.data;
-            const bbox = this.toBBox(item);
-            const path = [];
-            const indexes = [];
-            let i, parent, goingUp;
-            while (node || path.length) {
-                if (!node) {
-                    node = path.pop();
-                    parent = path[path.length - 1];
-                    i = indexes.pop();
-                    goingUp = true;
-                }
-                if (node.leaf) {
-                    const index = findItem(item, node.children, equalsFn);
-                    if (index !== -1) {
-                        node.children.splice(index, 1);
-                        path.push(node);
-                        this._condense(path);
-                        return this;
-                    }
-                }
-                if (!goingUp && !node.leaf && contains(node, bbox)) {
-                    path.push(node);
-                    indexes.push(i);
-                    i = 0;
-                    parent = node;
-                    node = node.children[0];
-                }
-                else if (parent) {
-                    i++;
-                    node = parent.children[i];
-                    goingUp = false;
-                }
-                else
-                    node = null;
-            }
-            return this;
-        }
-        toBBox(item) { return item; }
-        compareMinX(a, b) { return a.minX - b.minX; }
-        compareMinY(a, b) { return a.minY - b.minY; }
-        toJSON() { return this.data; }
-        fromJSON(data) {
-            this.data = data;
-            return this;
-        }
-        _all(node, result) {
-            const nodesToSearch = [];
-            while (node) {
-                if (node.leaf)
-                    result.push(...node.children);
-                else
-                    nodesToSearch.push(...node.children);
-                node = nodesToSearch.pop();
-            }
-            return result;
-        }
-        _build(items, left, right, height) {
-            const N = right - left + 1;
-            let M = this._maxEntries;
-            let node;
-            if (N <= M) {
-                node = createNode(items.slice(left, right + 1));
-                calcBBox(node, this.toBBox);
-                return node;
-            }
-            if (!height) {
-                height = Math.ceil(Math.log(N) / Math.log(M));
-                M = Math.ceil(N / Math.pow(M, height - 1));
-            }
-            node = createNode([]);
-            node.leaf = false;
-            node.height = height;
-            const N2 = Math.ceil(N / M);
-            const N1 = N2 * Math.ceil(Math.sqrt(M));
-            multiSelect(items, left, right, N1, this.compareMinX);
-            for (let i = left; i <= right; i += N1) {
-                const right2 = Math.min(i + N1 - 1, right);
-                multiSelect(items, i, right2, N2, this.compareMinY);
-                for (let j = i; j <= right2; j += N2) {
-                    const right3 = Math.min(j + N2 - 1, right2);
-                    node.children.push(this._build(items, j, right3, height - 1));
-                }
-            }
-            calcBBox(node, this.toBBox);
-            return node;
-        }
-        _chooseSubtree(bbox, node, level, path) {
-            while (true) {
-                path.push(node);
-                if (node.leaf || path.length - 1 === level)
-                    break;
-                let minArea = Infinity;
-                let minEnlargement = Infinity;
-                let targetNode;
-                for (let i = 0; i < node.children.length; i++) {
-                    const child = node.children[i];
-                    const area = bboxArea(child);
-                    const enlargement = enlargedArea(bbox, child) - area;
-                    if (enlargement < minEnlargement) {
-                        minEnlargement = enlargement;
-                        minArea = area < minArea ? area : minArea;
-                        targetNode = child;
-                    }
-                    else if (enlargement === minEnlargement) {
-                        if (area < minArea) {
-                            minArea = area;
-                            targetNode = child;
-                        }
-                    }
-                }
-                node = targetNode || node.children[0];
-            }
-            return node;
-        }
-        _insert(item, level, isNode) {
-            const bbox = isNode ? item : this.toBBox(item);
-            const insertPath = [];
-            const node = this._chooseSubtree(bbox, this.data, level, insertPath);
-            node.children.push(item);
-            extend(node, bbox);
-            while (level >= 0) {
-                if (insertPath[level].children.length > this._maxEntries) {
-                    this._split(insertPath, level);
-                    level--;
-                }
-                else
-                    break;
-            }
-            this._adjustParentBBoxes(bbox, insertPath, level);
-        }
-        _split(insertPath, level) {
-            const node = insertPath[level];
-            const M = node.children.length;
-            const m = this._minEntries;
-            this._chooseSplitAxis(node, m, M);
-            const splitIndex = this._chooseSplitIndex(node, m, M);
-            const newNode = createNode(node.children.splice(splitIndex, node.children.length - splitIndex));
-            newNode.height = node.height;
-            newNode.leaf = node.leaf;
-            calcBBox(node, this.toBBox);
-            calcBBox(newNode, this.toBBox);
-            if (level)
-                insertPath[level - 1].children.push(newNode);
-            else
-                this._splitRoot(node, newNode);
-        }
-        _splitRoot(node, newNode) {
-            this.data = createNode([node, newNode]);
-            this.data.height = node.height + 1;
-            this.data.leaf = false;
-            calcBBox(this.data, this.toBBox);
-        }
-        _chooseSplitIndex(node, m, M) {
-            let index;
-            let minOverlap = Infinity;
-            let minArea = Infinity;
-            for (let i = m; i <= M - m; i++) {
-                const bbox1 = distBBox(node, 0, i, this.toBBox);
-                const bbox2 = distBBox(node, i, M, this.toBBox);
-                const overlap = intersectionArea(bbox1, bbox2);
-                const area = bboxArea(bbox1) + bboxArea(bbox2);
-                if (overlap < minOverlap) {
-                    minOverlap = overlap;
-                    index = i;
-                    minArea = area < minArea ? area : minArea;
-                }
-                else if (overlap === minOverlap) {
-                    if (area < minArea) {
-                        minArea = area;
-                        index = i;
-                    }
-                }
-            }
-            return index || M - m;
-        }
-        _chooseSplitAxis(node, m, M) {
-            const compareMinX = node.leaf ? this.compareMinX : compareNodeMinX;
-            const compareMinY = node.leaf ? this.compareMinY : compareNodeMinY;
-            const xMargin = this._allDistMargin(node, m, M, compareMinX);
-            const yMargin = this._allDistMargin(node, m, M, compareMinY);
-            if (xMargin < yMargin)
-                node.children.sort(compareMinX);
-        }
-        _allDistMargin(node, m, M, compare) {
-            node.children.sort(compare);
-            const toBBox = this.toBBox;
-            const leftBBox = distBBox(node, 0, m, toBBox);
-            const rightBBox = distBBox(node, M - m, M, toBBox);
-            let margin = bboxMargin(leftBBox) + bboxMargin(rightBBox);
-            for (let i = m; i < M - m; i++) {
-                const child = node.children[i];
-                extend(leftBBox, node.leaf ? toBBox(child) : child);
-                margin += bboxMargin(leftBBox);
-            }
-            for (let i = M - m - 1; i >= m; i--) {
-                const child = node.children[i];
-                extend(rightBBox, node.leaf ? toBBox(child) : child);
-                margin += bboxMargin(rightBBox);
-            }
-            return margin;
-        }
-        _adjustParentBBoxes(bbox, path, level) {
-            for (let i = level; i >= 0; i--) {
-                extend(path[i], bbox);
-            }
-        }
-        _condense(path) {
-            for (let i = path.length - 1, siblings; i >= 0; i--) {
-                if (path[i].children.length === 0) {
-                    if (i > 0) {
-                        siblings = path[i - 1].children;
-                        siblings.splice(siblings.indexOf(path[i]), 1);
-                    }
-                    else
-                        this.clear();
-                }
-                else
-                    calcBBox(path[i], this.toBBox);
-            }
-        }
-    }
-    exports.default = RBush;
-    function findItem(item, items, equalsFn) {
-        if (!equalsFn)
-            return items.indexOf(item);
-        for (let i = 0; i < items.length; i++) {
-            if (equalsFn(item, items[i]))
-                return i;
-        }
-        return -1;
-    }
-    function calcBBox(node, toBBox) {
-        distBBox(node, 0, node.children.length, toBBox, node);
-    }
-    function distBBox(node, k, p, toBBox, destNode) {
-        if (!destNode)
-            destNode = createNode(null);
-        destNode.minX = Infinity;
-        destNode.minY = Infinity;
-        destNode.maxX = -Infinity;
-        destNode.maxY = -Infinity;
-        for (let i = k; i < p; i++) {
-            const child = node.children[i];
-            extend(destNode, node.leaf ? toBBox(child) : child);
-        }
-        return destNode;
-    }
-    function extend(a, b) {
-        a.minX = Math.min(a.minX, b.minX);
-        a.minY = Math.min(a.minY, b.minY);
-        a.maxX = Math.max(a.maxX, b.maxX);
-        a.maxY = Math.max(a.maxY, b.maxY);
-        return a;
-    }
-    function compareNodeMinX(a, b) { return a.minX - b.minX; }
-    function compareNodeMinY(a, b) { return a.minY - b.minY; }
-    function bboxArea(a) { return (a.maxX - a.minX) * (a.maxY - a.minY); }
-    function bboxMargin(a) { return (a.maxX - a.minX) + (a.maxY - a.minY); }
-    function enlargedArea(a, b) {
-        return (Math.max(b.maxX, a.maxX) - Math.min(b.minX, a.minX)) *
-            (Math.max(b.maxY, a.maxY) - Math.min(b.minY, a.minY));
-    }
-    function intersectionArea(a, b) {
-        const minX = Math.max(a.minX, b.minX);
-        const minY = Math.max(a.minY, b.minY);
-        const maxX = Math.min(a.maxX, b.maxX);
-        const maxY = Math.min(a.maxY, b.maxY);
-        return Math.max(0, maxX - minX) *
-            Math.max(0, maxY - minY);
-    }
-    function contains(a, b) {
-        return a.minX <= b.minX &&
-            a.minY <= b.minY &&
-            b.maxX <= a.maxX &&
-            b.maxY <= a.maxY;
-    }
-    function intersects(a, b) {
-        return b.minX <= a.maxX &&
-            b.minY <= a.maxY &&
-            b.maxX >= a.minX &&
-            b.maxY >= a.minY;
-    }
-    function createNode(children) {
-        return {
-            children,
-            height: 1,
-            leaf: true,
-            minX: Infinity,
-            minY: Infinity,
-            maxX: -Infinity,
-            maxY: -Infinity
-        };
-    }
-    function multiSelect(arr, left, right, n, compare) {
-        const stack = [left, right];
-        while (stack.length) {
-            right = stack.pop();
-            left = stack.pop();
-            if (right - left <= n)
-                continue;
-            const mid = left + Math.ceil((right - left) / n / 2) * n;
-            quickselect_1.default(arr, mid, left, right, compare);
-            stack.push(left, mid, mid, right);
-        }
-    }
-});
-define("node_modules/ol/src/structs/RBush", ["require", "exports", "node_modules/rbush/index", "node_modules/ol/src/extent", "node_modules/ol/src/util", "node_modules/ol/src/obj"], function (require, exports, rbush_js_1, extent_js_14, util_js_5, obj_js_5) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    class RBush {
-        constructor(opt_maxEntries) {
-            this.rbush_ = new rbush_js_1.default(opt_maxEntries);
-            this.items_ = {};
-        }
-        insert(extent, value) {
-            const item = {
-                minX: extent[0],
-                minY: extent[1],
-                maxX: extent[2],
-                maxY: extent[3],
-                value: value,
-            };
-            this.rbush_.insert(item);
-            this.items_[util_js_5.getUid(value)] = item;
-        }
-        load(extents, values) {
-            const items = new Array(values.length);
-            for (let i = 0, l = values.length; i < l; i++) {
-                const extent = extents[i];
-                const value = values[i];
-                const item = {
-                    minX: extent[0],
-                    minY: extent[1],
-                    maxX: extent[2],
-                    maxY: extent[3],
-                    value: value,
-                };
-                items[i] = item;
-                this.items_[util_js_5.getUid(value)] = item;
-            }
-            this.rbush_.load(items);
-        }
-        remove(value) {
-            const uid = util_js_5.getUid(value);
-            const item = this.items_[uid];
-            delete this.items_[uid];
-            return this.rbush_.remove(item) !== null;
-        }
-        update(extent, value) {
-            const item = this.items_[util_js_5.getUid(value)];
-            const bbox = [item.minX, item.minY, item.maxX, item.maxY];
-            if (!extent_js_14.equals(bbox, extent)) {
-                this.remove(value);
-                this.insert(extent, value);
-            }
-        }
-        getAll() {
-            const items = this.rbush_.all();
-            return items.map(function (item) {
-                return item.value;
-            });
-        }
-        getInExtent(extent) {
-            const bbox = {
-                minX: extent[0],
-                minY: extent[1],
-                maxX: extent[2],
-                maxY: extent[3],
-            };
-            const items = this.rbush_.search(bbox);
-            return items.map(function (item) {
-                return item.value;
-            });
-        }
-        forEach(callback) {
-            return this.forEach_(this.getAll(), callback);
-        }
-        forEachInExtent(extent, callback) {
-            return this.forEach_(this.getInExtent(extent), callback);
-        }
-        forEach_(values, callback) {
-            let result;
-            for (let i = 0, l = values.length; i < l; i++) {
-                result = callback(values[i]);
-                if (result) {
-                    return result;
-                }
-            }
-            return result;
-        }
-        isEmpty() {
-            return obj_js_5.isEmpty(this.items_);
-        }
-        clear() {
-            this.rbush_.clear();
-            this.items_ = {};
-        }
-        getExtent(opt_extent) {
-            const data = this.rbush_.toJSON();
-            return extent_js_14.createOrUpdate(data.minX, data.minY, data.maxX, data.maxY, opt_extent);
-        }
-        concat(rbush) {
-            this.rbush_.load(rbush.rbush_.all());
-            for (const i in rbush.items_) {
-                this.items_[i] = rbush.items_[i];
-            }
-        }
-    }
-    exports.default = RBush;
-});
-define("node_modules/ol/src/source/State", ["require", "exports"], function (require, exports) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    exports.default = {
-        UNDEFINED: 'undefined',
-        LOADING: 'loading',
-        READY: 'ready',
-        ERROR: 'error',
-    };
-});
-define("node_modules/ol/src/layer/Property", ["require", "exports"], function (require, exports) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    exports.default = {
-        OPACITY: 'opacity',
-        VISIBLE: 'visible',
-        EXTENT: 'extent',
-        Z_INDEX: 'zIndex',
-        MAX_RESOLUTION: 'maxResolution',
-        MIN_RESOLUTION: 'minResolution',
-        MAX_ZOOM: 'maxZoom',
-        MIN_ZOOM: 'minZoom',
-        SOURCE: 'source',
-    };
-});
-define("node_modules/ol/src/render/EventType", ["require", "exports"], function (require, exports) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    exports.default = {
-        PRERENDER: 'prerender',
-        POSTRENDER: 'postrender',
-        PRECOMPOSE: 'precompose',
-        POSTCOMPOSE: 'postcompose',
-        RENDERCOMPLETE: 'rendercomplete',
-    };
-});
-define("node_modules/ol/src/ImageState", ["require", "exports"], function (require, exports) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    exports.default = {
-        IDLE: 0,
-        LOADING: 1,
-        LOADED: 2,
-        ERROR: 3,
-        EMPTY: 4,
-    };
 });
 define("node_modules/ol/src/geom/flat/interpolate", ["require", "exports", "node_modules/ol/src/array", "node_modules/ol/src/math"], function (require, exports, array_js_5, math_js_10) {
     "use strict";
@@ -5703,16 +5024,16 @@ define("node_modules/ol/src/geom/flat/interpolate", ["require", "exports", "node
     }
     exports.lineStringsCoordinateAtM = lineStringsCoordinateAtM;
 });
-define("node_modules/ol/src/geom/flat/center", ["require", "exports", "node_modules/ol/src/extent"], function (require, exports, extent_js_15) {
+define("node_modules/ol/src/geom/flat/center", ["require", "exports", "node_modules/ol/src/extent"], function (require, exports, extent_js_14) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.linearRingss = void 0;
     function linearRingss(flatCoordinates, offset, endss, stride) {
         const flatCenters = [];
-        let extent = extent_js_15.createEmpty();
+        let extent = extent_js_14.createEmpty();
         for (let i = 0, ii = endss.length; i < ii; ++i) {
             const ends = endss[i];
-            extent = extent_js_15.createOrUpdateFromFlatCoordinates(flatCoordinates, offset, ends[0], stride);
+            extent = extent_js_14.createOrUpdateFromFlatCoordinates(flatCoordinates, offset, ends[0], stride);
             flatCenters.push((extent[0] + extent[2]) / 2, (extent[1] + extent[3]) / 2);
             offset = ends[ends.length - 1];
         }
@@ -5720,7 +5041,7 @@ define("node_modules/ol/src/geom/flat/center", ["require", "exports", "node_modu
     }
     exports.linearRingss = linearRingss;
 });
-define("node_modules/ol/src/render/Feature", ["require", "exports", "node_modules/ol/src/geom/GeometryType", "node_modules/ol/src/transform", "node_modules/ol/src/extent", "node_modules/ol/src/array", "node_modules/ol/src/geom/flat/interiorpoint", "node_modules/ol/src/proj", "node_modules/ol/src/geom/flat/interpolate", "node_modules/ol/src/geom/flat/center", "node_modules/ol/src/geom/flat/transform"], function (require, exports, GeometryType_js_7, transform_js_5, extent_js_16, array_js_6, interiorpoint_js_2, proj_js_3, interpolate_js_1, center_js_1, transform_js_6) {
+define("node_modules/ol/src/render/Feature", ["require", "exports", "node_modules/ol/src/geom/GeometryType", "node_modules/ol/src/transform", "node_modules/ol/src/extent", "node_modules/ol/src/array", "node_modules/ol/src/geom/flat/interiorpoint", "node_modules/ol/src/proj", "node_modules/ol/src/geom/flat/interpolate", "node_modules/ol/src/geom/flat/center", "node_modules/ol/src/geom/flat/transform"], function (require, exports, GeometryType_js_7, transform_js_5, extent_js_15, array_js_6, interiorpoint_js_2, proj_js_3, interpolate_js_1, center_js_1, transform_js_6) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     const tmpTransform = transform_js_5.create();
@@ -5742,14 +5063,14 @@ define("node_modules/ol/src/render/Feature", ["require", "exports", "node_module
             if (!this.extent_) {
                 this.extent_ =
                     this.type_ === GeometryType_js_7.default.POINT
-                        ? extent_js_16.createOrUpdateFromCoordinate(this.flatCoordinates_)
-                        : extent_js_16.createOrUpdateFromFlatCoordinates(this.flatCoordinates_, 0, this.flatCoordinates_.length, 2);
+                        ? extent_js_15.createOrUpdateFromCoordinate(this.flatCoordinates_)
+                        : extent_js_15.createOrUpdateFromFlatCoordinates(this.flatCoordinates_, 0, this.flatCoordinates_.length, 2);
             }
             return this.extent_;
         }
         getFlatInteriorPoint() {
             if (!this.flatInteriorPoints_) {
-                const flatCenter = extent_js_16.getCenter(this.getExtent());
+                const flatCenter = extent_js_15.getCenter(this.getExtent());
                 this.flatInteriorPoints_ = interiorpoint_js_2.getInteriorPointOfArray(this.flatCoordinates_, 0, (this.ends_), 2, flatCenter, 0);
             }
             return this.flatInteriorPoints_;
@@ -5813,7 +5134,7 @@ define("node_modules/ol/src/render/Feature", ["require", "exports", "node_module
             source = proj_js_3.get(source);
             const pixelExtent = source.getExtent();
             const projectedExtent = source.getWorldExtent();
-            const scale = extent_js_16.getHeight(projectedExtent) / extent_js_16.getHeight(pixelExtent);
+            const scale = extent_js_15.getHeight(projectedExtent) / extent_js_15.getHeight(pixelExtent);
             transform_js_5.compose(tmpTransform, projectedExtent[0], projectedExtent[3], scale, -scale, 0, 0, 0);
             transform_js_6.transform2D(this.flatCoordinates_, 0, this.flatCoordinates_.length, 2, tmpTransform, this.flatCoordinates_);
         }
@@ -5826,7 +5147,18 @@ define("node_modules/ol/src/render/Feature", ["require", "exports", "node_module
         RenderFeature.prototype.getOrientedFlatCoordinates;
     exports.default = RenderFeature;
 });
-define("node_modules/ol/src/style/Image", ["require", "exports", "node_modules/ol/src/util", "node_modules/ol/src/size"], function (require, exports, util_js_6, size_js_3) {
+define("node_modules/ol/src/ImageState", ["require", "exports"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.default = {
+        IDLE: 0,
+        LOADING: 1,
+        LOADED: 2,
+        ERROR: 3,
+        EMPTY: 4,
+    };
+});
+define("node_modules/ol/src/style/Image", ["require", "exports", "node_modules/ol/src/util", "node_modules/ol/src/size"], function (require, exports, util_js_5, size_js_3) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     class ImageStyle {
@@ -5867,31 +5199,31 @@ define("node_modules/ol/src/style/Image", ["require", "exports", "node_modules/o
             return this.displacement_;
         }
         getAnchor() {
-            return util_js_6.abstract();
+            return util_js_5.abstract();
         }
         getImage(pixelRatio) {
-            return util_js_6.abstract();
+            return util_js_5.abstract();
         }
         getHitDetectionImage() {
-            return util_js_6.abstract();
+            return util_js_5.abstract();
         }
         getPixelRatio(pixelRatio) {
             return 1;
         }
         getImageState() {
-            return util_js_6.abstract();
+            return util_js_5.abstract();
         }
         getImageSize() {
-            return util_js_6.abstract();
+            return util_js_5.abstract();
         }
         getHitDetectionImageSize() {
-            return util_js_6.abstract();
+            return util_js_5.abstract();
         }
         getOrigin() {
-            return util_js_6.abstract();
+            return util_js_5.abstract();
         }
         getSize() {
-            return util_js_6.abstract();
+            return util_js_5.abstract();
         }
         setOpacity(opacity) {
             this.opacity_ = opacity;
@@ -5907,13 +5239,13 @@ define("node_modules/ol/src/style/Image", ["require", "exports", "node_modules/o
             this.scaleArray_ = size_js_3.toSize(scale);
         }
         listenImageChange(listener) {
-            util_js_6.abstract();
+            util_js_5.abstract();
         }
         load() {
-            util_js_6.abstract();
+            util_js_5.abstract();
         }
         unlistenImageChange(listener) {
-            util_js_6.abstract();
+            util_js_5.abstract();
         }
     }
     exports.default = ImageStyle;
@@ -6326,7 +5658,7 @@ define("node_modules/ol/src/style/Stroke", ["require", "exports"], function (req
     }
     exports.default = Stroke;
 });
-define("node_modules/ol/src/render/canvas", ["require", "exports", "node_modules/ol/src/Object", "node_modules/ol/src/events/Target", "node_modules/ol/src/has", "node_modules/ol/src/obj", "node_modules/ol/src/dom", "node_modules/ol/src/css", "node_modules/ol/src/transform"], function (require, exports, Object_js_3, Target_js_2, has_js_2, obj_js_6, dom_js_1, css_js_1, transform_js_7) {
+define("node_modules/ol/src/render/canvas", ["require", "exports", "node_modules/ol/src/Object", "node_modules/ol/src/events/Target", "node_modules/ol/src/has", "node_modules/ol/src/obj", "node_modules/ol/src/dom", "node_modules/ol/src/css", "node_modules/ol/src/transform"], function (require, exports, Object_js_2, Target_js_2, has_js_2, obj_js_5, dom_js_1, css_js_1, transform_js_7) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.createTransformString = exports.drawImageOrLabel = exports.rotateAtOffset = exports.measureTextWidths = exports.measureAndCacheTextWidth = exports.measureTextWidth = exports.measureTextHeight = exports.registerFont = exports.textHeights = exports.labelCache = exports.checkedFonts = exports.defaultLineWidth = exports.defaultPadding = exports.defaultTextBaseline = exports.defaultTextAlign = exports.defaultStrokeStyle = exports.defaultMiterLimit = exports.defaultLineJoin = exports.defaultLineDashOffset = exports.defaultLineDash = exports.defaultLineCap = exports.defaultFillStyle = exports.defaultFont = void 0;
@@ -6342,7 +5674,7 @@ define("node_modules/ol/src/render/canvas", ["require", "exports", "node_modules
     exports.defaultTextBaseline = 'middle';
     exports.defaultPadding = [0, 0, 0, 0];
     exports.defaultLineWidth = 1;
-    exports.checkedFonts = new Object_js_3.default();
+    exports.checkedFonts = new Object_js_2.default();
     exports.labelCache = new Target_js_2.default();
     exports.labelCache.setSize = function () {
         console.warn('labelCache is deprecated.');
@@ -6386,7 +5718,7 @@ define("node_modules/ol/src/render/canvas", ["require", "exports", "node_modules
                 const font = fonts[i];
                 if (exports.checkedFonts.get(font) < retries) {
                     if (isAvailable.apply(this, font.split('\n'))) {
-                        obj_js_6.clear(exports.textHeights);
+                        obj_js_5.clear(exports.textHeights);
                         measureContext = null;
                         measureFont = undefined;
                         exports.checkedFonts.set(font, retries);
@@ -6869,7 +6201,7 @@ define("node_modules/ol/src/geom/flat/length", ["require", "exports"], function 
     }
     exports.linearRingLength = linearRingLength;
 });
-define("node_modules/ol/src/geom/LineString", ["require", "exports", "node_modules/ol/src/geom/GeometryLayout", "node_modules/ol/src/geom/GeometryType", "node_modules/ol/src/geom/SimpleGeometry", "node_modules/ol/src/geom/flat/closest", "node_modules/ol/src/extent", "node_modules/ol/src/geom/flat/deflate", "node_modules/ol/src/geom/flat/simplify", "node_modules/ol/src/array", "node_modules/ol/src/geom/flat/segments", "node_modules/ol/src/geom/flat/inflate", "node_modules/ol/src/geom/flat/interpolate", "node_modules/ol/src/geom/flat/intersectsextent", "node_modules/ol/src/geom/flat/length"], function (require, exports, GeometryLayout_js_4, GeometryType_js_8, SimpleGeometry_js_5, closest_js_3, extent_js_17, deflate_js_5, simplify_js_3, array_js_7, segments_js_2, inflate_js_3, interpolate_js_2, intersectsextent_js_2, length_js_1) {
+define("node_modules/ol/src/geom/LineString", ["require", "exports", "node_modules/ol/src/geom/GeometryLayout", "node_modules/ol/src/geom/GeometryType", "node_modules/ol/src/geom/SimpleGeometry", "node_modules/ol/src/geom/flat/closest", "node_modules/ol/src/extent", "node_modules/ol/src/geom/flat/deflate", "node_modules/ol/src/geom/flat/simplify", "node_modules/ol/src/array", "node_modules/ol/src/geom/flat/segments", "node_modules/ol/src/geom/flat/inflate", "node_modules/ol/src/geom/flat/interpolate", "node_modules/ol/src/geom/flat/intersectsextent", "node_modules/ol/src/geom/flat/length"], function (require, exports, GeometryLayout_js_4, GeometryType_js_8, SimpleGeometry_js_5, closest_js_3, extent_js_16, deflate_js_5, simplify_js_3, array_js_7, segments_js_2, inflate_js_3, interpolate_js_2, intersectsextent_js_2, length_js_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     class LineString extends SimpleGeometry_js_5.default {
@@ -6899,7 +6231,7 @@ define("node_modules/ol/src/geom/LineString", ["require", "exports", "node_modul
             return new LineString(this.flatCoordinates.slice(), this.layout);
         }
         closestPointXY(x, y, closestPoint, minSquaredDistance) {
-            if (minSquaredDistance < extent_js_17.closestSquaredDistanceXY(this.getExtent(), x, y)) {
+            if (minSquaredDistance < extent_js_16.closestSquaredDistanceXY(this.getExtent(), x, y)) {
                 return minSquaredDistance;
             }
             if (this.maxDeltaRevision_ != this.getRevision()) {
@@ -6957,7 +6289,7 @@ define("node_modules/ol/src/geom/LineString", ["require", "exports", "node_modul
     }
     exports.default = LineString;
 });
-define("node_modules/ol/src/geom/MultiLineString", ["require", "exports", "node_modules/ol/src/geom/GeometryLayout", "node_modules/ol/src/geom/GeometryType", "node_modules/ol/src/geom/LineString", "node_modules/ol/src/geom/SimpleGeometry", "node_modules/ol/src/geom/flat/closest", "node_modules/ol/src/extent", "node_modules/ol/src/geom/flat/deflate", "node_modules/ol/src/geom/flat/simplify", "node_modules/ol/src/array", "node_modules/ol/src/geom/flat/inflate", "node_modules/ol/src/geom/flat/interpolate", "node_modules/ol/src/geom/flat/intersectsextent"], function (require, exports, GeometryLayout_js_5, GeometryType_js_9, LineString_js_1, SimpleGeometry_js_6, closest_js_4, extent_js_18, deflate_js_6, simplify_js_4, array_js_8, inflate_js_4, interpolate_js_3, intersectsextent_js_3) {
+define("node_modules/ol/src/geom/MultiLineString", ["require", "exports", "node_modules/ol/src/geom/GeometryLayout", "node_modules/ol/src/geom/GeometryType", "node_modules/ol/src/geom/LineString", "node_modules/ol/src/geom/SimpleGeometry", "node_modules/ol/src/geom/flat/closest", "node_modules/ol/src/extent", "node_modules/ol/src/geom/flat/deflate", "node_modules/ol/src/geom/flat/simplify", "node_modules/ol/src/array", "node_modules/ol/src/geom/flat/inflate", "node_modules/ol/src/geom/flat/interpolate", "node_modules/ol/src/geom/flat/intersectsextent"], function (require, exports, GeometryLayout_js_5, GeometryType_js_9, LineString_js_1, SimpleGeometry_js_6, closest_js_4, extent_js_17, deflate_js_6, simplify_js_4, array_js_8, inflate_js_4, interpolate_js_3, intersectsextent_js_3) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     class MultiLineString extends SimpleGeometry_js_6.default {
@@ -7004,7 +6336,7 @@ define("node_modules/ol/src/geom/MultiLineString", ["require", "exports", "node_
             return new MultiLineString(this.flatCoordinates.slice(), this.layout, this.ends_.slice());
         }
         closestPointXY(x, y, closestPoint, minSquaredDistance) {
-            if (minSquaredDistance < extent_js_18.closestSquaredDistanceXY(this.getExtent(), x, y)) {
+            if (minSquaredDistance < extent_js_17.closestSquaredDistanceXY(this.getExtent(), x, y)) {
                 return minSquaredDistance;
             }
             if (this.maxDeltaRevision_ != this.getRevision()) {
@@ -7087,7 +6419,7 @@ define("node_modules/ol/src/geom/MultiLineString", ["require", "exports", "node_
     }
     exports.default = MultiLineString;
 });
-define("node_modules/ol/src/geom/MultiPoint", ["require", "exports", "node_modules/ol/src/geom/GeometryType", "node_modules/ol/src/geom/Point", "node_modules/ol/src/geom/SimpleGeometry", "node_modules/ol/src/extent", "node_modules/ol/src/geom/flat/deflate", "node_modules/ol/src/array", "node_modules/ol/src/geom/flat/inflate", "node_modules/ol/src/math"], function (require, exports, GeometryType_js_10, Point_js_2, SimpleGeometry_js_7, extent_js_19, deflate_js_7, array_js_9, inflate_js_5, math_js_12) {
+define("node_modules/ol/src/geom/MultiPoint", ["require", "exports", "node_modules/ol/src/geom/GeometryType", "node_modules/ol/src/geom/Point", "node_modules/ol/src/geom/SimpleGeometry", "node_modules/ol/src/extent", "node_modules/ol/src/geom/flat/deflate", "node_modules/ol/src/array", "node_modules/ol/src/geom/flat/inflate", "node_modules/ol/src/math"], function (require, exports, GeometryType_js_10, Point_js_2, SimpleGeometry_js_7, extent_js_18, deflate_js_7, array_js_9, inflate_js_5, math_js_12) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     class MultiPoint extends SimpleGeometry_js_7.default {
@@ -7114,7 +6446,7 @@ define("node_modules/ol/src/geom/MultiPoint", ["require", "exports", "node_modul
             return multiPoint;
         }
         closestPointXY(x, y, closestPoint, minSquaredDistance) {
-            if (minSquaredDistance < extent_js_19.closestSquaredDistanceXY(this.getExtent(), x, y)) {
+            if (minSquaredDistance < extent_js_18.closestSquaredDistanceXY(this.getExtent(), x, y)) {
                 return minSquaredDistance;
             }
             const flatCoordinates = this.flatCoordinates;
@@ -7163,7 +6495,7 @@ define("node_modules/ol/src/geom/MultiPoint", ["require", "exports", "node_modul
             for (let i = 0, ii = flatCoordinates.length; i < ii; i += stride) {
                 const x = flatCoordinates[i];
                 const y = flatCoordinates[i + 1];
-                if (extent_js_19.containsXY(extent, x, y)) {
+                if (extent_js_18.containsXY(extent, x, y)) {
                     return true;
                 }
             }
@@ -7180,7 +6512,7 @@ define("node_modules/ol/src/geom/MultiPoint", ["require", "exports", "node_modul
     }
     exports.default = MultiPoint;
 });
-define("node_modules/ol/src/geom/MultiPolygon", ["require", "exports", "node_modules/ol/src/geom/GeometryLayout", "node_modules/ol/src/geom/GeometryType", "node_modules/ol/src/geom/MultiPoint", "node_modules/ol/src/geom/Polygon", "node_modules/ol/src/geom/SimpleGeometry", "node_modules/ol/src/geom/flat/closest", "node_modules/ol/src/extent", "node_modules/ol/src/geom/flat/deflate", "node_modules/ol/src/array", "node_modules/ol/src/geom/flat/interiorpoint", "node_modules/ol/src/geom/flat/inflate", "node_modules/ol/src/geom/flat/intersectsextent", "node_modules/ol/src/geom/flat/orient", "node_modules/ol/src/geom/flat/area", "node_modules/ol/src/geom/flat/center", "node_modules/ol/src/geom/flat/contains", "node_modules/ol/src/geom/flat/simplify"], function (require, exports, GeometryLayout_js_6, GeometryType_js_11, MultiPoint_js_1, Polygon_js_1, SimpleGeometry_js_8, closest_js_5, extent_js_20, deflate_js_8, array_js_10, interiorpoint_js_3, inflate_js_6, intersectsextent_js_4, orient_js_2, area_js_3, center_js_2, contains_js_4, simplify_js_5) {
+define("node_modules/ol/src/geom/MultiPolygon", ["require", "exports", "node_modules/ol/src/geom/GeometryLayout", "node_modules/ol/src/geom/GeometryType", "node_modules/ol/src/geom/MultiPoint", "node_modules/ol/src/geom/Polygon", "node_modules/ol/src/geom/SimpleGeometry", "node_modules/ol/src/geom/flat/closest", "node_modules/ol/src/extent", "node_modules/ol/src/geom/flat/deflate", "node_modules/ol/src/array", "node_modules/ol/src/geom/flat/interiorpoint", "node_modules/ol/src/geom/flat/inflate", "node_modules/ol/src/geom/flat/intersectsextent", "node_modules/ol/src/geom/flat/orient", "node_modules/ol/src/geom/flat/area", "node_modules/ol/src/geom/flat/center", "node_modules/ol/src/geom/flat/contains", "node_modules/ol/src/geom/flat/simplify"], function (require, exports, GeometryLayout_js_6, GeometryType_js_11, MultiPoint_js_1, Polygon_js_1, SimpleGeometry_js_8, closest_js_5, extent_js_19, deflate_js_8, array_js_10, interiorpoint_js_3, inflate_js_6, intersectsextent_js_4, orient_js_2, area_js_3, center_js_2, contains_js_4, simplify_js_5) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     class MultiPolygon extends SimpleGeometry_js_8.default {
@@ -7250,7 +6582,7 @@ define("node_modules/ol/src/geom/MultiPolygon", ["require", "exports", "node_mod
             return new MultiPolygon(this.flatCoordinates.slice(), this.layout, newEndss);
         }
         closestPointXY(x, y, closestPoint, minSquaredDistance) {
-            if (minSquaredDistance < extent_js_20.closestSquaredDistanceXY(this.getExtent(), x, y)) {
+            if (minSquaredDistance < extent_js_19.closestSquaredDistanceXY(this.getExtent(), x, y)) {
                 return minSquaredDistance;
             }
             if (this.maxDeltaRevision_ != this.getRevision()) {
@@ -7577,7 +6909,7 @@ define("node_modules/ol/src/render/VectorContext", ["require", "exports"], funct
     }
     exports.default = VectorContext;
 });
-define("node_modules/ol/src/render/canvas/Immediate", ["require", "exports", "node_modules/ol/src/geom/GeometryType", "node_modules/ol/src/render/VectorContext", "node_modules/ol/src/colorlike", "node_modules/ol/src/transform", "node_modules/ol/src/render/canvas", "node_modules/ol/src/array", "node_modules/ol/src/extent", "node_modules/ol/src/geom/flat/transform", "node_modules/ol/src/geom/SimpleGeometry"], function (require, exports, GeometryType_js_12, VectorContext_js_1, colorlike_js_2, transform_js_8, canvas_js_2, array_js_11, extent_js_21, transform_js_9, SimpleGeometry_js_9) {
+define("node_modules/ol/src/render/canvas/Immediate", ["require", "exports", "node_modules/ol/src/geom/GeometryType", "node_modules/ol/src/render/VectorContext", "node_modules/ol/src/colorlike", "node_modules/ol/src/transform", "node_modules/ol/src/render/canvas", "node_modules/ol/src/array", "node_modules/ol/src/extent", "node_modules/ol/src/geom/flat/transform", "node_modules/ol/src/geom/SimpleGeometry"], function (require, exports, GeometryType_js_12, VectorContext_js_1, colorlike_js_2, transform_js_8, canvas_js_2, array_js_11, extent_js_20, transform_js_9, SimpleGeometry_js_9) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     class CanvasImmediateRenderer extends VectorContext_js_1.default {
@@ -7724,7 +7056,7 @@ define("node_modules/ol/src/render/canvas/Immediate", ["require", "exports", "no
             return offset;
         }
         drawCircle(geometry) {
-            if (!extent_js_21.intersects(this.extent_, geometry.getExtent())) {
+            if (!extent_js_20.intersects(this.extent_, geometry.getExtent())) {
                 return;
             }
             if (this.fillState_ || this.strokeState_) {
@@ -7792,7 +7124,7 @@ define("node_modules/ol/src/render/canvas/Immediate", ["require", "exports", "no
         }
         drawFeature(feature, style) {
             const geometry = style.getGeometryFunction()(feature);
-            if (!geometry || !extent_js_21.intersects(this.extent_, geometry.getExtent())) {
+            if (!geometry || !extent_js_20.intersects(this.extent_, geometry.getExtent())) {
                 return;
             }
             this.setStyle(style);
@@ -7834,7 +7166,7 @@ define("node_modules/ol/src/render/canvas/Immediate", ["require", "exports", "no
             if (this.squaredTolerance_) {
                 geometry = (geometry.simplifyTransformed(this.squaredTolerance_, this.userTransform_));
             }
-            if (!extent_js_21.intersects(this.extent_, geometry.getExtent())) {
+            if (!extent_js_20.intersects(this.extent_, geometry.getExtent())) {
                 return;
             }
             if (this.strokeState_) {
@@ -7855,7 +7187,7 @@ define("node_modules/ol/src/render/canvas/Immediate", ["require", "exports", "no
                 geometry = (geometry.simplifyTransformed(this.squaredTolerance_, this.userTransform_));
             }
             const geometryExtent = geometry.getExtent();
-            if (!extent_js_21.intersects(this.extent_, geometryExtent)) {
+            if (!extent_js_20.intersects(this.extent_, geometryExtent)) {
                 return;
             }
             if (this.strokeState_) {
@@ -7880,7 +7212,7 @@ define("node_modules/ol/src/render/canvas/Immediate", ["require", "exports", "no
             if (this.squaredTolerance_) {
                 geometry = (geometry.simplifyTransformed(this.squaredTolerance_, this.userTransform_));
             }
-            if (!extent_js_21.intersects(this.extent_, geometry.getExtent())) {
+            if (!extent_js_20.intersects(this.extent_, geometry.getExtent())) {
                 return;
             }
             if (this.strokeState_ || this.fillState_) {
@@ -7909,7 +7241,7 @@ define("node_modules/ol/src/render/canvas/Immediate", ["require", "exports", "no
             if (this.squaredTolerance_) {
                 geometry = (geometry.simplifyTransformed(this.squaredTolerance_, this.userTransform_));
             }
-            if (!extent_js_21.intersects(this.extent_, geometry.getExtent())) {
+            if (!extent_js_20.intersects(this.extent_, geometry.getExtent())) {
                 return;
             }
             if (this.strokeState_ || this.fillState_) {
@@ -8236,7 +7568,7 @@ define("node_modules/ol/src/render/canvas/Instruction", ["require", "exports"], 
     exports.closePathInstruction = [Instruction.CLOSE_PATH];
     exports.default = Instruction;
 });
-define("node_modules/ol/src/render/canvas/Builder", ["require", "exports", "node_modules/ol/src/render/canvas/Instruction", "node_modules/ol/src/geom/GeometryType", "node_modules/ol/src/extent/Relationship", "node_modules/ol/src/render/VectorContext", "node_modules/ol/src/colorlike", "node_modules/ol/src/extent", "node_modules/ol/src/render/canvas", "node_modules/ol/src/array", "node_modules/ol/src/geom/flat/inflate"], function (require, exports, Instruction_js_1, GeometryType_js_13, Relationship_js_2, VectorContext_js_2, colorlike_js_3, extent_js_22, canvas_js_3, array_js_12, inflate_js_7) {
+define("node_modules/ol/src/render/canvas/Builder", ["require", "exports", "node_modules/ol/src/render/canvas/Instruction", "node_modules/ol/src/geom/GeometryType", "node_modules/ol/src/extent/Relationship", "node_modules/ol/src/render/VectorContext", "node_modules/ol/src/colorlike", "node_modules/ol/src/extent", "node_modules/ol/src/render/canvas", "node_modules/ol/src/array", "node_modules/ol/src/geom/flat/inflate"], function (require, exports, Instruction_js_1, GeometryType_js_13, Relationship_js_2, VectorContext_js_2, colorlike_js_3, extent_js_21, canvas_js_3, array_js_12, inflate_js_7) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     class CanvasBuilder extends VectorContext_js_2.default {
@@ -8278,7 +7610,7 @@ define("node_modules/ol/src/render/canvas/Builder", ["require", "exports", "node
             for (i = offset + stride; i < end; i += stride) {
                 nextCoord[0] = flatCoordinates[i];
                 nextCoord[1] = flatCoordinates[i + 1];
-                nextRel = extent_js_22.coordinateRelationship(extent, nextCoord);
+                nextRel = extent_js_21.coordinateRelationship(extent, nextCoord);
                 if (nextRel !== lastRel) {
                     if (skipped) {
                         this.coordinates[myEnd++] = lastXCoord;
@@ -8552,10 +7884,10 @@ define("node_modules/ol/src/render/canvas/Builder", ["require", "exports", "node
         }
         getBufferedMaxExtent() {
             if (!this.bufferedMaxExtent_) {
-                this.bufferedMaxExtent_ = extent_js_22.clone(this.maxExtent);
+                this.bufferedMaxExtent_ = extent_js_21.clone(this.maxExtent);
                 if (this.maxLineWidth > 0) {
                     const width = (this.resolution * (this.maxLineWidth + 1)) / 2;
-                    extent_js_22.buffer(this.bufferedMaxExtent_, width, this.bufferedMaxExtent_);
+                    extent_js_21.buffer(this.bufferedMaxExtent_, width, this.bufferedMaxExtent_);
                 }
             }
             return this.bufferedMaxExtent_;
@@ -9042,7 +8374,7 @@ define("node_modules/ol/src/geom/flat/straightchunk", ["require", "exports"], fu
     }
     exports.matchingChunk = matchingChunk;
 });
-define("node_modules/ol/src/render/canvas/TextBuilder", ["require", "exports", "node_modules/ol/src/render/canvas/Builder", "node_modules/ol/src/render/canvas/Instruction", "node_modules/ol/src/geom/GeometryType", "node_modules/ol/src/style/TextPlacement", "node_modules/ol/src/colorlike", "node_modules/ol/src/render/canvas", "node_modules/ol/src/util", "node_modules/ol/src/extent", "node_modules/ol/src/geom/flat/straightchunk"], function (require, exports, Builder_js_4, Instruction_js_5, GeometryType_js_14, TextPlacement_js_2, colorlike_js_4, canvas_js_5, util_js_7, extent_js_23, straightchunk_js_1) {
+define("node_modules/ol/src/render/canvas/TextBuilder", ["require", "exports", "node_modules/ol/src/render/canvas/Builder", "node_modules/ol/src/render/canvas/Instruction", "node_modules/ol/src/geom/GeometryType", "node_modules/ol/src/style/TextPlacement", "node_modules/ol/src/colorlike", "node_modules/ol/src/render/canvas", "node_modules/ol/src/util", "node_modules/ol/src/extent", "node_modules/ol/src/geom/flat/straightchunk"], function (require, exports, Builder_js_4, Instruction_js_5, GeometryType_js_14, TextPlacement_js_2, colorlike_js_4, canvas_js_5, util_js_6, extent_js_22, straightchunk_js_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.TEXT_ALIGN = void 0;
@@ -9100,7 +8432,7 @@ define("node_modules/ol/src/render/canvas/TextBuilder", ["require", "exports", "
             let stride = geometry.getStride();
             let i, ii;
             if (textState.placement === TextPlacement_js_2.default.LINE) {
-                if (!extent_js_23.intersects(this.getBufferedMaxExtent(), geometry.getExtent())) {
+                if (!extent_js_22.intersects(this.getBufferedMaxExtent(), geometry.getExtent())) {
                     return;
                 }
                 let ends;
@@ -9450,7 +8782,7 @@ define("node_modules/ol/src/render/canvas/TextBuilder", ["require", "exports", "
                 this.strokeKey_ = strokeState
                     ? (typeof strokeState.strokeStyle == 'string'
                         ? strokeState.strokeStyle
-                        : util_js_7.getUid(strokeState.strokeStyle)) +
+                        : util_js_6.getUid(strokeState.strokeStyle)) +
                         strokeState.lineCap +
                         strokeState.lineDashOffset +
                         '|' +
@@ -9469,7 +8801,7 @@ define("node_modules/ol/src/render/canvas/TextBuilder", ["require", "exports", "
                 this.fillKey_ = fillState
                     ? typeof fillState.fillStyle == 'string'
                         ? fillState.fillStyle
-                        : '|' + util_js_7.getUid(fillState.fillStyle)
+                        : '|' + util_js_6.getUid(fillState.fillStyle)
                     : '';
             }
         }
@@ -9541,7 +8873,7 @@ define("node_modules/ol/src/render/canvas/BuilderGroup", ["require", "exports", 
     }
     exports.default = BuilderGroup;
 });
-define("node_modules/ol/src/renderer/vector", ["require", "exports", "node_modules/ol/src/render/canvas/BuilderType", "node_modules/ol/src/geom/GeometryType", "node_modules/ol/src/ImageState", "node_modules/ol/src/util"], function (require, exports, BuilderType_js_1, GeometryType_js_15, ImageState_js_2, util_js_8) {
+define("node_modules/ol/src/renderer/vector", ["require", "exports", "node_modules/ol/src/render/canvas/BuilderType", "node_modules/ol/src/geom/GeometryType", "node_modules/ol/src/ImageState", "node_modules/ol/src/util"], function (require, exports, BuilderType_js_1, GeometryType_js_15, ImageState_js_2, util_js_7) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.renderFeature = exports.getTolerance = exports.getSquaredTolerance = exports.defaultOrder = void 0;
@@ -9557,7 +8889,7 @@ define("node_modules/ol/src/renderer/vector", ["require", "exports", "node_modul
         'Circle': renderCircleGeometry,
     };
     function defaultOrder(feature1, feature2) {
-        return parseInt(util_js_8.getUid(feature1), 10) - parseInt(util_js_8.getUid(feature2), 10);
+        return parseInt(util_js_7.getUid(feature1), 10) - parseInt(util_js_7.getUid(feature2), 10);
     }
     exports.defaultOrder = defaultOrder;
     function getSquaredTolerance(resolution, pixelRatio) {
@@ -9732,378 +9064,237 @@ define("node_modules/ol/src/renderer/vector", ["require", "exports", "node_modul
         }
     }
 });
-define("node_modules/ol/src/render/Event", ["require", "exports", "node_modules/ol/src/events/Event"], function (require, exports, Event_js_4) {
+define("node_modules/ol/src/render/EventType", ["require", "exports"], function (require, exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    class RenderEvent extends Event_js_4.default {
-        constructor(type, opt_inversePixelTransform, opt_frameState, opt_context) {
+    exports.default = {
+        PRERENDER: 'prerender',
+        POSTRENDER: 'postrender',
+        PRECOMPOSE: 'precompose',
+        POSTCOMPOSE: 'postcompose',
+        RENDERCOMPLETE: 'rendercomplete',
+    };
+});
+define("node_modules/ol/src/CollectionEventType", ["require", "exports"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.default = {
+        ADD: 'add',
+        REMOVE: 'remove',
+    };
+});
+define("node_modules/ol/src/Collection", ["require", "exports", "node_modules/ol/src/AssertionError", "node_modules/ol/src/Object", "node_modules/ol/src/CollectionEventType", "node_modules/ol/src/events/Event"], function (require, exports, AssertionError_js_2, Object_js_3, CollectionEventType_js_1, Event_js_3) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.CollectionEvent = void 0;
+    const Property = {
+        LENGTH: 'length',
+    };
+    class CollectionEvent extends Event_js_3.default {
+        constructor(type, opt_element, opt_index) {
             super(type);
-            this.inversePixelTransform = opt_inversePixelTransform;
-            this.frameState = opt_frameState;
-            this.context = opt_context;
+            this.element = opt_element;
+            this.index = opt_index;
         }
     }
-    exports.default = RenderEvent;
-});
-define("node_modules/ol/src/render", ["require", "exports", "node_modules/ol/src/render/canvas/Immediate", "node_modules/ol/src/has", "node_modules/ol/src/transform", "node_modules/ol/src/renderer/vector", "node_modules/ol/src/proj"], function (require, exports, Immediate_js_1, has_js_3, transform_js_10, vector_js_1, proj_js_4) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    exports.renderDeclutterItems = exports.getRenderPixel = exports.getVectorContext = exports.toContext = void 0;
-    function toContext(context, opt_options) {
-        const canvas = context.canvas;
-        const options = opt_options ? opt_options : {};
-        const pixelRatio = options.pixelRatio || has_js_3.DEVICE_PIXEL_RATIO;
-        const size = options.size;
-        if (size) {
-            canvas.width = size[0] * pixelRatio;
-            canvas.height = size[1] * pixelRatio;
-            canvas.style.width = size[0] + 'px';
-            canvas.style.height = size[1] + 'px';
-        }
-        const extent = [0, 0, canvas.width, canvas.height];
-        const transform = transform_js_10.scale(transform_js_10.create(), pixelRatio, pixelRatio);
-        return new Immediate_js_1.default(context, pixelRatio, extent, transform, 0);
-    }
-    exports.toContext = toContext;
-    function getVectorContext(event) {
-        const frameState = event.frameState;
-        const transform = transform_js_10.multiply(event.inversePixelTransform.slice(), frameState.coordinateToPixelTransform);
-        const squaredTolerance = vector_js_1.getSquaredTolerance(frameState.viewState.resolution, frameState.pixelRatio);
-        let userTransform;
-        const userProjection = proj_js_4.getUserProjection();
-        if (userProjection) {
-            userTransform = proj_js_4.getTransformFromProjections(userProjection, frameState.viewState.projection);
-        }
-        return new Immediate_js_1.default(event.context, frameState.pixelRatio, frameState.extent, transform, frameState.viewState.rotation, squaredTolerance, userTransform);
-    }
-    exports.getVectorContext = getVectorContext;
-    function getRenderPixel(event, pixel) {
-        const result = pixel.slice(0);
-        transform_js_10.apply(event.inversePixelTransform.slice(), result);
-        return result;
-    }
-    exports.getRenderPixel = getRenderPixel;
-    function renderDeclutterItems(frameState, declutterTree) {
-        if (declutterTree) {
-            declutterTree.clear();
-        }
-        const items = frameState.declutterItems;
-        for (let z = items.length - 1; z >= 0; --z) {
-            const item = items[z];
-            const zIndexItems = item.items;
-            for (let i = 0, ii = zIndexItems.length; i < ii; i += 3) {
-                declutterTree = zIndexItems[i].renderDeclutter(zIndexItems[i + 1], zIndexItems[i + 2], item.opacity, declutterTree);
-            }
-        }
-        items.length = 0;
-        return declutterTree;
-    }
-    exports.renderDeclutterItems = renderDeclutterItems;
-});
-define("node_modules/ol/src/style/Style", ["require", "exports", "node_modules/ol/src/style/Circle", "node_modules/ol/src/style/Fill", "node_modules/ol/src/geom/GeometryType", "node_modules/ol/src/style/Stroke", "node_modules/ol/src/asserts"], function (require, exports, Circle_js_1, Fill_js_2, GeometryType_js_16, Stroke_js_1, asserts_js_5) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    exports.createEditingStyle = exports.createDefaultStyle = exports.toFunction = void 0;
-    class Style {
-        constructor(opt_options) {
-            const options = opt_options || {};
-            this.geometry_ = null;
-            this.geometryFunction_ = defaultGeometryFunction;
-            if (options.geometry !== undefined) {
-                this.setGeometry(options.geometry);
-            }
-            this.fill_ = options.fill !== undefined ? options.fill : null;
-            this.image_ = options.image !== undefined ? options.image : null;
-            this.renderer_ = options.renderer !== undefined ? options.renderer : null;
-            this.stroke_ = options.stroke !== undefined ? options.stroke : null;
-            this.text_ = options.text !== undefined ? options.text : null;
-            this.zIndex_ = options.zIndex;
-        }
-        clone() {
-            let geometry = this.getGeometry();
-            if (geometry && typeof geometry === 'object') {
-                geometry = (geometry).clone();
-            }
-            return new Style({
-                geometry: geometry,
-                fill: this.getFill() ? this.getFill().clone() : undefined,
-                image: this.getImage() ? this.getImage().clone() : undefined,
-                stroke: this.getStroke() ? this.getStroke().clone() : undefined,
-                text: this.getText() ? this.getText().clone() : undefined,
-                zIndex: this.getZIndex(),
-            });
-        }
-        getRenderer() {
-            return this.renderer_;
-        }
-        setRenderer(renderer) {
-            this.renderer_ = renderer;
-        }
-        getGeometry() {
-            return this.geometry_;
-        }
-        getGeometryFunction() {
-            return this.geometryFunction_;
-        }
-        getFill() {
-            return this.fill_;
-        }
-        setFill(fill) {
-            this.fill_ = fill;
-        }
-        getImage() {
-            return this.image_;
-        }
-        setImage(image) {
-            this.image_ = image;
-        }
-        getStroke() {
-            return this.stroke_;
-        }
-        setStroke(stroke) {
-            this.stroke_ = stroke;
-        }
-        getText() {
-            return this.text_;
-        }
-        setText(text) {
-            this.text_ = text;
-        }
-        getZIndex() {
-            return this.zIndex_;
-        }
-        setGeometry(geometry) {
-            if (typeof geometry === 'function') {
-                this.geometryFunction_ = geometry;
-            }
-            else if (typeof geometry === 'string') {
-                this.geometryFunction_ = function (feature) {
-                    return (feature.get(geometry));
-                };
-            }
-            else if (!geometry) {
-                this.geometryFunction_ = defaultGeometryFunction;
-            }
-            else if (geometry !== undefined) {
-                this.geometryFunction_ = function () {
-                    return (geometry);
-                };
-            }
-            this.geometry_ = geometry;
-        }
-        setZIndex(zIndex) {
-            this.zIndex_ = zIndex;
-        }
-    }
-    function toFunction(obj) {
-        let styleFunction;
-        if (typeof obj === 'function') {
-            styleFunction = obj;
-        }
-        else {
-            let styles;
-            if (Array.isArray(obj)) {
-                styles = obj;
-            }
-            else {
-                asserts_js_5.assert(typeof ((obj).getZIndex) === 'function', 41);
-                const style = (obj);
-                styles = [style];
-            }
-            styleFunction = function () {
-                return styles;
-            };
-        }
-        return styleFunction;
-    }
-    exports.toFunction = toFunction;
-    let defaultStyles = null;
-    function createDefaultStyle(feature, resolution) {
-        if (!defaultStyles) {
-            const fill = new Fill_js_2.default({
-                color: 'rgba(255,255,255,0.4)',
-            });
-            const stroke = new Stroke_js_1.default({
-                color: '#3399CC',
-                width: 1.25,
-            });
-            defaultStyles = [
-                new Style({
-                    image: new Circle_js_1.default({
-                        fill: fill,
-                        stroke: stroke,
-                        radius: 5,
-                    }),
-                    fill: fill,
-                    stroke: stroke,
-                }),
-            ];
-        }
-        return defaultStyles;
-    }
-    exports.createDefaultStyle = createDefaultStyle;
-    function createEditingStyle() {
-        const styles = {};
-        const white = [255, 255, 255, 1];
-        const blue = [0, 153, 255, 1];
-        const width = 3;
-        styles[GeometryType_js_16.default.POLYGON] = [
-            new Style({
-                fill: new Fill_js_2.default({
-                    color: [255, 255, 255, 0.5],
-                }),
-            }),
-        ];
-        styles[GeometryType_js_16.default.MULTI_POLYGON] = styles[GeometryType_js_16.default.POLYGON];
-        styles[GeometryType_js_16.default.LINE_STRING] = [
-            new Style({
-                stroke: new Stroke_js_1.default({
-                    color: white,
-                    width: width + 2,
-                }),
-            }),
-            new Style({
-                stroke: new Stroke_js_1.default({
-                    color: blue,
-                    width: width,
-                }),
-            }),
-        ];
-        styles[GeometryType_js_16.default.MULTI_LINE_STRING] = styles[GeometryType_js_16.default.LINE_STRING];
-        styles[GeometryType_js_16.default.CIRCLE] = styles[GeometryType_js_16.default.POLYGON].concat(styles[GeometryType_js_16.default.LINE_STRING]);
-        styles[GeometryType_js_16.default.POINT] = [
-            new Style({
-                image: new Circle_js_1.default({
-                    radius: width * 2,
-                    fill: new Fill_js_2.default({
-                        color: blue,
-                    }),
-                    stroke: new Stroke_js_1.default({
-                        color: white,
-                        width: width / 2,
-                    }),
-                }),
-                zIndex: Infinity,
-            }),
-        ];
-        styles[GeometryType_js_16.default.MULTI_POINT] = styles[GeometryType_js_16.default.POINT];
-        styles[GeometryType_js_16.default.GEOMETRY_COLLECTION] = styles[GeometryType_js_16.default.POLYGON].concat(styles[GeometryType_js_16.default.LINE_STRING], styles[GeometryType_js_16.default.POINT]);
-        return styles;
-    }
-    exports.createEditingStyle = createEditingStyle;
-    function defaultGeometryFunction(feature) {
-        return feature.getGeometry();
-    }
-    exports.default = Style;
-});
-define("node_modules/ol/src/Feature", ["require", "exports", "node_modules/ol/src/Object", "node_modules/ol/src/events/EventType", "node_modules/ol/src/asserts", "node_modules/ol/src/events"], function (require, exports, Object_js_4, EventType_js_3, asserts_js_6, events_js_3) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    exports.createStyleFunction = void 0;
-    class Feature extends Object_js_4.default {
-        constructor(opt_geometryOrProperties) {
+    exports.CollectionEvent = CollectionEvent;
+    class Collection extends Object_js_3.default {
+        constructor(opt_array, opt_options) {
             super();
-            this.id_ = undefined;
-            this.geometryName_ = 'geometry';
-            this.style_ = null;
-            this.styleFunction_ = undefined;
-            this.geometryChangeKey_ = null;
-            this.addEventListener(Object_js_4.getChangeEventType(this.geometryName_), this.handleGeometryChanged_);
-            if (opt_geometryOrProperties) {
-                if (typeof ((opt_geometryOrProperties).getSimplifiedGeometry) === 'function') {
-                    const geometry = (opt_geometryOrProperties);
-                    this.setGeometry(geometry);
-                }
-                else {
-                    const properties = opt_geometryOrProperties;
-                    this.setProperties(properties);
+            const options = opt_options || {};
+            this.unique_ = !!options.unique;
+            this.array_ = opt_array ? opt_array : [];
+            if (this.unique_) {
+                for (let i = 0, ii = this.array_.length; i < ii; ++i) {
+                    this.assertUnique_(this.array_[i], i);
                 }
             }
+            this.updateLength_();
         }
-        clone() {
-            const clone = new Feature(this.hasProperties() ? this.getProperties() : null);
-            clone.setGeometryName(this.getGeometryName());
-            const geometry = this.getGeometry();
-            if (geometry) {
-                clone.setGeometry(geometry.clone());
+        clear() {
+            while (this.getLength() > 0) {
+                this.pop();
             }
-            const style = this.getStyle();
-            if (style) {
-                clone.setStyle(style);
+        }
+        extend(arr) {
+            for (let i = 0, ii = arr.length; i < ii; ++i) {
+                this.push(arr[i]);
             }
-            return clone;
+            return this;
         }
-        getGeometry() {
-            return (this.get(this.geometryName_));
-        }
-        getId() {
-            return this.id_;
-        }
-        getGeometryName() {
-            return this.geometryName_;
-        }
-        getStyle() {
-            return this.style_;
-        }
-        getStyleFunction() {
-            return this.styleFunction_;
-        }
-        handleGeometryChange_() {
-            this.changed();
-        }
-        handleGeometryChanged_() {
-            if (this.geometryChangeKey_) {
-                events_js_3.unlistenByKey(this.geometryChangeKey_);
-                this.geometryChangeKey_ = null;
+        forEach(f) {
+            const array = this.array_;
+            for (let i = 0, ii = array.length; i < ii; ++i) {
+                f(array[i], i, array);
             }
-            const geometry = this.getGeometry();
-            if (geometry) {
-                this.geometryChangeKey_ = events_js_3.listen(geometry, EventType_js_3.default.CHANGE, this.handleGeometryChange_, this);
+        }
+        getArray() {
+            return this.array_;
+        }
+        item(index) {
+            return this.array_[index];
+        }
+        getLength() {
+            return this.get(Property.LENGTH);
+        }
+        insertAt(index, elem) {
+            if (this.unique_) {
+                this.assertUnique_(elem);
             }
-            this.changed();
+            this.array_.splice(index, 0, elem);
+            this.updateLength_();
+            this.dispatchEvent(new CollectionEvent(CollectionEventType_js_1.default.ADD, elem, index));
         }
-        setGeometry(geometry) {
-            this.set(this.geometryName_, geometry);
+        pop() {
+            return this.removeAt(this.getLength() - 1);
         }
-        setStyle(opt_style) {
-            this.style_ = opt_style;
-            this.styleFunction_ = !opt_style
-                ? undefined
-                : createStyleFunction(opt_style);
-            this.changed();
+        push(elem) {
+            if (this.unique_) {
+                this.assertUnique_(elem);
+            }
+            const n = this.getLength();
+            this.insertAt(n, elem);
+            return this.getLength();
         }
-        setId(id) {
-            this.id_ = id;
-            this.changed();
+        remove(elem) {
+            const arr = this.array_;
+            for (let i = 0, ii = arr.length; i < ii; ++i) {
+                if (arr[i] === elem) {
+                    return this.removeAt(i);
+                }
+            }
+            return undefined;
         }
-        setGeometryName(name) {
-            this.removeEventListener(Object_js_4.getChangeEventType(this.geometryName_), this.handleGeometryChanged_);
-            this.geometryName_ = name;
-            this.addEventListener(Object_js_4.getChangeEventType(this.geometryName_), this.handleGeometryChanged_);
-            this.handleGeometryChanged_();
+        removeAt(index) {
+            const prev = this.array_[index];
+            this.array_.splice(index, 1);
+            this.updateLength_();
+            this.dispatchEvent(new CollectionEvent(CollectionEventType_js_1.default.REMOVE, prev, index));
+            return prev;
         }
-    }
-    function createStyleFunction(obj) {
-        if (typeof obj === 'function') {
-            return obj;
-        }
-        else {
-            let styles;
-            if (Array.isArray(obj)) {
-                styles = obj;
+        setAt(index, elem) {
+            const n = this.getLength();
+            if (index < n) {
+                if (this.unique_) {
+                    this.assertUnique_(elem, index);
+                }
+                const prev = this.array_[index];
+                this.array_[index] = elem;
+                this.dispatchEvent(new CollectionEvent(CollectionEventType_js_1.default.REMOVE, prev, index));
+                this.dispatchEvent(new CollectionEvent(CollectionEventType_js_1.default.ADD, elem, index));
             }
             else {
-                asserts_js_6.assert(typeof ((obj).getZIndex) === 'function', 41);
-                const style = (obj);
-                styles = [style];
+                for (let j = n; j < index; ++j) {
+                    this.insertAt(j, undefined);
+                }
+                this.insertAt(index, elem);
             }
-            return function () {
-                return styles;
-            };
+        }
+        updateLength_() {
+            this.set(Property.LENGTH, this.array_.length);
+        }
+        assertUnique_(elem, opt_except) {
+            for (let i = 0, ii = this.array_.length; i < ii; ++i) {
+                if (this.array_[i] === elem && i !== opt_except) {
+                    throw new AssertionError_js_2.default(58);
+                }
+            }
         }
     }
-    exports.createStyleFunction = createStyleFunction;
-    exports.default = Feature;
+    exports.default = Collection;
+});
+define("node_modules/ol/src/layer/Property", ["require", "exports"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.default = {
+        OPACITY: 'opacity',
+        VISIBLE: 'visible',
+        EXTENT: 'extent',
+        Z_INDEX: 'zIndex',
+        MAX_RESOLUTION: 'maxResolution',
+        MIN_RESOLUTION: 'minResolution',
+        MAX_ZOOM: 'maxZoom',
+        MIN_ZOOM: 'minZoom',
+        SOURCE: 'source',
+    };
+});
+define("node_modules/ol/src/source/State", ["require", "exports"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.default = {
+        UNDEFINED: 'undefined',
+        LOADING: 'loading',
+        READY: 'ready',
+        ERROR: 'error',
+    };
+});
+define("node_modules/ol/src/source/Source", ["require", "exports", "node_modules/ol/src/Object", "node_modules/ol/src/source/State", "node_modules/ol/src/util", "node_modules/ol/src/proj"], function (require, exports, Object_js_4, State_js_1, util_js_8, proj_js_4) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    class Source extends Object_js_4.default {
+        constructor(options) {
+            super();
+            this.projection_ = proj_js_4.get(options.projection);
+            this.attributions_ = adaptAttributions(options.attributions);
+            this.attributionsCollapsible_ =
+                options.attributionsCollapsible !== undefined
+                    ? options.attributionsCollapsible
+                    : true;
+            this.loading = false;
+            this.state_ =
+                options.state !== undefined ? options.state : State_js_1.default.READY;
+            this.wrapX_ = options.wrapX !== undefined ? options.wrapX : false;
+        }
+        getAttributions() {
+            return this.attributions_;
+        }
+        getAttributionsCollapsible() {
+            return this.attributionsCollapsible_;
+        }
+        getProjection() {
+            return this.projection_;
+        }
+        getResolutions() {
+            return util_js_8.abstract();
+        }
+        getState() {
+            return this.state_;
+        }
+        getWrapX() {
+            return this.wrapX_;
+        }
+        getContextOptions() {
+            return undefined;
+        }
+        refresh() {
+            this.changed();
+        }
+        setAttributions(attributions) {
+            this.attributions_ = adaptAttributions(attributions);
+            this.changed();
+        }
+        setState(state) {
+            this.state_ = state;
+            this.changed();
+        }
+    }
+    function adaptAttributions(attributionLike) {
+        if (!attributionLike) {
+            return null;
+        }
+        if (Array.isArray(attributionLike)) {
+            return function (frameState) {
+                return attributionLike;
+            };
+        }
+        if (typeof attributionLike === 'function') {
+            return attributionLike;
+        }
+        return function (frameState) {
+            return [attributionLike];
+        };
+    }
+    exports.default = Source;
 });
 define("node_modules/ol/src/TileState", ["require", "exports"], function (require, exports) {
     "use strict";
@@ -10146,7 +9337,7 @@ define("node_modules/ol/src/easing", ["require", "exports"], function (require, 
     }
     exports.upAndDown = upAndDown;
 });
-define("node_modules/ol/src/Tile", ["require", "exports", "node_modules/ol/src/events/Target", "node_modules/ol/src/events/EventType", "node_modules/ol/src/TileState", "node_modules/ol/src/util", "node_modules/ol/src/easing"], function (require, exports, Target_js_3, EventType_js_4, TileState_js_1, util_js_9, easing_js_1) {
+define("node_modules/ol/src/Tile", ["require", "exports", "node_modules/ol/src/events/Target", "node_modules/ol/src/events/EventType", "node_modules/ol/src/TileState", "node_modules/ol/src/util", "node_modules/ol/src/easing"], function (require, exports, Target_js_3, EventType_js_3, TileState_js_1, util_js_9, easing_js_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     class Tile extends Target_js_3.default {
@@ -10163,7 +9354,7 @@ define("node_modules/ol/src/Tile", ["require", "exports", "node_modules/ol/src/e
             this.transitionStarts_ = {};
         }
         changed() {
-            this.dispatchEvent(EventType_js_4.default.CHANGE);
+            this.dispatchEvent(EventType_js_3.default.CHANGE);
         }
         release() { }
         getKey() {
@@ -10254,7 +9445,7 @@ define("node_modules/ol/src/Tile", ["require", "exports", "node_modules/ol/src/e
     }
     exports.default = Tile;
 });
-define("node_modules/ol/src/structs/LRUCache", ["require", "exports", "node_modules/ol/src/asserts"], function (require, exports, asserts_js_7) {
+define("node_modules/ol/src/structs/LRUCache", ["require", "exports", "node_modules/ol/src/asserts"], function (require, exports, asserts_js_5) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     class LRUCache {
@@ -10287,7 +9478,7 @@ define("node_modules/ol/src/structs/LRUCache", ["require", "exports", "node_modu
         }
         get(key, opt_options) {
             const entry = this.entries_[key];
-            asserts_js_7.assert(entry !== undefined, 15);
+            asserts_js_5.assert(entry !== undefined, 15);
             if (entry === this.newest_) {
                 return entry.value_;
             }
@@ -10307,7 +9498,7 @@ define("node_modules/ol/src/structs/LRUCache", ["require", "exports", "node_modu
         }
         remove(key) {
             const entry = this.entries_[key];
-            asserts_js_7.assert(entry !== undefined, 15);
+            asserts_js_5.assert(entry !== undefined, 15);
             if (entry === this.newest_) {
                 this.newest_ = (entry.older);
                 if (this.newest_) {
@@ -10376,7 +9567,7 @@ define("node_modules/ol/src/structs/LRUCache", ["require", "exports", "node_modu
             this.entries_[key].value_ = value;
         }
         set(key, value) {
-            asserts_js_7.assert(!(key in this.entries_), 16);
+            asserts_js_5.assert(!(key in this.entries_), 16);
             const entry = {
                 key_: key,
                 newer: null,
@@ -10431,7 +9622,7 @@ define("node_modules/ol/src/TileCache", ["require", "exports", "node_modules/ol/
     }
     exports.default = TileCache;
 });
-define("node_modules/ol/src/source/Tile", ["require", "exports", "node_modules/ol/src/events/Event", "node_modules/ol/src/source/Source", "node_modules/ol/src/TileCache", "node_modules/ol/src/TileState", "node_modules/ol/src/util", "node_modules/ol/src/proj", "node_modules/ol/src/tilecoord", "node_modules/ol/src/tilegrid", "node_modules/ol/src/size"], function (require, exports, Event_js_5, Source_js_1, TileCache_js_1, TileState_js_2, util_js_10, proj_js_5, tilecoord_js_3, tilegrid_js_1, size_js_5) {
+define("node_modules/ol/src/source/Tile", ["require", "exports", "node_modules/ol/src/events/Event", "node_modules/ol/src/source/Source", "node_modules/ol/src/TileCache", "node_modules/ol/src/TileState", "node_modules/ol/src/util", "node_modules/ol/src/proj", "node_modules/ol/src/tilecoord", "node_modules/ol/src/tilegrid", "node_modules/ol/src/size"], function (require, exports, Event_js_4, Source_js_1, TileCache_js_1, TileState_js_2, util_js_10, proj_js_5, tilecoord_js_3, tilegrid_js_1, size_js_5) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.TileSourceEvent = void 0;
@@ -10571,7 +9762,7 @@ define("node_modules/ol/src/source/Tile", ["require", "exports", "node_modules/o
         }
         useTile(z, x, y, projection) { }
     }
-    class TileSourceEvent extends Event_js_5.default {
+    class TileSourceEvent extends Event_js_4.default {
         constructor(type, tile) {
             super(type);
             this.tile = tile;
@@ -10580,7 +9771,7 @@ define("node_modules/ol/src/source/Tile", ["require", "exports", "node_modules/o
     exports.TileSourceEvent = TileSourceEvent;
     exports.default = TileSource;
 });
-define("node_modules/ol/src/ImageBase", ["require", "exports", "node_modules/ol/src/events/Target", "node_modules/ol/src/events/EventType", "node_modules/ol/src/util"], function (require, exports, Target_js_4, EventType_js_5, util_js_11) {
+define("node_modules/ol/src/ImageBase", ["require", "exports", "node_modules/ol/src/events/Target", "node_modules/ol/src/events/EventType", "node_modules/ol/src/util"], function (require, exports, Target_js_4, EventType_js_4, util_js_11) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     class ImageBase extends Target_js_4.default {
@@ -10592,7 +9783,7 @@ define("node_modules/ol/src/ImageBase", ["require", "exports", "node_modules/ol/
             this.state = state;
         }
         changed() {
-            this.dispatchEvent(EventType_js_5.default.CHANGE);
+            this.dispatchEvent(EventType_js_4.default.CHANGE);
         }
         getExtent() {
             return this.extent;
@@ -10615,7 +9806,7 @@ define("node_modules/ol/src/ImageBase", ["require", "exports", "node_modules/ol/
     }
     exports.default = ImageBase;
 });
-define("node_modules/ol/src/Image", ["require", "exports", "node_modules/ol/src/events/EventType", "node_modules/ol/src/ImageBase", "node_modules/ol/src/ImageState", "node_modules/ol/src/has", "node_modules/ol/src/extent", "node_modules/ol/src/events"], function (require, exports, EventType_js_6, ImageBase_js_1, ImageState_js_3, has_js_4, extent_js_24, events_js_4) {
+define("node_modules/ol/src/Image", ["require", "exports", "node_modules/ol/src/events/EventType", "node_modules/ol/src/ImageBase", "node_modules/ol/src/ImageState", "node_modules/ol/src/has", "node_modules/ol/src/extent", "node_modules/ol/src/events"], function (require, exports, EventType_js_5, ImageBase_js_1, ImageState_js_3, has_js_3, extent_js_23, events_js_3) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.listenImage = void 0;
@@ -10641,7 +9832,7 @@ define("node_modules/ol/src/Image", ["require", "exports", "node_modules/ol/src/
         }
         handleImageLoad_() {
             if (this.resolution === undefined) {
-                this.resolution = extent_js_24.getHeight(this.extent) / this.image_.height;
+                this.resolution = extent_js_23.getHeight(this.extent) / this.image_.height;
             }
             this.state = ImageState_js_3.default.LOADED;
             this.unlistenImage_();
@@ -10667,7 +9858,7 @@ define("node_modules/ol/src/Image", ["require", "exports", "node_modules/ol/src/
     }
     function listenImage(image, loadHandler, errorHandler) {
         const img = (image);
-        if (img.src && has_js_4.IMAGE_DECODE) {
+        if (img.src && has_js_3.IMAGE_DECODE) {
             const promise = img.decode();
             let listening = true;
             const unlisten = function () {
@@ -10693,17 +9884,17 @@ define("node_modules/ol/src/Image", ["require", "exports", "node_modules/ol/src/
             return unlisten;
         }
         const listenerKeys = [
-            events_js_4.listenOnce(img, EventType_js_6.default.LOAD, loadHandler),
-            events_js_4.listenOnce(img, EventType_js_6.default.ERROR, errorHandler),
+            events_js_3.listenOnce(img, EventType_js_5.default.LOAD, loadHandler),
+            events_js_3.listenOnce(img, EventType_js_5.default.ERROR, errorHandler),
         ];
         return function unlisten() {
-            listenerKeys.forEach(events_js_4.unlistenByKey);
+            listenerKeys.forEach(events_js_3.unlistenByKey);
         };
     }
     exports.listenImage = listenImage;
     exports.default = ImageWrapper;
 });
-define("node_modules/ol/src/renderer/Layer", ["require", "exports", "node_modules/ol/src/events/EventType", "node_modules/ol/src/ImageState", "node_modules/ol/src/Observable", "node_modules/ol/src/source/State", "node_modules/ol/src/util"], function (require, exports, EventType_js_7, ImageState_js_4, Observable_js_2, State_js_1, util_js_12) {
+define("node_modules/ol/src/renderer/Layer", ["require", "exports", "node_modules/ol/src/events/EventType", "node_modules/ol/src/ImageState", "node_modules/ol/src/Observable", "node_modules/ol/src/source/State", "node_modules/ol/src/util"], function (require, exports, EventType_js_6, ImageState_js_4, Observable_js_2, State_js_2, util_js_12) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     class LayerRenderer extends Observable_js_2.default {
@@ -10751,7 +9942,7 @@ define("node_modules/ol/src/renderer/Layer", ["require", "exports", "node_module
         loadImage(image) {
             let imageState = image.getState();
             if (imageState != ImageState_js_4.default.LOADED && imageState != ImageState_js_4.default.ERROR) {
-                image.addEventListener(EventType_js_7.default.CHANGE, this.boundHandleImageChange_);
+                image.addEventListener(EventType_js_6.default.CHANGE, this.boundHandleImageChange_);
             }
             if (imageState == ImageState_js_4.default.IDLE) {
                 image.load();
@@ -10761,7 +9952,7 @@ define("node_modules/ol/src/renderer/Layer", ["require", "exports", "node_module
         }
         renderIfReadyAndVisible() {
             const layer = this.getLayer();
-            if (layer.getVisible() && layer.getSourceState() == State_js_1.default.READY) {
+            if (layer.getVisible() && layer.getSourceState() == State_js_2.default.READY) {
                 layer.changed();
             }
         }
@@ -10830,13 +10021,13 @@ define("node_modules/ol/src/centerconstraint", ["require", "exports", "node_modu
     }
     exports.none = none;
 });
-define("node_modules/ol/src/resolutionconstraint", ["require", "exports", "node_modules/ol/src/math", "node_modules/ol/src/extent", "node_modules/ol/src/array"], function (require, exports, math_js_14, extent_js_25, array_js_13) {
+define("node_modules/ol/src/resolutionconstraint", ["require", "exports", "node_modules/ol/src/math", "node_modules/ol/src/extent", "node_modules/ol/src/array"], function (require, exports, math_js_14, extent_js_24, array_js_13) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.createMinMaxResolution = exports.createSnapToPower = exports.createSnapToResolutions = void 0;
     function getViewportClampedResolution(resolution, maxExtent, viewportSize, showFullExtent) {
-        const xResolution = extent_js_25.getWidth(maxExtent) / viewportSize[0];
-        const yResolution = extent_js_25.getHeight(maxExtent) / viewportSize[1];
+        const xResolution = extent_js_24.getWidth(maxExtent) / viewportSize[0];
+        const yResolution = extent_js_24.getHeight(maxExtent) / viewportSize[1];
         if (showFullExtent) {
             return Math.min(resolution, Math.max(xResolution, yResolution));
         }
@@ -10992,7 +10183,7 @@ define("node_modules/ol/src/rotationconstraint", ["require", "exports", "node_mo
     }
     exports.createSnapToZero = createSnapToZero;
 });
-define("node_modules/ol/src/View", ["require", "exports", "node_modules/ol/src/Object", "node_modules/ol/src/geom/GeometryType", "node_modules/ol/src/proj/Units", "node_modules/ol/src/ViewHint", "node_modules/ol/src/ViewProperty", "node_modules/ol/src/tilegrid/common", "node_modules/ol/src/proj", "node_modules/ol/src/functions", "node_modules/ol/src/coordinate", "node_modules/ol/src/asserts", "node_modules/ol/src/obj", "node_modules/ol/src/centerconstraint", "node_modules/ol/src/math", "node_modules/ol/src/resolutionconstraint", "node_modules/ol/src/rotationconstraint", "node_modules/ol/src/resolutionconstraint", "node_modules/ol/src/easing", "node_modules/ol/src/coordinate", "node_modules/ol/src/extent", "node_modules/ol/src/easing", "node_modules/ol/src/array", "node_modules/ol/src/geom/Polygon"], function (require, exports, Object_js_5, GeometryType_js_17, Units_js_7, ViewHint_js_1, ViewProperty_js_1, common_js_3, proj_js_6, functions_js_3, coordinate_js_2, asserts_js_8, obj_js_7, centerconstraint_js_1, math_js_16, resolutionconstraint_js_1, rotationconstraint_js_1, resolutionconstraint_js_2, easing_js_2, coordinate_js_3, extent_js_26, easing_js_3, array_js_14, Polygon_js_2) {
+define("node_modules/ol/src/View", ["require", "exports", "node_modules/ol/src/Object", "node_modules/ol/src/geom/GeometryType", "node_modules/ol/src/proj/Units", "node_modules/ol/src/ViewHint", "node_modules/ol/src/ViewProperty", "node_modules/ol/src/tilegrid/common", "node_modules/ol/src/proj", "node_modules/ol/src/functions", "node_modules/ol/src/coordinate", "node_modules/ol/src/asserts", "node_modules/ol/src/obj", "node_modules/ol/src/centerconstraint", "node_modules/ol/src/math", "node_modules/ol/src/resolutionconstraint", "node_modules/ol/src/rotationconstraint", "node_modules/ol/src/resolutionconstraint", "node_modules/ol/src/easing", "node_modules/ol/src/coordinate", "node_modules/ol/src/extent", "node_modules/ol/src/easing", "node_modules/ol/src/array", "node_modules/ol/src/geom/Polygon"], function (require, exports, Object_js_5, GeometryType_js_16, Units_js_7, ViewHint_js_1, ViewProperty_js_1, common_js_3, proj_js_6, functions_js_3, coordinate_js_2, asserts_js_6, obj_js_6, centerconstraint_js_1, math_js_16, resolutionconstraint_js_1, rotationconstraint_js_1, resolutionconstraint_js_2, easing_js_2, coordinate_js_3, extent_js_25, easing_js_3, array_js_14, Polygon_js_2) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.isNoopAnimation = exports.createRotationConstraint = exports.createResolutionConstraint = exports.createCenterConstraint = void 0;
@@ -11000,7 +10191,7 @@ define("node_modules/ol/src/View", ["require", "exports", "node_modules/ol/src/O
     class View extends Object_js_5.default {
         constructor(opt_options) {
             super();
-            const options = obj_js_7.assign({}, opt_options);
+            const options = obj_js_6.assign({}, opt_options);
             this.hints_ = [0, 0];
             this.animations_ = [];
             this.updateAnimationKey_;
@@ -11046,7 +10237,7 @@ define("node_modules/ol/src/View", ["require", "exports", "node_modules/ol/src/O
             this.options_ = options;
         }
         getUpdatedOptions_(newOptions) {
-            const options = obj_js_7.assign({}, this.options_);
+            const options = obj_js_6.assign({}, this.options_);
             if (options.resolution !== undefined) {
                 options.resolution = this.getResolution();
             }
@@ -11055,7 +10246,7 @@ define("node_modules/ol/src/View", ["require", "exports", "node_modules/ol/src/O
             }
             options.center = this.getCenterInternal();
             options.rotation = this.getRotation();
-            return obj_js_7.assign({}, options, newOptions);
+            return obj_js_6.assign({}, options, newOptions);
         }
         animate(var_args) {
             if (this.isDef() && !this.getAnimating()) {
@@ -11065,11 +10256,11 @@ define("node_modules/ol/src/View", ["require", "exports", "node_modules/ol/src/O
             for (let i = 0; i < args.length; ++i) {
                 let options = arguments[i];
                 if (options.center) {
-                    options = obj_js_7.assign({}, options);
+                    options = obj_js_6.assign({}, options);
                     options.center = proj_js_6.fromUserCoordinate(options.center, this.getProjection());
                 }
                 if (options.anchor) {
-                    options = obj_js_7.assign({}, options);
+                    options = obj_js_6.assign({}, options);
                     options.anchor = proj_js_6.fromUserCoordinate(options.anchor, this.getProjection());
                 }
                 args[i] = options;
@@ -11340,12 +10531,12 @@ define("node_modules/ol/src/View", ["require", "exports", "node_modules/ol/src/O
         calculateExtentInternal(opt_size) {
             const size = opt_size || this.getViewportSize_();
             const center = (this.getCenterInternal());
-            asserts_js_8.assert(center, 1);
+            asserts_js_6.assert(center, 1);
             const resolution = (this.getResolution());
-            asserts_js_8.assert(resolution !== undefined, 2);
+            asserts_js_6.assert(resolution !== undefined, 2);
             const rotation = (this.getRotation());
-            asserts_js_8.assert(rotation !== undefined, 3);
-            return extent_js_26.getForViewAndSize(center, resolution, rotation, size);
+            asserts_js_6.assert(rotation !== undefined, 3);
+            return extent_js_25.getForViewAndSize(center, resolution, rotation, size);
         }
         getMaxResolution() {
             return this.maxResolution_;
@@ -11382,8 +10573,8 @@ define("node_modules/ol/src/View", ["require", "exports", "node_modules/ol/src/O
         }
         getResolutionForExtentInternal(extent, opt_size) {
             const size = opt_size || this.getViewportSize_();
-            const xResolution = extent_js_26.getWidth(extent) / size[0];
-            const yResolution = extent_js_26.getHeight(extent) / size[1];
+            const xResolution = extent_js_25.getWidth(extent) / size[0];
+            const yResolution = extent_js_25.getHeight(extent) / size[1];
             return Math.max(xResolution, yResolution);
         }
         getResolutionForValueFunction(opt_power) {
@@ -11465,20 +10656,20 @@ define("node_modules/ol/src/View", ["require", "exports", "node_modules/ol/src/O
             }
         }
         fit(geometryOrExtent, opt_options) {
-            const options = obj_js_7.assign({ size: this.getViewportSize_() }, opt_options || {});
+            const options = obj_js_6.assign({ size: this.getViewportSize_() }, opt_options || {});
             let geometry;
-            asserts_js_8.assert(Array.isArray(geometryOrExtent) ||
+            asserts_js_6.assert(Array.isArray(geometryOrExtent) ||
                 typeof ((geometryOrExtent).getSimplifiedGeometry) ===
                     'function', 24);
             if (Array.isArray(geometryOrExtent)) {
-                asserts_js_8.assert(!extent_js_26.isEmpty(geometryOrExtent), 25);
+                asserts_js_6.assert(!extent_js_25.isEmpty(geometryOrExtent), 25);
                 const extent = proj_js_6.fromUserExtent(geometryOrExtent, this.getProjection());
                 geometry = Polygon_js_2.fromExtent(extent);
             }
-            else if (geometryOrExtent.getType() === GeometryType_js_17.default.CIRCLE) {
+            else if (geometryOrExtent.getType() === GeometryType_js_16.default.CIRCLE) {
                 const extent = proj_js_6.fromUserExtent(geometryOrExtent.getExtent(), this.getProjection());
                 geometry = Polygon_js_2.fromExtent(extent);
-                geometry.rotate(this.getRotation(), extent_js_26.getCenter(extent));
+                geometry.rotate(this.getRotation(), extent_js_25.getCenter(extent));
             }
             else {
                 const userProjection = proj_js_6.getUserProjection();
@@ -11788,7 +10979,7 @@ define("node_modules/ol/src/View", ["require", "exports", "node_modules/ol/src/O
             const size = !projExtent
                 ?
                     (360 * proj_js_6.METERS_PER_UNIT[Units_js_7.default.DEGREES]) / projection.getMetersPerUnit()
-                : Math.max(extent_js_26.getWidth(projExtent), extent_js_26.getHeight(projExtent));
+                : Math.max(extent_js_25.getWidth(projExtent), extent_js_25.getHeight(projExtent));
             const defaultMaxResolution = size / common_js_3.DEFAULT_TILE_SIZE / Math.pow(defaultZoomFactor, DEFAULT_MIN_ZOOM);
             const defaultMinResolution = defaultMaxResolution /
                 Math.pow(defaultZoomFactor, defaultMaxZoom - DEFAULT_MIN_ZOOM);
@@ -11872,13 +11063,13 @@ define("node_modules/ol/src/View", ["require", "exports", "node_modules/ol/src/O
     exports.isNoopAnimation = isNoopAnimation;
     exports.default = View;
 });
-define("node_modules/ol/src/layer/Layer", ["require", "exports", "node_modules/ol/src/layer/Base", "node_modules/ol/src/events/EventType", "node_modules/ol/src/layer/Property", "node_modules/ol/src/render/EventType", "node_modules/ol/src/source/State", "node_modules/ol/src/asserts", "node_modules/ol/src/obj", "node_modules/ol/src/Object", "node_modules/ol/src/events"], function (require, exports, Base_js_1, EventType_js_8, Property_js_1, EventType_js_9, State_js_2, asserts_js_9, obj_js_8, Object_js_6, events_js_5) {
+define("node_modules/ol/src/layer/Layer", ["require", "exports", "node_modules/ol/src/layer/Base", "node_modules/ol/src/events/EventType", "node_modules/ol/src/layer/Property", "node_modules/ol/src/render/EventType", "node_modules/ol/src/source/State", "node_modules/ol/src/asserts", "node_modules/ol/src/obj", "node_modules/ol/src/Object", "node_modules/ol/src/events"], function (require, exports, Base_js_1, EventType_js_7, Property_js_1, EventType_js_8, State_js_3, asserts_js_7, obj_js_7, Object_js_6, events_js_4) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.inView = void 0;
     class Layer extends Base_js_1.default {
         constructor(options) {
-            const baseOptions = obj_js_8.assign({}, options);
+            const baseOptions = obj_js_7.assign({}, options);
             delete baseOptions.source;
             super(baseOptions);
             this.mapPrecomposeKey_ = null;
@@ -11912,19 +11103,19 @@ define("node_modules/ol/src/layer/Layer", ["require", "exports", "node_modules/o
         }
         getSourceState() {
             const source = this.getSource();
-            return !source ? State_js_2.default.UNDEFINED : source.getState();
+            return !source ? State_js_3.default.UNDEFINED : source.getState();
         }
         handleSourceChange_() {
             this.changed();
         }
         handleSourcePropertyChange_() {
             if (this.sourceChangeKey_) {
-                events_js_5.unlistenByKey(this.sourceChangeKey_);
+                events_js_4.unlistenByKey(this.sourceChangeKey_);
                 this.sourceChangeKey_ = null;
             }
             const source = this.getSource();
             if (source) {
-                this.sourceChangeKey_ = events_js_5.listen(source, EventType_js_8.default.CHANGE, this.handleSourceChange_, this);
+                this.sourceChangeKey_ = events_js_4.listen(source, EventType_js_7.default.CHANGE, this.handleSourceChange_, this);
             }
             this.changed();
         }
@@ -11939,27 +11130,27 @@ define("node_modules/ol/src/layer/Layer", ["require", "exports", "node_modules/o
         }
         setMap(map) {
             if (this.mapPrecomposeKey_) {
-                events_js_5.unlistenByKey(this.mapPrecomposeKey_);
+                events_js_4.unlistenByKey(this.mapPrecomposeKey_);
                 this.mapPrecomposeKey_ = null;
             }
             if (!map) {
                 this.changed();
             }
             if (this.mapRenderKey_) {
-                events_js_5.unlistenByKey(this.mapRenderKey_);
+                events_js_4.unlistenByKey(this.mapRenderKey_);
                 this.mapRenderKey_ = null;
             }
             if (map) {
-                this.mapPrecomposeKey_ = events_js_5.listen(map, EventType_js_9.default.PRECOMPOSE, function (evt) {
+                this.mapPrecomposeKey_ = events_js_4.listen(map, EventType_js_8.default.PRECOMPOSE, function (evt) {
                     const renderEvent = (evt);
                     const layerStatesArray = renderEvent.frameState.layerStatesArray;
                     const layerState = this.getLayerState(false);
-                    asserts_js_9.assert(!layerStatesArray.some(function (arrayLayerState) {
+                    asserts_js_7.assert(!layerStatesArray.some(function (arrayLayerState) {
                         return arrayLayerState.layer === layerState.layer;
                     }), 67);
                     layerStatesArray.push(layerState);
                 }, this);
-                this.mapRenderKey_ = events_js_5.listen(this, EventType_js_8.default.CHANGE, map.render, map);
+                this.mapRenderKey_ = events_js_4.listen(this, EventType_js_7.default.CHANGE, map.render, map);
                 this.changed();
             }
         }
@@ -11998,16 +11189,16 @@ define("node_modules/ol/src/layer/Layer", ["require", "exports", "node_modules/o
     exports.inView = inView;
     exports.default = Layer;
 });
-define("node_modules/ol/src/layer/Base", ["require", "exports", "node_modules/ol/src/Object", "node_modules/ol/src/layer/Property", "node_modules/ol/src/util", "node_modules/ol/src/asserts", "node_modules/ol/src/obj", "node_modules/ol/src/math"], function (require, exports, Object_js_7, Property_js_2, util_js_13, asserts_js_10, obj_js_9, math_js_17) {
+define("node_modules/ol/src/layer/Base", ["require", "exports", "node_modules/ol/src/Object", "node_modules/ol/src/layer/Property", "node_modules/ol/src/util", "node_modules/ol/src/asserts", "node_modules/ol/src/obj", "node_modules/ol/src/math"], function (require, exports, Object_js_7, Property_js_2, util_js_13, asserts_js_8, obj_js_8, math_js_17) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     class BaseLayer extends Object_js_7.default {
         constructor(options) {
             super();
-            const properties = obj_js_9.assign({}, options);
+            const properties = obj_js_8.assign({}, options);
             properties[Property_js_2.default.OPACITY] =
                 options.opacity !== undefined ? options.opacity : 1;
-            asserts_js_10.assert(typeof properties[Property_js_2.default.OPACITY] === 'number', 64);
+            asserts_js_8.assert(typeof properties[Property_js_2.default.OPACITY] === 'number', 64);
             properties[Property_js_2.default.VISIBLE] =
                 options.visible !== undefined ? options.visible : true;
             properties[Property_js_2.default.Z_INDEX] = options.zIndex;
@@ -12097,7 +11288,7 @@ define("node_modules/ol/src/layer/Base", ["require", "exports", "node_modules/ol
             this.set(Property_js_2.default.MIN_ZOOM, minZoom);
         }
         setOpacity(opacity) {
-            asserts_js_10.assert(typeof opacity === 'number', 64);
+            asserts_js_8.assert(typeof opacity === 'number', 64);
             this.set(Property_js_2.default.OPACITY, opacity);
         }
         setVisible(visible) {
@@ -12116,7 +11307,7 @@ define("node_modules/ol/src/layer/Base", ["require", "exports", "node_modules/ol
     }
     exports.default = BaseLayer;
 });
-define("node_modules/ol/src/layer/Group", ["require", "exports", "node_modules/ol/src/layer/Base", "node_modules/ol/src/Collection", "node_modules/ol/src/CollectionEventType", "node_modules/ol/src/events/EventType", "node_modules/ol/src/ObjectEventType", "node_modules/ol/src/source/State", "node_modules/ol/src/asserts", "node_modules/ol/src/obj", "node_modules/ol/src/Object", "node_modules/ol/src/extent", "node_modules/ol/src/util", "node_modules/ol/src/events"], function (require, exports, Base_js_2, Collection_js_1, CollectionEventType_js_2, EventType_js_10, ObjectEventType_js_2, State_js_3, asserts_js_11, obj_js_10, Object_js_8, extent_js_27, util_js_14, events_js_6) {
+define("node_modules/ol/src/layer/Group", ["require", "exports", "node_modules/ol/src/layer/Base", "node_modules/ol/src/Collection", "node_modules/ol/src/CollectionEventType", "node_modules/ol/src/events/EventType", "node_modules/ol/src/ObjectEventType", "node_modules/ol/src/source/State", "node_modules/ol/src/asserts", "node_modules/ol/src/obj", "node_modules/ol/src/Object", "node_modules/ol/src/extent", "node_modules/ol/src/util", "node_modules/ol/src/events"], function (require, exports, Base_js_2, Collection_js_1, CollectionEventType_js_2, EventType_js_9, ObjectEventType_js_2, State_js_4, asserts_js_9, obj_js_9, Object_js_8, extent_js_26, util_js_14, events_js_5) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     const Property = {
@@ -12125,7 +11316,7 @@ define("node_modules/ol/src/layer/Group", ["require", "exports", "node_modules/o
     class LayerGroup extends Base_js_2.default {
         constructor(opt_options) {
             const options = opt_options || {};
-            const baseOptions = (obj_js_10.assign({}, options));
+            const baseOptions = (obj_js_9.assign({}, options));
             delete baseOptions.layers;
             let layers = options.layers;
             super(baseOptions);
@@ -12137,7 +11328,7 @@ define("node_modules/ol/src/layer/Group", ["require", "exports", "node_modules/o
                     layers = new Collection_js_1.default(layers.slice(), { unique: true });
                 }
                 else {
-                    asserts_js_11.assert(typeof ((layers).getArray) === 'function', 43);
+                    asserts_js_9.assert(typeof ((layers).getArray) === 'function', 43);
                 }
             }
             else {
@@ -12149,20 +11340,20 @@ define("node_modules/ol/src/layer/Group", ["require", "exports", "node_modules/o
             this.changed();
         }
         handleLayersChanged_() {
-            this.layersListenerKeys_.forEach(events_js_6.unlistenByKey);
+            this.layersListenerKeys_.forEach(events_js_5.unlistenByKey);
             this.layersListenerKeys_.length = 0;
             const layers = this.getLayers();
-            this.layersListenerKeys_.push(events_js_6.listen(layers, CollectionEventType_js_2.default.ADD, this.handleLayersAdd_, this), events_js_6.listen(layers, CollectionEventType_js_2.default.REMOVE, this.handleLayersRemove_, this));
+            this.layersListenerKeys_.push(events_js_5.listen(layers, CollectionEventType_js_2.default.ADD, this.handleLayersAdd_, this), events_js_5.listen(layers, CollectionEventType_js_2.default.REMOVE, this.handleLayersRemove_, this));
             for (const id in this.listenerKeys_) {
-                this.listenerKeys_[id].forEach(events_js_6.unlistenByKey);
+                this.listenerKeys_[id].forEach(events_js_5.unlistenByKey);
             }
-            obj_js_10.clear(this.listenerKeys_);
+            obj_js_9.clear(this.listenerKeys_);
             const layersArray = layers.getArray();
             for (let i = 0, ii = layersArray.length; i < ii; i++) {
                 const layer = layersArray[i];
                 this.listenerKeys_[util_js_14.getUid(layer)] = [
-                    events_js_6.listen(layer, ObjectEventType_js_2.default.PROPERTYCHANGE, this.handleLayerChange_, this),
-                    events_js_6.listen(layer, EventType_js_10.default.CHANGE, this.handleLayerChange_, this),
+                    events_js_5.listen(layer, ObjectEventType_js_2.default.PROPERTYCHANGE, this.handleLayerChange_, this),
+                    events_js_5.listen(layer, EventType_js_9.default.CHANGE, this.handleLayerChange_, this),
                 ];
             }
             this.changed();
@@ -12170,15 +11361,15 @@ define("node_modules/ol/src/layer/Group", ["require", "exports", "node_modules/o
         handleLayersAdd_(collectionEvent) {
             const layer = (collectionEvent.element);
             this.listenerKeys_[util_js_14.getUid(layer)] = [
-                events_js_6.listen(layer, ObjectEventType_js_2.default.PROPERTYCHANGE, this.handleLayerChange_, this),
-                events_js_6.listen(layer, EventType_js_10.default.CHANGE, this.handleLayerChange_, this),
+                events_js_5.listen(layer, ObjectEventType_js_2.default.PROPERTYCHANGE, this.handleLayerChange_, this),
+                events_js_5.listen(layer, EventType_js_9.default.CHANGE, this.handleLayerChange_, this),
             ];
             this.changed();
         }
         handleLayersRemove_(collectionEvent) {
             const layer = (collectionEvent.element);
             const key = util_js_14.getUid(layer);
-            this.listenerKeys_[key].forEach(events_js_6.unlistenByKey);
+            this.listenerKeys_[key].forEach(events_js_5.unlistenByKey);
             delete this.listenerKeys_[key];
             this.changed();
         }
@@ -12212,7 +11403,7 @@ define("node_modules/ol/src/layer/Group", ["require", "exports", "node_modules/o
                 layerState.maxZoom = Math.min(layerState.maxZoom, ownLayerState.maxZoom);
                 if (ownLayerState.extent !== undefined) {
                     if (layerState.extent !== undefined) {
-                        layerState.extent = extent_js_27.getIntersection(layerState.extent, ownLayerState.extent);
+                        layerState.extent = extent_js_26.getIntersection(layerState.extent, ownLayerState.extent);
                     }
                     else {
                         layerState.extent = ownLayerState.extent;
@@ -12222,15 +11413,15 @@ define("node_modules/ol/src/layer/Group", ["require", "exports", "node_modules/o
             return states;
         }
         getSourceState() {
-            return State_js_3.default.READY;
+            return State_js_4.default.READY;
         }
     }
     exports.default = LayerGroup;
 });
-define("node_modules/ol/src/MapEvent", ["require", "exports", "node_modules/ol/src/events/Event"], function (require, exports, Event_js_6) {
+define("node_modules/ol/src/MapEvent", ["require", "exports", "node_modules/ol/src/events/Event"], function (require, exports, Event_js_5) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    class MapEvent extends Event_js_6.default {
+    class MapEvent extends Event_js_5.default {
         constructor(type, map, opt_frameState) {
             super(type);
             this.map = map;
@@ -12279,13 +11470,13 @@ define("node_modules/ol/src/MapBrowserEvent", ["require", "exports", "node_modul
     }
     exports.default = MapBrowserEvent;
 });
-define("node_modules/ol/src/MapBrowserEventType", ["require", "exports", "node_modules/ol/src/events/EventType"], function (require, exports, EventType_js_11) {
+define("node_modules/ol/src/MapBrowserEventType", ["require", "exports", "node_modules/ol/src/events/EventType"], function (require, exports, EventType_js_10) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.default = {
         SINGLECLICK: 'singleclick',
-        CLICK: EventType_js_11.default.CLICK,
-        DBLCLICK: EventType_js_11.default.DBLCLICK,
+        CLICK: EventType_js_10.default.CLICK,
+        DBLCLICK: EventType_js_10.default.DBLCLICK,
         POINTERDRAG: 'pointerdrag',
         POINTERMOVE: 'pointermove',
         POINTERDOWN: 'pointerdown',
@@ -12311,7 +11502,7 @@ define("node_modules/ol/src/pointer/EventType", ["require", "exports"], function
         POINTERCANCEL: 'pointercancel',
     };
 });
-define("node_modules/ol/src/MapBrowserEventHandler", ["require", "exports", "node_modules/ol/src/events/Target", "node_modules/ol/src/events/EventType", "node_modules/ol/src/MapBrowserEvent", "node_modules/ol/src/MapBrowserEventType", "node_modules/ol/src/pointer/EventType", "node_modules/ol/src/has", "node_modules/ol/src/events"], function (require, exports, Target_js_5, EventType_js_12, MapBrowserEvent_js_1, MapBrowserEventType_js_1, EventType_js_13, has_js_5, events_js_7) {
+define("node_modules/ol/src/MapBrowserEventHandler", ["require", "exports", "node_modules/ol/src/events/Target", "node_modules/ol/src/events/EventType", "node_modules/ol/src/MapBrowserEvent", "node_modules/ol/src/MapBrowserEventType", "node_modules/ol/src/pointer/EventType", "node_modules/ol/src/has", "node_modules/ol/src/events"], function (require, exports, Target_js_5, EventType_js_11, MapBrowserEvent_js_1, MapBrowserEventType_js_1, EventType_js_12, has_js_4, events_js_6) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     class MapBrowserEventHandler extends Target_js_5.default {
@@ -12322,18 +11513,18 @@ define("node_modules/ol/src/MapBrowserEventHandler", ["require", "exports", "nod
             this.dragging_ = false;
             this.dragListenerKeys_ = [];
             this.moveTolerance_ = moveTolerance
-                ? moveTolerance * has_js_5.DEVICE_PIXEL_RATIO
-                : has_js_5.DEVICE_PIXEL_RATIO;
+                ? moveTolerance * has_js_4.DEVICE_PIXEL_RATIO
+                : has_js_4.DEVICE_PIXEL_RATIO;
             this.down_ = null;
             const element = this.map_.getViewport();
             this.activePointers_ = 0;
             this.trackedTouches_ = {};
             this.element_ = element;
-            this.pointerdownListenerKey_ = events_js_7.listen(element, EventType_js_13.default.POINTERDOWN, this.handlePointerDown_, this);
+            this.pointerdownListenerKey_ = events_js_6.listen(element, EventType_js_12.default.POINTERDOWN, this.handlePointerDown_, this);
             this.originalPointerMoveEvent_;
-            this.relayedListenerKey_ = events_js_7.listen(element, EventType_js_13.default.POINTERMOVE, this.relayEvent_, this);
+            this.relayedListenerKey_ = events_js_6.listen(element, EventType_js_12.default.POINTERMOVE, this.relayEvent_, this);
             this.boundHandleTouchMove_ = this.handleTouchMove_.bind(this);
-            this.element_.addEventListener(EventType_js_12.default.TOUCHMOVE, this.boundHandleTouchMove_, has_js_5.PASSIVE_EVENT_LISTENERS ? { passive: false } : false);
+            this.element_.addEventListener(EventType_js_11.default.TOUCHMOVE, this.boundHandleTouchMove_, has_js_4.PASSIVE_EVENT_LISTENERS ? { passive: false } : false);
         }
         emulateClick_(pointerEvent) {
             let newEvent = new MapBrowserEvent_js_1.default(MapBrowserEventType_js_1.default.CLICK, this.map_, pointerEvent);
@@ -12373,7 +11564,7 @@ define("node_modules/ol/src/MapBrowserEventHandler", ["require", "exports", "nod
                 this.emulateClick_(this.down_);
             }
             if (this.activePointers_ === 0) {
-                this.dragListenerKeys_.forEach(events_js_7.unlistenByKey);
+                this.dragListenerKeys_.forEach(events_js_6.unlistenByKey);
                 this.dragListenerKeys_.length = 0;
                 this.dragging_ = false;
                 this.down_ = null;
@@ -12388,10 +11579,10 @@ define("node_modules/ol/src/MapBrowserEventHandler", ["require", "exports", "nod
             this.dispatchEvent(newEvent);
             this.down_ = pointerEvent;
             if (this.dragListenerKeys_.length === 0) {
-                this.dragListenerKeys_.push(events_js_7.listen(document, MapBrowserEventType_js_1.default.POINTERMOVE, this.handlePointerMove_, this), events_js_7.listen(document, MapBrowserEventType_js_1.default.POINTERUP, this.handlePointerUp_, this), events_js_7.listen(this.element_, MapBrowserEventType_js_1.default.POINTERCANCEL, this.handlePointerUp_, this));
+                this.dragListenerKeys_.push(events_js_6.listen(document, MapBrowserEventType_js_1.default.POINTERMOVE, this.handlePointerMove_, this), events_js_6.listen(document, MapBrowserEventType_js_1.default.POINTERUP, this.handlePointerUp_, this), events_js_6.listen(this.element_, MapBrowserEventType_js_1.default.POINTERCANCEL, this.handlePointerUp_, this));
                 if (this.element_.getRootNode &&
                     this.element_.getRootNode() !== document) {
-                    this.dragListenerKeys_.push(events_js_7.listen(this.element_.getRootNode(), MapBrowserEventType_js_1.default.POINTERUP, this.handlePointerUp_, this));
+                    this.dragListenerKeys_.push(events_js_6.listen(this.element_.getRootNode(), MapBrowserEventType_js_1.default.POINTERUP, this.handlePointerUp_, this));
                 }
             }
         }
@@ -12421,15 +11612,15 @@ define("node_modules/ol/src/MapBrowserEventHandler", ["require", "exports", "nod
         }
         disposeInternal() {
             if (this.relayedListenerKey_) {
-                events_js_7.unlistenByKey(this.relayedListenerKey_);
+                events_js_6.unlistenByKey(this.relayedListenerKey_);
                 this.relayedListenerKey_ = null;
             }
-            this.element_.removeEventListener(EventType_js_12.default.TOUCHMOVE, this.boundHandleTouchMove_);
+            this.element_.removeEventListener(EventType_js_11.default.TOUCHMOVE, this.boundHandleTouchMove_);
             if (this.pointerdownListenerKey_) {
-                events_js_7.unlistenByKey(this.pointerdownListenerKey_);
+                events_js_6.unlistenByKey(this.pointerdownListenerKey_);
                 this.pointerdownListenerKey_ = null;
             }
-            this.dragListenerKeys_.forEach(events_js_7.unlistenByKey);
+            this.dragListenerKeys_.forEach(events_js_6.unlistenByKey);
             this.dragListenerKeys_.length = 0;
             this.element_ = null;
             super.disposeInternal();
@@ -12456,7 +11647,7 @@ define("node_modules/ol/src/MapProperty", ["require", "exports"], function (requ
         VIEW: 'view',
     };
 });
-define("node_modules/ol/src/structs/PriorityQueue", ["require", "exports", "node_modules/ol/src/asserts", "node_modules/ol/src/obj"], function (require, exports, asserts_js_12, obj_js_11) {
+define("node_modules/ol/src/structs/PriorityQueue", ["require", "exports", "node_modules/ol/src/asserts", "node_modules/ol/src/obj"], function (require, exports, asserts_js_10, obj_js_10) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.DROP = void 0;
@@ -12472,7 +11663,7 @@ define("node_modules/ol/src/structs/PriorityQueue", ["require", "exports", "node
         clear() {
             this.elements_.length = 0;
             this.priorities_.length = 0;
-            obj_js_11.clear(this.queuedElements_);
+            obj_js_10.clear(this.queuedElements_);
         }
         dequeue() {
             const elements = this.elements_;
@@ -12492,7 +11683,7 @@ define("node_modules/ol/src/structs/PriorityQueue", ["require", "exports", "node
             return element;
         }
         enqueue(element) {
-            asserts_js_12.assert(!(this.keyFunction_(element) in this.queuedElements_), 31);
+            asserts_js_10.assert(!(this.keyFunction_(element) in this.queuedElements_), 31);
             const priority = this.priorityFunction_(element);
             if (priority != exports.DROP) {
                 this.elements_.push(element);
@@ -12595,7 +11786,7 @@ define("node_modules/ol/src/structs/PriorityQueue", ["require", "exports", "node
     }
     exports.default = PriorityQueue;
 });
-define("node_modules/ol/src/TileQueue", ["require", "exports", "node_modules/ol/src/events/EventType", "node_modules/ol/src/structs/PriorityQueue", "node_modules/ol/src/TileState"], function (require, exports, EventType_js_14, PriorityQueue_js_1, TileState_js_3) {
+define("node_modules/ol/src/TileQueue", ["require", "exports", "node_modules/ol/src/events/EventType", "node_modules/ol/src/structs/PriorityQueue", "node_modules/ol/src/TileState"], function (require, exports, EventType_js_13, PriorityQueue_js_1, TileState_js_3) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.getTilePriority = void 0;
@@ -12615,7 +11806,7 @@ define("node_modules/ol/src/TileQueue", ["require", "exports", "node_modules/ol/
             const added = super.enqueue(element);
             if (added) {
                 const tile = element[0];
-                tile.addEventListener(EventType_js_14.default.CHANGE, this.boundHandleTileChange_);
+                tile.addEventListener(EventType_js_13.default.CHANGE, this.boundHandleTileChange_);
             }
             return added;
         }
@@ -12628,7 +11819,7 @@ define("node_modules/ol/src/TileQueue", ["require", "exports", "node_modules/ol/
             if ((tile.hifi && state === TileState_js_3.default.LOADED) ||
                 state === TileState_js_3.default.ERROR ||
                 state === TileState_js_3.default.EMPTY) {
-                tile.removeEventListener(EventType_js_14.default.CHANGE, this.boundHandleTileChange_);
+                tile.removeEventListener(EventType_js_13.default.CHANGE, this.boundHandleTileChange_);
                 const tileKey = tile.getKey();
                 if (tileKey in this.tilesLoadingKeys_) {
                     delete this.tilesLoadingKeys_[tileKey];
@@ -12671,7 +11862,7 @@ define("node_modules/ol/src/TileQueue", ["require", "exports", "node_modules/ol/
     }
     exports.getTilePriority = getTilePriority;
 });
-define("node_modules/ol/src/control/Control", ["require", "exports", "node_modules/ol/src/Object", "node_modules/ol/src/MapEventType", "node_modules/ol/src/functions", "node_modules/ol/src/events", "node_modules/ol/src/dom"], function (require, exports, Object_js_9, MapEventType_js_1, functions_js_4, events_js_8, dom_js_3) {
+define("node_modules/ol/src/control/Control", ["require", "exports", "node_modules/ol/src/Object", "node_modules/ol/src/MapEventType", "node_modules/ol/src/functions", "node_modules/ol/src/events", "node_modules/ol/src/dom"], function (require, exports, Object_js_9, MapEventType_js_1, functions_js_4, events_js_7, dom_js_3) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     class Control extends Object_js_9.default {
@@ -12704,7 +11895,7 @@ define("node_modules/ol/src/control/Control", ["require", "exports", "node_modul
                 dom_js_3.removeNode(this.element);
             }
             for (let i = 0, ii = this.listenerKeys.length; i < ii; ++i) {
-                events_js_8.unlistenByKey(this.listenerKeys[i]);
+                events_js_7.unlistenByKey(this.listenerKeys[i]);
             }
             this.listenerKeys.length = 0;
             this.map_ = map;
@@ -12714,7 +11905,7 @@ define("node_modules/ol/src/control/Control", ["require", "exports", "node_modul
                     : map.getOverlayContainerStopEvent();
                 target.appendChild(this.element);
                 if (this.render !== functions_js_4.VOID) {
-                    this.listenerKeys.push(events_js_8.listen(map, MapEventType_js_1.default.POSTRENDER, this.render, this));
+                    this.listenerKeys.push(events_js_7.listen(map, MapEventType_js_1.default.POSTRENDER, this.render, this));
                 }
                 map.render();
             }
@@ -12810,7 +12001,7 @@ define("node_modules/ol/src/OverlayPositioning", ["require", "exports"], functio
         TOP_RIGHT: 'top-right',
     };
 });
-define("node_modules/ol/src/Overlay", ["require", "exports", "node_modules/ol/src/Object", "node_modules/ol/src/MapEventType", "node_modules/ol/src/OverlayPositioning", "node_modules/ol/src/css", "node_modules/ol/src/extent", "node_modules/ol/src/events", "node_modules/ol/src/dom"], function (require, exports, Object_js_11, MapEventType_js_2, OverlayPositioning_js_1, css_js_2, extent_js_28, events_js_9, dom_js_4) {
+define("node_modules/ol/src/Overlay", ["require", "exports", "node_modules/ol/src/Object", "node_modules/ol/src/MapEventType", "node_modules/ol/src/OverlayPositioning", "node_modules/ol/src/css", "node_modules/ol/src/extent", "node_modules/ol/src/events", "node_modules/ol/src/dom"], function (require, exports, Object_js_11, MapEventType_js_2, OverlayPositioning_js_1, css_js_2, extent_js_27, events_js_8, dom_js_4) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     const Property = {
@@ -12892,12 +12083,12 @@ define("node_modules/ol/src/Overlay", ["require", "exports", "node_modules/ol/sr
         handleMapChanged() {
             if (this.mapPostrenderListenerKey) {
                 dom_js_4.removeNode(this.element);
-                events_js_9.unlistenByKey(this.mapPostrenderListenerKey);
+                events_js_8.unlistenByKey(this.mapPostrenderListenerKey);
                 this.mapPostrenderListenerKey = null;
             }
             const map = this.getMap();
             if (map) {
-                this.mapPostrenderListenerKey = events_js_9.listen(map, MapEventType_js_2.default.POSTRENDER, this.render, this);
+                this.mapPostrenderListenerKey = events_js_8.listen(map, MapEventType_js_2.default.POSTRENDER, this.render, this);
                 this.updatePixelPosition();
                 const container = this.stopEvent
                     ? map.getOverlayContainerStopEvent()
@@ -12954,7 +12145,7 @@ define("node_modules/ol/src/Overlay", ["require", "exports", "node_modules/ol/sr
             ]);
             const panIntoViewOptions = opt_panIntoViewOptions || {};
             const myMargin = panIntoViewOptions.margin === undefined ? 20 : panIntoViewOptions.margin;
-            if (!extent_js_28.containsExtent(mapRect, overlayRect)) {
+            if (!extent_js_27.containsExtent(mapRect, overlayRect)) {
                 const offsetLeft = overlayRect[0] - mapRect[0];
                 const offsetRight = mapRect[2] - overlayRect[2];
                 const offsetTop = overlayRect[1] - mapRect[1];
@@ -13055,7 +12246,7 @@ define("node_modules/ol/src/Overlay", ["require", "exports", "node_modules/ol/sr
     }
     exports.default = Overlay;
 });
-define("node_modules/ol/src/style/IconImage", ["require", "exports", "node_modules/ol/src/events/Target", "node_modules/ol/src/events/EventType", "node_modules/ol/src/ImageState", "node_modules/ol/src/dom", "node_modules/ol/src/style/IconImageCache", "node_modules/ol/src/Image"], function (require, exports, Target_js_6, EventType_js_15, ImageState_js_5, dom_js_5, IconImageCache_js_1, Image_js_2) {
+define("node_modules/ol/src/style/IconImage", ["require", "exports", "node_modules/ol/src/events/Target", "node_modules/ol/src/events/EventType", "node_modules/ol/src/ImageState", "node_modules/ol/src/dom", "node_modules/ol/src/style/IconImageCache", "node_modules/ol/src/Image"], function (require, exports, Target_js_6, EventType_js_14, ImageState_js_5, dom_js_5, IconImageCache_js_1, Image_js_2) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.get = void 0;
@@ -13094,7 +12285,7 @@ define("node_modules/ol/src/style/IconImage", ["require", "exports", "node_modul
             return this.tainted_ === true;
         }
         dispatchChangeEvent_() {
-            this.dispatchEvent(EventType_js_15.default.CHANGE);
+            this.dispatchEvent(EventType_js_14.default.CHANGE);
         }
         handleImageError_() {
             this.imageState_ = ImageState_js_5.default.ERROR;
@@ -13257,7 +12448,7 @@ define("node_modules/ol/src/style/IconImageCache", ["require", "exports", "node_
     exports.default = IconImageCache;
     exports.shared = new IconImageCache();
 });
-define("node_modules/ol/src/renderer/Map", ["require", "exports", "node_modules/ol/src/Disposable", "node_modules/ol/src/functions", "node_modules/ol/src/util", "node_modules/ol/src/transform", "node_modules/ol/src/extent", "node_modules/ol/src/style/IconImageCache", "node_modules/ol/src/layer/Layer", "node_modules/ol/src/render", "node_modules/ol/src/coordinate"], function (require, exports, Disposable_js_2, functions_js_5, util_js_15, transform_js_11, extent_js_29, IconImageCache_js_2, Layer_js_1, render_js_1, coordinate_js_4) {
+define("node_modules/ol/src/renderer/Map", ["require", "exports", "node_modules/ol/src/Disposable", "node_modules/ol/src/functions", "node_modules/ol/src/util", "node_modules/ol/src/transform", "node_modules/ol/src/extent", "node_modules/ol/src/style/IconImageCache", "node_modules/ol/src/layer/Layer", "node_modules/ol/src/render", "node_modules/ol/src/coordinate"], function (require, exports, Disposable_js_2, functions_js_5, util_js_15, transform_js_10, extent_js_28, IconImageCache_js_2, Layer_js_1, render_js_1, coordinate_js_4) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     class MapRenderer extends Disposable_js_2.default {
@@ -13273,8 +12464,8 @@ define("node_modules/ol/src/renderer/Map", ["require", "exports", "node_modules/
             const viewState = frameState.viewState;
             const coordinateToPixelTransform = frameState.coordinateToPixelTransform;
             const pixelToCoordinateTransform = frameState.pixelToCoordinateTransform;
-            transform_js_11.compose(coordinateToPixelTransform, frameState.size[0] / 2, frameState.size[1] / 2, 1 / viewState.resolution, -1 / viewState.resolution, -viewState.rotation, -viewState.center[0], -viewState.center[1]);
-            transform_js_11.makeInverse(pixelToCoordinateTransform, coordinateToPixelTransform);
+            transform_js_10.compose(coordinateToPixelTransform, frameState.size[0] / 2, frameState.size[1] / 2, 1 / viewState.resolution, -1 / viewState.resolution, -viewState.rotation, -viewState.center[0], -viewState.center[1]);
+            transform_js_10.makeInverse(pixelToCoordinateTransform, coordinateToPixelTransform);
         }
         forEachFeatureAtCoordinate(coordinate, frameState, hitTolerance, checkWrapped, callback, thisArg, layerFilter, thisArg2) {
             let result;
@@ -13287,7 +12478,7 @@ define("node_modules/ol/src/renderer/Map", ["require", "exports", "node_modules/
             const offsets = [[0, 0]];
             if (projection.canWrapX() && checkWrapped) {
                 const projectionExtent = projection.getExtent();
-                const worldWidth = extent_js_29.getWidth(projectionExtent);
+                const worldWidth = extent_js_28.getWidth(projectionExtent);
                 offsets.push([-worldWidth, 0], [worldWidth, 0]);
             }
             const layerStates = frameState.layerStatesArray;
@@ -13349,7 +12540,7 @@ define("node_modules/ol/src/renderer/Map", ["require", "exports", "node_modules/
     }
     exports.default = MapRenderer;
 });
-define("node_modules/ol/src/PluggableMap", ["require", "exports", "node_modules/ol/src/Object", "node_modules/ol/src/Collection", "node_modules/ol/src/CollectionEventType", "node_modules/ol/src/events/EventType", "node_modules/ol/src/layer/Group", "node_modules/ol/src/MapBrowserEvent", "node_modules/ol/src/MapBrowserEventHandler", "node_modules/ol/src/MapBrowserEventType", "node_modules/ol/src/MapEvent", "node_modules/ol/src/MapEventType", "node_modules/ol/src/MapProperty", "node_modules/ol/src/ObjectEventType", "node_modules/ol/src/pointer/EventType", "node_modules/ol/src/render/EventType", "node_modules/ol/src/TileQueue", "node_modules/ol/src/View", "node_modules/ol/src/ViewHint", "node_modules/ol/src/has", "node_modules/ol/src/functions", "node_modules/ol/src/transform", "node_modules/ol/src/asserts", "node_modules/ol/src/extent", "node_modules/ol/src/proj", "node_modules/ol/src/size", "node_modules/ol/src/events", "node_modules/ol/src/dom"], function (require, exports, Object_js_12, Collection_js_2, CollectionEventType_js_3, EventType_js_16, Group_js_1, MapBrowserEvent_js_2, MapBrowserEventHandler_js_1, MapBrowserEventType_js_2, MapEvent_js_2, MapEventType_js_3, MapProperty_js_1, ObjectEventType_js_3, EventType_js_17, EventType_js_18, TileQueue_js_1, View_js_1, ViewHint_js_2, has_js_6, functions_js_6, transform_js_12, asserts_js_13, extent_js_30, proj_js_7, size_js_6, events_js_10, dom_js_6) {
+define("node_modules/ol/src/PluggableMap", ["require", "exports", "node_modules/ol/src/Object", "node_modules/ol/src/Collection", "node_modules/ol/src/CollectionEventType", "node_modules/ol/src/events/EventType", "node_modules/ol/src/layer/Group", "node_modules/ol/src/MapBrowserEvent", "node_modules/ol/src/MapBrowserEventHandler", "node_modules/ol/src/MapBrowserEventType", "node_modules/ol/src/MapEvent", "node_modules/ol/src/MapEventType", "node_modules/ol/src/MapProperty", "node_modules/ol/src/ObjectEventType", "node_modules/ol/src/pointer/EventType", "node_modules/ol/src/render/EventType", "node_modules/ol/src/TileQueue", "node_modules/ol/src/View", "node_modules/ol/src/ViewHint", "node_modules/ol/src/has", "node_modules/ol/src/functions", "node_modules/ol/src/transform", "node_modules/ol/src/asserts", "node_modules/ol/src/extent", "node_modules/ol/src/proj", "node_modules/ol/src/size", "node_modules/ol/src/events", "node_modules/ol/src/dom"], function (require, exports, Object_js_12, Collection_js_2, CollectionEventType_js_3, EventType_js_15, Group_js_1, MapBrowserEvent_js_2, MapBrowserEventHandler_js_1, MapBrowserEventType_js_2, MapEvent_js_2, MapEventType_js_3, MapProperty_js_1, ObjectEventType_js_3, EventType_js_16, EventType_js_17, TileQueue_js_1, View_js_1, ViewHint_js_2, has_js_5, functions_js_6, transform_js_11, asserts_js_11, extent_js_29, proj_js_7, size_js_6, events_js_9, dom_js_6) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     class PluggableMap extends Object_js_12.default {
@@ -13362,15 +12553,15 @@ define("node_modules/ol/src/PluggableMap", ["require", "exports", "node_modules/
             this.pixelRatio_ =
                 options.pixelRatio !== undefined
                     ? options.pixelRatio
-                    : has_js_6.DEVICE_PIXEL_RATIO;
+                    : has_js_5.DEVICE_PIXEL_RATIO;
             this.postRenderTimeoutHandle_;
             this.animationDelayKey_;
             this.animationDelay_ = function () {
                 this.animationDelayKey_ = undefined;
                 this.renderFrame_(Date.now());
             }.bind(this);
-            this.coordinateToPixelTransform_ = transform_js_12.create();
-            this.pixelToCoordinateTransform_ = transform_js_12.create();
+            this.coordinateToPixelTransform_ = transform_js_11.create();
+            this.pixelToCoordinateTransform_ = transform_js_11.create();
             this.frameIndex_ = 0;
             this.frameState_ = null;
             this.previousExtent_ = null;
@@ -13558,7 +12749,7 @@ define("node_modules/ol/src/PluggableMap", ["require", "exports", "node_modules/
                 return null;
             }
             else {
-                return transform_js_12.apply(frameState.pixelToCoordinateTransform, pixel.slice());
+                return transform_js_11.apply(frameState.pixelToCoordinateTransform, pixel.slice());
             }
         }
         getControls() {
@@ -13602,7 +12793,7 @@ define("node_modules/ol/src/PluggableMap", ["require", "exports", "node_modules/
                 return null;
             }
             else {
-                return transform_js_12.apply(frameState.coordinateToPixelTransform, coordinate.slice(0, 2));
+                return transform_js_11.apply(frameState.coordinateToPixelTransform, coordinate.slice(0, 2));
             }
         }
         getRenderer() {
@@ -13637,9 +12828,9 @@ define("node_modules/ol/src/PluggableMap", ["require", "exports", "node_modules/
             }
             const originalEvent = (mapBrowserEvent.originalEvent);
             const eventType = originalEvent.type;
-            if (eventType === EventType_js_17.default.POINTERDOWN ||
-                eventType === EventType_js_16.default.WHEEL ||
-                eventType === EventType_js_16.default.KEYDOWN) {
+            if (eventType === EventType_js_16.default.POINTERDOWN ||
+                eventType === EventType_js_15.default.WHEEL ||
+                eventType === EventType_js_15.default.KEYDOWN) {
                 const rootNode = this.viewport_.getRootNode
                     ? this.viewport_.getRootNode()
                     : document;
@@ -13675,7 +12866,7 @@ define("node_modules/ol/src/PluggableMap", ["require", "exports", "node_modules/
                 if (frameState) {
                     const hints = frameState.viewHints;
                     if (hints[ViewHint_js_2.default.ANIMATING] || hints[ViewHint_js_2.default.INTERACTING]) {
-                        const lowOnFrameBudget = !has_js_6.IMAGE_DECODE && Date.now() - frameState.time > 8;
+                        const lowOnFrameBudget = !has_js_5.IMAGE_DECODE && Date.now() - frameState.time > 8;
                         maxTotalLoading = lowOnFrameBudget ? 0 : 8;
                         maxNewLoads = lowOnFrameBudget ? 0 : 2;
                     }
@@ -13686,11 +12877,11 @@ define("node_modules/ol/src/PluggableMap", ["require", "exports", "node_modules/
                 }
             }
             if (frameState &&
-                this.hasListener(EventType_js_18.default.RENDERCOMPLETE) &&
+                this.hasListener(EventType_js_17.default.RENDERCOMPLETE) &&
                 !frameState.animate &&
                 !this.tileQueue_.getTilesLoading() &&
                 !this.getLoading()) {
-                this.renderer_.dispatchRenderEvent(EventType_js_18.default.RENDERCOMPLETE, frameState);
+                this.renderer_.dispatchRenderEvent(EventType_js_17.default.RENDERCOMPLETE, frameState);
             }
             const postRenderFunctions = this.postRenderFunctions_;
             for (let i = 0, ii = postRenderFunctions.length; i < ii; ++i) {
@@ -13711,13 +12902,13 @@ define("node_modules/ol/src/PluggableMap", ["require", "exports", "node_modules/
             }
             if (this.mapBrowserEventHandler_) {
                 for (let i = 0, ii = this.keyHandlerKeys_.length; i < ii; ++i) {
-                    events_js_10.unlistenByKey(this.keyHandlerKeys_[i]);
+                    events_js_9.unlistenByKey(this.keyHandlerKeys_[i]);
                 }
                 this.keyHandlerKeys_ = null;
-                this.viewport_.removeEventListener(EventType_js_16.default.CONTEXTMENU, this.boundHandleBrowserEvent_);
-                this.viewport_.removeEventListener(EventType_js_16.default.WHEEL, this.boundHandleBrowserEvent_);
+                this.viewport_.removeEventListener(EventType_js_15.default.CONTEXTMENU, this.boundHandleBrowserEvent_);
+                this.viewport_.removeEventListener(EventType_js_15.default.WHEEL, this.boundHandleBrowserEvent_);
                 if (this.handleResize_ !== undefined) {
-                    removeEventListener(EventType_js_16.default.RESIZE, this.handleResize_, false);
+                    removeEventListener(EventType_js_15.default.RESIZE, this.handleResize_, false);
                     this.handleResize_ = undefined;
                 }
                 this.mapBrowserEventHandler_.dispose();
@@ -13745,18 +12936,18 @@ define("node_modules/ol/src/PluggableMap", ["require", "exports", "node_modules/
                 for (const key in MapBrowserEventType_js_2.default) {
                     this.mapBrowserEventHandler_.addEventListener(MapBrowserEventType_js_2.default[key], this.handleMapBrowserEvent.bind(this));
                 }
-                this.viewport_.addEventListener(EventType_js_16.default.CONTEXTMENU, this.boundHandleBrowserEvent_, false);
-                this.viewport_.addEventListener(EventType_js_16.default.WHEEL, this.boundHandleBrowserEvent_, has_js_6.PASSIVE_EVENT_LISTENERS ? { passive: false } : false);
+                this.viewport_.addEventListener(EventType_js_15.default.CONTEXTMENU, this.boundHandleBrowserEvent_, false);
+                this.viewport_.addEventListener(EventType_js_15.default.WHEEL, this.boundHandleBrowserEvent_, has_js_5.PASSIVE_EVENT_LISTENERS ? { passive: false } : false);
                 const keyboardEventTarget = !this.keyboardEventTarget_
                     ? targetElement
                     : this.keyboardEventTarget_;
                 this.keyHandlerKeys_ = [
-                    events_js_10.listen(keyboardEventTarget, EventType_js_16.default.KEYDOWN, this.handleBrowserEvent, this),
-                    events_js_10.listen(keyboardEventTarget, EventType_js_16.default.KEYPRESS, this.handleBrowserEvent, this),
+                    events_js_9.listen(keyboardEventTarget, EventType_js_15.default.KEYDOWN, this.handleBrowserEvent, this),
+                    events_js_9.listen(keyboardEventTarget, EventType_js_15.default.KEYPRESS, this.handleBrowserEvent, this),
                 ];
                 if (!this.handleResize_) {
                     this.handleResize_ = this.updateSize.bind(this);
-                    window.addEventListener(EventType_js_16.default.RESIZE, this.handleResize_, false);
+                    window.addEventListener(EventType_js_15.default.RESIZE, this.handleResize_, false);
                 }
             }
             this.updateSize();
@@ -13769,32 +12960,32 @@ define("node_modules/ol/src/PluggableMap", ["require", "exports", "node_modules/
         }
         handleViewChanged_() {
             if (this.viewPropertyListenerKey_) {
-                events_js_10.unlistenByKey(this.viewPropertyListenerKey_);
+                events_js_9.unlistenByKey(this.viewPropertyListenerKey_);
                 this.viewPropertyListenerKey_ = null;
             }
             if (this.viewChangeListenerKey_) {
-                events_js_10.unlistenByKey(this.viewChangeListenerKey_);
+                events_js_9.unlistenByKey(this.viewChangeListenerKey_);
                 this.viewChangeListenerKey_ = null;
             }
             const view = this.getView();
             if (view) {
                 this.updateViewportSize_();
-                this.viewPropertyListenerKey_ = events_js_10.listen(view, ObjectEventType_js_3.default.PROPERTYCHANGE, this.handleViewPropertyChanged_, this);
-                this.viewChangeListenerKey_ = events_js_10.listen(view, EventType_js_16.default.CHANGE, this.handleViewPropertyChanged_, this);
+                this.viewPropertyListenerKey_ = events_js_9.listen(view, ObjectEventType_js_3.default.PROPERTYCHANGE, this.handleViewPropertyChanged_, this);
+                this.viewChangeListenerKey_ = events_js_9.listen(view, EventType_js_15.default.CHANGE, this.handleViewPropertyChanged_, this);
                 view.resolveConstraints(0);
             }
             this.render();
         }
         handleLayerGroupChanged_() {
             if (this.layerGroupPropertyListenerKeys_) {
-                this.layerGroupPropertyListenerKeys_.forEach(events_js_10.unlistenByKey);
+                this.layerGroupPropertyListenerKeys_.forEach(events_js_9.unlistenByKey);
                 this.layerGroupPropertyListenerKeys_ = null;
             }
             const layerGroup = this.getLayerGroup();
             if (layerGroup) {
                 this.layerGroupPropertyListenerKeys_ = [
-                    events_js_10.listen(layerGroup, ObjectEventType_js_3.default.PROPERTYCHANGE, this.render, this),
-                    events_js_10.listen(layerGroup, EventType_js_16.default.CHANGE, this.render, this),
+                    events_js_9.listen(layerGroup, ObjectEventType_js_3.default.PROPERTYCHANGE, this.render, this),
+                    events_js_9.listen(layerGroup, EventType_js_15.default.CHANGE, this.render, this),
                 ];
             }
             this.render();
@@ -13849,7 +13040,7 @@ define("node_modules/ol/src/PluggableMap", ["require", "exports", "node_modules/
                     declutterItems: previousFrameState
                         ? previousFrameState.declutterItems
                         : [],
-                    extent: extent_js_30.getForViewAndSize(viewState.center, viewState.resolution, viewState.rotation, size),
+                    extent: extent_js_29.getForViewAndSize(viewState.center, viewState.resolution, viewState.rotation, size),
                     index: this.frameIndex_++,
                     layerIndex: 0,
                     layerStatesArray: this.getLayerGroup().getLayerStatesArray(),
@@ -13874,20 +13065,20 @@ define("node_modules/ol/src/PluggableMap", ["require", "exports", "node_modules/
                 Array.prototype.push.apply(this.postRenderFunctions_, frameState.postRenderFunctions);
                 if (previousFrameState) {
                     const moveStart = !this.previousExtent_ ||
-                        (!extent_js_30.isEmpty(this.previousExtent_) &&
-                            !extent_js_30.equals(frameState.extent, this.previousExtent_));
+                        (!extent_js_29.isEmpty(this.previousExtent_) &&
+                            !extent_js_29.equals(frameState.extent, this.previousExtent_));
                     if (moveStart) {
                         this.dispatchEvent(new MapEvent_js_2.default(MapEventType_js_3.default.MOVESTART, this, previousFrameState));
-                        this.previousExtent_ = extent_js_30.createOrUpdateEmpty(this.previousExtent_);
+                        this.previousExtent_ = extent_js_29.createOrUpdateEmpty(this.previousExtent_);
                     }
                 }
                 const idle = this.previousExtent_ &&
                     !frameState.viewHints[ViewHint_js_2.default.ANIMATING] &&
                     !frameState.viewHints[ViewHint_js_2.default.INTERACTING] &&
-                    !extent_js_30.equals(frameState.extent, this.previousExtent_);
+                    !extent_js_29.equals(frameState.extent, this.previousExtent_);
                 if (idle) {
                     this.dispatchEvent(new MapEvent_js_2.default(MapEventType_js_3.default.MOVEEND, this, frameState));
-                    extent_js_30.clone(frameState.extent, this.previousExtent_);
+                    extent_js_29.clone(frameState.extent, this.previousExtent_);
                 }
             }
             this.dispatchEvent(new MapEvent_js_2.default(MapEventType_js_3.default.POSTRENDER, this, frameState));
@@ -13965,7 +13156,7 @@ define("node_modules/ol/src/PluggableMap", ["require", "exports", "node_modules/
                 controls = new Collection_js_2.default(options.controls.slice());
             }
             else {
-                asserts_js_13.assert(typeof ((options.controls).getArray) === 'function', 47);
+                asserts_js_11.assert(typeof ((options.controls).getArray) === 'function', 47);
                 controls = (options.controls);
             }
         }
@@ -13975,7 +13166,7 @@ define("node_modules/ol/src/PluggableMap", ["require", "exports", "node_modules/
                 interactions = new Collection_js_2.default(options.interactions.slice());
             }
             else {
-                asserts_js_13.assert(typeof ((options.interactions).getArray) ===
+                asserts_js_11.assert(typeof ((options.interactions).getArray) ===
                     'function', 48);
                 interactions = (options.interactions);
             }
@@ -13986,7 +13177,7 @@ define("node_modules/ol/src/PluggableMap", ["require", "exports", "node_modules/
                 overlays = new Collection_js_2.default(options.overlays.slice());
             }
             else {
-                asserts_js_13.assert(typeof ((options.overlays).getArray) === 'function', 49);
+                asserts_js_11.assert(typeof ((options.overlays).getArray) === 'function', 49);
                 overlays = options.overlays;
             }
         }
@@ -14003,73 +13194,378 @@ define("node_modules/ol/src/PluggableMap", ["require", "exports", "node_modules/
     }
     exports.default = PluggableMap;
 });
-define("node_modules/ol/src/source/Source", ["require", "exports", "node_modules/ol/src/Object", "node_modules/ol/src/source/State", "node_modules/ol/src/util", "node_modules/ol/src/proj"], function (require, exports, Object_js_13, State_js_4, util_js_16, proj_js_8) {
+define("node_modules/ol/src/render/Event", ["require", "exports", "node_modules/ol/src/events/Event"], function (require, exports, Event_js_6) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    class Source extends Object_js_13.default {
-        constructor(options) {
-            super();
-            this.projection_ = proj_js_8.get(options.projection);
-            this.attributions_ = adaptAttributions(options.attributions);
-            this.attributionsCollapsible_ =
-                options.attributionsCollapsible !== undefined
-                    ? options.attributionsCollapsible
-                    : true;
-            this.loading = false;
-            this.state_ =
-                options.state !== undefined ? options.state : State_js_4.default.READY;
-            this.wrapX_ = options.wrapX !== undefined ? options.wrapX : false;
-        }
-        getAttributions() {
-            return this.attributions_;
-        }
-        getAttributionsCollapsible() {
-            return this.attributionsCollapsible_;
-        }
-        getProjection() {
-            return this.projection_;
-        }
-        getResolutions() {
-            return util_js_16.abstract();
-        }
-        getState() {
-            return this.state_;
-        }
-        getWrapX() {
-            return this.wrapX_;
-        }
-        getContextOptions() {
-            return undefined;
-        }
-        refresh() {
-            this.changed();
-        }
-        setAttributions(attributions) {
-            this.attributions_ = adaptAttributions(attributions);
-            this.changed();
-        }
-        setState(state) {
-            this.state_ = state;
-            this.changed();
+    class RenderEvent extends Event_js_6.default {
+        constructor(type, opt_inversePixelTransform, opt_frameState, opt_context) {
+            super(type);
+            this.inversePixelTransform = opt_inversePixelTransform;
+            this.frameState = opt_frameState;
+            this.context = opt_context;
         }
     }
-    function adaptAttributions(attributionLike) {
-        if (!attributionLike) {
-            return null;
+    exports.default = RenderEvent;
+});
+define("node_modules/ol/src/render", ["require", "exports", "node_modules/ol/src/render/canvas/Immediate", "node_modules/ol/src/has", "node_modules/ol/src/transform", "node_modules/ol/src/renderer/vector", "node_modules/ol/src/proj"], function (require, exports, Immediate_js_1, has_js_6, transform_js_12, vector_js_1, proj_js_8) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.renderDeclutterItems = exports.getRenderPixel = exports.getVectorContext = exports.toContext = void 0;
+    function toContext(context, opt_options) {
+        const canvas = context.canvas;
+        const options = opt_options ? opt_options : {};
+        const pixelRatio = options.pixelRatio || has_js_6.DEVICE_PIXEL_RATIO;
+        const size = options.size;
+        if (size) {
+            canvas.width = size[0] * pixelRatio;
+            canvas.height = size[1] * pixelRatio;
+            canvas.style.width = size[0] + 'px';
+            canvas.style.height = size[1] + 'px';
         }
-        if (Array.isArray(attributionLike)) {
-            return function (frameState) {
-                return attributionLike;
+        const extent = [0, 0, canvas.width, canvas.height];
+        const transform = transform_js_12.scale(transform_js_12.create(), pixelRatio, pixelRatio);
+        return new Immediate_js_1.default(context, pixelRatio, extent, transform, 0);
+    }
+    exports.toContext = toContext;
+    function getVectorContext(event) {
+        const frameState = event.frameState;
+        const transform = transform_js_12.multiply(event.inversePixelTransform.slice(), frameState.coordinateToPixelTransform);
+        const squaredTolerance = vector_js_1.getSquaredTolerance(frameState.viewState.resolution, frameState.pixelRatio);
+        let userTransform;
+        const userProjection = proj_js_8.getUserProjection();
+        if (userProjection) {
+            userTransform = proj_js_8.getTransformFromProjections(userProjection, frameState.viewState.projection);
+        }
+        return new Immediate_js_1.default(event.context, frameState.pixelRatio, frameState.extent, transform, frameState.viewState.rotation, squaredTolerance, userTransform);
+    }
+    exports.getVectorContext = getVectorContext;
+    function getRenderPixel(event, pixel) {
+        const result = pixel.slice(0);
+        transform_js_12.apply(event.inversePixelTransform.slice(), result);
+        return result;
+    }
+    exports.getRenderPixel = getRenderPixel;
+    function renderDeclutterItems(frameState, declutterTree) {
+        if (declutterTree) {
+            declutterTree.clear();
+        }
+        const items = frameState.declutterItems;
+        for (let z = items.length - 1; z >= 0; --z) {
+            const item = items[z];
+            const zIndexItems = item.items;
+            for (let i = 0, ii = zIndexItems.length; i < ii; i += 3) {
+                declutterTree = zIndexItems[i].renderDeclutter(zIndexItems[i + 1], zIndexItems[i + 2], item.opacity, declutterTree);
+            }
+        }
+        items.length = 0;
+        return declutterTree;
+    }
+    exports.renderDeclutterItems = renderDeclutterItems;
+});
+define("node_modules/ol/src/style/Style", ["require", "exports", "node_modules/ol/src/style/Circle", "node_modules/ol/src/style/Fill", "node_modules/ol/src/geom/GeometryType", "node_modules/ol/src/style/Stroke", "node_modules/ol/src/asserts"], function (require, exports, Circle_js_1, Fill_js_2, GeometryType_js_17, Stroke_js_1, asserts_js_12) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.createEditingStyle = exports.createDefaultStyle = exports.toFunction = void 0;
+    class Style {
+        constructor(opt_options) {
+            const options = opt_options || {};
+            this.geometry_ = null;
+            this.geometryFunction_ = defaultGeometryFunction;
+            if (options.geometry !== undefined) {
+                this.setGeometry(options.geometry);
+            }
+            this.fill_ = options.fill !== undefined ? options.fill : null;
+            this.image_ = options.image !== undefined ? options.image : null;
+            this.renderer_ = options.renderer !== undefined ? options.renderer : null;
+            this.stroke_ = options.stroke !== undefined ? options.stroke : null;
+            this.text_ = options.text !== undefined ? options.text : null;
+            this.zIndex_ = options.zIndex;
+        }
+        clone() {
+            let geometry = this.getGeometry();
+            if (geometry && typeof geometry === 'object') {
+                geometry = (geometry).clone();
+            }
+            return new Style({
+                geometry: geometry,
+                fill: this.getFill() ? this.getFill().clone() : undefined,
+                image: this.getImage() ? this.getImage().clone() : undefined,
+                stroke: this.getStroke() ? this.getStroke().clone() : undefined,
+                text: this.getText() ? this.getText().clone() : undefined,
+                zIndex: this.getZIndex(),
+            });
+        }
+        getRenderer() {
+            return this.renderer_;
+        }
+        setRenderer(renderer) {
+            this.renderer_ = renderer;
+        }
+        getGeometry() {
+            return this.geometry_;
+        }
+        getGeometryFunction() {
+            return this.geometryFunction_;
+        }
+        getFill() {
+            return this.fill_;
+        }
+        setFill(fill) {
+            this.fill_ = fill;
+        }
+        getImage() {
+            return this.image_;
+        }
+        setImage(image) {
+            this.image_ = image;
+        }
+        getStroke() {
+            return this.stroke_;
+        }
+        setStroke(stroke) {
+            this.stroke_ = stroke;
+        }
+        getText() {
+            return this.text_;
+        }
+        setText(text) {
+            this.text_ = text;
+        }
+        getZIndex() {
+            return this.zIndex_;
+        }
+        setGeometry(geometry) {
+            if (typeof geometry === 'function') {
+                this.geometryFunction_ = geometry;
+            }
+            else if (typeof geometry === 'string') {
+                this.geometryFunction_ = function (feature) {
+                    return (feature.get(geometry));
+                };
+            }
+            else if (!geometry) {
+                this.geometryFunction_ = defaultGeometryFunction;
+            }
+            else if (geometry !== undefined) {
+                this.geometryFunction_ = function () {
+                    return (geometry);
+                };
+            }
+            this.geometry_ = geometry;
+        }
+        setZIndex(zIndex) {
+            this.zIndex_ = zIndex;
+        }
+    }
+    function toFunction(obj) {
+        let styleFunction;
+        if (typeof obj === 'function') {
+            styleFunction = obj;
+        }
+        else {
+            let styles;
+            if (Array.isArray(obj)) {
+                styles = obj;
+            }
+            else {
+                asserts_js_12.assert(typeof ((obj).getZIndex) === 'function', 41);
+                const style = (obj);
+                styles = [style];
+            }
+            styleFunction = function () {
+                return styles;
             };
         }
-        if (typeof attributionLike === 'function') {
-            return attributionLike;
-        }
-        return function (frameState) {
-            return [attributionLike];
-        };
+        return styleFunction;
     }
-    exports.default = Source;
+    exports.toFunction = toFunction;
+    let defaultStyles = null;
+    function createDefaultStyle(feature, resolution) {
+        if (!defaultStyles) {
+            const fill = new Fill_js_2.default({
+                color: 'rgba(255,255,255,0.4)',
+            });
+            const stroke = new Stroke_js_1.default({
+                color: '#3399CC',
+                width: 1.25,
+            });
+            defaultStyles = [
+                new Style({
+                    image: new Circle_js_1.default({
+                        fill: fill,
+                        stroke: stroke,
+                        radius: 5,
+                    }),
+                    fill: fill,
+                    stroke: stroke,
+                }),
+            ];
+        }
+        return defaultStyles;
+    }
+    exports.createDefaultStyle = createDefaultStyle;
+    function createEditingStyle() {
+        const styles = {};
+        const white = [255, 255, 255, 1];
+        const blue = [0, 153, 255, 1];
+        const width = 3;
+        styles[GeometryType_js_17.default.POLYGON] = [
+            new Style({
+                fill: new Fill_js_2.default({
+                    color: [255, 255, 255, 0.5],
+                }),
+            }),
+        ];
+        styles[GeometryType_js_17.default.MULTI_POLYGON] = styles[GeometryType_js_17.default.POLYGON];
+        styles[GeometryType_js_17.default.LINE_STRING] = [
+            new Style({
+                stroke: new Stroke_js_1.default({
+                    color: white,
+                    width: width + 2,
+                }),
+            }),
+            new Style({
+                stroke: new Stroke_js_1.default({
+                    color: blue,
+                    width: width,
+                }),
+            }),
+        ];
+        styles[GeometryType_js_17.default.MULTI_LINE_STRING] = styles[GeometryType_js_17.default.LINE_STRING];
+        styles[GeometryType_js_17.default.CIRCLE] = styles[GeometryType_js_17.default.POLYGON].concat(styles[GeometryType_js_17.default.LINE_STRING]);
+        styles[GeometryType_js_17.default.POINT] = [
+            new Style({
+                image: new Circle_js_1.default({
+                    radius: width * 2,
+                    fill: new Fill_js_2.default({
+                        color: blue,
+                    }),
+                    stroke: new Stroke_js_1.default({
+                        color: white,
+                        width: width / 2,
+                    }),
+                }),
+                zIndex: Infinity,
+            }),
+        ];
+        styles[GeometryType_js_17.default.MULTI_POINT] = styles[GeometryType_js_17.default.POINT];
+        styles[GeometryType_js_17.default.GEOMETRY_COLLECTION] = styles[GeometryType_js_17.default.POLYGON].concat(styles[GeometryType_js_17.default.LINE_STRING], styles[GeometryType_js_17.default.POINT]);
+        return styles;
+    }
+    exports.createEditingStyle = createEditingStyle;
+    function defaultGeometryFunction(feature) {
+        return feature.getGeometry();
+    }
+    exports.default = Style;
+});
+define("node_modules/ol/src/Feature", ["require", "exports", "node_modules/ol/src/Object", "node_modules/ol/src/events/EventType", "node_modules/ol/src/asserts", "node_modules/ol/src/events"], function (require, exports, Object_js_13, EventType_js_18, asserts_js_13, events_js_10) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.createStyleFunction = void 0;
+    class Feature extends Object_js_13.default {
+        constructor(opt_geometryOrProperties) {
+            super();
+            this.id_ = undefined;
+            this.geometryName_ = 'geometry';
+            this.style_ = null;
+            this.styleFunction_ = undefined;
+            this.geometryChangeKey_ = null;
+            this.addEventListener(Object_js_13.getChangeEventType(this.geometryName_), this.handleGeometryChanged_);
+            if (opt_geometryOrProperties) {
+                if (typeof ((opt_geometryOrProperties).getSimplifiedGeometry) === 'function') {
+                    const geometry = (opt_geometryOrProperties);
+                    this.setGeometry(geometry);
+                }
+                else {
+                    const properties = opt_geometryOrProperties;
+                    this.setProperties(properties);
+                }
+            }
+        }
+        clone() {
+            const clone = new Feature(this.hasProperties() ? this.getProperties() : null);
+            clone.setGeometryName(this.getGeometryName());
+            const geometry = this.getGeometry();
+            if (geometry) {
+                clone.setGeometry(geometry.clone());
+            }
+            const style = this.getStyle();
+            if (style) {
+                clone.setStyle(style);
+            }
+            return clone;
+        }
+        getGeometry() {
+            return (this.get(this.geometryName_));
+        }
+        getId() {
+            return this.id_;
+        }
+        getGeometryName() {
+            return this.geometryName_;
+        }
+        getStyle() {
+            return this.style_;
+        }
+        getStyleFunction() {
+            return this.styleFunction_;
+        }
+        handleGeometryChange_() {
+            this.changed();
+        }
+        handleGeometryChanged_() {
+            if (this.geometryChangeKey_) {
+                events_js_10.unlistenByKey(this.geometryChangeKey_);
+                this.geometryChangeKey_ = null;
+            }
+            const geometry = this.getGeometry();
+            if (geometry) {
+                this.geometryChangeKey_ = events_js_10.listen(geometry, EventType_js_18.default.CHANGE, this.handleGeometryChange_, this);
+            }
+            this.changed();
+        }
+        setGeometry(geometry) {
+            this.set(this.geometryName_, geometry);
+        }
+        setStyle(opt_style) {
+            this.style_ = opt_style;
+            this.styleFunction_ = !opt_style
+                ? undefined
+                : createStyleFunction(opt_style);
+            this.changed();
+        }
+        setId(id) {
+            this.id_ = id;
+            this.changed();
+        }
+        setGeometryName(name) {
+            this.removeEventListener(Object_js_13.getChangeEventType(this.geometryName_), this.handleGeometryChanged_);
+            this.geometryName_ = name;
+            this.addEventListener(Object_js_13.getChangeEventType(this.geometryName_), this.handleGeometryChanged_);
+            this.handleGeometryChanged_();
+        }
+    }
+    function createStyleFunction(obj) {
+        if (typeof obj === 'function') {
+            return obj;
+        }
+        else {
+            let styles;
+            if (Array.isArray(obj)) {
+                styles = obj;
+            }
+            else {
+                asserts_js_13.assert(typeof ((obj).getZIndex) === 'function', 41);
+                const style = (obj);
+                styles = [style];
+            }
+            return function () {
+                return styles;
+            };
+        }
+    }
+    exports.createStyleFunction = createStyleFunction;
+    exports.default = Feature;
 });
 define("node_modules/ol/src/source/VectorEventType", ["require", "exports"], function (require, exports) {
     "use strict";
@@ -14081,698 +13577,7 @@ define("node_modules/ol/src/source/VectorEventType", ["require", "exports"], fun
         REMOVEFEATURE: 'removefeature',
     };
 });
-define("node_modules/ol/src/format/FormatType", ["require", "exports"], function (require, exports) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    exports.default = {
-        ARRAY_BUFFER: 'arraybuffer',
-        JSON: 'json',
-        TEXT: 'text',
-        XML: 'xml',
-    };
-});
-define("node_modules/ol/src/format/Feature", ["require", "exports", "node_modules/ol/src/proj/Units", "node_modules/ol/src/util", "node_modules/ol/src/obj", "node_modules/ol/src/proj"], function (require, exports, Units_js_8, util_js_17, obj_js_12, proj_js_9) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    exports.transformExtentWithOptions = exports.transformGeometryWithOptions = void 0;
-    class FeatureFormat {
-        constructor() {
-            this.dataProjection = null;
-            this.defaultFeatureProjection = null;
-        }
-        getReadOptions(source, opt_options) {
-            let options;
-            if (opt_options) {
-                let dataProjection = opt_options.dataProjection
-                    ? proj_js_9.get(opt_options.dataProjection)
-                    : this.readProjection(source);
-                if (opt_options.extent &&
-                    dataProjection &&
-                    dataProjection.getUnits() === Units_js_8.default.TILE_PIXELS) {
-                    dataProjection = proj_js_9.get(dataProjection);
-                    dataProjection.setWorldExtent(opt_options.extent);
-                }
-                options = {
-                    dataProjection: dataProjection,
-                    featureProjection: opt_options.featureProjection,
-                };
-            }
-            return this.adaptOptions(options);
-        }
-        adaptOptions(options) {
-            return obj_js_12.assign({
-                dataProjection: this.dataProjection,
-                featureProjection: this.defaultFeatureProjection,
-            }, options);
-        }
-        getType() {
-            return util_js_17.abstract();
-        }
-        readFeature(source, opt_options) {
-            return util_js_17.abstract();
-        }
-        readFeatures(source, opt_options) {
-            return util_js_17.abstract();
-        }
-        readGeometry(source, opt_options) {
-            return util_js_17.abstract();
-        }
-        readProjection(source) {
-            return util_js_17.abstract();
-        }
-        writeFeature(feature, opt_options) {
-            return util_js_17.abstract();
-        }
-        writeFeatures(features, opt_options) {
-            return util_js_17.abstract();
-        }
-        writeGeometry(geometry, opt_options) {
-            return util_js_17.abstract();
-        }
-    }
-    exports.default = FeatureFormat;
-    function transformGeometryWithOptions(geometry, write, opt_options) {
-        const featureProjection = opt_options
-            ? proj_js_9.get(opt_options.featureProjection)
-            : null;
-        const dataProjection = opt_options
-            ? proj_js_9.get(opt_options.dataProjection)
-            : null;
-        let transformed;
-        if (featureProjection &&
-            dataProjection &&
-            !proj_js_9.equivalent(featureProjection, dataProjection)) {
-            transformed = (write ? geometry.clone() : geometry).transform(write ? featureProjection : dataProjection, write ? dataProjection : featureProjection);
-        }
-        else {
-            transformed = geometry;
-        }
-        if (write &&
-            opt_options &&
-            (opt_options).decimals !== undefined) {
-            const power = Math.pow(10, (opt_options).decimals);
-            const transform = function (coordinates) {
-                for (let i = 0, ii = coordinates.length; i < ii; ++i) {
-                    coordinates[i] = Math.round(coordinates[i] * power) / power;
-                }
-                return coordinates;
-            };
-            if (transformed === geometry) {
-                transformed = geometry.clone();
-            }
-            transformed.applyTransform(transform);
-        }
-        return transformed;
-    }
-    exports.transformGeometryWithOptions = transformGeometryWithOptions;
-    function transformExtentWithOptions(extent, opt_options) {
-        const featureProjection = opt_options
-            ? proj_js_9.get(opt_options.featureProjection)
-            : null;
-        const dataProjection = opt_options
-            ? proj_js_9.get(opt_options.dataProjection)
-            : null;
-        if (featureProjection &&
-            dataProjection &&
-            !proj_js_9.equivalent(featureProjection, dataProjection)) {
-            return proj_js_9.transformExtent(extent, dataProjection, featureProjection);
-        }
-        else {
-            return extent;
-        }
-    }
-    exports.transformExtentWithOptions = transformExtentWithOptions;
-});
-define("node_modules/ol/src/VectorTile", ["require", "exports", "node_modules/ol/src/Tile", "node_modules/ol/src/TileState"], function (require, exports, Tile_js_1, TileState_js_4) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    class VectorTile extends Tile_js_1.default {
-        constructor(tileCoord, state, src, format, tileLoadFunction, opt_options) {
-            super(tileCoord, state, opt_options);
-            this.extent = null;
-            this.format_ = format;
-            this.features_ = null;
-            this.loader_;
-            this.projection = null;
-            this.resolution;
-            this.tileLoadFunction_ = tileLoadFunction;
-            this.url_ = src;
-        }
-        getFormat() {
-            return this.format_;
-        }
-        getFeatures() {
-            return this.features_;
-        }
-        getKey() {
-            return this.url_;
-        }
-        load() {
-            if (this.state == TileState_js_4.default.IDLE) {
-                this.setState(TileState_js_4.default.LOADING);
-                this.tileLoadFunction_(this, this.url_);
-                if (this.loader_) {
-                    this.loader_(this.extent, this.resolution, this.projection);
-                }
-            }
-        }
-        onLoad(features, dataProjection) {
-            this.setFeatures(features);
-        }
-        onError() {
-            this.setState(TileState_js_4.default.ERROR);
-        }
-        setFeatures(features) {
-            this.features_ = features;
-            this.setState(TileState_js_4.default.LOADED);
-        }
-        setLoader(loader) {
-            this.loader_ = loader;
-        }
-    }
-    exports.default = VectorTile;
-});
-define("node_modules/ol/src/featureloader", ["require", "exports", "node_modules/ol/src/format/FormatType", "node_modules/ol/src/functions"], function (require, exports, FormatType_js_1, functions_js_7) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    exports.setWithCredentials = exports.xhr = exports.loadFeaturesXhr = void 0;
-    let withCredentials = false;
-    function loadFeaturesXhr(url, format, success, failure) {
-        return (function (extent, resolution, projection) {
-            const xhr = new XMLHttpRequest();
-            xhr.open('GET', typeof url === 'function' ? url(extent, resolution, projection) : url, true);
-            if (format.getType() == FormatType_js_1.default.ARRAY_BUFFER) {
-                xhr.responseType = 'arraybuffer';
-            }
-            xhr.withCredentials = withCredentials;
-            xhr.onload = function (event) {
-                if (!xhr.status || (xhr.status >= 200 && xhr.status < 300)) {
-                    const type = format.getType();
-                    let source;
-                    if (type == FormatType_js_1.default.JSON || type == FormatType_js_1.default.TEXT) {
-                        source = xhr.responseText;
-                    }
-                    else if (type == FormatType_js_1.default.XML) {
-                        source = xhr.responseXML;
-                        if (!source) {
-                            source = new DOMParser().parseFromString(xhr.responseText, 'application/xml');
-                        }
-                    }
-                    else if (type == FormatType_js_1.default.ARRAY_BUFFER) {
-                        source = (xhr.response);
-                    }
-                    if (source) {
-                        success.call(this, format.readFeatures(source, {
-                            extent: extent,
-                            featureProjection: projection,
-                        }), format.readProjection(source));
-                    }
-                    else {
-                        failure.call(this);
-                    }
-                }
-                else {
-                    failure.call(this);
-                }
-            }.bind(this);
-            xhr.onerror = function () {
-                failure.call(this);
-            }.bind(this);
-            xhr.send();
-        });
-    }
-    exports.loadFeaturesXhr = loadFeaturesXhr;
-    function xhr(url, format) {
-        return loadFeaturesXhr(url, format, function (features, dataProjection) {
-            const sourceOrTile = (this);
-            if (typeof sourceOrTile.addFeatures === 'function') {
-                (sourceOrTile).addFeatures(features);
-            }
-        }, functions_js_7.VOID);
-    }
-    exports.xhr = xhr;
-    function setWithCredentials(xhrWithCredentials) {
-        withCredentials = xhrWithCredentials;
-    }
-    exports.setWithCredentials = setWithCredentials;
-});
-define("node_modules/ol/src/source/Vector", ["require", "exports", "node_modules/ol/src/Collection", "node_modules/ol/src/CollectionEventType", "node_modules/ol/src/events/Event", "node_modules/ol/src/events/EventType", "node_modules/ol/src/ObjectEventType", "node_modules/ol/src/structs/RBush", "node_modules/ol/src/source/Source", "node_modules/ol/src/source/State", "node_modules/ol/src/source/VectorEventType", "node_modules/ol/src/functions", "node_modules/ol/src/loadingstrategy", "node_modules/ol/src/asserts", "node_modules/ol/src/extent", "node_modules/ol/src/array", "node_modules/ol/src/util", "node_modules/ol/src/obj", "node_modules/ol/src/events", "node_modules/ol/src/featureloader"], function (require, exports, Collection_js_3, CollectionEventType_js_4, Event_js_7, EventType_js_19, ObjectEventType_js_4, RBush_js_1, Source_js_2, State_js_5, VectorEventType_js_1, functions_js_8, loadingstrategy_js_1, asserts_js_14, extent_js_31, array_js_15, util_js_18, obj_js_13, events_js_11, featureloader_js_1) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    exports.VectorSourceEvent = void 0;
-    class VectorSourceEvent extends Event_js_7.default {
-        constructor(type, opt_feature) {
-            super(type);
-            this.feature = opt_feature;
-        }
-    }
-    exports.VectorSourceEvent = VectorSourceEvent;
-    class VectorSource extends Source_js_2.default {
-        constructor(opt_options) {
-            const options = opt_options || {};
-            super({
-                attributions: options.attributions,
-                projection: undefined,
-                state: State_js_5.default.READY,
-                wrapX: options.wrapX !== undefined ? options.wrapX : true,
-            });
-            this.loader_ = functions_js_8.VOID;
-            this.format_ = options.format;
-            this.overlaps_ = options.overlaps === undefined ? true : options.overlaps;
-            this.url_ = options.url;
-            if (options.loader !== undefined) {
-                this.loader_ = options.loader;
-            }
-            else if (this.url_ !== undefined) {
-                asserts_js_14.assert(this.format_, 7);
-                this.loader_ = featureloader_js_1.xhr(this.url_, (this.format_));
-            }
-            this.strategy_ =
-                options.strategy !== undefined ? options.strategy : loadingstrategy_js_1.all;
-            const useSpatialIndex = options.useSpatialIndex !== undefined ? options.useSpatialIndex : true;
-            this.featuresRtree_ = useSpatialIndex ? new RBush_js_1.default() : null;
-            this.loadedExtentsRtree_ = new RBush_js_1.default();
-            this.nullGeometryFeatures_ = {};
-            this.idIndex_ = {};
-            this.uidIndex_ = {};
-            this.featureChangeKeys_ = {};
-            this.featuresCollection_ = null;
-            let collection, features;
-            if (Array.isArray(options.features)) {
-                features = options.features;
-            }
-            else if (options.features) {
-                collection = options.features;
-                features = collection.getArray();
-            }
-            if (!useSpatialIndex && collection === undefined) {
-                collection = new Collection_js_3.default(features);
-            }
-            if (features !== undefined) {
-                this.addFeaturesInternal(features);
-            }
-            if (collection !== undefined) {
-                this.bindFeaturesCollection_(collection);
-            }
-        }
-        addFeature(feature) {
-            this.addFeatureInternal(feature);
-            this.changed();
-        }
-        addFeatureInternal(feature) {
-            const featureKey = util_js_18.getUid(feature);
-            if (!this.addToIndex_(featureKey, feature)) {
-                if (this.featuresCollection_) {
-                    this.featuresCollection_.remove(feature);
-                }
-                return;
-            }
-            this.setupChangeEvents_(featureKey, feature);
-            const geometry = feature.getGeometry();
-            if (geometry) {
-                const extent = geometry.getExtent();
-                if (this.featuresRtree_) {
-                    this.featuresRtree_.insert(extent, feature);
-                }
-            }
-            else {
-                this.nullGeometryFeatures_[featureKey] = feature;
-            }
-            this.dispatchEvent(new VectorSourceEvent(VectorEventType_js_1.default.ADDFEATURE, feature));
-        }
-        setupChangeEvents_(featureKey, feature) {
-            this.featureChangeKeys_[featureKey] = [
-                events_js_11.listen(feature, EventType_js_19.default.CHANGE, this.handleFeatureChange_, this),
-                events_js_11.listen(feature, ObjectEventType_js_4.default.PROPERTYCHANGE, this.handleFeatureChange_, this),
-            ];
-        }
-        addToIndex_(featureKey, feature) {
-            let valid = true;
-            const id = feature.getId();
-            if (id !== undefined) {
-                if (!(id.toString() in this.idIndex_)) {
-                    this.idIndex_[id.toString()] = feature;
-                }
-                else {
-                    valid = false;
-                }
-            }
-            if (valid) {
-                asserts_js_14.assert(!(featureKey in this.uidIndex_), 30);
-                this.uidIndex_[featureKey] = feature;
-            }
-            return valid;
-        }
-        addFeatures(features) {
-            this.addFeaturesInternal(features);
-            this.changed();
-        }
-        addFeaturesInternal(features) {
-            const extents = [];
-            const newFeatures = [];
-            const geometryFeatures = [];
-            for (let i = 0, length = features.length; i < length; i++) {
-                const feature = features[i];
-                const featureKey = util_js_18.getUid(feature);
-                if (this.addToIndex_(featureKey, feature)) {
-                    newFeatures.push(feature);
-                }
-            }
-            for (let i = 0, length = newFeatures.length; i < length; i++) {
-                const feature = newFeatures[i];
-                const featureKey = util_js_18.getUid(feature);
-                this.setupChangeEvents_(featureKey, feature);
-                const geometry = feature.getGeometry();
-                if (geometry) {
-                    const extent = geometry.getExtent();
-                    extents.push(extent);
-                    geometryFeatures.push(feature);
-                }
-                else {
-                    this.nullGeometryFeatures_[featureKey] = feature;
-                }
-            }
-            if (this.featuresRtree_) {
-                this.featuresRtree_.load(extents, geometryFeatures);
-            }
-            for (let i = 0, length = newFeatures.length; i < length; i++) {
-                this.dispatchEvent(new VectorSourceEvent(VectorEventType_js_1.default.ADDFEATURE, newFeatures[i]));
-            }
-        }
-        bindFeaturesCollection_(collection) {
-            let modifyingCollection = false;
-            this.addEventListener(VectorEventType_js_1.default.ADDFEATURE, function (evt) {
-                if (!modifyingCollection) {
-                    modifyingCollection = true;
-                    collection.push(evt.feature);
-                    modifyingCollection = false;
-                }
-            });
-            this.addEventListener(VectorEventType_js_1.default.REMOVEFEATURE, function (evt) {
-                if (!modifyingCollection) {
-                    modifyingCollection = true;
-                    collection.remove(evt.feature);
-                    modifyingCollection = false;
-                }
-            });
-            collection.addEventListener(CollectionEventType_js_4.default.ADD, function (evt) {
-                if (!modifyingCollection) {
-                    modifyingCollection = true;
-                    this.addFeature((evt.element));
-                    modifyingCollection = false;
-                }
-            }.bind(this));
-            collection.addEventListener(CollectionEventType_js_4.default.REMOVE, function (evt) {
-                if (!modifyingCollection) {
-                    modifyingCollection = true;
-                    this.removeFeature((evt.element));
-                    modifyingCollection = false;
-                }
-            }.bind(this));
-            this.featuresCollection_ = collection;
-        }
-        clear(opt_fast) {
-            if (opt_fast) {
-                for (const featureId in this.featureChangeKeys_) {
-                    const keys = this.featureChangeKeys_[featureId];
-                    keys.forEach(events_js_11.unlistenByKey);
-                }
-                if (!this.featuresCollection_) {
-                    this.featureChangeKeys_ = {};
-                    this.idIndex_ = {};
-                    this.uidIndex_ = {};
-                }
-            }
-            else {
-                if (this.featuresRtree_) {
-                    this.featuresRtree_.forEach(this.removeFeatureInternal.bind(this));
-                    for (const id in this.nullGeometryFeatures_) {
-                        this.removeFeatureInternal(this.nullGeometryFeatures_[id]);
-                    }
-                }
-            }
-            if (this.featuresCollection_) {
-                this.featuresCollection_.clear();
-            }
-            if (this.featuresRtree_) {
-                this.featuresRtree_.clear();
-            }
-            this.nullGeometryFeatures_ = {};
-            const clearEvent = new VectorSourceEvent(VectorEventType_js_1.default.CLEAR);
-            this.dispatchEvent(clearEvent);
-            this.changed();
-        }
-        forEachFeature(callback) {
-            if (this.featuresRtree_) {
-                return this.featuresRtree_.forEach(callback);
-            }
-            else if (this.featuresCollection_) {
-                this.featuresCollection_.forEach(callback);
-            }
-        }
-        forEachFeatureAtCoordinateDirect(coordinate, callback) {
-            const extent = [coordinate[0], coordinate[1], coordinate[0], coordinate[1]];
-            return this.forEachFeatureInExtent(extent, function (feature) {
-                const geometry = feature.getGeometry();
-                if (geometry.intersectsCoordinate(coordinate)) {
-                    return callback(feature);
-                }
-                else {
-                    return undefined;
-                }
-            });
-        }
-        forEachFeatureInExtent(extent, callback) {
-            if (this.featuresRtree_) {
-                return this.featuresRtree_.forEachInExtent(extent, callback);
-            }
-            else if (this.featuresCollection_) {
-                this.featuresCollection_.forEach(callback);
-            }
-        }
-        forEachFeatureIntersectingExtent(extent, callback) {
-            return this.forEachFeatureInExtent(extent, function (feature) {
-                const geometry = feature.getGeometry();
-                if (geometry.intersectsExtent(extent)) {
-                    const result = callback(feature);
-                    if (result) {
-                        return result;
-                    }
-                }
-            });
-        }
-        getFeaturesCollection() {
-            return this.featuresCollection_;
-        }
-        getFeatures() {
-            let features;
-            if (this.featuresCollection_) {
-                features = this.featuresCollection_.getArray();
-            }
-            else if (this.featuresRtree_) {
-                features = this.featuresRtree_.getAll();
-                if (!obj_js_13.isEmpty(this.nullGeometryFeatures_)) {
-                    array_js_15.extend(features, obj_js_13.getValues(this.nullGeometryFeatures_));
-                }
-            }
-            return (features);
-        }
-        getFeaturesAtCoordinate(coordinate) {
-            const features = [];
-            this.forEachFeatureAtCoordinateDirect(coordinate, function (feature) {
-                features.push(feature);
-            });
-            return features;
-        }
-        getFeaturesInExtent(extent) {
-            if (this.featuresRtree_) {
-                return this.featuresRtree_.getInExtent(extent);
-            }
-            else if (this.featuresCollection_) {
-                return this.featuresCollection_.getArray();
-            }
-            else {
-                return [];
-            }
-        }
-        getClosestFeatureToCoordinate(coordinate, opt_filter) {
-            const x = coordinate[0];
-            const y = coordinate[1];
-            let closestFeature = null;
-            const closestPoint = [NaN, NaN];
-            let minSquaredDistance = Infinity;
-            const extent = [-Infinity, -Infinity, Infinity, Infinity];
-            const filter = opt_filter ? opt_filter : functions_js_8.TRUE;
-            this.featuresRtree_.forEachInExtent(extent, function (feature) {
-                if (filter(feature)) {
-                    const geometry = feature.getGeometry();
-                    const previousMinSquaredDistance = minSquaredDistance;
-                    minSquaredDistance = geometry.closestPointXY(x, y, closestPoint, minSquaredDistance);
-                    if (minSquaredDistance < previousMinSquaredDistance) {
-                        closestFeature = feature;
-                        const minDistance = Math.sqrt(minSquaredDistance);
-                        extent[0] = x - minDistance;
-                        extent[1] = y - minDistance;
-                        extent[2] = x + minDistance;
-                        extent[3] = y + minDistance;
-                    }
-                }
-            });
-            return closestFeature;
-        }
-        getExtent(opt_extent) {
-            return this.featuresRtree_.getExtent(opt_extent);
-        }
-        getFeatureById(id) {
-            const feature = this.idIndex_[id.toString()];
-            return feature !== undefined ? feature : null;
-        }
-        getFeatureByUid(uid) {
-            const feature = this.uidIndex_[uid];
-            return feature !== undefined ? feature : null;
-        }
-        getFormat() {
-            return this.format_;
-        }
-        getOverlaps() {
-            return this.overlaps_;
-        }
-        getUrl() {
-            return this.url_;
-        }
-        handleFeatureChange_(event) {
-            const feature = (event.target);
-            const featureKey = util_js_18.getUid(feature);
-            const geometry = feature.getGeometry();
-            if (!geometry) {
-                if (!(featureKey in this.nullGeometryFeatures_)) {
-                    if (this.featuresRtree_) {
-                        this.featuresRtree_.remove(feature);
-                    }
-                    this.nullGeometryFeatures_[featureKey] = feature;
-                }
-            }
-            else {
-                const extent = geometry.getExtent();
-                if (featureKey in this.nullGeometryFeatures_) {
-                    delete this.nullGeometryFeatures_[featureKey];
-                    if (this.featuresRtree_) {
-                        this.featuresRtree_.insert(extent, feature);
-                    }
-                }
-                else {
-                    if (this.featuresRtree_) {
-                        this.featuresRtree_.update(extent, feature);
-                    }
-                }
-            }
-            const id = feature.getId();
-            if (id !== undefined) {
-                const sid = id.toString();
-                if (this.idIndex_[sid] !== feature) {
-                    this.removeFromIdIndex_(feature);
-                    this.idIndex_[sid] = feature;
-                }
-            }
-            else {
-                this.removeFromIdIndex_(feature);
-                this.uidIndex_[featureKey] = feature;
-            }
-            this.changed();
-            this.dispatchEvent(new VectorSourceEvent(VectorEventType_js_1.default.CHANGEFEATURE, feature));
-        }
-        hasFeature(feature) {
-            const id = feature.getId();
-            if (id !== undefined) {
-                return id in this.idIndex_;
-            }
-            else {
-                return util_js_18.getUid(feature) in this.uidIndex_;
-            }
-        }
-        isEmpty() {
-            return this.featuresRtree_.isEmpty() && obj_js_13.isEmpty(this.nullGeometryFeatures_);
-        }
-        loadFeatures(extent, resolution, projection) {
-            const loadedExtentsRtree = this.loadedExtentsRtree_;
-            const extentsToLoad = this.strategy_(extent, resolution);
-            this.loading = false;
-            for (let i = 0, ii = extentsToLoad.length; i < ii; ++i) {
-                const extentToLoad = extentsToLoad[i];
-                const alreadyLoaded = loadedExtentsRtree.forEachInExtent(extentToLoad, function (object) {
-                    return extent_js_31.containsExtent(object.extent, extentToLoad);
-                });
-                if (!alreadyLoaded) {
-                    this.loader_.call(this, extentToLoad, resolution, projection);
-                    loadedExtentsRtree.insert(extentToLoad, { extent: extentToLoad.slice() });
-                    this.loading = this.loader_ !== functions_js_8.VOID;
-                }
-            }
-        }
-        refresh() {
-            this.clear(true);
-            this.loadedExtentsRtree_.clear();
-            super.refresh();
-        }
-        removeLoadedExtent(extent) {
-            const loadedExtentsRtree = this.loadedExtentsRtree_;
-            let obj;
-            loadedExtentsRtree.forEachInExtent(extent, function (object) {
-                if (extent_js_31.equals(object.extent, extent)) {
-                    obj = object;
-                    return true;
-                }
-            });
-            if (obj) {
-                loadedExtentsRtree.remove(obj);
-            }
-        }
-        removeFeature(feature) {
-            const featureKey = util_js_18.getUid(feature);
-            if (featureKey in this.nullGeometryFeatures_) {
-                delete this.nullGeometryFeatures_[featureKey];
-            }
-            else {
-                if (this.featuresRtree_) {
-                    this.featuresRtree_.remove(feature);
-                }
-            }
-            this.removeFeatureInternal(feature);
-            this.changed();
-        }
-        removeFeatureInternal(feature) {
-            const featureKey = util_js_18.getUid(feature);
-            this.featureChangeKeys_[featureKey].forEach(events_js_11.unlistenByKey);
-            delete this.featureChangeKeys_[featureKey];
-            const id = feature.getId();
-            if (id !== undefined) {
-                delete this.idIndex_[id.toString()];
-            }
-            delete this.uidIndex_[featureKey];
-            this.dispatchEvent(new VectorSourceEvent(VectorEventType_js_1.default.REMOVEFEATURE, feature));
-        }
-        removeFromIdIndex_(feature) {
-            let removed = false;
-            for (const id in this.idIndex_) {
-                if (this.idIndex_[id] === feature) {
-                    delete this.idIndex_[id];
-                    removed = true;
-                    break;
-                }
-            }
-            return removed;
-        }
-        setLoader(loader) {
-            this.loader_ = loader;
-        }
-        setUrl(url) {
-            asserts_js_14.assert(this.format_, 7);
-            this.setLoader(featureloader_js_1.xhr(url, this.format_));
-        }
-    }
-    exports.default = VectorSource;
-});
-define("poc/fun/createWeightedFeature", ["require", "exports", "node_modules/ol/src/extent", "node_modules/ol/src/geom/Point", "node_modules/ol/src/Feature"], function (require, exports, extent_3, Point_1, Feature_1) {
+define("poc/fun/createWeightedFeature", ["require", "exports", "node_modules/ol/src/extent", "node_modules/ol/src/geom/Point", "node_modules/ol/src/Feature"], function (require, exports, extent_2, Point_1, Feature_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.createWeightedFeature = void 0;
@@ -14788,9 +13593,9 @@ define("poc/fun/createWeightedFeature", ["require", "exports", "node_modules/ol/
             featureCountPerQuadrant[1] -
             featureCountPerQuadrant[2] -
             featureCountPerQuadrant[3];
-        const [cx, cy] = extent_3.getCenter(extent);
-        const width = extent_3.getWidth(extent) / 2;
-        const height = extent_3.getHeight(extent) / 2;
+        const [cx, cy] = extent_2.getCenter(extent);
+        const width = extent_2.getWidth(extent) / 2;
+        const height = extent_2.getHeight(extent) / 2;
         const center = new Point_1.default([
             cx + width * (dx / weight),
             cy + height * (dy / weight),
@@ -14803,13 +13608,13 @@ define("poc/fun/createWeightedFeature", ["require", "exports", "node_modules/ol/
     }
     exports.createWeightedFeature = createWeightedFeature;
 });
-define("node_modules/ol/src/renderer/Composite", ["require", "exports", "node_modules/ol/src/renderer/Map", "node_modules/ol/src/ObjectEventType", "node_modules/ol/src/render/Event", "node_modules/ol/src/render/EventType", "node_modules/ol/src/source/State", "node_modules/ol/src/css", "node_modules/ol/src/render/canvas", "node_modules/ol/src/layer/Layer", "node_modules/ol/src/events", "node_modules/ol/src/dom"], function (require, exports, Map_js_1, ObjectEventType_js_5, Event_js_8, EventType_js_20, State_js_6, css_js_3, canvas_js_6, Layer_js_2, events_js_12, dom_js_7) {
+define("node_modules/ol/src/renderer/Composite", ["require", "exports", "node_modules/ol/src/renderer/Map", "node_modules/ol/src/ObjectEventType", "node_modules/ol/src/render/Event", "node_modules/ol/src/render/EventType", "node_modules/ol/src/source/State", "node_modules/ol/src/css", "node_modules/ol/src/render/canvas", "node_modules/ol/src/layer/Layer", "node_modules/ol/src/events", "node_modules/ol/src/dom"], function (require, exports, Map_js_1, ObjectEventType_js_4, Event_js_7, EventType_js_19, State_js_5, css_js_3, canvas_js_6, Layer_js_2, events_js_11, dom_js_7) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     class CompositeMapRenderer extends Map_js_1.default {
         constructor(map) {
             super(map);
-            this.fontChangeListenerKey_ = events_js_12.listen(canvas_js_6.checkedFonts, ObjectEventType_js_5.default.PROPERTYCHANGE, map.redrawText.bind(map));
+            this.fontChangeListenerKey_ = events_js_11.listen(canvas_js_6.checkedFonts, ObjectEventType_js_4.default.PROPERTYCHANGE, map.redrawText.bind(map));
             this.element_ = document.createElement('div');
             const style = this.element_.style;
             style.position = 'absolute';
@@ -14825,12 +13630,12 @@ define("node_modules/ol/src/renderer/Composite", ["require", "exports", "node_mo
         dispatchRenderEvent(type, frameState) {
             const map = this.getMap();
             if (map.hasListener(type)) {
-                const event = new Event_js_8.default(type, undefined, frameState);
+                const event = new Event_js_7.default(type, undefined, frameState);
                 map.dispatchEvent(event);
             }
         }
         disposeInternal() {
-            events_js_12.unlistenByKey(this.fontChangeListenerKey_);
+            events_js_11.unlistenByKey(this.fontChangeListenerKey_);
             this.element_.parentNode.removeChild(this.element_);
             super.disposeInternal();
         }
@@ -14843,7 +13648,7 @@ define("node_modules/ol/src/renderer/Composite", ["require", "exports", "node_mo
                 return;
             }
             this.calculateMatrices2D(frameState);
-            this.dispatchRenderEvent(EventType_js_20.default.PRECOMPOSE, frameState);
+            this.dispatchRenderEvent(EventType_js_19.default.PRECOMPOSE, frameState);
             const layerStatesArray = frameState.layerStatesArray.sort(function (a, b) {
                 return a.zIndex - b.zIndex;
             });
@@ -14854,8 +13659,8 @@ define("node_modules/ol/src/renderer/Composite", ["require", "exports", "node_mo
                 const layerState = layerStatesArray[i];
                 frameState.layerIndex = i;
                 if (!Layer_js_2.inView(layerState, viewState) ||
-                    (layerState.sourceState != State_js_6.default.READY &&
-                        layerState.sourceState != State_js_6.default.UNDEFINED)) {
+                    (layerState.sourceState != State_js_5.default.READY &&
+                        layerState.sourceState != State_js_5.default.UNDEFINED)) {
                     continue;
                 }
                 const layer = layerState.layer;
@@ -14870,7 +13675,7 @@ define("node_modules/ol/src/renderer/Composite", ["require", "exports", "node_mo
             }
             super.renderFrame(frameState);
             dom_js_7.replaceChildren(this.element_, this.children_);
-            this.dispatchRenderEvent(EventType_js_20.default.POSTCOMPOSE, frameState);
+            this.dispatchRenderEvent(EventType_js_19.default.POSTCOMPOSE, frameState);
             if (!this.renderedVisible_) {
                 this.element_.style.display = '';
                 this.renderedVisible_ = true;
@@ -14902,7 +13707,7 @@ define("node_modules/ol/src/renderer/Composite", ["require", "exports", "node_mo
     }
     exports.default = CompositeMapRenderer;
 });
-define("node_modules/ol/src/control/Attribution", ["require", "exports", "node_modules/ol/src/control/Control", "node_modules/ol/src/events/EventType", "node_modules/ol/src/css", "node_modules/ol/src/array", "node_modules/ol/src/layer/Layer", "node_modules/ol/src/dom"], function (require, exports, Control_js_1, EventType_js_21, css_js_4, array_js_16, Layer_js_3, dom_js_8) {
+define("node_modules/ol/src/control/Attribution", ["require", "exports", "node_modules/ol/src/control/Control", "node_modules/ol/src/events/EventType", "node_modules/ol/src/css", "node_modules/ol/src/array", "node_modules/ol/src/layer/Layer", "node_modules/ol/src/dom"], function (require, exports, Control_js_1, EventType_js_20, css_js_4, array_js_15, Layer_js_3, dom_js_8) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     class Attribution extends Control_js_1.default {
@@ -14945,7 +13750,7 @@ define("node_modules/ol/src/control/Attribution", ["require", "exports", "node_m
             button.setAttribute('type', 'button');
             button.title = tipLabel;
             button.appendChild(activeLabel);
-            button.addEventListener(EventType_js_21.default.CLICK, this.handleClick_.bind(this), false);
+            button.addEventListener(EventType_js_20.default.CLICK, this.handleClick_.bind(this), false);
             const cssClasses = className +
                 ' ' +
                 css_js_4.CLASS_UNSELECTABLE +
@@ -15016,7 +13821,7 @@ define("node_modules/ol/src/control/Attribution", ["require", "exports", "node_m
                 this.element.style.display = visible ? '' : 'none';
                 this.renderedVisible_ = visible;
             }
-            if (array_js_16.equals(attributions, this.renderedAttributions_)) {
+            if (array_js_15.equals(attributions, this.renderedAttributions_)) {
                 return;
             }
             dom_js_8.removeChildren(this.ulElement_);
@@ -15069,7 +13874,7 @@ define("node_modules/ol/src/control/Attribution", ["require", "exports", "node_m
     }
     exports.default = Attribution;
 });
-define("node_modules/ol/src/control/Rotate", ["require", "exports", "node_modules/ol/src/control/Control", "node_modules/ol/src/events/EventType", "node_modules/ol/src/css", "node_modules/ol/src/easing"], function (require, exports, Control_js_2, EventType_js_22, css_js_5, easing_js_5) {
+define("node_modules/ol/src/control/Rotate", ["require", "exports", "node_modules/ol/src/control/Control", "node_modules/ol/src/events/EventType", "node_modules/ol/src/css", "node_modules/ol/src/easing"], function (require, exports, Control_js_2, EventType_js_21, css_js_5, easing_js_5) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     class Rotate extends Control_js_2.default {
@@ -15098,7 +13903,7 @@ define("node_modules/ol/src/control/Rotate", ["require", "exports", "node_module
             button.setAttribute('type', 'button');
             button.title = tipLabel;
             button.appendChild(this.label_);
-            button.addEventListener(EventType_js_22.default.CLICK, this.handleClick_.bind(this), false);
+            button.addEventListener(EventType_js_21.default.CLICK, this.handleClick_.bind(this), false);
             const cssClasses = className + ' ' + css_js_5.CLASS_UNSELECTABLE + ' ' + css_js_5.CLASS_CONTROL;
             const element = this.element;
             element.className = cssClasses;
@@ -15164,7 +13969,7 @@ define("node_modules/ol/src/control/Rotate", ["require", "exports", "node_module
     }
     exports.default = Rotate;
 });
-define("node_modules/ol/src/control/Zoom", ["require", "exports", "node_modules/ol/src/control/Control", "node_modules/ol/src/events/EventType", "node_modules/ol/src/css", "node_modules/ol/src/easing"], function (require, exports, Control_js_3, EventType_js_23, css_js_6, easing_js_6) {
+define("node_modules/ol/src/control/Zoom", ["require", "exports", "node_modules/ol/src/control/Control", "node_modules/ol/src/events/EventType", "node_modules/ol/src/css", "node_modules/ol/src/easing"], function (require, exports, Control_js_3, EventType_js_22, css_js_6, easing_js_6) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     class Zoom extends Control_js_3.default {
@@ -15189,7 +13994,7 @@ define("node_modules/ol/src/control/Zoom", ["require", "exports", "node_modules/
             inElement.appendChild(typeof zoomInLabel === 'string'
                 ? document.createTextNode(zoomInLabel)
                 : zoomInLabel);
-            inElement.addEventListener(EventType_js_23.default.CLICK, this.handleClick_.bind(this, delta), false);
+            inElement.addEventListener(EventType_js_22.default.CLICK, this.handleClick_.bind(this, delta), false);
             const outElement = document.createElement('button');
             outElement.className = className + '-out';
             outElement.setAttribute('type', 'button');
@@ -15197,7 +14002,7 @@ define("node_modules/ol/src/control/Zoom", ["require", "exports", "node_modules/
             outElement.appendChild(typeof zoomOutLabel === 'string'
                 ? document.createTextNode(zoomOutLabel)
                 : zoomOutLabel);
-            outElement.addEventListener(EventType_js_23.default.CLICK, this.handleClick_.bind(this, -delta), false);
+            outElement.addEventListener(EventType_js_22.default.CLICK, this.handleClick_.bind(this, -delta), false);
             const cssClasses = className + ' ' + css_js_6.CLASS_UNSELECTABLE + ' ' + css_js_6.CLASS_CONTROL;
             const element = this.element;
             element.className = cssClasses;
@@ -15236,7 +14041,7 @@ define("node_modules/ol/src/control/Zoom", ["require", "exports", "node_modules/
     }
     exports.default = Zoom;
 });
-define("node_modules/ol/src/control/FullScreen", ["require", "exports", "node_modules/ol/src/control/Control", "node_modules/ol/src/events/EventType", "node_modules/ol/src/css", "node_modules/ol/src/events", "node_modules/ol/src/dom"], function (require, exports, Control_js_4, EventType_js_24, css_js_7, events_js_13, dom_js_9) {
+define("node_modules/ol/src/control/FullScreen", ["require", "exports", "node_modules/ol/src/control/Control", "node_modules/ol/src/events/EventType", "node_modules/ol/src/css", "node_modules/ol/src/events", "node_modules/ol/src/dom"], function (require, exports, Control_js_4, EventType_js_23, css_js_7, events_js_12, dom_js_9) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     const events = [
@@ -15271,7 +14076,7 @@ define("node_modules/ol/src/control/FullScreen", ["require", "exports", "node_mo
             this.button_.setAttribute('type', 'button');
             this.button_.title = tipLabel;
             this.button_.appendChild(this.labelNode_);
-            this.button_.addEventListener(EventType_js_24.default.CLICK, this.handleClick_.bind(this), false);
+            this.button_.addEventListener(EventType_js_23.default.CLICK, this.handleClick_.bind(this), false);
             const cssClasses = this.cssClassName_ +
                 ' ' +
                 css_js_7.CLASS_UNSELECTABLE +
@@ -15347,7 +14152,7 @@ define("node_modules/ol/src/control/FullScreen", ["require", "exports", "node_mo
             super.setMap(map);
             if (map) {
                 for (let i = 0, ii = events.length; i < ii; ++i) {
-                    this.listenerKeys.push(events_js_13.listen(document, events[i], this.handleFullScreenChange_, this));
+                    this.listenerKeys.push(events_js_12.listen(document, events[i], this.handleFullScreenChange_, this));
                 }
             }
         }
@@ -15395,7 +14200,7 @@ define("node_modules/ol/src/control/FullScreen", ["require", "exports", "node_mo
     }
     exports.default = FullScreen;
 });
-define("node_modules/ol/src/control/MousePosition", ["require", "exports", "node_modules/ol/src/control/Control", "node_modules/ol/src/pointer/EventType", "node_modules/ol/src/Object", "node_modules/ol/src/proj", "node_modules/ol/src/events"], function (require, exports, Control_js_5, EventType_js_25, Object_js_14, proj_js_10, events_js_14) {
+define("node_modules/ol/src/control/MousePosition", ["require", "exports", "node_modules/ol/src/control/Control", "node_modules/ol/src/pointer/EventType", "node_modules/ol/src/Object", "node_modules/ol/src/proj", "node_modules/ol/src/events"], function (require, exports, Control_js_5, EventType_js_24, Object_js_14, proj_js_9, events_js_13) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     const PROJECTION = 'projection';
@@ -15445,9 +14250,9 @@ define("node_modules/ol/src/control/MousePosition", ["require", "exports", "node
             super.setMap(map);
             if (map) {
                 const viewport = map.getViewport();
-                this.listenerKeys.push(events_js_14.listen(viewport, EventType_js_25.default.POINTERMOVE, this.handleMouseMove, this));
+                this.listenerKeys.push(events_js_13.listen(viewport, EventType_js_24.default.POINTERMOVE, this.handleMouseMove, this));
                 if (this.renderOnMouseOut_) {
-                    this.listenerKeys.push(events_js_14.listen(viewport, EventType_js_25.default.POINTEROUT, this.handleMouseOut, this));
+                    this.listenerKeys.push(events_js_13.listen(viewport, EventType_js_24.default.POINTEROUT, this.handleMouseOut, this));
                 }
             }
         }
@@ -15455,7 +14260,7 @@ define("node_modules/ol/src/control/MousePosition", ["require", "exports", "node
             this.set(COORDINATE_FORMAT, format);
         }
         setProjection(projection) {
-            this.set(PROJECTION, proj_js_10.get(projection));
+            this.set(PROJECTION, proj_js_9.get(projection));
         }
         updateHTML_(pixel) {
             let html = this.undefinedHTML_;
@@ -15463,18 +14268,18 @@ define("node_modules/ol/src/control/MousePosition", ["require", "exports", "node
                 if (!this.transform_) {
                     const projection = this.getProjection();
                     if (projection) {
-                        this.transform_ = proj_js_10.getTransformFromProjections(this.mapProjection_, projection);
+                        this.transform_ = proj_js_9.getTransformFromProjections(this.mapProjection_, projection);
                     }
                     else {
-                        this.transform_ = proj_js_10.identityTransform;
+                        this.transform_ = proj_js_9.identityTransform;
                     }
                 }
                 const map = this.getMap();
                 const coordinate = map.getCoordinateFromPixelInternal(pixel);
                 if (coordinate) {
-                    const userProjection = proj_js_10.getUserProjection();
+                    const userProjection = proj_js_9.getUserProjection();
                     if (userProjection) {
-                        this.transform_ = proj_js_10.getTransformFromProjections(this.mapProjection_, userProjection);
+                        this.transform_ = proj_js_9.getTransformFromProjections(this.mapProjection_, userProjection);
                     }
                     this.transform_(coordinate, coordinate);
                     const coordinateFormat = this.getCoordinateFormat();
@@ -15506,7 +14311,7 @@ define("node_modules/ol/src/control/MousePosition", ["require", "exports", "node
     }
     exports.default = MousePosition;
 });
-define("node_modules/ol/src/control/OverviewMap", ["require", "exports", "node_modules/ol/src/renderer/Composite", "node_modules/ol/src/control/Control", "node_modules/ol/src/events/EventType", "node_modules/ol/src/MapEventType", "node_modules/ol/src/MapProperty", "node_modules/ol/src/ObjectEventType", "node_modules/ol/src/Overlay", "node_modules/ol/src/OverlayPositioning", "node_modules/ol/src/PluggableMap", "node_modules/ol/src/View", "node_modules/ol/src/ViewProperty", "node_modules/ol/src/css", "node_modules/ol/src/extent", "node_modules/ol/src/Object", "node_modules/ol/src/events", "node_modules/ol/src/geom/Polygon", "node_modules/ol/src/dom"], function (require, exports, Composite_js_1, Control_js_6, EventType_js_26, MapEventType_js_4, MapProperty_js_2, ObjectEventType_js_6, Overlay_js_1, OverlayPositioning_js_2, PluggableMap_js_1, View_js_2, ViewProperty_js_2, css_js_8, extent_js_32, Object_js_15, events_js_15, Polygon_js_3, dom_js_10) {
+define("node_modules/ol/src/control/OverviewMap", ["require", "exports", "node_modules/ol/src/renderer/Composite", "node_modules/ol/src/control/Control", "node_modules/ol/src/events/EventType", "node_modules/ol/src/MapEventType", "node_modules/ol/src/MapProperty", "node_modules/ol/src/ObjectEventType", "node_modules/ol/src/Overlay", "node_modules/ol/src/OverlayPositioning", "node_modules/ol/src/PluggableMap", "node_modules/ol/src/View", "node_modules/ol/src/ViewProperty", "node_modules/ol/src/css", "node_modules/ol/src/extent", "node_modules/ol/src/Object", "node_modules/ol/src/events", "node_modules/ol/src/geom/Polygon", "node_modules/ol/src/dom"], function (require, exports, Composite_js_1, Control_js_6, EventType_js_25, MapEventType_js_4, MapProperty_js_2, ObjectEventType_js_5, Overlay_js_1, OverlayPositioning_js_2, PluggableMap_js_1, View_js_2, ViewProperty_js_2, css_js_8, extent_js_30, Object_js_15, events_js_14, Polygon_js_3, dom_js_10) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     const MAX_RATIO = 0.75;
@@ -15558,7 +14363,7 @@ define("node_modules/ol/src/control/OverviewMap", ["require", "exports", "node_m
             button.setAttribute('type', 'button');
             button.title = tipLabel;
             button.appendChild(activeLabel);
-            button.addEventListener(EventType_js_26.default.CLICK, this.handleClick_.bind(this), false);
+            button.addEventListener(EventType_js_25.default.CLICK, this.handleClick_.bind(this), false);
             this.ovmapDiv_ = document.createElement('div');
             this.ovmapDiv_.className = 'ol-overviewmap-map';
             this.view_ = options.view;
@@ -15631,7 +14436,7 @@ define("node_modules/ol/src/control/OverviewMap", ["require", "exports", "node_m
             super.setMap(map);
             if (map) {
                 this.ovmap_.setTarget(this.ovmapDiv_);
-                this.listenerKeys.push(events_js_15.listen(map, ObjectEventType_js_6.default.PROPERTYCHANGE, this.handleMapPropertyChange_, this));
+                this.listenerKeys.push(events_js_14.listen(map, ObjectEventType_js_5.default.PROPERTYCHANGE, this.handleMapPropertyChange_, this));
                 const view = map.getView();
                 if (view) {
                     this.bindView_(view);
@@ -15679,15 +14484,15 @@ define("node_modules/ol/src/control/OverviewMap", ["require", "exports", "node_m
             const mapSize = (map.getSize());
             const view = map.getView();
             const extent = view.calculateExtentInternal(mapSize);
-            if (this.viewExtent_ && extent_js_32.equals(extent, this.viewExtent_)) {
+            if (this.viewExtent_ && extent_js_30.equals(extent, this.viewExtent_)) {
                 return;
             }
             this.viewExtent_ = extent;
             const ovmapSize = (ovmap.getSize());
             const ovview = ovmap.getView();
             const ovextent = ovview.calculateExtentInternal(ovmapSize);
-            const topLeftPixel = ovmap.getPixelFromCoordinateInternal(extent_js_32.getTopLeft(extent));
-            const bottomRightPixel = ovmap.getPixelFromCoordinateInternal(extent_js_32.getBottomRight(extent));
+            const topLeftPixel = ovmap.getPixelFromCoordinateInternal(extent_js_30.getTopLeft(extent));
+            const bottomRightPixel = ovmap.getPixelFromCoordinateInternal(extent_js_30.getBottomRight(extent));
             const boxWidth = Math.abs(topLeftPixel[0] - bottomRightPixel[0]);
             const boxHeight = Math.abs(topLeftPixel[1] - bottomRightPixel[1]);
             const ovmapWidth = ovmapSize[0];
@@ -15698,7 +14503,7 @@ define("node_modules/ol/src/control/OverviewMap", ["require", "exports", "node_m
                 boxHeight > ovmapHeight * MAX_RATIO) {
                 this.resetExtent_();
             }
-            else if (!extent_js_32.containsExtent(ovextent, extent)) {
+            else if (!extent_js_30.containsExtent(ovextent, extent)) {
                 this.recenter_();
             }
         }
@@ -15714,7 +14519,7 @@ define("node_modules/ol/src/control/OverviewMap", ["require", "exports", "node_m
             const ovview = ovmap.getView();
             const steps = Math.log(MAX_RATIO / MIN_RATIO) / Math.LN2;
             const ratio = 1 / (Math.pow(2, steps / 2) * MIN_RATIO);
-            extent_js_32.scaleFromCenter(extent, ratio);
+            extent_js_30.scaleFromCenter(extent, ratio);
             ovview.fitInternal(Polygon_js_3.fromExtent(extent));
         }
         recenter_() {
@@ -15771,7 +14576,7 @@ define("node_modules/ol/src/control/OverviewMap", ["require", "exports", "node_m
                 }
                 ovmap.updateSize();
                 this.resetExtent_();
-                events_js_15.listenOnce(ovmap, MapEventType_js_4.default.POSTRENDER, function (event) {
+                events_js_14.listenOnce(ovmap, MapEventType_js_4.default.POSTRENDER, function (event) {
                     this.updateBox_();
                 }, this);
             }
@@ -15828,7 +14633,7 @@ define("node_modules/ol/src/control/OverviewMap", ["require", "exports", "node_m
     }
     exports.default = OverviewMap;
 });
-define("node_modules/ol/src/control/ScaleLine", ["require", "exports", "node_modules/ol/src/control/Control", "node_modules/ol/src/proj/Units", "node_modules/ol/src/css", "node_modules/ol/src/proj", "node_modules/ol/src/asserts", "node_modules/ol/src/Object"], function (require, exports, Control_js_7, Units_js_9, css_js_9, proj_js_11, asserts_js_15, Object_js_16) {
+define("node_modules/ol/src/control/ScaleLine", ["require", "exports", "node_modules/ol/src/control/Control", "node_modules/ol/src/proj/Units", "node_modules/ol/src/css", "node_modules/ol/src/proj", "node_modules/ol/src/asserts", "node_modules/ol/src/Object"], function (require, exports, Control_js_7, Units_js_8, css_js_9, proj_js_10, asserts_js_14, Object_js_16) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.Units = void 0;
@@ -15895,13 +14700,13 @@ define("node_modules/ol/src/control/ScaleLine", ["require", "exports", "node_mod
             const center = viewState.center;
             const projection = viewState.projection;
             const units = this.getUnits();
-            const pointResolutionUnits = units == exports.Units.DEGREES ? Units_js_9.default.DEGREES : Units_js_9.default.METERS;
-            let pointResolution = proj_js_11.getPointResolution(projection, viewState.resolution, center, pointResolutionUnits);
+            const pointResolutionUnits = units == exports.Units.DEGREES ? Units_js_8.default.DEGREES : Units_js_8.default.METERS;
+            let pointResolution = proj_js_10.getPointResolution(projection, viewState.resolution, center, pointResolutionUnits);
             const minWidth = (this.minWidth_ * (this.dpi_ || DEFAULT_DPI)) / DEFAULT_DPI;
             let nominalCount = minWidth * pointResolution;
             let suffix = '';
             if (units == exports.Units.DEGREES) {
-                const metersPerDegree = proj_js_11.METERS_PER_UNIT[Units_js_9.default.DEGREES];
+                const metersPerDegree = proj_js_10.METERS_PER_UNIT[Units_js_8.default.DEGREES];
                 nominalCount *= metersPerDegree;
                 if (nominalCount < metersPerDegree / 60) {
                     suffix = '\u2033';
@@ -15965,7 +14770,7 @@ define("node_modules/ol/src/control/ScaleLine", ["require", "exports", "node_mod
                 }
             }
             else {
-                asserts_js_15.assert(false, 33);
+                asserts_js_14.assert(false, 33);
             }
             let i = 3 * Math.floor(Math.log(minWidth * pointResolution) / Math.log(10));
             let count, width, decimalCount;
@@ -16100,7 +14905,7 @@ define("node_modules/ol/src/control/ScaleLine", ["require", "exports", "node_mod
                 '</div>');
         }
         getScaleForResolution() {
-            const resolution = proj_js_11.getPointResolution(this.viewState_.projection, this.viewState_.resolution, this.viewState_.center);
+            const resolution = proj_js_10.getPointResolution(this.viewState_.projection, this.viewState_.resolution, this.viewState_.center);
             const dpi = this.dpi_ || DEFAULT_DPI;
             const mpu = this.viewState_.projection.getMetersPerUnit();
             const inchesPerMeter = 39.37;
@@ -16119,7 +14924,7 @@ define("node_modules/ol/src/control/ScaleLine", ["require", "exports", "node_mod
     }
     exports.default = ScaleLine;
 });
-define("node_modules/ol/src/control/ZoomSlider", ["require", "exports", "node_modules/ol/src/control/Control", "node_modules/ol/src/events/EventType", "node_modules/ol/src/pointer/EventType", "node_modules/ol/src/css", "node_modules/ol/src/math", "node_modules/ol/src/easing", "node_modules/ol/src/events", "node_modules/ol/src/events/Event"], function (require, exports, Control_js_8, EventType_js_27, EventType_js_28, css_js_10, math_js_18, easing_js_7, events_js_16, Event_js_9) {
+define("node_modules/ol/src/control/ZoomSlider", ["require", "exports", "node_modules/ol/src/control/Control", "node_modules/ol/src/events/EventType", "node_modules/ol/src/pointer/EventType", "node_modules/ol/src/css", "node_modules/ol/src/math", "node_modules/ol/src/easing", "node_modules/ol/src/events", "node_modules/ol/src/events/Event"], function (require, exports, Control_js_8, EventType_js_26, EventType_js_27, css_js_10, math_js_18, easing_js_7, events_js_15, Event_js_8) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     const Direction = {
@@ -16152,11 +14957,11 @@ define("node_modules/ol/src/control/ZoomSlider", ["require", "exports", "node_mo
             containerElement.className =
                 className + ' ' + css_js_10.CLASS_UNSELECTABLE + ' ' + css_js_10.CLASS_CONTROL;
             containerElement.appendChild(thumbElement);
-            containerElement.addEventListener(EventType_js_28.default.POINTERDOWN, this.handleDraggerStart_.bind(this), false);
-            containerElement.addEventListener(EventType_js_28.default.POINTERMOVE, this.handleDraggerDrag_.bind(this), false);
-            containerElement.addEventListener(EventType_js_28.default.POINTERUP, this.handleDraggerEnd_.bind(this), false);
-            containerElement.addEventListener(EventType_js_27.default.CLICK, this.handleContainerClick_.bind(this), false);
-            thumbElement.addEventListener(EventType_js_27.default.CLICK, Event_js_9.stopPropagation, false);
+            containerElement.addEventListener(EventType_js_27.default.POINTERDOWN, this.handleDraggerStart_.bind(this), false);
+            containerElement.addEventListener(EventType_js_27.default.POINTERMOVE, this.handleDraggerDrag_.bind(this), false);
+            containerElement.addEventListener(EventType_js_27.default.POINTERUP, this.handleDraggerEnd_.bind(this), false);
+            containerElement.addEventListener(EventType_js_26.default.CLICK, this.handleContainerClick_.bind(this), false);
+            thumbElement.addEventListener(EventType_js_26.default.CLICK, Event_js_8.stopPropagation, false);
         }
         setMap(map) {
             super.setMap(map);
@@ -16212,7 +15017,7 @@ define("node_modules/ol/src/control/ZoomSlider", ["require", "exports", "node_mo
                 if (this.dragListenerKeys_.length === 0) {
                     const drag = this.handleDraggerDrag_;
                     const end = this.handleDraggerEnd_;
-                    this.dragListenerKeys_.push(events_js_16.listen(document, EventType_js_28.default.POINTERMOVE, drag, this), events_js_16.listen(document, EventType_js_28.default.POINTERUP, end, this));
+                    this.dragListenerKeys_.push(events_js_15.listen(document, EventType_js_27.default.POINTERMOVE, drag, this), events_js_15.listen(document, EventType_js_27.default.POINTERUP, end, this));
                 }
             }
         }
@@ -16232,7 +15037,7 @@ define("node_modules/ol/src/control/ZoomSlider", ["require", "exports", "node_mo
                 this.dragging_ = false;
                 this.startX_ = undefined;
                 this.startY_ = undefined;
-                this.dragListenerKeys_.forEach(events_js_16.unlistenByKey);
+                this.dragListenerKeys_.forEach(events_js_15.unlistenByKey);
                 this.dragListenerKeys_.length = 0;
             }
         }
@@ -16278,7 +15083,7 @@ define("node_modules/ol/src/control/ZoomSlider", ["require", "exports", "node_mo
     }
     exports.default = ZoomSlider;
 });
-define("node_modules/ol/src/control/ZoomToExtent", ["require", "exports", "node_modules/ol/src/control/Control", "node_modules/ol/src/events/EventType", "node_modules/ol/src/css", "node_modules/ol/src/geom/Polygon"], function (require, exports, Control_js_9, EventType_js_29, css_js_11, Polygon_js_4) {
+define("node_modules/ol/src/control/ZoomToExtent", ["require", "exports", "node_modules/ol/src/control/Control", "node_modules/ol/src/events/EventType", "node_modules/ol/src/css", "node_modules/ol/src/geom/Polygon"], function (require, exports, Control_js_9, EventType_js_28, css_js_11, Polygon_js_4) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     class ZoomToExtent extends Control_js_9.default {
@@ -16296,7 +15101,7 @@ define("node_modules/ol/src/control/ZoomToExtent", ["require", "exports", "node_
             button.setAttribute('type', 'button');
             button.title = tipLabel;
             button.appendChild(typeof label === 'string' ? document.createTextNode(label) : label);
-            button.addEventListener(EventType_js_29.default.CLICK, this.handleClick_.bind(this), false);
+            button.addEventListener(EventType_js_28.default.CLICK, this.handleClick_.bind(this), false);
             const cssClasses = className + ' ' + css_js_11.CLASS_UNSELECTABLE + ' ' + css_js_11.CLASS_CONTROL;
             const element = this.element;
             element.className = cssClasses;
@@ -16317,7 +15122,7 @@ define("node_modules/ol/src/control/ZoomToExtent", ["require", "exports", "node_
     }
     exports.default = ZoomToExtent;
 });
-define("node_modules/ol/src/control", ["require", "exports", "node_modules/ol/src/control/Attribution", "node_modules/ol/src/Collection", "node_modules/ol/src/control/Rotate", "node_modules/ol/src/control/Zoom", "node_modules/ol/src/control/Attribution", "node_modules/ol/src/control/Control", "node_modules/ol/src/control/FullScreen", "node_modules/ol/src/control/MousePosition", "node_modules/ol/src/control/OverviewMap", "node_modules/ol/src/control/Rotate", "node_modules/ol/src/control/ScaleLine", "node_modules/ol/src/control/Zoom", "node_modules/ol/src/control/ZoomSlider", "node_modules/ol/src/control/ZoomToExtent"], function (require, exports, Attribution_js_1, Collection_js_4, Rotate_js_1, Zoom_js_1, Attribution_js_2, Control_js_10, FullScreen_js_1, MousePosition_js_1, OverviewMap_js_1, Rotate_js_2, ScaleLine_js_1, Zoom_js_2, ZoomSlider_js_1, ZoomToExtent_js_1) {
+define("node_modules/ol/src/control", ["require", "exports", "node_modules/ol/src/control/Attribution", "node_modules/ol/src/Collection", "node_modules/ol/src/control/Rotate", "node_modules/ol/src/control/Zoom", "node_modules/ol/src/control/Attribution", "node_modules/ol/src/control/Control", "node_modules/ol/src/control/FullScreen", "node_modules/ol/src/control/MousePosition", "node_modules/ol/src/control/OverviewMap", "node_modules/ol/src/control/Rotate", "node_modules/ol/src/control/ScaleLine", "node_modules/ol/src/control/Zoom", "node_modules/ol/src/control/ZoomSlider", "node_modules/ol/src/control/ZoomToExtent"], function (require, exports, Attribution_js_1, Collection_js_3, Rotate_js_1, Zoom_js_1, Attribution_js_2, Control_js_10, FullScreen_js_1, MousePosition_js_1, OverviewMap_js_1, Rotate_js_2, ScaleLine_js_1, Zoom_js_2, ZoomSlider_js_1, ZoomToExtent_js_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.defaults = exports.ZoomToExtent = exports.ZoomSlider = exports.Zoom = exports.ScaleLine = exports.Rotate = exports.OverviewMap = exports.MousePosition = exports.FullScreen = exports.Control = exports.Attribution = void 0;
@@ -16333,7 +15138,7 @@ define("node_modules/ol/src/control", ["require", "exports", "node_modules/ol/sr
     Object.defineProperty(exports, "ZoomToExtent", { enumerable: true, get: function () { return ZoomToExtent_js_1.default; } });
     function defaults(opt_options) {
         const options = opt_options ? opt_options : {};
-        const controls = new Collection_js_4.default();
+        const controls = new Collection_js_3.default();
         const zoomControl = options.zoom !== undefined ? options.zoom : true;
         if (zoomControl) {
             controls.push(new Zoom_js_1.default(options.zoomOptions));
@@ -16377,7 +15182,7 @@ define("node_modules/ol/src/interaction/DoubleClickZoom", ["require", "exports",
     }
     exports.default = DoubleClickZoom;
 });
-define("node_modules/ol/src/interaction/Pointer", ["require", "exports", "node_modules/ol/src/interaction/Interaction", "node_modules/ol/src/MapBrowserEventType", "node_modules/ol/src/obj"], function (require, exports, Interaction_js_2, MapBrowserEventType_js_4, obj_js_14) {
+define("node_modules/ol/src/interaction/Pointer", ["require", "exports", "node_modules/ol/src/interaction/Interaction", "node_modules/ol/src/MapBrowserEventType", "node_modules/ol/src/obj"], function (require, exports, Interaction_js_2, MapBrowserEventType_js_4, obj_js_11) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.centroid = void 0;
@@ -16460,7 +15265,7 @@ define("node_modules/ol/src/interaction/Pointer", ["require", "exports", "node_m
                 else if (id in this.trackedPointers_) {
                     this.trackedPointers_[id] = event;
                 }
-                this.targetPointers = obj_js_14.getValues(this.trackedPointers_);
+                this.targetPointers = obj_js_11.getValues(this.trackedPointers_);
             }
         }
     }
@@ -16483,7 +15288,7 @@ define("node_modules/ol/src/interaction/Pointer", ["require", "exports", "node_m
     }
     exports.default = PointerInteraction;
 });
-define("node_modules/ol/src/events/condition", ["require", "exports", "node_modules/ol/src/MapBrowserEventType", "node_modules/ol/src/functions", "node_modules/ol/src/has", "node_modules/ol/src/asserts"], function (require, exports, MapBrowserEventType_js_5, functions_js_9, has_js_7, asserts_js_16) {
+define("node_modules/ol/src/events/condition", ["require", "exports", "node_modules/ol/src/MapBrowserEventType", "node_modules/ol/src/functions", "node_modules/ol/src/has", "node_modules/ol/src/asserts"], function (require, exports, MapBrowserEventType_js_5, functions_js_7, has_js_7, asserts_js_15) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.primaryAction = exports.penOnly = exports.touchOnly = exports.mouseOnly = exports.targetNotEditable = exports.shiftKeyOnly = exports.platformModifierKeyOnly = exports.noModifierKeys = exports.doubleClick = exports.singleClick = exports.pointerMove = exports.never = exports.mouseActionButton = exports.click = exports.always = exports.focusWithTabindex = exports.focus = exports.altShiftKeysOnly = exports.altKeyOnly = exports.all = void 0;
@@ -16521,7 +15326,7 @@ define("node_modules/ol/src/events/condition", ["require", "exports", "node_modu
             ? exports.focus(event)
             : true;
     };
-    exports.always = functions_js_9.TRUE;
+    exports.always = functions_js_7.TRUE;
     exports.click = function (mapBrowserEvent) {
         return mapBrowserEvent.type == MapBrowserEventType_js_5.default.CLICK;
     };
@@ -16529,7 +15334,7 @@ define("node_modules/ol/src/events/condition", ["require", "exports", "node_modu
         const originalEvent = (mapBrowserEvent.originalEvent);
         return originalEvent.button == 0 && !(has_js_7.WEBKIT && has_js_7.MAC && originalEvent.ctrlKey);
     };
-    exports.never = functions_js_9.FALSE;
+    exports.never = functions_js_7.FALSE;
     exports.pointerMove = function (mapBrowserEvent) {
         return mapBrowserEvent.type == 'pointermove';
     };
@@ -16565,25 +15370,25 @@ define("node_modules/ol/src/events/condition", ["require", "exports", "node_modu
     exports.mouseOnly = function (mapBrowserEvent) {
         const pointerEvent = (mapBrowserEvent)
             .originalEvent;
-        asserts_js_16.assert(pointerEvent !== undefined, 56);
+        asserts_js_15.assert(pointerEvent !== undefined, 56);
         return pointerEvent.pointerType == 'mouse';
     };
     exports.touchOnly = function (mapBrowserEvent) {
         const pointerEvt = (mapBrowserEvent)
             .originalEvent;
-        asserts_js_16.assert(pointerEvt !== undefined, 56);
+        asserts_js_15.assert(pointerEvt !== undefined, 56);
         return pointerEvt.pointerType === 'touch';
     };
     exports.penOnly = function (mapBrowserEvent) {
         const pointerEvt = (mapBrowserEvent)
             .originalEvent;
-        asserts_js_16.assert(pointerEvt !== undefined, 56);
+        asserts_js_15.assert(pointerEvt !== undefined, 56);
         return pointerEvt.pointerType === 'pen';
     };
     exports.primaryAction = function (mapBrowserEvent) {
         const pointerEvent = (mapBrowserEvent)
             .originalEvent;
-        asserts_js_16.assert(pointerEvent !== undefined, 56);
+        asserts_js_15.assert(pointerEvent !== undefined, 56);
         return pointerEvent.isPrimary && pointerEvent.button === 0;
     };
 });
@@ -16639,13 +15444,13 @@ define("node_modules/ol/src/Kinetic", ["require", "exports"], function (require,
     }
     exports.default = Kinetic;
 });
-define("node_modules/ol/src/interaction/DragPan", ["require", "exports", "node_modules/ol/src/interaction/Pointer", "node_modules/ol/src/functions", "node_modules/ol/src/events/condition", "node_modules/ol/src/easing", "node_modules/ol/src/coordinate"], function (require, exports, Pointer_js_1, functions_js_10, condition_js_1, easing_js_8, coordinate_js_5) {
+define("node_modules/ol/src/interaction/DragPan", ["require", "exports", "node_modules/ol/src/interaction/Pointer", "node_modules/ol/src/functions", "node_modules/ol/src/events/condition", "node_modules/ol/src/easing", "node_modules/ol/src/coordinate"], function (require, exports, Pointer_js_1, functions_js_8, condition_js_1, easing_js_8, coordinate_js_5) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     class DragPan extends Pointer_js_1.default {
         constructor(opt_options) {
             super({
-                stopDown: functions_js_10.FALSE,
+                stopDown: functions_js_8.FALSE,
             });
             const options = opt_options ? opt_options : {};
             this.kinetic_ = options.kinetic;
@@ -16744,14 +15549,14 @@ define("node_modules/ol/src/interaction/DragPan", ["require", "exports", "node_m
     }
     exports.default = DragPan;
 });
-define("node_modules/ol/src/interaction/DragRotate", ["require", "exports", "node_modules/ol/src/interaction/Pointer", "node_modules/ol/src/functions", "node_modules/ol/src/events/condition", "node_modules/ol/src/rotationconstraint"], function (require, exports, Pointer_js_2, functions_js_11, condition_js_2, rotationconstraint_js_2) {
+define("node_modules/ol/src/interaction/DragRotate", ["require", "exports", "node_modules/ol/src/interaction/Pointer", "node_modules/ol/src/functions", "node_modules/ol/src/events/condition", "node_modules/ol/src/rotationconstraint"], function (require, exports, Pointer_js_2, functions_js_9, condition_js_2, rotationconstraint_js_2) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     class DragRotate extends Pointer_js_2.default {
         constructor(opt_options) {
             const options = opt_options ? opt_options : {};
             super({
-                stopDown: functions_js_11.FALSE,
+                stopDown: functions_js_9.FALSE,
             });
             this.condition_ = options.condition ? options.condition : condition_js_2.altShiftKeysOnly;
             this.lastAngle_ = undefined;
@@ -16874,7 +15679,7 @@ define("node_modules/ol/src/render/Box", ["require", "exports", "node_modules/ol
     }
     exports.default = RenderBox;
 });
-define("node_modules/ol/src/interaction/DragBox", ["require", "exports", "node_modules/ol/src/events/Event", "node_modules/ol/src/interaction/Pointer", "node_modules/ol/src/render/Box", "node_modules/ol/src/events/condition"], function (require, exports, Event_js_10, Pointer_js_3, Box_js_1, condition_js_3) {
+define("node_modules/ol/src/interaction/DragBox", ["require", "exports", "node_modules/ol/src/events/Event", "node_modules/ol/src/interaction/Pointer", "node_modules/ol/src/render/Box", "node_modules/ol/src/events/condition"], function (require, exports, Event_js_9, Pointer_js_3, Box_js_1, condition_js_3) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     const DragBoxEventType = {
@@ -16882,7 +15687,7 @@ define("node_modules/ol/src/interaction/DragBox", ["require", "exports", "node_m
         BOXDRAG: 'boxdrag',
         BOXEND: 'boxend',
     };
-    class DragBoxEvent extends Event_js_10.default {
+    class DragBoxEvent extends Event_js_9.default {
         constructor(type, coordinate, mapBrowserEvent) {
             super(type);
             this.coordinate = coordinate;
@@ -16940,7 +15745,7 @@ define("node_modules/ol/src/interaction/DragBox", ["require", "exports", "node_m
     }
     exports.default = DragBox;
 });
-define("node_modules/ol/src/interaction/DragZoom", ["require", "exports", "node_modules/ol/src/interaction/DragBox", "node_modules/ol/src/extent", "node_modules/ol/src/easing", "node_modules/ol/src/events/condition"], function (require, exports, DragBox_js_1, extent_js_33, easing_js_9, condition_js_4) {
+define("node_modules/ol/src/interaction/DragZoom", ["require", "exports", "node_modules/ol/src/interaction/DragBox", "node_modules/ol/src/extent", "node_modules/ol/src/easing", "node_modules/ol/src/events/condition"], function (require, exports, DragBox_js_1, extent_js_31, easing_js_9, condition_js_4) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     class DragZoom extends DragBox_js_1.default {
@@ -16962,16 +15767,16 @@ define("node_modules/ol/src/interaction/DragZoom", ["require", "exports", "node_
             let extent = this.getGeometry().getExtent();
             if (this.out_) {
                 const mapExtent = view.calculateExtentInternal(size);
-                const boxPixelExtent = extent_js_33.createOrUpdateFromCoordinates([
-                    map.getPixelFromCoordinateInternal(extent_js_33.getBottomLeft(extent)),
-                    map.getPixelFromCoordinateInternal(extent_js_33.getTopRight(extent)),
+                const boxPixelExtent = extent_js_31.createOrUpdateFromCoordinates([
+                    map.getPixelFromCoordinateInternal(extent_js_31.getBottomLeft(extent)),
+                    map.getPixelFromCoordinateInternal(extent_js_31.getTopRight(extent)),
                 ]);
                 const factor = view.getResolutionForExtentInternal(boxPixelExtent, size);
-                extent_js_33.scaleFromCenter(mapExtent, 1 / factor);
+                extent_js_31.scaleFromCenter(mapExtent, 1 / factor);
                 extent = mapExtent;
             }
             const resolution = view.getConstrainedResolution(view.getResolutionForExtentInternal(extent, size));
-            const center = view.getConstrainedCenter(extent_js_33.getCenter(extent), resolution);
+            const center = view.getConstrainedCenter(extent_js_31.getCenter(extent), resolution);
             view.animateInternal({
                 resolution: resolution,
                 center: center,
@@ -16992,7 +15797,7 @@ define("node_modules/ol/src/events/KeyCode", ["require", "exports"], function (r
         DOWN: 40,
     };
 });
-define("node_modules/ol/src/interaction/KeyboardPan", ["require", "exports", "node_modules/ol/src/events/EventType", "node_modules/ol/src/interaction/Interaction", "node_modules/ol/src/events/KeyCode", "node_modules/ol/src/events/condition", "node_modules/ol/src/coordinate"], function (require, exports, EventType_js_30, Interaction_js_3, KeyCode_js_1, condition_js_5, coordinate_js_6) {
+define("node_modules/ol/src/interaction/KeyboardPan", ["require", "exports", "node_modules/ol/src/events/EventType", "node_modules/ol/src/interaction/Interaction", "node_modules/ol/src/events/KeyCode", "node_modules/ol/src/events/condition", "node_modules/ol/src/coordinate"], function (require, exports, EventType_js_29, Interaction_js_3, KeyCode_js_1, condition_js_5, coordinate_js_6) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     class KeyboardPan extends Interaction_js_3.default {
@@ -17012,7 +15817,7 @@ define("node_modules/ol/src/interaction/KeyboardPan", ["require", "exports", "no
         }
         handleEvent(mapBrowserEvent) {
             let stopEvent = false;
-            if (mapBrowserEvent.type == EventType_js_30.default.KEYDOWN) {
+            if (mapBrowserEvent.type == EventType_js_29.default.KEYDOWN) {
                 const keyEvent = (mapBrowserEvent.originalEvent);
                 const keyCode = keyEvent.keyCode;
                 if (this.condition_(mapBrowserEvent) &&
@@ -17048,7 +15853,7 @@ define("node_modules/ol/src/interaction/KeyboardPan", ["require", "exports", "no
     }
     exports.default = KeyboardPan;
 });
-define("node_modules/ol/src/interaction/KeyboardZoom", ["require", "exports", "node_modules/ol/src/events/EventType", "node_modules/ol/src/interaction/Interaction", "node_modules/ol/src/events/condition"], function (require, exports, EventType_js_31, Interaction_js_4, condition_js_6) {
+define("node_modules/ol/src/interaction/KeyboardZoom", ["require", "exports", "node_modules/ol/src/events/EventType", "node_modules/ol/src/interaction/Interaction", "node_modules/ol/src/events/condition"], function (require, exports, EventType_js_30, Interaction_js_4, condition_js_6) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     class KeyboardZoom extends Interaction_js_4.default {
@@ -17061,8 +15866,8 @@ define("node_modules/ol/src/interaction/KeyboardZoom", ["require", "exports", "n
         }
         handleEvent(mapBrowserEvent) {
             let stopEvent = false;
-            if (mapBrowserEvent.type == EventType_js_31.default.KEYDOWN ||
-                mapBrowserEvent.type == EventType_js_31.default.KEYPRESS) {
+            if (mapBrowserEvent.type == EventType_js_30.default.KEYDOWN ||
+                mapBrowserEvent.type == EventType_js_30.default.KEYPRESS) {
                 const keyEvent = (mapBrowserEvent.originalEvent);
                 const charCode = keyEvent.charCode;
                 if (this.condition_(mapBrowserEvent) &&
@@ -17080,7 +15885,7 @@ define("node_modules/ol/src/interaction/KeyboardZoom", ["require", "exports", "n
     }
     exports.default = KeyboardZoom;
 });
-define("node_modules/ol/src/interaction/MouseWheelZoom", ["require", "exports", "node_modules/ol/src/events/EventType", "node_modules/ol/src/interaction/Interaction", "node_modules/ol/src/has", "node_modules/ol/src/events/condition", "node_modules/ol/src/math"], function (require, exports, EventType_js_32, Interaction_js_5, has_js_8, condition_js_7, math_js_19) {
+define("node_modules/ol/src/interaction/MouseWheelZoom", ["require", "exports", "node_modules/ol/src/events/EventType", "node_modules/ol/src/interaction/Interaction", "node_modules/ol/src/has", "node_modules/ol/src/events/condition", "node_modules/ol/src/math"], function (require, exports, EventType_js_31, Interaction_js_5, has_js_8, condition_js_7, math_js_19) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.Mode = void 0;
@@ -17125,7 +15930,7 @@ define("node_modules/ol/src/interaction/MouseWheelZoom", ["require", "exports", 
                 return true;
             }
             const type = mapBrowserEvent.type;
-            if (type !== EventType_js_32.default.WHEEL) {
+            if (type !== EventType_js_31.default.WHEEL) {
                 return true;
             }
             mapBrowserEvent.preventDefault();
@@ -17135,7 +15940,7 @@ define("node_modules/ol/src/interaction/MouseWheelZoom", ["require", "exports", 
                 this.lastAnchor_ = mapBrowserEvent.coordinate;
             }
             let delta;
-            if (mapBrowserEvent.type == EventType_js_32.default.WHEEL) {
+            if (mapBrowserEvent.type == EventType_js_31.default.WHEEL) {
                 delta = wheelEvent.deltaY;
                 if (has_js_8.FIREFOX && wheelEvent.deltaMode === WheelEvent.DOM_DELTA_PIXEL) {
                     delta /= has_js_8.DEVICE_PIXEL_RATIO;
@@ -17205,7 +16010,7 @@ define("node_modules/ol/src/interaction/MouseWheelZoom", ["require", "exports", 
     }
     exports.default = MouseWheelZoom;
 });
-define("node_modules/ol/src/interaction/PinchRotate", ["require", "exports", "node_modules/ol/src/interaction/Pointer", "node_modules/ol/src/functions", "node_modules/ol/src/rotationconstraint"], function (require, exports, Pointer_js_4, functions_js_12, rotationconstraint_js_3) {
+define("node_modules/ol/src/interaction/PinchRotate", ["require", "exports", "node_modules/ol/src/interaction/Pointer", "node_modules/ol/src/functions", "node_modules/ol/src/rotationconstraint"], function (require, exports, Pointer_js_4, functions_js_10, rotationconstraint_js_3) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     class PinchRotate extends Pointer_js_4.default {
@@ -17213,7 +16018,7 @@ define("node_modules/ol/src/interaction/PinchRotate", ["require", "exports", "no
             const options = opt_options ? opt_options : {};
             const pointerOptions = (options);
             if (!pointerOptions.stopDown) {
-                pointerOptions.stopDown = functions_js_12.FALSE;
+                pointerOptions.stopDown = functions_js_10.FALSE;
             }
             super(pointerOptions);
             this.anchor_ = null;
@@ -17282,7 +16087,7 @@ define("node_modules/ol/src/interaction/PinchRotate", ["require", "exports", "no
     }
     exports.default = PinchRotate;
 });
-define("node_modules/ol/src/interaction/PinchZoom", ["require", "exports", "node_modules/ol/src/interaction/Pointer", "node_modules/ol/src/functions"], function (require, exports, Pointer_js_5, functions_js_13) {
+define("node_modules/ol/src/interaction/PinchZoom", ["require", "exports", "node_modules/ol/src/interaction/Pointer", "node_modules/ol/src/functions"], function (require, exports, Pointer_js_5, functions_js_11) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     class PinchZoom extends Pointer_js_5.default {
@@ -17290,7 +16095,7 @@ define("node_modules/ol/src/interaction/PinchZoom", ["require", "exports", "node
             const options = opt_options ? opt_options : {};
             const pointerOptions = (options);
             if (!pointerOptions.stopDown) {
-                pointerOptions.stopDown = functions_js_13.FALSE;
+                pointerOptions.stopDown = functions_js_11.FALSE;
             }
             super(pointerOptions);
             this.anchor_ = null;
@@ -17351,6 +16156,1256 @@ define("node_modules/ol/src/interaction/PinchZoom", ["require", "exports", "node
         }
     }
     exports.default = PinchZoom;
+});
+define("node_modules/ol/src/format/FormatType", ["require", "exports"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.default = {
+        ARRAY_BUFFER: 'arraybuffer',
+        JSON: 'json',
+        TEXT: 'text',
+        XML: 'xml',
+    };
+});
+define("node_modules/ol/src/format/Feature", ["require", "exports", "node_modules/ol/src/proj/Units", "node_modules/ol/src/util", "node_modules/ol/src/obj", "node_modules/ol/src/proj"], function (require, exports, Units_js_9, util_js_16, obj_js_12, proj_js_11) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.transformExtentWithOptions = exports.transformGeometryWithOptions = void 0;
+    class FeatureFormat {
+        constructor() {
+            this.dataProjection = null;
+            this.defaultFeatureProjection = null;
+        }
+        getReadOptions(source, opt_options) {
+            let options;
+            if (opt_options) {
+                let dataProjection = opt_options.dataProjection
+                    ? proj_js_11.get(opt_options.dataProjection)
+                    : this.readProjection(source);
+                if (opt_options.extent &&
+                    dataProjection &&
+                    dataProjection.getUnits() === Units_js_9.default.TILE_PIXELS) {
+                    dataProjection = proj_js_11.get(dataProjection);
+                    dataProjection.setWorldExtent(opt_options.extent);
+                }
+                options = {
+                    dataProjection: dataProjection,
+                    featureProjection: opt_options.featureProjection,
+                };
+            }
+            return this.adaptOptions(options);
+        }
+        adaptOptions(options) {
+            return obj_js_12.assign({
+                dataProjection: this.dataProjection,
+                featureProjection: this.defaultFeatureProjection,
+            }, options);
+        }
+        getType() {
+            return util_js_16.abstract();
+        }
+        readFeature(source, opt_options) {
+            return util_js_16.abstract();
+        }
+        readFeatures(source, opt_options) {
+            return util_js_16.abstract();
+        }
+        readGeometry(source, opt_options) {
+            return util_js_16.abstract();
+        }
+        readProjection(source) {
+            return util_js_16.abstract();
+        }
+        writeFeature(feature, opt_options) {
+            return util_js_16.abstract();
+        }
+        writeFeatures(features, opt_options) {
+            return util_js_16.abstract();
+        }
+        writeGeometry(geometry, opt_options) {
+            return util_js_16.abstract();
+        }
+    }
+    exports.default = FeatureFormat;
+    function transformGeometryWithOptions(geometry, write, opt_options) {
+        const featureProjection = opt_options
+            ? proj_js_11.get(opt_options.featureProjection)
+            : null;
+        const dataProjection = opt_options
+            ? proj_js_11.get(opt_options.dataProjection)
+            : null;
+        let transformed;
+        if (featureProjection &&
+            dataProjection &&
+            !proj_js_11.equivalent(featureProjection, dataProjection)) {
+            transformed = (write ? geometry.clone() : geometry).transform(write ? featureProjection : dataProjection, write ? dataProjection : featureProjection);
+        }
+        else {
+            transformed = geometry;
+        }
+        if (write &&
+            opt_options &&
+            (opt_options).decimals !== undefined) {
+            const power = Math.pow(10, (opt_options).decimals);
+            const transform = function (coordinates) {
+                for (let i = 0, ii = coordinates.length; i < ii; ++i) {
+                    coordinates[i] = Math.round(coordinates[i] * power) / power;
+                }
+                return coordinates;
+            };
+            if (transformed === geometry) {
+                transformed = geometry.clone();
+            }
+            transformed.applyTransform(transform);
+        }
+        return transformed;
+    }
+    exports.transformGeometryWithOptions = transformGeometryWithOptions;
+    function transformExtentWithOptions(extent, opt_options) {
+        const featureProjection = opt_options
+            ? proj_js_11.get(opt_options.featureProjection)
+            : null;
+        const dataProjection = opt_options
+            ? proj_js_11.get(opt_options.dataProjection)
+            : null;
+        if (featureProjection &&
+            dataProjection &&
+            !proj_js_11.equivalent(featureProjection, dataProjection)) {
+            return proj_js_11.transformExtent(extent, dataProjection, featureProjection);
+        }
+        else {
+            return extent;
+        }
+    }
+    exports.transformExtentWithOptions = transformExtentWithOptions;
+});
+define("node_modules/quickselect/index", ["require", "exports"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    function quickselect(arr, k, left, right, compare) {
+        quickselectStep(arr, k, left || 0, right || (arr.length - 1), compare || defaultCompare);
+    }
+    exports.default = quickselect;
+    function quickselectStep(arr, k, left, right, compare) {
+        while (right > left) {
+            if (right - left > 600) {
+                var n = right - left + 1;
+                var m = k - left + 1;
+                var z = Math.log(n);
+                var s = 0.5 * Math.exp(2 * z / 3);
+                var sd = 0.5 * Math.sqrt(z * s * (n - s) / n) * (m - n / 2 < 0 ? -1 : 1);
+                var newLeft = Math.max(left, Math.floor(k - m * s / n + sd));
+                var newRight = Math.min(right, Math.floor(k + (n - m) * s / n + sd));
+                quickselectStep(arr, k, newLeft, newRight, compare);
+            }
+            var t = arr[k];
+            var i = left;
+            var j = right;
+            swap(arr, left, k);
+            if (compare(arr[right], t) > 0)
+                swap(arr, left, right);
+            while (i < j) {
+                swap(arr, i, j);
+                i++;
+                j--;
+                while (compare(arr[i], t) < 0)
+                    i++;
+                while (compare(arr[j], t) > 0)
+                    j--;
+            }
+            if (compare(arr[left], t) === 0)
+                swap(arr, left, j);
+            else {
+                j++;
+                swap(arr, j, right);
+            }
+            if (j <= k)
+                left = j + 1;
+            if (k <= j)
+                right = j - 1;
+        }
+    }
+    function swap(arr, i, j) {
+        var tmp = arr[i];
+        arr[i] = arr[j];
+        arr[j] = tmp;
+    }
+    function defaultCompare(a, b) {
+        return a < b ? -1 : a > b ? 1 : 0;
+    }
+});
+define("node_modules/rbush/index", ["require", "exports", "node_modules/quickselect/index"], function (require, exports, quickselect_1) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    class RBush {
+        constructor(maxEntries = 9) {
+            this._maxEntries = Math.max(4, maxEntries);
+            this._minEntries = Math.max(2, Math.ceil(this._maxEntries * 0.4));
+            this.clear();
+        }
+        all() {
+            return this._all(this.data, []);
+        }
+        search(bbox) {
+            let node = this.data;
+            const result = [];
+            if (!intersects(bbox, node))
+                return result;
+            const toBBox = this.toBBox;
+            const nodesToSearch = [];
+            while (node) {
+                for (let i = 0; i < node.children.length; i++) {
+                    const child = node.children[i];
+                    const childBBox = node.leaf ? toBBox(child) : child;
+                    if (intersects(bbox, childBBox)) {
+                        if (node.leaf)
+                            result.push(child);
+                        else if (contains(bbox, childBBox))
+                            this._all(child, result);
+                        else
+                            nodesToSearch.push(child);
+                    }
+                }
+                node = nodesToSearch.pop();
+            }
+            return result;
+        }
+        collides(bbox) {
+            let node = this.data;
+            if (!intersects(bbox, node))
+                return false;
+            const nodesToSearch = [];
+            while (node) {
+                for (let i = 0; i < node.children.length; i++) {
+                    const child = node.children[i];
+                    const childBBox = node.leaf ? this.toBBox(child) : child;
+                    if (intersects(bbox, childBBox)) {
+                        if (node.leaf || contains(bbox, childBBox))
+                            return true;
+                        nodesToSearch.push(child);
+                    }
+                }
+                node = nodesToSearch.pop();
+            }
+            return false;
+        }
+        load(data) {
+            if (!(data && data.length))
+                return this;
+            if (data.length < this._minEntries) {
+                for (let i = 0; i < data.length; i++) {
+                    this.insert(data[i]);
+                }
+                return this;
+            }
+            let node = this._build(data.slice(), 0, data.length - 1, 0);
+            if (!this.data.children.length) {
+                this.data = node;
+            }
+            else if (this.data.height === node.height) {
+                this._splitRoot(this.data, node);
+            }
+            else {
+                if (this.data.height < node.height) {
+                    const tmpNode = this.data;
+                    this.data = node;
+                    node = tmpNode;
+                }
+                this._insert(node, this.data.height - node.height - 1, true);
+            }
+            return this;
+        }
+        insert(item) {
+            if (item)
+                this._insert(item, this.data.height - 1);
+            return this;
+        }
+        clear() {
+            this.data = createNode([]);
+            return this;
+        }
+        remove(item, equalsFn) {
+            if (!item)
+                return this;
+            let node = this.data;
+            const bbox = this.toBBox(item);
+            const path = [];
+            const indexes = [];
+            let i, parent, goingUp;
+            while (node || path.length) {
+                if (!node) {
+                    node = path.pop();
+                    parent = path[path.length - 1];
+                    i = indexes.pop();
+                    goingUp = true;
+                }
+                if (node.leaf) {
+                    const index = findItem(item, node.children, equalsFn);
+                    if (index !== -1) {
+                        node.children.splice(index, 1);
+                        path.push(node);
+                        this._condense(path);
+                        return this;
+                    }
+                }
+                if (!goingUp && !node.leaf && contains(node, bbox)) {
+                    path.push(node);
+                    indexes.push(i);
+                    i = 0;
+                    parent = node;
+                    node = node.children[0];
+                }
+                else if (parent) {
+                    i++;
+                    node = parent.children[i];
+                    goingUp = false;
+                }
+                else
+                    node = null;
+            }
+            return this;
+        }
+        toBBox(item) { return item; }
+        compareMinX(a, b) { return a.minX - b.minX; }
+        compareMinY(a, b) { return a.minY - b.minY; }
+        toJSON() { return this.data; }
+        fromJSON(data) {
+            this.data = data;
+            return this;
+        }
+        _all(node, result) {
+            const nodesToSearch = [];
+            while (node) {
+                if (node.leaf)
+                    result.push(...node.children);
+                else
+                    nodesToSearch.push(...node.children);
+                node = nodesToSearch.pop();
+            }
+            return result;
+        }
+        _build(items, left, right, height) {
+            const N = right - left + 1;
+            let M = this._maxEntries;
+            let node;
+            if (N <= M) {
+                node = createNode(items.slice(left, right + 1));
+                calcBBox(node, this.toBBox);
+                return node;
+            }
+            if (!height) {
+                height = Math.ceil(Math.log(N) / Math.log(M));
+                M = Math.ceil(N / Math.pow(M, height - 1));
+            }
+            node = createNode([]);
+            node.leaf = false;
+            node.height = height;
+            const N2 = Math.ceil(N / M);
+            const N1 = N2 * Math.ceil(Math.sqrt(M));
+            multiSelect(items, left, right, N1, this.compareMinX);
+            for (let i = left; i <= right; i += N1) {
+                const right2 = Math.min(i + N1 - 1, right);
+                multiSelect(items, i, right2, N2, this.compareMinY);
+                for (let j = i; j <= right2; j += N2) {
+                    const right3 = Math.min(j + N2 - 1, right2);
+                    node.children.push(this._build(items, j, right3, height - 1));
+                }
+            }
+            calcBBox(node, this.toBBox);
+            return node;
+        }
+        _chooseSubtree(bbox, node, level, path) {
+            while (true) {
+                path.push(node);
+                if (node.leaf || path.length - 1 === level)
+                    break;
+                let minArea = Infinity;
+                let minEnlargement = Infinity;
+                let targetNode;
+                for (let i = 0; i < node.children.length; i++) {
+                    const child = node.children[i];
+                    const area = bboxArea(child);
+                    const enlargement = enlargedArea(bbox, child) - area;
+                    if (enlargement < minEnlargement) {
+                        minEnlargement = enlargement;
+                        minArea = area < minArea ? area : minArea;
+                        targetNode = child;
+                    }
+                    else if (enlargement === minEnlargement) {
+                        if (area < minArea) {
+                            minArea = area;
+                            targetNode = child;
+                        }
+                    }
+                }
+                node = targetNode || node.children[0];
+            }
+            return node;
+        }
+        _insert(item, level, isNode) {
+            const bbox = isNode ? item : this.toBBox(item);
+            const insertPath = [];
+            const node = this._chooseSubtree(bbox, this.data, level, insertPath);
+            node.children.push(item);
+            extend(node, bbox);
+            while (level >= 0) {
+                if (insertPath[level].children.length > this._maxEntries) {
+                    this._split(insertPath, level);
+                    level--;
+                }
+                else
+                    break;
+            }
+            this._adjustParentBBoxes(bbox, insertPath, level);
+        }
+        _split(insertPath, level) {
+            const node = insertPath[level];
+            const M = node.children.length;
+            const m = this._minEntries;
+            this._chooseSplitAxis(node, m, M);
+            const splitIndex = this._chooseSplitIndex(node, m, M);
+            const newNode = createNode(node.children.splice(splitIndex, node.children.length - splitIndex));
+            newNode.height = node.height;
+            newNode.leaf = node.leaf;
+            calcBBox(node, this.toBBox);
+            calcBBox(newNode, this.toBBox);
+            if (level)
+                insertPath[level - 1].children.push(newNode);
+            else
+                this._splitRoot(node, newNode);
+        }
+        _splitRoot(node, newNode) {
+            this.data = createNode([node, newNode]);
+            this.data.height = node.height + 1;
+            this.data.leaf = false;
+            calcBBox(this.data, this.toBBox);
+        }
+        _chooseSplitIndex(node, m, M) {
+            let index;
+            let minOverlap = Infinity;
+            let minArea = Infinity;
+            for (let i = m; i <= M - m; i++) {
+                const bbox1 = distBBox(node, 0, i, this.toBBox);
+                const bbox2 = distBBox(node, i, M, this.toBBox);
+                const overlap = intersectionArea(bbox1, bbox2);
+                const area = bboxArea(bbox1) + bboxArea(bbox2);
+                if (overlap < minOverlap) {
+                    minOverlap = overlap;
+                    index = i;
+                    minArea = area < minArea ? area : minArea;
+                }
+                else if (overlap === minOverlap) {
+                    if (area < minArea) {
+                        minArea = area;
+                        index = i;
+                    }
+                }
+            }
+            return index || M - m;
+        }
+        _chooseSplitAxis(node, m, M) {
+            const compareMinX = node.leaf ? this.compareMinX : compareNodeMinX;
+            const compareMinY = node.leaf ? this.compareMinY : compareNodeMinY;
+            const xMargin = this._allDistMargin(node, m, M, compareMinX);
+            const yMargin = this._allDistMargin(node, m, M, compareMinY);
+            if (xMargin < yMargin)
+                node.children.sort(compareMinX);
+        }
+        _allDistMargin(node, m, M, compare) {
+            node.children.sort(compare);
+            const toBBox = this.toBBox;
+            const leftBBox = distBBox(node, 0, m, toBBox);
+            const rightBBox = distBBox(node, M - m, M, toBBox);
+            let margin = bboxMargin(leftBBox) + bboxMargin(rightBBox);
+            for (let i = m; i < M - m; i++) {
+                const child = node.children[i];
+                extend(leftBBox, node.leaf ? toBBox(child) : child);
+                margin += bboxMargin(leftBBox);
+            }
+            for (let i = M - m - 1; i >= m; i--) {
+                const child = node.children[i];
+                extend(rightBBox, node.leaf ? toBBox(child) : child);
+                margin += bboxMargin(rightBBox);
+            }
+            return margin;
+        }
+        _adjustParentBBoxes(bbox, path, level) {
+            for (let i = level; i >= 0; i--) {
+                extend(path[i], bbox);
+            }
+        }
+        _condense(path) {
+            for (let i = path.length - 1, siblings; i >= 0; i--) {
+                if (path[i].children.length === 0) {
+                    if (i > 0) {
+                        siblings = path[i - 1].children;
+                        siblings.splice(siblings.indexOf(path[i]), 1);
+                    }
+                    else
+                        this.clear();
+                }
+                else
+                    calcBBox(path[i], this.toBBox);
+            }
+        }
+    }
+    exports.default = RBush;
+    function findItem(item, items, equalsFn) {
+        if (!equalsFn)
+            return items.indexOf(item);
+        for (let i = 0; i < items.length; i++) {
+            if (equalsFn(item, items[i]))
+                return i;
+        }
+        return -1;
+    }
+    function calcBBox(node, toBBox) {
+        distBBox(node, 0, node.children.length, toBBox, node);
+    }
+    function distBBox(node, k, p, toBBox, destNode) {
+        if (!destNode)
+            destNode = createNode(null);
+        destNode.minX = Infinity;
+        destNode.minY = Infinity;
+        destNode.maxX = -Infinity;
+        destNode.maxY = -Infinity;
+        for (let i = k; i < p; i++) {
+            const child = node.children[i];
+            extend(destNode, node.leaf ? toBBox(child) : child);
+        }
+        return destNode;
+    }
+    function extend(a, b) {
+        a.minX = Math.min(a.minX, b.minX);
+        a.minY = Math.min(a.minY, b.minY);
+        a.maxX = Math.max(a.maxX, b.maxX);
+        a.maxY = Math.max(a.maxY, b.maxY);
+        return a;
+    }
+    function compareNodeMinX(a, b) { return a.minX - b.minX; }
+    function compareNodeMinY(a, b) { return a.minY - b.minY; }
+    function bboxArea(a) { return (a.maxX - a.minX) * (a.maxY - a.minY); }
+    function bboxMargin(a) { return (a.maxX - a.minX) + (a.maxY - a.minY); }
+    function enlargedArea(a, b) {
+        return (Math.max(b.maxX, a.maxX) - Math.min(b.minX, a.minX)) *
+            (Math.max(b.maxY, a.maxY) - Math.min(b.minY, a.minY));
+    }
+    function intersectionArea(a, b) {
+        const minX = Math.max(a.minX, b.minX);
+        const minY = Math.max(a.minY, b.minY);
+        const maxX = Math.min(a.maxX, b.maxX);
+        const maxY = Math.min(a.maxY, b.maxY);
+        return Math.max(0, maxX - minX) *
+            Math.max(0, maxY - minY);
+    }
+    function contains(a, b) {
+        return a.minX <= b.minX &&
+            a.minY <= b.minY &&
+            b.maxX <= a.maxX &&
+            b.maxY <= a.maxY;
+    }
+    function intersects(a, b) {
+        return b.minX <= a.maxX &&
+            b.minY <= a.maxY &&
+            b.maxX >= a.minX &&
+            b.maxY >= a.minY;
+    }
+    function createNode(children) {
+        return {
+            children,
+            height: 1,
+            leaf: true,
+            minX: Infinity,
+            minY: Infinity,
+            maxX: -Infinity,
+            maxY: -Infinity
+        };
+    }
+    function multiSelect(arr, left, right, n, compare) {
+        const stack = [left, right];
+        while (stack.length) {
+            right = stack.pop();
+            left = stack.pop();
+            if (right - left <= n)
+                continue;
+            const mid = left + Math.ceil((right - left) / n / 2) * n;
+            quickselect_1.default(arr, mid, left, right, compare);
+            stack.push(left, mid, mid, right);
+        }
+    }
+});
+define("node_modules/ol/src/structs/RBush", ["require", "exports", "node_modules/rbush/index", "node_modules/ol/src/extent", "node_modules/ol/src/util", "node_modules/ol/src/obj"], function (require, exports, rbush_js_1, extent_js_32, util_js_17, obj_js_13) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    class RBush {
+        constructor(opt_maxEntries) {
+            this.rbush_ = new rbush_js_1.default(opt_maxEntries);
+            this.items_ = {};
+        }
+        insert(extent, value) {
+            const item = {
+                minX: extent[0],
+                minY: extent[1],
+                maxX: extent[2],
+                maxY: extent[3],
+                value: value,
+            };
+            this.rbush_.insert(item);
+            this.items_[util_js_17.getUid(value)] = item;
+        }
+        load(extents, values) {
+            const items = new Array(values.length);
+            for (let i = 0, l = values.length; i < l; i++) {
+                const extent = extents[i];
+                const value = values[i];
+                const item = {
+                    minX: extent[0],
+                    minY: extent[1],
+                    maxX: extent[2],
+                    maxY: extent[3],
+                    value: value,
+                };
+                items[i] = item;
+                this.items_[util_js_17.getUid(value)] = item;
+            }
+            this.rbush_.load(items);
+        }
+        remove(value) {
+            const uid = util_js_17.getUid(value);
+            const item = this.items_[uid];
+            delete this.items_[uid];
+            return this.rbush_.remove(item) !== null;
+        }
+        update(extent, value) {
+            const item = this.items_[util_js_17.getUid(value)];
+            const bbox = [item.minX, item.minY, item.maxX, item.maxY];
+            if (!extent_js_32.equals(bbox, extent)) {
+                this.remove(value);
+                this.insert(extent, value);
+            }
+        }
+        getAll() {
+            const items = this.rbush_.all();
+            return items.map(function (item) {
+                return item.value;
+            });
+        }
+        getInExtent(extent) {
+            const bbox = {
+                minX: extent[0],
+                minY: extent[1],
+                maxX: extent[2],
+                maxY: extent[3],
+            };
+            const items = this.rbush_.search(bbox);
+            return items.map(function (item) {
+                return item.value;
+            });
+        }
+        forEach(callback) {
+            return this.forEach_(this.getAll(), callback);
+        }
+        forEachInExtent(extent, callback) {
+            return this.forEach_(this.getInExtent(extent), callback);
+        }
+        forEach_(values, callback) {
+            let result;
+            for (let i = 0, l = values.length; i < l; i++) {
+                result = callback(values[i]);
+                if (result) {
+                    return result;
+                }
+            }
+            return result;
+        }
+        isEmpty() {
+            return obj_js_13.isEmpty(this.items_);
+        }
+        clear() {
+            this.rbush_.clear();
+            this.items_ = {};
+        }
+        getExtent(opt_extent) {
+            const data = this.rbush_.toJSON();
+            return extent_js_32.createOrUpdate(data.minX, data.minY, data.maxX, data.maxY, opt_extent);
+        }
+        concat(rbush) {
+            this.rbush_.load(rbush.rbush_.all());
+            for (const i in rbush.items_) {
+                this.items_[i] = rbush.items_[i];
+            }
+        }
+    }
+    exports.default = RBush;
+});
+define("node_modules/ol/src/VectorTile", ["require", "exports", "node_modules/ol/src/Tile", "node_modules/ol/src/TileState"], function (require, exports, Tile_js_1, TileState_js_4) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    class VectorTile extends Tile_js_1.default {
+        constructor(tileCoord, state, src, format, tileLoadFunction, opt_options) {
+            super(tileCoord, state, opt_options);
+            this.extent = null;
+            this.format_ = format;
+            this.features_ = null;
+            this.loader_;
+            this.projection = null;
+            this.resolution;
+            this.tileLoadFunction_ = tileLoadFunction;
+            this.url_ = src;
+        }
+        getFormat() {
+            return this.format_;
+        }
+        getFeatures() {
+            return this.features_;
+        }
+        getKey() {
+            return this.url_;
+        }
+        load() {
+            if (this.state == TileState_js_4.default.IDLE) {
+                this.setState(TileState_js_4.default.LOADING);
+                this.tileLoadFunction_(this, this.url_);
+                if (this.loader_) {
+                    this.loader_(this.extent, this.resolution, this.projection);
+                }
+            }
+        }
+        onLoad(features, dataProjection) {
+            this.setFeatures(features);
+        }
+        onError() {
+            this.setState(TileState_js_4.default.ERROR);
+        }
+        setFeatures(features) {
+            this.features_ = features;
+            this.setState(TileState_js_4.default.LOADED);
+        }
+        setLoader(loader) {
+            this.loader_ = loader;
+        }
+    }
+    exports.default = VectorTile;
+});
+define("node_modules/ol/src/featureloader", ["require", "exports", "node_modules/ol/src/format/FormatType", "node_modules/ol/src/functions"], function (require, exports, FormatType_js_1, functions_js_12) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.setWithCredentials = exports.xhr = exports.loadFeaturesXhr = void 0;
+    let withCredentials = false;
+    function loadFeaturesXhr(url, format, success, failure) {
+        return (function (extent, resolution, projection) {
+            const xhr = new XMLHttpRequest();
+            xhr.open('GET', typeof url === 'function' ? url(extent, resolution, projection) : url, true);
+            if (format.getType() == FormatType_js_1.default.ARRAY_BUFFER) {
+                xhr.responseType = 'arraybuffer';
+            }
+            xhr.withCredentials = withCredentials;
+            xhr.onload = function (event) {
+                if (!xhr.status || (xhr.status >= 200 && xhr.status < 300)) {
+                    const type = format.getType();
+                    let source;
+                    if (type == FormatType_js_1.default.JSON || type == FormatType_js_1.default.TEXT) {
+                        source = xhr.responseText;
+                    }
+                    else if (type == FormatType_js_1.default.XML) {
+                        source = xhr.responseXML;
+                        if (!source) {
+                            source = new DOMParser().parseFromString(xhr.responseText, 'application/xml');
+                        }
+                    }
+                    else if (type == FormatType_js_1.default.ARRAY_BUFFER) {
+                        source = (xhr.response);
+                    }
+                    if (source) {
+                        success.call(this, format.readFeatures(source, {
+                            extent: extent,
+                            featureProjection: projection,
+                        }), format.readProjection(source));
+                    }
+                    else {
+                        failure.call(this);
+                    }
+                }
+                else {
+                    failure.call(this);
+                }
+            }.bind(this);
+            xhr.onerror = function () {
+                failure.call(this);
+            }.bind(this);
+            xhr.send();
+        });
+    }
+    exports.loadFeaturesXhr = loadFeaturesXhr;
+    function xhr(url, format) {
+        return loadFeaturesXhr(url, format, function (features, dataProjection) {
+            const sourceOrTile = (this);
+            if (typeof sourceOrTile.addFeatures === 'function') {
+                (sourceOrTile).addFeatures(features);
+            }
+        }, functions_js_12.VOID);
+    }
+    exports.xhr = xhr;
+    function setWithCredentials(xhrWithCredentials) {
+        withCredentials = xhrWithCredentials;
+    }
+    exports.setWithCredentials = setWithCredentials;
+});
+define("node_modules/ol/src/source/Vector", ["require", "exports", "node_modules/ol/src/Collection", "node_modules/ol/src/CollectionEventType", "node_modules/ol/src/events/Event", "node_modules/ol/src/events/EventType", "node_modules/ol/src/ObjectEventType", "node_modules/ol/src/structs/RBush", "node_modules/ol/src/source/Source", "node_modules/ol/src/source/State", "node_modules/ol/src/source/VectorEventType", "node_modules/ol/src/functions", "node_modules/ol/src/loadingstrategy", "node_modules/ol/src/asserts", "node_modules/ol/src/extent", "node_modules/ol/src/array", "node_modules/ol/src/util", "node_modules/ol/src/obj", "node_modules/ol/src/events", "node_modules/ol/src/featureloader"], function (require, exports, Collection_js_4, CollectionEventType_js_4, Event_js_10, EventType_js_32, ObjectEventType_js_6, RBush_js_1, Source_js_2, State_js_6, VectorEventType_js_1, functions_js_13, loadingstrategy_js_1, asserts_js_16, extent_js_33, array_js_16, util_js_18, obj_js_14, events_js_16, featureloader_js_1) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.VectorSourceEvent = void 0;
+    class VectorSourceEvent extends Event_js_10.default {
+        constructor(type, opt_feature) {
+            super(type);
+            this.feature = opt_feature;
+        }
+    }
+    exports.VectorSourceEvent = VectorSourceEvent;
+    class VectorSource extends Source_js_2.default {
+        constructor(opt_options) {
+            const options = opt_options || {};
+            super({
+                attributions: options.attributions,
+                projection: undefined,
+                state: State_js_6.default.READY,
+                wrapX: options.wrapX !== undefined ? options.wrapX : true,
+            });
+            this.loader_ = functions_js_13.VOID;
+            this.format_ = options.format;
+            this.overlaps_ = options.overlaps === undefined ? true : options.overlaps;
+            this.url_ = options.url;
+            if (options.loader !== undefined) {
+                this.loader_ = options.loader;
+            }
+            else if (this.url_ !== undefined) {
+                asserts_js_16.assert(this.format_, 7);
+                this.loader_ = featureloader_js_1.xhr(this.url_, (this.format_));
+            }
+            this.strategy_ =
+                options.strategy !== undefined ? options.strategy : loadingstrategy_js_1.all;
+            const useSpatialIndex = options.useSpatialIndex !== undefined ? options.useSpatialIndex : true;
+            this.featuresRtree_ = useSpatialIndex ? new RBush_js_1.default() : null;
+            this.loadedExtentsRtree_ = new RBush_js_1.default();
+            this.nullGeometryFeatures_ = {};
+            this.idIndex_ = {};
+            this.uidIndex_ = {};
+            this.featureChangeKeys_ = {};
+            this.featuresCollection_ = null;
+            let collection, features;
+            if (Array.isArray(options.features)) {
+                features = options.features;
+            }
+            else if (options.features) {
+                collection = options.features;
+                features = collection.getArray();
+            }
+            if (!useSpatialIndex && collection === undefined) {
+                collection = new Collection_js_4.default(features);
+            }
+            if (features !== undefined) {
+                this.addFeaturesInternal(features);
+            }
+            if (collection !== undefined) {
+                this.bindFeaturesCollection_(collection);
+            }
+        }
+        addFeature(feature) {
+            this.addFeatureInternal(feature);
+            this.changed();
+        }
+        addFeatureInternal(feature) {
+            const featureKey = util_js_18.getUid(feature);
+            if (!this.addToIndex_(featureKey, feature)) {
+                if (this.featuresCollection_) {
+                    this.featuresCollection_.remove(feature);
+                }
+                return;
+            }
+            this.setupChangeEvents_(featureKey, feature);
+            const geometry = feature.getGeometry();
+            if (geometry) {
+                const extent = geometry.getExtent();
+                if (this.featuresRtree_) {
+                    this.featuresRtree_.insert(extent, feature);
+                }
+            }
+            else {
+                this.nullGeometryFeatures_[featureKey] = feature;
+            }
+            this.dispatchEvent(new VectorSourceEvent(VectorEventType_js_1.default.ADDFEATURE, feature));
+        }
+        setupChangeEvents_(featureKey, feature) {
+            this.featureChangeKeys_[featureKey] = [
+                events_js_16.listen(feature, EventType_js_32.default.CHANGE, this.handleFeatureChange_, this),
+                events_js_16.listen(feature, ObjectEventType_js_6.default.PROPERTYCHANGE, this.handleFeatureChange_, this),
+            ];
+        }
+        addToIndex_(featureKey, feature) {
+            let valid = true;
+            const id = feature.getId();
+            if (id !== undefined) {
+                if (!(id.toString() in this.idIndex_)) {
+                    this.idIndex_[id.toString()] = feature;
+                }
+                else {
+                    valid = false;
+                }
+            }
+            if (valid) {
+                asserts_js_16.assert(!(featureKey in this.uidIndex_), 30);
+                this.uidIndex_[featureKey] = feature;
+            }
+            return valid;
+        }
+        addFeatures(features) {
+            this.addFeaturesInternal(features);
+            this.changed();
+        }
+        addFeaturesInternal(features) {
+            const extents = [];
+            const newFeatures = [];
+            const geometryFeatures = [];
+            for (let i = 0, length = features.length; i < length; i++) {
+                const feature = features[i];
+                const featureKey = util_js_18.getUid(feature);
+                if (this.addToIndex_(featureKey, feature)) {
+                    newFeatures.push(feature);
+                }
+            }
+            for (let i = 0, length = newFeatures.length; i < length; i++) {
+                const feature = newFeatures[i];
+                const featureKey = util_js_18.getUid(feature);
+                this.setupChangeEvents_(featureKey, feature);
+                const geometry = feature.getGeometry();
+                if (geometry) {
+                    const extent = geometry.getExtent();
+                    extents.push(extent);
+                    geometryFeatures.push(feature);
+                }
+                else {
+                    this.nullGeometryFeatures_[featureKey] = feature;
+                }
+            }
+            if (this.featuresRtree_) {
+                this.featuresRtree_.load(extents, geometryFeatures);
+            }
+            for (let i = 0, length = newFeatures.length; i < length; i++) {
+                this.dispatchEvent(new VectorSourceEvent(VectorEventType_js_1.default.ADDFEATURE, newFeatures[i]));
+            }
+        }
+        bindFeaturesCollection_(collection) {
+            let modifyingCollection = false;
+            this.addEventListener(VectorEventType_js_1.default.ADDFEATURE, function (evt) {
+                if (!modifyingCollection) {
+                    modifyingCollection = true;
+                    collection.push(evt.feature);
+                    modifyingCollection = false;
+                }
+            });
+            this.addEventListener(VectorEventType_js_1.default.REMOVEFEATURE, function (evt) {
+                if (!modifyingCollection) {
+                    modifyingCollection = true;
+                    collection.remove(evt.feature);
+                    modifyingCollection = false;
+                }
+            });
+            collection.addEventListener(CollectionEventType_js_4.default.ADD, function (evt) {
+                if (!modifyingCollection) {
+                    modifyingCollection = true;
+                    this.addFeature((evt.element));
+                    modifyingCollection = false;
+                }
+            }.bind(this));
+            collection.addEventListener(CollectionEventType_js_4.default.REMOVE, function (evt) {
+                if (!modifyingCollection) {
+                    modifyingCollection = true;
+                    this.removeFeature((evt.element));
+                    modifyingCollection = false;
+                }
+            }.bind(this));
+            this.featuresCollection_ = collection;
+        }
+        clear(opt_fast) {
+            if (opt_fast) {
+                for (const featureId in this.featureChangeKeys_) {
+                    const keys = this.featureChangeKeys_[featureId];
+                    keys.forEach(events_js_16.unlistenByKey);
+                }
+                if (!this.featuresCollection_) {
+                    this.featureChangeKeys_ = {};
+                    this.idIndex_ = {};
+                    this.uidIndex_ = {};
+                }
+            }
+            else {
+                if (this.featuresRtree_) {
+                    this.featuresRtree_.forEach(this.removeFeatureInternal.bind(this));
+                    for (const id in this.nullGeometryFeatures_) {
+                        this.removeFeatureInternal(this.nullGeometryFeatures_[id]);
+                    }
+                }
+            }
+            if (this.featuresCollection_) {
+                this.featuresCollection_.clear();
+            }
+            if (this.featuresRtree_) {
+                this.featuresRtree_.clear();
+            }
+            this.nullGeometryFeatures_ = {};
+            const clearEvent = new VectorSourceEvent(VectorEventType_js_1.default.CLEAR);
+            this.dispatchEvent(clearEvent);
+            this.changed();
+        }
+        forEachFeature(callback) {
+            if (this.featuresRtree_) {
+                return this.featuresRtree_.forEach(callback);
+            }
+            else if (this.featuresCollection_) {
+                this.featuresCollection_.forEach(callback);
+            }
+        }
+        forEachFeatureAtCoordinateDirect(coordinate, callback) {
+            const extent = [coordinate[0], coordinate[1], coordinate[0], coordinate[1]];
+            return this.forEachFeatureInExtent(extent, function (feature) {
+                const geometry = feature.getGeometry();
+                if (geometry.intersectsCoordinate(coordinate)) {
+                    return callback(feature);
+                }
+                else {
+                    return undefined;
+                }
+            });
+        }
+        forEachFeatureInExtent(extent, callback) {
+            if (this.featuresRtree_) {
+                return this.featuresRtree_.forEachInExtent(extent, callback);
+            }
+            else if (this.featuresCollection_) {
+                this.featuresCollection_.forEach(callback);
+            }
+        }
+        forEachFeatureIntersectingExtent(extent, callback) {
+            return this.forEachFeatureInExtent(extent, function (feature) {
+                const geometry = feature.getGeometry();
+                if (geometry.intersectsExtent(extent)) {
+                    const result = callback(feature);
+                    if (result) {
+                        return result;
+                    }
+                }
+            });
+        }
+        getFeaturesCollection() {
+            return this.featuresCollection_;
+        }
+        getFeatures() {
+            let features;
+            if (this.featuresCollection_) {
+                features = this.featuresCollection_.getArray();
+            }
+            else if (this.featuresRtree_) {
+                features = this.featuresRtree_.getAll();
+                if (!obj_js_14.isEmpty(this.nullGeometryFeatures_)) {
+                    array_js_16.extend(features, obj_js_14.getValues(this.nullGeometryFeatures_));
+                }
+            }
+            return (features);
+        }
+        getFeaturesAtCoordinate(coordinate) {
+            const features = [];
+            this.forEachFeatureAtCoordinateDirect(coordinate, function (feature) {
+                features.push(feature);
+            });
+            return features;
+        }
+        getFeaturesInExtent(extent) {
+            if (this.featuresRtree_) {
+                return this.featuresRtree_.getInExtent(extent);
+            }
+            else if (this.featuresCollection_) {
+                return this.featuresCollection_.getArray();
+            }
+            else {
+                return [];
+            }
+        }
+        getClosestFeatureToCoordinate(coordinate, opt_filter) {
+            const x = coordinate[0];
+            const y = coordinate[1];
+            let closestFeature = null;
+            const closestPoint = [NaN, NaN];
+            let minSquaredDistance = Infinity;
+            const extent = [-Infinity, -Infinity, Infinity, Infinity];
+            const filter = opt_filter ? opt_filter : functions_js_13.TRUE;
+            this.featuresRtree_.forEachInExtent(extent, function (feature) {
+                if (filter(feature)) {
+                    const geometry = feature.getGeometry();
+                    const previousMinSquaredDistance = minSquaredDistance;
+                    minSquaredDistance = geometry.closestPointXY(x, y, closestPoint, minSquaredDistance);
+                    if (minSquaredDistance < previousMinSquaredDistance) {
+                        closestFeature = feature;
+                        const minDistance = Math.sqrt(minSquaredDistance);
+                        extent[0] = x - minDistance;
+                        extent[1] = y - minDistance;
+                        extent[2] = x + minDistance;
+                        extent[3] = y + minDistance;
+                    }
+                }
+            });
+            return closestFeature;
+        }
+        getExtent(opt_extent) {
+            return this.featuresRtree_.getExtent(opt_extent);
+        }
+        getFeatureById(id) {
+            const feature = this.idIndex_[id.toString()];
+            return feature !== undefined ? feature : null;
+        }
+        getFeatureByUid(uid) {
+            const feature = this.uidIndex_[uid];
+            return feature !== undefined ? feature : null;
+        }
+        getFormat() {
+            return this.format_;
+        }
+        getOverlaps() {
+            return this.overlaps_;
+        }
+        getUrl() {
+            return this.url_;
+        }
+        handleFeatureChange_(event) {
+            const feature = (event.target);
+            const featureKey = util_js_18.getUid(feature);
+            const geometry = feature.getGeometry();
+            if (!geometry) {
+                if (!(featureKey in this.nullGeometryFeatures_)) {
+                    if (this.featuresRtree_) {
+                        this.featuresRtree_.remove(feature);
+                    }
+                    this.nullGeometryFeatures_[featureKey] = feature;
+                }
+            }
+            else {
+                const extent = geometry.getExtent();
+                if (featureKey in this.nullGeometryFeatures_) {
+                    delete this.nullGeometryFeatures_[featureKey];
+                    if (this.featuresRtree_) {
+                        this.featuresRtree_.insert(extent, feature);
+                    }
+                }
+                else {
+                    if (this.featuresRtree_) {
+                        this.featuresRtree_.update(extent, feature);
+                    }
+                }
+            }
+            const id = feature.getId();
+            if (id !== undefined) {
+                const sid = id.toString();
+                if (this.idIndex_[sid] !== feature) {
+                    this.removeFromIdIndex_(feature);
+                    this.idIndex_[sid] = feature;
+                }
+            }
+            else {
+                this.removeFromIdIndex_(feature);
+                this.uidIndex_[featureKey] = feature;
+            }
+            this.changed();
+            this.dispatchEvent(new VectorSourceEvent(VectorEventType_js_1.default.CHANGEFEATURE, feature));
+        }
+        hasFeature(feature) {
+            const id = feature.getId();
+            if (id !== undefined) {
+                return id in this.idIndex_;
+            }
+            else {
+                return util_js_18.getUid(feature) in this.uidIndex_;
+            }
+        }
+        isEmpty() {
+            return this.featuresRtree_.isEmpty() && obj_js_14.isEmpty(this.nullGeometryFeatures_);
+        }
+        loadFeatures(extent, resolution, projection) {
+            const loadedExtentsRtree = this.loadedExtentsRtree_;
+            const extentsToLoad = this.strategy_(extent, resolution);
+            this.loading = false;
+            for (let i = 0, ii = extentsToLoad.length; i < ii; ++i) {
+                const extentToLoad = extentsToLoad[i];
+                const alreadyLoaded = loadedExtentsRtree.forEachInExtent(extentToLoad, function (object) {
+                    return extent_js_33.containsExtent(object.extent, extentToLoad);
+                });
+                if (!alreadyLoaded) {
+                    this.loader_.call(this, extentToLoad, resolution, projection);
+                    loadedExtentsRtree.insert(extentToLoad, { extent: extentToLoad.slice() });
+                    this.loading = this.loader_ !== functions_js_13.VOID;
+                }
+            }
+        }
+        refresh() {
+            this.clear(true);
+            this.loadedExtentsRtree_.clear();
+            super.refresh();
+        }
+        removeLoadedExtent(extent) {
+            const loadedExtentsRtree = this.loadedExtentsRtree_;
+            let obj;
+            loadedExtentsRtree.forEachInExtent(extent, function (object) {
+                if (extent_js_33.equals(object.extent, extent)) {
+                    obj = object;
+                    return true;
+                }
+            });
+            if (obj) {
+                loadedExtentsRtree.remove(obj);
+            }
+        }
+        removeFeature(feature) {
+            const featureKey = util_js_18.getUid(feature);
+            if (featureKey in this.nullGeometryFeatures_) {
+                delete this.nullGeometryFeatures_[featureKey];
+            }
+            else {
+                if (this.featuresRtree_) {
+                    this.featuresRtree_.remove(feature);
+                }
+            }
+            this.removeFeatureInternal(feature);
+            this.changed();
+        }
+        removeFeatureInternal(feature) {
+            const featureKey = util_js_18.getUid(feature);
+            this.featureChangeKeys_[featureKey].forEach(events_js_16.unlistenByKey);
+            delete this.featureChangeKeys_[featureKey];
+            const id = feature.getId();
+            if (id !== undefined) {
+                delete this.idIndex_[id.toString()];
+            }
+            delete this.uidIndex_[featureKey];
+            this.dispatchEvent(new VectorSourceEvent(VectorEventType_js_1.default.REMOVEFEATURE, feature));
+        }
+        removeFromIdIndex_(feature) {
+            let removed = false;
+            for (const id in this.idIndex_) {
+                if (this.idIndex_[id] === feature) {
+                    delete this.idIndex_[id];
+                    removed = true;
+                    break;
+                }
+            }
+            return removed;
+        }
+        setLoader(loader) {
+            this.loader_ = loader;
+        }
+        setUrl(url) {
+            asserts_js_16.assert(this.format_, 7);
+            this.setLoader(featureloader_js_1.xhr(url, this.format_));
+        }
+    }
+    exports.default = VectorSource;
 });
 define("node_modules/ol/src/interaction/DragAndDrop", ["require", "exports", "node_modules/ol/src/events/Event", "node_modules/ol/src/events/EventType", "node_modules/ol/src/interaction/Interaction", "node_modules/ol/src/functions", "node_modules/ol/src/proj", "node_modules/ol/src/events"], function (require, exports, Event_js_11, EventType_js_33, Interaction_js_6, functions_js_14, proj_js_12, events_js_17) {
     "use strict";
@@ -22969,7 +23024,7 @@ define("node_modules/ol/src/format/EsriJSON", ["require", "exports", "node_modul
     }
     exports.default = EsriJSON;
 });
-define("poc/fun/buildLoader", ["require", "exports", "node_modules/ol/src/extent", "node_modules/ol/src/source/Vector", "node_modules/ol/src/geom/Point", "node_modules/ol/src/Feature", "poc/FeatureServiceProxy", "poc/fun/removeAuthority", "node_modules/ol/src/geom/Circle", "node_modules/ol/src/format/EsriJSON"], function (require, exports, extent_4, Vector_1, Point_2, Feature_2, FeatureServiceProxy_1, removeAuthority_1, Circle_1, EsriJSON_1) {
+define("poc/fun/buildLoader", ["require", "exports", "node_modules/ol/src/extent", "node_modules/ol/src/source/Vector", "node_modules/ol/src/geom/Point", "node_modules/ol/src/Feature", "poc/FeatureServiceProxy", "poc/fun/removeAuthority", "node_modules/ol/src/geom/Circle", "node_modules/ol/src/format/EsriJSON"], function (require, exports, extent_3, Vector_1, Point_2, Feature_2, FeatureServiceProxy_1, removeAuthority_1, Circle_1, EsriJSON_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.buildLoader = void 0;
@@ -23033,11 +23088,10 @@ define("poc/fun/buildLoader", ["require", "exports", "node_modules/ol/src/extent
                             source.addFeatures(features);
                             debugger;
                             const parent = tree.parent(tileNode);
-                            console.assert(parent.quad.some((v) => v === tileNode));
                             console.log(parent.data.feature);
                         }
                         else {
-                            const geom = new Circle_1.default(extent_4.getCenter(extent), extent_4.getWidth(extent) / Math.PI);
+                            const geom = new Circle_1.default(extent_3.getCenter(extent), extent_3.getWidth(extent) / Math.PI);
                             const feature = new Feature_2.default(geom);
                             feature.setProperties({ count, resolution });
                             source.addFeature(feature);
@@ -23046,7 +23100,7 @@ define("poc/fun/buildLoader", ["require", "exports", "node_modules/ol/src/extent
                     }
                 }
                 catch (ex) {
-                    const geom = new Point_2.default(extent_4.getCenter(extent));
+                    const geom = new Point_2.default(extent_3.getCenter(extent));
                     const feature = new Feature_2.default(geom);
                     feature.setProperties({ text: ex, count: 0, resolution });
                     source.addFeature(feature);
@@ -23060,60 +23114,116 @@ define("poc/fun/buildLoader", ["require", "exports", "node_modules/ol/src/extent
     }
     exports.buildLoader = buildLoader;
 });
-define("poc/test/index", ["require", "exports", "mocha", "chai", "node_modules/ol/src/extent", "node_modules/ol/src/proj", "poc/index", "node_modules/ol/src/tilegrid", "node_modules/ol/src/loadingstrategy", "node_modules/ol/src/source/VectorEventType", "poc/fun/createWeightedFeature", "node_modules/ol/src/Map", "node_modules/ol/src/View", "node_modules/ol/src/layer/Vector", "poc/fun/buildLoader", "node_modules/ol/src/style", "node_modules/ol/src/style/Circle"], function (require, exports, mocha_1, chai_1, extent_5, proj_1, index_1, tilegrid_1, loadingstrategy_1, VectorEventType_1, createWeightedFeature_1, Map_1, View_1, Vector_2, buildLoader_1, style_1, Circle_2) {
+define("poc/test/index", ["require", "exports", "mocha", "chai", "node_modules/ol/src/extent", "node_modules/ol/src/proj", "poc/TileTree", "node_modules/ol/src/tilegrid", "node_modules/ol/src/loadingstrategy", "node_modules/ol/src/source/VectorEventType", "poc/fun/createWeightedFeature", "node_modules/ol/src/Map", "node_modules/ol/src/View", "node_modules/ol/src/layer/Vector", "poc/fun/buildLoader", "node_modules/ol/src/style", "node_modules/ol/src/style/Circle", "poc/asExtent", "poc/asXYZ", "poc/explode"], function (require, exports, mocha_1, chai_1, extent_4, proj_1, TileTree_1, tilegrid_1, loadingstrategy_1, VectorEventType_1, createWeightedFeature_1, Map_1, View_1, Vector_2, buildLoader_1, style_1, Circle_2, asExtent_2, asXYZ_2, explode_4) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    function debounce(cb, wait = 20) {
-        let h = 0;
-        let callable = (...args) => {
-            clearTimeout(h);
-            h = setTimeout(() => cb(...args), wait);
-        };
-        return callable;
-    }
-    const TINY = 0.0000001;
+    const TINY = Math.pow(2, -24);
     function isEq(v1, v2) {
-        return TINY > Math.abs(v1 - v2);
+        const diff = Math.abs(v1 - v2);
+        const result = TINY > diff;
+        if (!result)
+            debugger;
+        return result;
     }
+    mocha_1.describe("playground", () => {
+        mocha_1.it("playground", () => {
+            const extent = proj_1.get("EPSG:3857").getExtent();
+            const extentInfo = explode_4.explode(extent);
+            const resolution = 9.554628535647032;
+            const tile_14_0_16383 = [
+                -20037508.342789244,
+                20035062.357884116,
+                -20035062.357884116,
+                20037508.342789244,
+            ];
+            const xyz = asXYZ_2.asXYZ(extent, tile_14_0_16383);
+            chai_1.assert.deepEqual(xyz, { X: 0, Y: 16383, Z: 14 });
+            const tileInfo = explode_4.explode(tile_14_0_16383);
+            chai_1.assert.isTrue(isEq(tileInfo.w, extentInfo.w * Math.pow(2, -14)), "tile from level 14 has computable width");
+            chai_1.assert.isTrue(isEq(tileInfo.ymin, extentInfo.ymax - tileInfo.w), "tile from level 14 has computable y value");
+        });
+    });
+    mocha_1.describe("XYZ testing", () => {
+        mocha_1.it("XYZ to extent", () => {
+            const extent = [0, 0, 16, 16];
+            let x = asExtent_2.asExtent(extent, { X: 0, Y: 0, Z: 0 });
+            chai_1.assert.deepEqual(x, [0, 0, 16, 16]);
+            x = asExtent_2.asExtent(extent, { X: 0, Y: 0, Z: 1 });
+            chai_1.assert.deepEqual(x, [0, 0, 8, 8]);
+            x = asExtent_2.asExtent(extent, { X: 1, Y: 0, Z: 1 });
+            chai_1.assert.deepEqual(x, [8, 0, 16, 8]);
+            x = asExtent_2.asExtent(extent, { X: 1, Y: 0, Z: 2 });
+            chai_1.assert.deepEqual(x, [4, 0, 8, 4]);
+            x = asExtent_2.asExtent(extent, { X: 1, Y: 0, Z: 3 });
+            chai_1.assert.deepEqual(x, [2, 0, 4, 2]);
+            x = asExtent_2.asExtent(extent, { X: 3, Y: 1020, Z: 10 });
+            console.log(x);
+            chai_1.assert.deepEqual(x, [0.046875, 15.9375, 0.0625, 15.953125]);
+        });
+        mocha_1.it("extent to XYZ", () => {
+            const extent = [0, 0, 16, 16];
+            let x = asXYZ_2.asXYZ(extent, [0, 0, 16, 16]);
+            chai_1.assert.deepEqual(x, { X: 0, Y: 0, Z: 0 });
+            x = asXYZ_2.asXYZ(extent, [0, 4, 4, 8]);
+            chai_1.assert.deepEqual(x, { X: 0, Y: 1, Z: 2 });
+            x = asXYZ_2.asXYZ(extent, [0.046875, 15.9375, 0.0625, 15.953125]);
+            chai_1.assert.deepEqual(x, { X: 3, Y: 1020, Z: 10 });
+        });
+        mocha_1.it("exhaustive XYZ", () => {
+            const extents = [
+                [0, 0, 1024, 1024],
+                proj_1.get("EPSG:3857").getExtent(),
+            ];
+            extents.forEach((extent) => {
+                console.log(extent);
+                for (let z = 0; z < 10; z++) {
+                    for (let x = 0; x < 10; x++) {
+                        for (let y = 0; y < 10; y++) {
+                            const v1 = asExtent_2.asExtent(extent, { X: x, Y: y, Z: z });
+                            const v2 = asXYZ_2.asXYZ(extent, v1);
+                            console.log(v1, v2, x, y, z);
+                            chai_1.assert.equal(v2.X, x, "x");
+                            chai_1.assert.equal(v2.Y, y, "y");
+                            chai_1.assert.equal(v2.Z, z, "z");
+                        }
+                    }
+                }
+            });
+        });
+    });
     mocha_1.describe("TileTree Tests", () => {
         mocha_1.it("creates a tile tree", () => {
             const extent = [0, 0, 10, 10];
-            const tree = new index_1.TileTree({ extent });
+            const tree = new TileTree_1.TileTree({ extent });
             const root = tree.find(extent);
             chai_1.assert.isTrue(isEq(extent[0], root.extent[0]));
         });
         mocha_1.it("inserts an extent outside of the bounds of the current tree", () => {
             const extent = [0, 0, 1, 1];
-            const tree = new index_1.TileTree({ extent });
-            chai_1.assert.throws(() => tree.find([1, 1, 2, 2]), "xmax too large: 2 > 1");
-            chai_1.assert.throws(() => tree.find([0.1, 0.1, 0.9, 1.00001]), "ymax too large");
+            const tree = new TileTree_1.TileTree({ extent });
+            chai_1.assert.throws(() => {
+                tree.find([1, 1, 2, 2]);
+            }, "invalid X");
+            chai_1.assert.throws(() => {
+                tree.find([0.1, 0.1, 0.9, 1.00001]);
+            }, "invalid extent");
         });
         mocha_1.it("inserts an extent that misaligns to the established scale", () => {
             const extent = [0, 0, 1, 1];
-            const tree = new index_1.TileTree({ extent });
-            chai_1.assert.throws(() => tree.find([0, 0, 0.4, 0.4]), "wrong power");
-            chai_1.assert.throws(() => tree.find([0, 0, 0.5, 0.4]), "not square");
+            const tree = new TileTree_1.TileTree({ extent });
+            chai_1.assert.throws(() => {
+                tree.find([0, 0, 0.4, 0.4]);
+            }, "invalid extent");
+            chai_1.assert.throws(() => {
+                tree.find([0, 0, 0.5, 0.4]);
+            }, "invalid extent");
             chai_1.assert.throws(() => {
                 tree.find([0.1, 0, 0.6, 0.5]);
-            }, "xmax too large");
-        });
-        mocha_1.it("inserts a valid extent into the 4 quadrants", () => {
-            const extent = [0, 0, 1, 1];
-            const tree = new index_1.TileTree({ extent });
-            const result1 = tree.find([0, 0, 0.5, 0.5]);
-            chai_1.assert.isTrue(result1.quad.every((q) => q === null));
-            const q0 = tree.find([0, 0, 0.25, 0.25]);
-            const q1 = tree.find([0.25, 0, 0.5, 0.25]);
-            const q2 = tree.find([0, 0.25, 0.25, 0.5]);
-            const q3 = tree.find([0.25, 0.25, 0.5, 0.5]);
-            chai_1.assert.equal(q0, result1.quad[0], "quad0");
-            chai_1.assert.equal(q1, result1.quad[1], "quad1");
-            chai_1.assert.equal(q2, result1.quad[2], "quad2");
-            chai_1.assert.equal(q3, result1.quad[3], "quad3");
+            }, "invalid extent");
         });
         mocha_1.it("attaches data to the nodes", () => {
             const extent = [0, 0, 1, 1];
-            const tree = new index_1.TileTree({ extent });
+            const tree = new TileTree_1.TileTree({ extent });
             const q0 = tree.find([0, 0, 0.25, 0.25]);
             const q1 = tree.find([0.25, 0, 0.5, 0.25]);
             const q2 = tree.find([0, 0.25, 0.25, 0.5]);
@@ -23129,13 +23239,13 @@ define("poc/test/index", ["require", "exports", "mocha", "chai", "node_modules/o
         });
         mocha_1.it("uses 3857 to find a tile for a given depth and coordinate", () => {
             const extent = proj_1.get("EPSG:3857").getExtent();
-            const tree = new index_1.TileTree({ extent });
+            const tree = new TileTree_1.TileTree({ extent });
             const q0 = tree.findByPoint({ zoom: 3, point: [-1, -1] });
             const q1 = tree.findByPoint({ zoom: 3, point: [1, -1] });
             const q2 = tree.findByPoint({ zoom: 3, point: [-1, 1] });
             const q3 = tree.findByPoint({ zoom: 3, point: [1, 1] });
-            const size = -5009377.085697311;
-            chai_1.assert.equal(q0.extent[0], size, "q0.x");
+            const size = -5009377.085697312;
+            chai_1.assert.isTrue(isEq(q0.extent[0], size), "q0.x");
             chai_1.assert.equal(q1.extent[0], 0, "q1.x");
             chai_1.assert.equal(q2.extent[0], size, "q2.x");
             chai_1.assert.equal(q3.extent[0], 0, "q3.x");
@@ -23146,7 +23256,7 @@ define("poc/test/index", ["require", "exports", "mocha", "chai", "node_modules/o
         });
         mocha_1.it("can cache tiles from a TileGrid", () => {
             const extent = proj_1.get("EPSG:3857").getExtent();
-            const tree = new index_1.TileTree({
+            const tree = new TileTree_1.TileTree({
                 extent,
             });
             const tileGrid = tilegrid_1.createXYZ({ extent });
@@ -23157,18 +23267,31 @@ define("poc/test/index", ["require", "exports", "mocha", "chai", "node_modules/o
             });
             const maxX = () => tree.visit((a, b) => Math.max(a, b.data.tileCoord ? b.data.tileCoord[1] : a), 0);
             for (let i = 0; i <= 8; i++) {
+                console.log(`adding ${i}`);
                 addTiles(i);
                 chai_1.assert.equal(Math.pow(2, i) - 1, maxX(), `addTiles(${i})`);
             }
         });
         mocha_1.it("integrates with a tiling strategy", () => {
             const extent = proj_1.get("EPSG:3857").getExtent();
-            const tree = new index_1.TileTree({ extent });
+            const extentInfo = explode_4.explode(extent);
+            const tree = new TileTree_1.TileTree({ extent });
             const tileGrid = tilegrid_1.createXYZ({ extent });
             const strategy = loadingstrategy_1.tile(tileGrid);
             const resolutions = tileGrid.getResolutions();
             let quad0 = extent;
-            resolutions.slice(0, 28).forEach((resolution, i) => {
+            const r0 = extentInfo.w / 256;
+            chai_1.assert.equal(resolutions[0], r0, "meters per pixel");
+            resolutions.forEach((r, i) => {
+                chai_1.assert.equal(r, r0 * Math.pow(2, -i), `resolution[${i}]`);
+            });
+            resolutions.slice(0, 27).forEach((resolution, i) => {
+                const extents = strategy(quad0, resolution);
+                quad0 = extents[0];
+                tree.find(quad0);
+            });
+            debugger;
+            resolutions.slice(27, 28).forEach((resolution, i) => {
                 const extents = strategy(quad0, resolution);
                 quad0 = extents[0];
                 tree.find(quad0);
@@ -23177,7 +23300,7 @@ define("poc/test/index", ["require", "exports", "mocha", "chai", "node_modules/o
             resolutions.slice(28).forEach((resolution, i) => {
                 const extents = strategy(quad0, resolution);
                 quad0 = extents[0];
-                chai_1.assert.throws(() => tree.find(quad0), "wrong power");
+                tree.find(quad0);
             });
         });
         mocha_1.it("integrates with a feature source", () => {
@@ -23185,7 +23308,7 @@ define("poc/test/index", ["require", "exports", "mocha", "chai", "node_modules/o
             const projection = proj_1.get("EPSG:3857");
             const tileGrid = tilegrid_1.createXYZ({ tileSize: 512 });
             const strategy = loadingstrategy_1.tile(tileGrid);
-            const tree = new index_1.TileTree({
+            const tree = new TileTree_1.TileTree({
                 extent: tileGrid.getExtent(),
             });
             const source = buildLoader_1.buildLoader({ tree, strategy, url });
@@ -23198,7 +23321,7 @@ define("poc/test/index", ["require", "exports", "mocha", "chai", "node_modules/o
         });
         mocha_1.it("renders on a map", () => {
             const view = new View_1.default({
-                center: extent_5.getCenter([-11114555, 4696291, -10958012, 4852834]),
+                center: extent_4.getCenter([-11114555, 4696291, -10958012, 4852834]),
                 zoom: 10,
             });
             const target = document.createElement("div");
@@ -23208,13 +23331,13 @@ define("poc/test/index", ["require", "exports", "mocha", "chai", "node_modules/o
             const url = "http://localhost:3002/mock/sampleserver3/arcgis/rest/services/Petroleum/KSFields/FeatureServer/0/query";
             const tileGrid = tilegrid_1.createXYZ({ tileSize: 256 });
             const strategy = loadingstrategy_1.tile(tileGrid);
-            const tree = new index_1.TileTree({
+            const tree = new TileTree_1.TileTree({
                 extent: tileGrid.getExtent(),
             });
             const vectorSource = buildLoader_1.buildLoader({ tree, url, strategy });
             const vectorLayer = new Vector_2.default({
                 source: vectorSource,
-                style: (feature) => {
+                style: ((feature) => {
                     const { text, count } = feature.getProperties();
                     const style = new style_1.Style({
                         image: new Circle_2.default({
@@ -23232,7 +23355,7 @@ define("poc/test/index", ["require", "exports", "mocha", "chai", "node_modules/o
                         fill: new style_1.Fill({ color: "rgba(200,200,0,0.2)" }),
                     });
                     return [style, vector];
-                },
+                }),
             });
             const layers = [vectorLayer];
             const map = new Map_1.default({ view, target, layers });
@@ -23242,9 +23365,82 @@ define("poc/test/index", ["require", "exports", "mocha", "chai", "node_modules/o
             }, 60 * 1000);
         }).timeout(10000);
     });
+    mocha_1.describe("Playground", () => {
+        mocha_1.it("prior failures", () => {
+            const extent = proj_1.get("EPSG:3857").getExtent();
+            {
+                const xyz = { X: 1, Y: 0, Z: 3 };
+                let x = asExtent_2.asExtent(extent, xyz);
+                chai_1.assert.deepEqual(x, [
+                    -15028131.257091932,
+                    -20037508.342789244,
+                    -10018754.17139462,
+                    -15028131.257091932,
+                ]);
+                chai_1.assert.deepEqual(asXYZ_2.asXYZ(extent, x), xyz);
+            }
+            {
+                const xyz = { X: 0, Y: 0, Z: 4 };
+                const x = asExtent_2.asExtent(extent, xyz);
+                chai_1.assert.deepEqual(x, [
+                    -20037508.342789244,
+                    -20037508.342789244,
+                    -17532819.79994059,
+                    -17532819.79994059,
+                ]);
+                chai_1.assert.deepEqual(asXYZ_2.asXYZ(extent, x), xyz);
+            }
+            {
+                const xyz = { X: 0, Y: 1, Z: 4 };
+                const x = asExtent_2.asExtent(extent, xyz);
+                console.log(x);
+                chai_1.assert.deepEqual(x, [
+                    -20037508.342789244,
+                    -17532819.79994059,
+                    -17532819.79994059,
+                    -15028131.257091934,
+                ]);
+                chai_1.assert.deepEqual(asXYZ_2.asXYZ(extent, x), xyz);
+            }
+            {
+                const x0 = [
+                    -20037508.342789244,
+                    20037508.044207104,
+                    -20037508.044207104,
+                    20037508.342789244,
+                ];
+                const xyz = asXYZ_2.asXYZ(extent, x0);
+                const x = asExtent_2.asExtent(extent, xyz);
+                chai_1.assert.deepEqual(asXYZ_2.asXYZ(extent, x), xyz, "rounding errors");
+                x.forEach((v, i) => chai_1.assert.isTrue(isEq(v, x0[i]), `${i}:${v - x0[i]}`));
+            }
+            {
+                const x0 = [
+                    -20037508.342789244,
+                    20037470.1242751,
+                    -20037470.1242751,
+                    20037508.342789244,
+                ];
+                debugger;
+                const xyz = asXYZ_2.asXYZ(extent, x0);
+                chai_1.assert.deepEqual(xyz, { X: 0, Y: 1048575, Z: 20 });
+                const x = asExtent_2.asExtent(extent, xyz);
+                chai_1.assert.deepEqual(asXYZ_2.asXYZ(extent, x), xyz, "rounding errors");
+                x.forEach((v, i) => chai_1.assert.isTrue(isEq(v, x0[i]), `${i}:${v - x0[i]}`));
+            }
+        });
+    });
 });
 define("index", ["require", "exports", "poc/test/index"], function (require, exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
 });
+function debounce(cb, wait = 20) {
+    let h = 0;
+    let callable = (...args) => {
+        clearTimeout(h);
+        h = setTimeout(() => cb(...args), wait);
+    };
+    return callable;
+}
 //# sourceMappingURL=index.js.map

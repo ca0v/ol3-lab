@@ -1,6 +1,6 @@
 import { Extent, getCenter, getWidth } from "@ol/extent";
 import { Projection } from "@ol/proj";
-import { TileTree } from "../index";
+import { TileTree } from "../TileTree";
 import VectorSource from "@ol/source/Vector";
 import Point from "@ol/geom/Point";
 import Feature from "@ol/Feature";
@@ -101,7 +101,6 @@ export function buildLoader(options: {
           source.addFeatures(features);
           debugger;
           const parent = tree.parent(tileNode);
-          console.assert(parent.quad.some((v) => v === tileNode));
           console.log(parent.data.feature);
         } else {
           const geom = new Circle(

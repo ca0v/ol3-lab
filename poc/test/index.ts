@@ -1,12 +1,12 @@
 import { describe, it } from "mocha";
 import { assert } from "chai";
 
-import { Extent, getCenter } from "@ol/extent";
+import { Extent, getCenter, getWidth } from "@ol/extent";
 import { get as getProjection } from "@ol/proj";
-import { TileTree, TileNode } from "../index";
+import { TileTree } from "../TileTree";
+import { TileNode } from "../TileNode";
 import { createXYZ } from "@ol/tilegrid";
 import { tile as tileStrategy } from "@ol/loadingstrategy";
-import VectorSource from "@ol/source/Vector";
 import Point from "@ol/geom/Point";
 import Feature from "@ol/Feature";
 import Geometry from "@ol/geom/Geometry";
@@ -19,21 +19,106 @@ import { buildLoader } from "../fun/buildLoader";
 import { Style, Fill, Stroke, Text } from "@ol/style";
 import Circle from "@ol/style/Circle";
 import Polygon from "@ol/geom/Polygon";
+import { asExtent } from "poc/asExtent";
+import { asXYZ } from "poc/asXYZ";
+import { explode } from "poc/explode";
 
-function debounce<T extends Function>(cb: T, wait = 20) {
-  let h = 0;
-  let callable = (...args: any) => {
-    clearTimeout(h);
-    h = setTimeout(() => cb(...args), wait);
-  };
-  return <T>(<any>callable);
-}
-
-const TINY = 0.0000001;
+const TINY = Math.pow(2, -24);
 
 function isEq(v1: number, v2: number) {
-  return TINY > Math.abs(v1 - v2);
+  const diff = Math.abs(v1 - v2);
+  const result = TINY > diff;
+  if (!result) debugger;
+  return result;
 }
+
+describe("playground", () => {
+  it("playground", () => {
+    const extent = getProjection("EPSG:3857").getExtent() as Extent;
+    const extentInfo = explode(extent);
+
+    const resolution = 9.554628535647032;
+    const tile_14_0_16383 = [
+      -20037508.342789244,
+      20035062.357884116,
+      -20035062.357884116,
+      20037508.342789244,
+    ];
+
+    const xyz = asXYZ(extent, tile_14_0_16383);
+    assert.deepEqual(xyz, { X: 0, Y: 16383, Z: 14 });
+
+    const tileInfo = explode(tile_14_0_16383);
+    assert.isTrue(
+      isEq(tileInfo.w, extentInfo.w * Math.pow(2, -14)),
+      "tile from level 14 has computable width"
+    );
+
+    assert.isTrue(
+      isEq(tileInfo.ymin, extentInfo.ymax - tileInfo.w),
+      "tile from level 14 has computable y value"
+    );
+  });
+});
+describe("XYZ testing", () => {
+  it("XYZ to extent", () => {
+    const extent = [0, 0, 16, 16] as Extent;
+
+    let x = asExtent(extent, { X: 0, Y: 0, Z: 0 });
+    assert.deepEqual(x, [0, 0, 16, 16]);
+
+    x = asExtent(extent, { X: 0, Y: 0, Z: 1 });
+    assert.deepEqual(x, [0, 0, 8, 8]);
+
+    x = asExtent(extent, { X: 1, Y: 0, Z: 1 });
+    assert.deepEqual(x, [8, 0, 16, 8]);
+
+    x = asExtent(extent, { X: 1, Y: 0, Z: 2 });
+    assert.deepEqual(x, [4, 0, 8, 4]);
+
+    x = asExtent(extent, { X: 1, Y: 0, Z: 3 });
+    assert.deepEqual(x, [2, 0, 4, 2]);
+
+    x = asExtent(extent, { X: 3, Y: 1020, Z: 10 });
+    console.log(x);
+    assert.deepEqual(x, [0.046875, 15.9375, 0.0625, 15.953125]);
+  });
+
+  it("extent to XYZ", () => {
+    const extent = [0, 0, 16, 16] as Extent;
+
+    let x = asXYZ(extent, [0, 0, 16, 16]);
+    assert.deepEqual(x, { X: 0, Y: 0, Z: 0 });
+
+    x = asXYZ(extent, [0, 4, 4, 8]);
+    assert.deepEqual(x, { X: 0, Y: 1, Z: 2 });
+
+    x = asXYZ(extent, [0.046875, 15.9375, 0.0625, 15.953125]);
+    assert.deepEqual(x, { X: 3, Y: 1020, Z: 10 });
+  });
+
+  it("exhaustive XYZ", () => {
+    const extents = [
+      [0, 0, 1024, 1024],
+      getProjection("EPSG:3857").getExtent(),
+    ];
+    extents.forEach((extent) => {
+      console.log(extent);
+      for (let z = 0; z < 10; z++) {
+        for (let x = 0; x < 10; x++) {
+          for (let y = 0; y < 10; y++) {
+            const v1 = asExtent(extent, { X: x, Y: y, Z: z });
+            const v2 = asXYZ(extent, v1);
+            console.log(v1, v2, x, y, z);
+            assert.equal(v2.X, x, "x");
+            assert.equal(v2.Y, y, "y");
+            assert.equal(v2.Z, z, "z");
+          }
+        }
+      }
+    });
+  });
+});
 
 describe("TileTree Tests", () => {
   it("creates a tile tree", () => {
@@ -46,48 +131,46 @@ describe("TileTree Tests", () => {
   it("inserts an extent outside of the bounds of the current tree", () => {
     const extent = [0, 0, 1, 1] as Extent;
     const tree = new TileTree({ extent });
-    assert.throws(() => tree.find([1, 1, 2, 2]), "xmax too large: 2 > 1");
-    assert.throws(() => tree.find([0.1, 0.1, 0.9, 1.00001]), "ymax too large");
+    assert.throws(() => {
+      tree.find([1, 1, 2, 2]);
+    }, "invalid X");
+    assert.throws(() => {
+      tree.find([0.1, 0.1, 0.9, 1.00001]);
+    }, "invalid extent");
   });
 
   it("inserts an extent that misaligns to the established scale", () => {
     const extent = [0, 0, 1, 1] as Extent;
     const tree = new TileTree({ extent });
-    assert.throws(() => tree.find([0, 0, 0.4, 0.4]), "wrong power");
-    assert.throws(() => tree.find([0, 0, 0.5, 0.4]), "not square");
+    assert.throws(() => {
+      tree.find([0, 0, 0.4, 0.4]);
+    }, "invalid extent");
+
+    assert.throws(() => {
+      tree.find([0, 0, 0.5, 0.4]);
+    }, "invalid extent");
+
     assert.throws(() => {
       tree.find([0.1, 0, 0.6, 0.5]);
-    }, "xmax too large");
-  });
-
-  it("inserts a valid extent into the 4 quadrants", () => {
-    const extent = [0, 0, 1, 1] as Extent;
-    const tree = new TileTree({ extent });
-    const result1 = tree.find([0, 0, 0.5, 0.5]);
-    assert.isTrue(result1.quad.every((q) => q === null));
-    const q0 = tree.find([0, 0, 0.25, 0.25]);
-    const q1 = tree.find([0.25, 0, 0.5, 0.25]);
-    const q2 = tree.find([0, 0.25, 0.25, 0.5]);
-    const q3 = tree.find([0.25, 0.25, 0.5, 0.5]);
-    assert.equal(q0, result1.quad[0], "quad0");
-    assert.equal(q1, result1.quad[1], "quad1");
-    assert.equal(q2, result1.quad[2], "quad2");
-    assert.equal(q3, result1.quad[3], "quad3");
+    }, "invalid extent");
   });
 
   it("attaches data to the nodes", () => {
     const extent = [0, 0, 1, 1] as Extent;
     const tree = new TileTree<{ count: number }>({ extent });
+
     const q0 = tree.find([0, 0, 0.25, 0.25]);
     const q1 = tree.find([0.25, 0, 0.5, 0.25]);
     const q2 = tree.find([0, 0.25, 0.25, 0.5]);
     const q3 = tree.find([0.25, 0.25, 0.5, 0.5]);
     const q33 = tree.find([0.375, 0.375, 0.5, 0.5]);
+
     q0.data.count = 1;
     q1.data.count = 2;
     q2.data.count = 4;
     q3.data.count = 8;
     q33.data.count = 16;
+
     const totalCount = tree.visit((a, b) => a + (b?.data.count || 0), 0);
     assert.equal(totalCount, 31);
   });
@@ -95,14 +178,15 @@ describe("TileTree Tests", () => {
   it("uses 3857 to find a tile for a given depth and coordinate", () => {
     const extent = getProjection("EPSG:3857").getExtent();
     const tree = new TileTree<TileNode<{ count: number }>>({ extent });
+
     const q0 = tree.findByPoint({ zoom: 3, point: [-1, -1] });
     const q1 = tree.findByPoint({ zoom: 3, point: [1, -1] });
     const q2 = tree.findByPoint({ zoom: 3, point: [-1, 1] });
     const q3 = tree.findByPoint({ zoom: 3, point: [1, 1] });
-    const size = -5009377.085697311;
+    const size = -5009377.085697312;
 
     // x
-    assert.equal(q0.extent[0], size, "q0.x");
+    assert.isTrue(isEq(q0.extent[0], size), "q0.x");
     assert.equal(q1.extent[0], 0, "q1.x");
     assert.equal(q2.extent[0], size, "q2.x");
     assert.equal(q3.extent[0], 0, "q3.x");
@@ -136,6 +220,7 @@ describe("TileTree Tests", () => {
       );
 
     for (let i = 0; i <= 8; i++) {
+      console.log(`adding ${i}`);
       addTiles(i);
       assert.equal(Math.pow(2, i) - 1, maxX(), `addTiles(${i})`);
     }
@@ -143,13 +228,32 @@ describe("TileTree Tests", () => {
 
   it("integrates with a tiling strategy", () => {
     const extent = getProjection("EPSG:3857").getExtent() as Extent;
+    const extentInfo = explode(extent);
+
     const tree = new TileTree<{ count: number }>({ extent });
     const tileGrid = createXYZ({ extent });
     const strategy = tileStrategy(tileGrid);
     const resolutions = tileGrid.getResolutions();
     let quad0 = extent;
 
-    resolutions.slice(0, 28).forEach((resolution, i) => {
+    // check resolutions
+    const r0 = extentInfo.w / 256;
+    assert.equal(resolutions[0], r0, "meters per pixel");
+    resolutions.forEach((r, i) => {
+      assert.equal(r, r0 * Math.pow(2, -i), `resolution[${i}]`);
+    });
+
+    resolutions.slice(0, 27).forEach((resolution, i) => {
+      const extents = strategy(quad0, resolution) as Extent[];
+      quad0 = extents[0];
+      tree.find(quad0);
+    });
+
+    // things go bad here..the y values are off by 2^-23.2
+    // which is probably okay with 2^-17 values but it will only get worse
+    // what is going wrong?
+    debugger;
+    resolutions.slice(27, 28).forEach((resolution, i) => {
       const extents = strategy(quad0, resolution) as Extent[];
       quad0 = extents[0];
       tree.find(quad0);
@@ -163,7 +267,7 @@ describe("TileTree Tests", () => {
       const extents = strategy(quad0, resolution) as Extent[];
       quad0 = extents[0];
       // TODO: would prefer this to work
-      assert.throws(() => tree.find(quad0), "wrong power");
+      tree.find(quad0);
     });
   });
 
@@ -218,7 +322,7 @@ describe("TileTree Tests", () => {
     const vectorSource = buildLoader({ tree, url, strategy });
     const vectorLayer = new VectorLayer({
       source: vectorSource,
-      style: (feature: Feature<Geometry>) => {
+      style: <any>((feature: Feature<Geometry>) => {
         const { text, count } = feature.getProperties();
         const style = new Style({
           image: new Circle({
@@ -236,7 +340,7 @@ describe("TileTree Tests", () => {
           fill: new Fill({ color: "rgba(200,200,0,0.2)" }),
         });
         return [style, vector];
-      },
+      }),
     });
 
     const layers = [vectorLayer];
@@ -247,4 +351,80 @@ describe("TileTree Tests", () => {
       map.dispose();
     }, 60 * 1000);
   }).timeout(10000);
+});
+
+describe("Playground", () => {
+  it("prior failures", () => {
+    const extent = getProjection("EPSG:3857").getExtent();
+
+    {
+      const xyz = { X: 1, Y: 0, Z: 3 };
+      let x = asExtent(extent, xyz);
+      assert.deepEqual(x, [
+        -15028131.257091932,
+        -20037508.342789244,
+        -10018754.17139462,
+        -15028131.257091932,
+      ]);
+
+      assert.deepEqual(asXYZ(extent, x), xyz);
+    }
+
+    {
+      const xyz = { X: 0, Y: 0, Z: 4 };
+      const x = asExtent(extent, xyz);
+      assert.deepEqual(x, [
+        -20037508.342789244,
+        -20037508.342789244,
+        -17532819.79994059,
+        -17532819.79994059,
+      ]);
+
+      assert.deepEqual(asXYZ(extent, x), xyz);
+    }
+
+    {
+      const xyz = { X: 0, Y: 1, Z: 4 };
+      const x = asExtent(extent, xyz);
+      console.log(x);
+      assert.deepEqual(x, [
+        -20037508.342789244,
+        -17532819.79994059,
+        -17532819.79994059,
+        -15028131.257091934,
+      ]);
+
+      assert.deepEqual(asXYZ(extent, x), xyz);
+    }
+
+    {
+      const x0 = [
+        -20037508.342789244,
+        20037508.044207104,
+        -20037508.044207104,
+        20037508.342789244,
+      ];
+
+      const xyz = asXYZ(extent, x0);
+      const x = asExtent(extent, xyz);
+      assert.deepEqual(asXYZ(extent, x), xyz, "rounding errors");
+      x.forEach((v, i) => assert.isTrue(isEq(v, x0[i]), `${i}:${v - x0[i]}`));
+    }
+
+    {
+      const x0 = [
+        -20037508.342789244,
+        20037470.1242751,
+        -20037470.1242751,
+        20037508.342789244,
+      ];
+
+      debugger;
+      const xyz = asXYZ(extent, x0);
+      assert.deepEqual(xyz, { X: 0, Y: 1048575, Z: 20 });
+      const x = asExtent(extent, xyz);
+      assert.deepEqual(asXYZ(extent, x), xyz, "rounding errors");
+      x.forEach((v, i) => assert.isTrue(isEq(v, x0[i]), `${i}:${v - x0[i]}`));
+    }
+  });
 });
