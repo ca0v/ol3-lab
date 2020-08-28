@@ -9,21 +9,17 @@ import { createXYZ } from "@ol/tilegrid";
 import { tile as tileStrategy } from "@ol/loadingstrategy";
 import Point from "@ol/geom/Point";
 import Feature from "@ol/Feature";
-import Geometry from "@ol/geom/Geometry";
 import VectorEventType from "@ol/source/VectorEventType";
 import { createWeightedFeature } from "../fun/createWeightedFeature";
 import Map from "@ol/Map";
 import View from "@ol/View";
-import VectorLayer from "@ol/layer/Vector";
 import { buildLoader } from "../fun/buildLoader";
-import { Style, Fill, Stroke, Text } from "@ol/style";
-import Circle from "@ol/style/Circle";
 import Polygon from "@ol/geom/Polygon";
 import { asExtent } from "poc/asExtent";
 import { asXYZ } from "poc/asXYZ";
 import { explode } from "poc/explode";
 import { isEq } from "poc/index";
-import { XYZ } from "poc/XYZ";
+import { AgsClusterLayer } from "../AgsClusterLayer";
 
 describe("Playground", () => {
   it("Past Failures", () => {
@@ -256,60 +252,6 @@ describe("TileTree Tests", () => {
       }
     );
   });
-
-  it("renders on a map", () => {
-    const view = new View({
-      center: getCenter([-11114555, 4696291, -10958012, 4852834]),
-      zoom: 10,
-    });
-    const targetContainer = document.createElement("div");
-    targetContainer.className = "testmapcontainer";
-    const target = document.createElement("div");
-    target.className = "map";
-    document.body.appendChild(targetContainer);
-    targetContainer.appendChild(target);
-
-    const url =
-      "http://localhost:3002/mock/sampleserver3/arcgis/rest/services/Petroleum/KSFields/FeatureServer/0/query";
-    const tileGrid = createXYZ({ tileSize: 256 });
-    const strategy = tileStrategy(tileGrid);
-
-    const tree = new TileTree<{ count: number; feature: Feature<Geometry> }>({
-      extent: tileGrid.getExtent(),
-    });
-
-    const vectorSource = buildLoader({ tree, url, strategy });
-    const vectorLayer = new VectorLayer({
-      source: vectorSource,
-      style: <any>((feature: Feature<Geometry>) => {
-        const { text, count } = feature.getProperties();
-        const style = new Style({
-          image: new Circle({
-            radius: 10 + Math.sqrt(count) / 2,
-            fill: new Fill({ color: "rgba(200,0,0,0.2)" }),
-            stroke: new Stroke({ color: "white", width: 1 }),
-          }),
-          text: new Text({
-            text: (text || count) + "",
-            stroke: new Stroke({ color: "black", width: 1 }),
-            fill: new Fill({ color: "white" }),
-          }),
-        });
-        const vector = new Style({
-          fill: new Fill({ color: "rgba(200,200,0,0.2)" }),
-        });
-        return [style, vector];
-      }),
-    });
-
-    const layers = [vectorLayer];
-    const map = new Map({ view, target, layers });
-
-    setTimeout(() => {
-      targetContainer.remove();
-      map.dispose();
-    }, 60 * 1000);
-  });
 });
 
 describe("Cluster Rendering Rules", () => {
@@ -355,5 +297,32 @@ describe("Cluster Rendering Rules", () => {
     assert.deepEqual(tree.findByXYZ(root).data.count, 15, "1,2,4,8");
     assert.deepEqual(tree.findByXYZ(root).data.center, [810, -135], "1,2,4,8");
     assert.deepEqual(center, [54, -9], "center of mass of root tile");
+  });
+});
+
+describe("UI Labs", () => {
+  it("renders on a map", () => {
+    const view = new View({
+      center: getCenter([-11114555, 4696291, -10958012, 4852834]),
+      zoom: 10,
+    });
+    const targetContainer = document.createElement("div");
+    targetContainer.className = "testmapcontainer";
+    const target = document.createElement("div");
+    target.className = "map";
+    document.body.appendChild(targetContainer);
+    targetContainer.appendChild(target);
+
+    const url =
+      "http://localhost:3002/mock/sampleserver3/arcgis/rest/services/Petroleum/KSFields/FeatureServer/0/query";
+
+    const vectorLayer = new AgsClusterLayer({ url });
+    const layers = [vectorLayer];
+    const map = new Map({ view, target, layers });
+
+    setTimeout(() => {
+      targetContainer.remove();
+      map.dispose();
+    }, 60 * 1000);
   });
 });

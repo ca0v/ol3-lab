@@ -23209,13 +23209,50 @@ define("poc/fun/buildLoader", ["require", "exports", "node_modules/ol/src/extent
     }
     exports.buildLoader = buildLoader;
 });
-define("poc/test/index", ["require", "exports", "mocha", "chai", "node_modules/ol/src/extent", "node_modules/ol/src/proj", "poc/TileTree", "node_modules/ol/src/tilegrid", "node_modules/ol/src/loadingstrategy", "node_modules/ol/src/source/VectorEventType", "poc/fun/createWeightedFeature", "node_modules/ol/src/Map", "node_modules/ol/src/View", "node_modules/ol/src/layer/Vector", "poc/fun/buildLoader", "node_modules/ol/src/style", "node_modules/ol/src/style/Circle", "poc/asExtent", "poc/asXYZ", "poc/explode", "poc/index"], function (require, exports, mocha_1, chai_1, extent_5, proj_1, TileTree_1, tilegrid_1, loadingstrategy_1, VectorEventType_1, createWeightedFeature_1, Map_1, View_1, Vector_2, buildLoader_1, style_1, Circle_2, asExtent_2, asXYZ_2, explode_4, index_3) {
+define("poc/AgsClusterLayer", ["require", "exports", "poc/TileTree", "node_modules/ol/src/tilegrid", "node_modules/ol/src/loadingstrategy", "node_modules/ol/src/layer/Vector", "poc/fun/buildLoader", "node_modules/ol/src/style", "node_modules/ol/src/style/Circle"], function (require, exports, TileTree_1, tilegrid_1, loadingstrategy_1, Vector_2, buildLoader_1, style_1, Circle_2) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.AgsClusterLayer = void 0;
+    class AgsClusterLayer extends Vector_2.default {
+        constructor(options) {
+            const { url } = options;
+            const tileGrid = tilegrid_1.createXYZ({ tileSize: 256 });
+            const strategy = loadingstrategy_1.tile(tileGrid);
+            const tree = new TileTree_1.TileTree({
+                extent: tileGrid.getExtent(),
+            });
+            const source = buildLoader_1.buildLoader({ tree, url, strategy });
+            const style = (feature) => {
+                const { text, count } = feature.getProperties();
+                const style = new style_1.Style({
+                    image: new Circle_2.default({
+                        radius: 10 + Math.sqrt(count) / 2,
+                        fill: new style_1.Fill({ color: "rgba(200,0,0,0.2)" }),
+                        stroke: new style_1.Stroke({ color: "white", width: 1 }),
+                    }),
+                    text: new style_1.Text({
+                        text: (text || count) + "",
+                        stroke: new style_1.Stroke({ color: "black", width: 1 }),
+                        fill: new style_1.Fill({ color: "white" }),
+                    }),
+                });
+                const vector = new style_1.Style({
+                    fill: new style_1.Fill({ color: "rgba(200,200,0,0.2)" }),
+                });
+                return [style, vector];
+            };
+            super({ source, style: style });
+        }
+    }
+    exports.AgsClusterLayer = AgsClusterLayer;
+});
+define("poc/test/index", ["require", "exports", "mocha", "chai", "node_modules/ol/src/extent", "node_modules/ol/src/proj", "poc/TileTree", "node_modules/ol/src/tilegrid", "node_modules/ol/src/loadingstrategy", "node_modules/ol/src/source/VectorEventType", "poc/fun/createWeightedFeature", "node_modules/ol/src/Map", "node_modules/ol/src/View", "poc/fun/buildLoader", "poc/asExtent", "poc/asXYZ", "poc/explode", "poc/index", "poc/AgsClusterLayer"], function (require, exports, mocha_1, chai_1, extent_5, proj_1, TileTree_2, tilegrid_2, loadingstrategy_2, VectorEventType_1, createWeightedFeature_1, Map_1, View_1, buildLoader_2, asExtent_2, asXYZ_2, explode_4, index_3, AgsClusterLayer_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     mocha_1.describe("Playground", () => {
         mocha_1.it("Past Failures", () => {
             const extent = [-180, -90, 180, 90];
-            const tree = new TileTree_1.TileTree({ extent });
+            const tree = new TileTree_2.TileTree({ extent });
             const xyz = { X: 0, Y: 1, Z: 1 };
             const node = tree.findByXYZ(xyz, { force: true });
             chai_1.assert.deepEqual(tree.asXyz(node), xyz);
@@ -23273,13 +23310,13 @@ define("poc/test/index", ["require", "exports", "mocha", "chai", "node_modules/o
     mocha_1.describe("TileTree Tests", () => {
         mocha_1.it("creates a tile tree", () => {
             const extent = [0, 0, 10, 10];
-            const tree = new TileTree_1.TileTree({ extent });
+            const tree = new TileTree_2.TileTree({ extent });
             const root = tree.find(extent);
             chai_1.assert.isTrue(index_3.isEq(extent[0], root.extent[0]));
         });
         mocha_1.it("inserts an extent outside of the bounds of the current tree", () => {
             const extent = [0, 0, 1, 1];
-            const tree = new TileTree_1.TileTree({ extent });
+            const tree = new TileTree_2.TileTree({ extent });
             chai_1.assert.throws(() => {
                 tree.find([1, 1, 2, 2]);
             }, "invalid X");
@@ -23289,7 +23326,7 @@ define("poc/test/index", ["require", "exports", "mocha", "chai", "node_modules/o
         });
         mocha_1.it("inserts an extent that misaligns to the established scale", () => {
             const extent = [0, 0, 1, 1];
-            const tree = new TileTree_1.TileTree({ extent });
+            const tree = new TileTree_2.TileTree({ extent });
             chai_1.assert.throws(() => {
                 tree.find([0, 0, 0.4, 0.4]);
             }, "invalid extent");
@@ -23302,7 +23339,7 @@ define("poc/test/index", ["require", "exports", "mocha", "chai", "node_modules/o
         });
         mocha_1.it("attaches data to the nodes", () => {
             const extent = [0, 0, 1, 1];
-            const tree = new TileTree_1.TileTree({ extent });
+            const tree = new TileTree_2.TileTree({ extent });
             const q0 = tree.find([0, 0, 0.25, 0.25]);
             const q1 = tree.find([0.25, 0, 0.5, 0.25]);
             const q2 = tree.find([0, 0.25, 0.25, 0.5]);
@@ -23318,7 +23355,7 @@ define("poc/test/index", ["require", "exports", "mocha", "chai", "node_modules/o
         });
         mocha_1.it("uses 3857 to find a tile for a given depth and coordinate", () => {
             const extent = proj_1.get("EPSG:3857").getExtent();
-            const tree = new TileTree_1.TileTree({ extent });
+            const tree = new TileTree_2.TileTree({ extent });
             const q0 = tree.findByPoint({ zoom: 3, point: [-1, -1] });
             const q1 = tree.findByPoint({ zoom: 3, point: [1, -1] });
             const q2 = tree.findByPoint({ zoom: 3, point: [-1, 1] });
@@ -23335,10 +23372,10 @@ define("poc/test/index", ["require", "exports", "mocha", "chai", "node_modules/o
         });
         mocha_1.it("can cache tiles from a TileGrid", () => {
             const extent = proj_1.get("EPSG:3857").getExtent();
-            const tree = new TileTree_1.TileTree({
+            const tree = new TileTree_2.TileTree({
                 extent,
             });
-            const tileGrid = tilegrid_1.createXYZ({ extent });
+            const tileGrid = tilegrid_2.createXYZ({ extent });
             const addTiles = (level) => tileGrid.forEachTileCoord(extent, level, (tileCoord) => {
                 const [z, x, y] = tileCoord;
                 const extent = tileGrid.getTileCoordExtent(tileCoord);
@@ -23354,9 +23391,9 @@ define("poc/test/index", ["require", "exports", "mocha", "chai", "node_modules/o
         mocha_1.it("integrates with a tiling strategy", () => {
             const extent = proj_1.get("EPSG:3857").getExtent();
             const extentInfo = explode_4.explode(extent);
-            const tree = new TileTree_1.TileTree({ extent });
-            const tileGrid = tilegrid_1.createXYZ({ extent });
-            const strategy = loadingstrategy_1.tile(tileGrid);
+            const tree = new TileTree_2.TileTree({ extent });
+            const tileGrid = tilegrid_2.createXYZ({ extent });
+            const strategy = loadingstrategy_2.tile(tileGrid);
             const resolutions = tileGrid.getResolutions();
             const r0 = extentInfo.w / 256;
             chai_1.assert.equal(resolutions[0], r0, "meters per pixel");
@@ -23375,12 +23412,12 @@ define("poc/test/index", ["require", "exports", "mocha", "chai", "node_modules/o
         mocha_1.it("integrates with a feature source", () => {
             const url = "http://localhost:3002/mock/sampleserver3/arcgis/rest/services/Petroleum/KSFields/FeatureServer/0/query";
             const projection = proj_1.get("EPSG:3857");
-            const tileGrid = tilegrid_1.createXYZ({ tileSize: 512 });
-            const strategy = loadingstrategy_1.tile(tileGrid);
-            const tree = new TileTree_1.TileTree({
+            const tileGrid = tilegrid_2.createXYZ({ tileSize: 512 });
+            const strategy = loadingstrategy_2.tile(tileGrid);
+            const tree = new TileTree_2.TileTree({
                 extent: tileGrid.getExtent(),
             });
-            const source = buildLoader_1.buildLoader({ tree, strategy, url });
+            const source = buildLoader_2.buildLoader({ tree, strategy, url });
             source.loadFeatures(tileGrid.getExtent(), tileGrid.getResolution(0), projection);
             source.on(VectorEventType_1.default.ADDFEATURE, (args) => {
                 const { count, resolution } = args.feature.getProperties();
@@ -23388,59 +23425,12 @@ define("poc/test/index", ["require", "exports", "mocha", "chai", "node_modules/o
                 createWeightedFeature_1.createWeightedFeature;
             });
         });
-        mocha_1.it("renders on a map", () => {
-            const view = new View_1.default({
-                center: extent_5.getCenter([-11114555, 4696291, -10958012, 4852834]),
-                zoom: 10,
-            });
-            const targetContainer = document.createElement("div");
-            targetContainer.className = "testmapcontainer";
-            const target = document.createElement("div");
-            target.className = "map";
-            document.body.appendChild(targetContainer);
-            targetContainer.appendChild(target);
-            const url = "http://localhost:3002/mock/sampleserver3/arcgis/rest/services/Petroleum/KSFields/FeatureServer/0/query";
-            const tileGrid = tilegrid_1.createXYZ({ tileSize: 256 });
-            const strategy = loadingstrategy_1.tile(tileGrid);
-            const tree = new TileTree_1.TileTree({
-                extent: tileGrid.getExtent(),
-            });
-            const vectorSource = buildLoader_1.buildLoader({ tree, url, strategy });
-            const vectorLayer = new Vector_2.default({
-                source: vectorSource,
-                style: ((feature) => {
-                    const { text, count } = feature.getProperties();
-                    const style = new style_1.Style({
-                        image: new Circle_2.default({
-                            radius: 10 + Math.sqrt(count) / 2,
-                            fill: new style_1.Fill({ color: "rgba(200,0,0,0.2)" }),
-                            stroke: new style_1.Stroke({ color: "white", width: 1 }),
-                        }),
-                        text: new style_1.Text({
-                            text: (text || count) + "",
-                            stroke: new style_1.Stroke({ color: "black", width: 1 }),
-                            fill: new style_1.Fill({ color: "white" }),
-                        }),
-                    });
-                    const vector = new style_1.Style({
-                        fill: new style_1.Fill({ color: "rgba(200,200,0,0.2)" }),
-                    });
-                    return [style, vector];
-                }),
-            });
-            const layers = [vectorLayer];
-            const map = new Map_1.default({ view, target, layers });
-            setTimeout(() => {
-                targetContainer.remove();
-                map.dispose();
-            }, 60 * 1000);
-        });
     });
     mocha_1.describe("Cluster Rendering Rules", () => {
         mocha_1.it("computes density", () => {
             const extent = [0, 0, 10, 10];
-            const tree = new TileTree_1.TileTree({ extent });
-            const helper = new TileTree_1.TileTreeExt(tree);
+            const tree = new TileTree_2.TileTree({ extent });
+            const helper = new TileTree_2.TileTreeExt(tree);
             chai_1.assert.equal(40, helper.density({ Z: 1, count: 10 }));
             const root = { X: 0, Y: 0, Z: 0 };
             const t000 = tree.findByXYZ(root);
@@ -23461,10 +23451,10 @@ define("poc/test/index", ["require", "exports", "mocha", "chai", "node_modules/o
         });
         mocha_1.it("computes center of mass", () => {
             const extent = proj_1.get("EPSG:4326").getExtent();
-            const tree = new TileTree_1.TileTree({
+            const tree = new TileTree_2.TileTree({
                 extent,
             });
-            const helper = new TileTree_1.TileTreeExt(tree);
+            const helper = new TileTree_2.TileTreeExt(tree);
             const root = { X: 0, Y: 0, Z: 0 };
             const t000 = tree.findByXYZ(root);
             const children = tree.ensureQuads(t000);
@@ -23473,6 +23463,28 @@ define("poc/test/index", ["require", "exports", "mocha", "chai", "node_modules/o
             chai_1.assert.deepEqual(tree.findByXYZ(root).data.count, 15, "1,2,4,8");
             chai_1.assert.deepEqual(tree.findByXYZ(root).data.center, [810, -135], "1,2,4,8");
             chai_1.assert.deepEqual(center, [54, -9], "center of mass of root tile");
+        });
+    });
+    mocha_1.describe("UI Labs", () => {
+        mocha_1.it("renders on a map", () => {
+            const view = new View_1.default({
+                center: extent_5.getCenter([-11114555, 4696291, -10958012, 4852834]),
+                zoom: 10,
+            });
+            const targetContainer = document.createElement("div");
+            targetContainer.className = "testmapcontainer";
+            const target = document.createElement("div");
+            target.className = "map";
+            document.body.appendChild(targetContainer);
+            targetContainer.appendChild(target);
+            const url = "http://localhost:3002/mock/sampleserver3/arcgis/rest/services/Petroleum/KSFields/FeatureServer/0/query";
+            const vectorLayer = new AgsClusterLayer_1.AgsClusterLayer({ url });
+            const layers = [vectorLayer];
+            const map = new Map_1.default({ view, target, layers });
+            setTimeout(() => {
+                targetContainer.remove();
+                map.dispose();
+            }, 60 * 1000);
         });
     });
 });
