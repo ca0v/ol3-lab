@@ -23,6 +23,9 @@ body,
   background-color: silver;
   border-radius: 2em;
 }
+#mocha {
+  color: white;
+}
 body {
   background-color: black;
 }
