@@ -99,7 +99,7 @@ export function buildLoader(options: {
             })
           );
           source.addFeatures(features);
-          const parent = tree.parent(tileNode);
+          const parent = tree.findByXYZ(tree.parent(tree.asXyz(tileNode)));
           console.log(parent.data.feature);
         } else {
           const geom = new Circle(
