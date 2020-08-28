@@ -35,7 +35,6 @@
 		"moduleResolution": "classic",
 	},
 	"files": [
-		"./index.ts",
-		"./poc/test/debounce.ts"
+		"./index.ts"
 	]
 }

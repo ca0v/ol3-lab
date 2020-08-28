@@ -22,44 +22,8 @@ import Polygon from "@ol/geom/Polygon";
 import { asExtent } from "poc/asExtent";
 import { asXYZ } from "poc/asXYZ";
 import { explode } from "poc/explode";
+import { isEq } from "poc/index";
 
-const TINY = Math.pow(2, -24);
-
-function isEq(v1: number, v2: number) {
-  const diff = Math.abs(v1 - v2);
-  const result = TINY > diff;
-  if (!result) debugger;
-  return result;
-}
-
-describe("playground", () => {
-  it("playground", () => {
-    const extent = getProjection("EPSG:3857").getExtent() as Extent;
-    const extentInfo = explode(extent);
-
-    const resolution = 9.554628535647032;
-    const tile_14_0_16383 = [
-      -20037508.342789244,
-      20035062.357884116,
-      -20035062.357884116,
-      20037508.342789244,
-    ];
-
-    const xyz = asXYZ(extent, tile_14_0_16383);
-    assert.deepEqual(xyz, { X: 0, Y: 16383, Z: 14 });
-
-    const tileInfo = explode(tile_14_0_16383);
-    assert.isTrue(
-      isEq(tileInfo.w, extentInfo.w * Math.pow(2, -14)),
-      "tile from level 14 has computable width"
-    );
-
-    assert.isTrue(
-      isEq(tileInfo.ymin, extentInfo.ymax - tileInfo.w),
-      "tile from level 14 has computable y value"
-    );
-  });
-});
 describe("XYZ testing", () => {
   it("XYZ to extent", () => {
     const extent = [0, 0, 16, 16] as Extent;
@@ -336,77 +300,41 @@ describe("TileTree Tests", () => {
   });
 });
 
-describe("Playground", () => {
-  it("prior failures", () => {
-    const extent = getProjection("EPSG:3857").getExtent();
+describe("Cluster Rendering Rules", () => {
+  const extent = [0, 0, 10, 10] as Extent;
+  const tree = new TileTree<{ count: number }>({ extent });
 
-    {
-      const xyz = { X: 1, Y: 0, Z: 3 };
-      let x = asExtent(extent, xyz);
-      assert.deepEqual(x, [
-        -15028131.257091932,
-        -20037508.342789244,
-        -10018754.17139462,
-        -15028131.257091932,
-      ]);
+  function density(tileInfo: { Z: number; count: number }) {
+    return tileInfo.count * Math.pow(2, tileInfo.Z);
+  }
 
-      assert.deepEqual(asXYZ(extent, x), xyz);
-    }
+  function updateCount(tile: TileNode<{ count: number }>) {
+    if (typeof tile.data.count === "number") return tile.data.count;
+    const result = tree
+      .children(tile)
+      .reduce((total, childTile) => total + updateCount(childTile), 0);
+    return (tile.data.count = result);
+  }
 
-    {
-      const xyz = { X: 0, Y: 0, Z: 4 };
-      const x = asExtent(extent, xyz);
-      assert.deepEqual(x, [
-        -20037508.342789244,
-        -20037508.342789244,
-        -17532819.79994059,
-        -17532819.79994059,
-      ]);
+  function nodeDensity(node: TileNode<{ count: number }>) {
+    const count = updateCount(node);
+    const root = tree.findByXYZ({ Z: 0, X: 0, Y: 0 });
+    const XYZ = asXYZ(root.extent, node.extent);
+    return density({ Z: XYZ.Z, count });
+  }
 
-      assert.deepEqual(asXYZ(extent, x), xyz);
-    }
+  it("computes density", () => {
+    // if the density exceeds a threshold the clustered version of the tile is rendered
+    // otherwise the features on that tile are rendered.  If the tile has not features
+    // then the child tiles are rendered at a higher density
+    assert.equal(20, density({ Z: 1, count: 10 }));
 
-    {
-      const xyz = { X: 0, Y: 1, Z: 4 };
-      const x = asExtent(extent, xyz);
-      console.log(x);
-      assert.deepEqual(x, [
-        -20037508.342789244,
-        -17532819.79994059,
-        -17532819.79994059,
-        -15028131.257091934,
-      ]);
-
-      assert.deepEqual(asXYZ(extent, x), xyz);
-    }
-
-    {
-      const x0 = [
-        -20037508.342789244,
-        20037508.044207104,
-        -20037508.044207104,
-        20037508.342789244,
-      ];
-
-      const xyz = asXYZ(extent, x0);
-      const x = asExtent(extent, xyz);
-      assert.deepEqual(asXYZ(extent, x), xyz, "rounding errors");
-      x.forEach((v, i) => assert.isTrue(isEq(v, x0[i]), `${i}:${v - x0[i]}`));
-    }
-
-    {
-      const x0 = [
-        -20037508.342789244,
-        20037470.1242751,
-        -20037470.1242751,
-        20037508.342789244,
-      ];
-
-      const xyz = asXYZ(extent, x0);
-      assert.deepEqual(xyz, { X: 0, Y: 1048575, Z: 20 });
-      const x = asExtent(extent, xyz);
-      assert.deepEqual(asXYZ(extent, x), xyz, "rounding errors");
-      x.forEach((v, i) => assert.isTrue(isEq(v, x0[i]), `${i}:${v - x0[i]}`));
-    }
+    const t000 = tree.findByXYZ({ X: 0, Y: 0, Z: 0 });
+    const children = tree.ensureQuads(t000);
+    children.forEach((c) => (c.data.count = 1));
+    updateCount(t000);
+    assert.equal(4, t000.data.count);
+    assert.equal(4, nodeDensity(t000));
+    assert.equal(2, nodeDensity(children[0]));
   });
 });

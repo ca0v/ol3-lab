@@ -75,16 +75,26 @@ export class TileTree<T> {
     return this.findByXYZ({ X, Y, Z }, { force: true });
   }
 
-  public ensureQuads(root: TileNode<T>) {
+  private quads(root: TileNode<T>) {
     const { X, Y, Z } = this.asXYZ(root);
     const x = X * 2;
     const y = Y * 2;
     const z = Z + 1;
-    const q0 = this.findByXYZ({ X: X, Y: Y, Z: z }, { force: true });
-    const q1 = this.findByXYZ({ X: X, Y: Y + 1, Z: z }, { force: true });
-    const q2 = this.findByXYZ({ X: X + 1, Y: Y + 1, Z: z }, { force: true });
-    const q3 = this.findByXYZ({ X: X + 1, Y: Y, Z: z }, { force: true });
+    const q0 = { X: X, Y: Y, Z: z };
+    const q1 = { X: X, Y: Y + 1, Z: z };
+    const q2 = { X: X + 1, Y: Y + 1, Z: z };
+    const q3 = { X: X + 1, Y: Y, Z: z };
     return [q0, q1, q2, q3];
+  }
+
+  public children(root: TileNode<T>) {
+    return this.quads(root)
+      .map((c) => this.findByXYZ(c, { force: false }))
+      .filter((v) => !!v);
+  }
+
+  public ensureQuads(root: TileNode<T>) {
+    return this.quads(root).map((c) => this.findByXYZ(c, { force: true }));
   }
 
   public visit<Q>(cb: (a: Q, b: TileNode<T>) => Q, init: Q): Q {

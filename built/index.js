@@ -1,4 +1,3 @@
-"use strict";
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -4731,16 +4730,24 @@ define("poc/TileTree", ["require", "exports", "node_modules/ol/src/extent", "poc
             const Y = Math.floor((Math.pow(2, Z) * (y - rootInfo.ymin)) / rootInfo.h);
             return this.findByXYZ({ X, Y, Z }, { force: true });
         }
-        ensureQuads(root) {
+        quads(root) {
             const { X, Y, Z } = this.asXYZ(root);
             const x = X * 2;
             const y = Y * 2;
             const z = Z + 1;
-            const q0 = this.findByXYZ({ X: X, Y: Y, Z: z }, { force: true });
-            const q1 = this.findByXYZ({ X: X, Y: Y + 1, Z: z }, { force: true });
-            const q2 = this.findByXYZ({ X: X + 1, Y: Y + 1, Z: z }, { force: true });
-            const q3 = this.findByXYZ({ X: X + 1, Y: Y, Z: z }, { force: true });
+            const q0 = { X: X, Y: Y, Z: z };
+            const q1 = { X: X, Y: Y + 1, Z: z };
+            const q2 = { X: X + 1, Y: Y + 1, Z: z };
+            const q3 = { X: X + 1, Y: Y, Z: z };
             return [q0, q1, q2, q3];
+        }
+        children(root) {
+            return this.quads(root)
+                .map((c) => this.findByXYZ(c, { force: false }))
+                .filter((v) => !!v);
+        }
+        ensureQuads(root) {
+            return this.quads(root).map((c) => this.findByXYZ(c, { force: true }));
         }
         visit(cb, init) {
             let result = init;
@@ -23110,35 +23117,9 @@ define("poc/fun/buildLoader", ["require", "exports", "node_modules/ol/src/extent
     }
     exports.buildLoader = buildLoader;
 });
-define("poc/test/index", ["require", "exports", "mocha", "chai", "node_modules/ol/src/extent", "node_modules/ol/src/proj", "poc/TileTree", "node_modules/ol/src/tilegrid", "node_modules/ol/src/loadingstrategy", "node_modules/ol/src/source/VectorEventType", "poc/fun/createWeightedFeature", "node_modules/ol/src/Map", "node_modules/ol/src/View", "node_modules/ol/src/layer/Vector", "poc/fun/buildLoader", "node_modules/ol/src/style", "node_modules/ol/src/style/Circle", "poc/asExtent", "poc/asXYZ", "poc/explode"], function (require, exports, mocha_1, chai_1, extent_4, proj_1, TileTree_1, tilegrid_1, loadingstrategy_1, VectorEventType_1, createWeightedFeature_1, Map_1, View_1, Vector_2, buildLoader_1, style_1, Circle_2, asExtent_2, asXYZ_2, explode_4) {
+define("poc/test/index", ["require", "exports", "mocha", "chai", "node_modules/ol/src/extent", "node_modules/ol/src/proj", "poc/TileTree", "node_modules/ol/src/tilegrid", "node_modules/ol/src/loadingstrategy", "node_modules/ol/src/source/VectorEventType", "poc/fun/createWeightedFeature", "node_modules/ol/src/Map", "node_modules/ol/src/View", "node_modules/ol/src/layer/Vector", "poc/fun/buildLoader", "node_modules/ol/src/style", "node_modules/ol/src/style/Circle", "poc/asExtent", "poc/asXYZ", "poc/explode", "poc/index"], function (require, exports, mocha_1, chai_1, extent_4, proj_1, TileTree_1, tilegrid_1, loadingstrategy_1, VectorEventType_1, createWeightedFeature_1, Map_1, View_1, Vector_2, buildLoader_1, style_1, Circle_2, asExtent_2, asXYZ_2, explode_4, index_3) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    const TINY = Math.pow(2, -24);
-    function isEq(v1, v2) {
-        const diff = Math.abs(v1 - v2);
-        const result = TINY > diff;
-        if (!result)
-            debugger;
-        return result;
-    }
-    mocha_1.describe("playground", () => {
-        mocha_1.it("playground", () => {
-            const extent = proj_1.get("EPSG:3857").getExtent();
-            const extentInfo = explode_4.explode(extent);
-            const resolution = 9.554628535647032;
-            const tile_14_0_16383 = [
-                -20037508.342789244,
-                20035062.357884116,
-                -20035062.357884116,
-                20037508.342789244,
-            ];
-            const xyz = asXYZ_2.asXYZ(extent, tile_14_0_16383);
-            chai_1.assert.deepEqual(xyz, { X: 0, Y: 16383, Z: 14 });
-            const tileInfo = explode_4.explode(tile_14_0_16383);
-            chai_1.assert.isTrue(isEq(tileInfo.w, extentInfo.w * Math.pow(2, -14)), "tile from level 14 has computable width");
-            chai_1.assert.isTrue(isEq(tileInfo.ymin, extentInfo.ymax - tileInfo.w), "tile from level 14 has computable y value");
-        });
-    });
     mocha_1.describe("XYZ testing", () => {
         mocha_1.it("XYZ to extent", () => {
             const extent = [0, 0, 16, 16];
@@ -23192,7 +23173,7 @@ define("poc/test/index", ["require", "exports", "mocha", "chai", "node_modules/o
             const extent = [0, 0, 10, 10];
             const tree = new TileTree_1.TileTree({ extent });
             const root = tree.find(extent);
-            chai_1.assert.isTrue(isEq(extent[0], root.extent[0]));
+            chai_1.assert.isTrue(index_3.isEq(extent[0], root.extent[0]));
         });
         mocha_1.it("inserts an extent outside of the bounds of the current tree", () => {
             const extent = [0, 0, 1, 1];
@@ -23241,7 +23222,7 @@ define("poc/test/index", ["require", "exports", "mocha", "chai", "node_modules/o
             const q2 = tree.findByPoint({ zoom: 3, point: [-1, 1] });
             const q3 = tree.findByPoint({ zoom: 3, point: [1, 1] });
             const size = -5009377.085697312;
-            chai_1.assert.isTrue(isEq(q0.extent[0], size), "q0.x");
+            chai_1.assert.isTrue(index_3.isEq(q0.extent[0], size), "q0.x");
             chai_1.assert.equal(q1.extent[0], 0, "q1.x");
             chai_1.assert.equal(q2.extent[0], size, "q2.x");
             chai_1.assert.equal(q3.extent[0], 0, "q3.x");
@@ -23353,68 +23334,35 @@ define("poc/test/index", ["require", "exports", "mocha", "chai", "node_modules/o
             }, 60 * 1000);
         });
     });
-    mocha_1.describe("Playground", () => {
-        mocha_1.it("prior failures", () => {
-            const extent = proj_1.get("EPSG:3857").getExtent();
-            {
-                const xyz = { X: 1, Y: 0, Z: 3 };
-                let x = asExtent_2.asExtent(extent, xyz);
-                chai_1.assert.deepEqual(x, [
-                    -15028131.257091932,
-                    -20037508.342789244,
-                    -10018754.17139462,
-                    -15028131.257091932,
-                ]);
-                chai_1.assert.deepEqual(asXYZ_2.asXYZ(extent, x), xyz);
-            }
-            {
-                const xyz = { X: 0, Y: 0, Z: 4 };
-                const x = asExtent_2.asExtent(extent, xyz);
-                chai_1.assert.deepEqual(x, [
-                    -20037508.342789244,
-                    -20037508.342789244,
-                    -17532819.79994059,
-                    -17532819.79994059,
-                ]);
-                chai_1.assert.deepEqual(asXYZ_2.asXYZ(extent, x), xyz);
-            }
-            {
-                const xyz = { X: 0, Y: 1, Z: 4 };
-                const x = asExtent_2.asExtent(extent, xyz);
-                console.log(x);
-                chai_1.assert.deepEqual(x, [
-                    -20037508.342789244,
-                    -17532819.79994059,
-                    -17532819.79994059,
-                    -15028131.257091934,
-                ]);
-                chai_1.assert.deepEqual(asXYZ_2.asXYZ(extent, x), xyz);
-            }
-            {
-                const x0 = [
-                    -20037508.342789244,
-                    20037508.044207104,
-                    -20037508.044207104,
-                    20037508.342789244,
-                ];
-                const xyz = asXYZ_2.asXYZ(extent, x0);
-                const x = asExtent_2.asExtent(extent, xyz);
-                chai_1.assert.deepEqual(asXYZ_2.asXYZ(extent, x), xyz, "rounding errors");
-                x.forEach((v, i) => chai_1.assert.isTrue(isEq(v, x0[i]), `${i}:${v - x0[i]}`));
-            }
-            {
-                const x0 = [
-                    -20037508.342789244,
-                    20037470.1242751,
-                    -20037470.1242751,
-                    20037508.342789244,
-                ];
-                const xyz = asXYZ_2.asXYZ(extent, x0);
-                chai_1.assert.deepEqual(xyz, { X: 0, Y: 1048575, Z: 20 });
-                const x = asExtent_2.asExtent(extent, xyz);
-                chai_1.assert.deepEqual(asXYZ_2.asXYZ(extent, x), xyz, "rounding errors");
-                x.forEach((v, i) => chai_1.assert.isTrue(isEq(v, x0[i]), `${i}:${v - x0[i]}`));
-            }
+    mocha_1.describe("Cluster Rendering Rules", () => {
+        const extent = [0, 0, 10, 10];
+        const tree = new TileTree_1.TileTree({ extent });
+        function density(tileInfo) {
+            return tileInfo.count * Math.pow(2, tileInfo.Z);
+        }
+        function updateCount(tile) {
+            if (typeof tile.data.count === "number")
+                return tile.data.count;
+            const result = tree
+                .children(tile)
+                .reduce((total, childTile) => total + updateCount(childTile), 0);
+            return (tile.data.count = result);
+        }
+        function nodeDensity(node) {
+            const count = updateCount(node);
+            const root = tree.findByXYZ({ Z: 0, X: 0, Y: 0 });
+            const XYZ = asXYZ_2.asXYZ(root.extent, node.extent);
+            return density({ Z: XYZ.Z, count });
+        }
+        mocha_1.it("computes density", () => {
+            chai_1.assert.equal(20, density({ Z: 1, count: 10 }));
+            const t000 = tree.findByXYZ({ X: 0, Y: 0, Z: 0 });
+            const children = tree.ensureQuads(t000);
+            children.forEach((c) => (c.data.count = 1));
+            updateCount(t000);
+            chai_1.assert.equal(4, t000.data.count);
+            chai_1.assert.equal(4, nodeDensity(t000));
+            chai_1.assert.equal(2, nodeDensity(children[0]));
         });
     });
 });
@@ -23422,12 +23370,4 @@ define("index", ["require", "exports", "poc/test/index"], function (require, exp
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
 });
-function debounce(cb, wait = 20) {
-    let h = 0;
-    let callable = (...args) => {
-        clearTimeout(h);
-        h = setTimeout(() => cb(...args), wait);
-    };
-    return callable;
-}
 //# sourceMappingURL=index.js.map
