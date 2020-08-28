@@ -4634,15 +4634,12 @@ define("poc/asXYZ", ["require", "exports", "poc/explode", "poc/index"], function
         const Y = Math.round(y);
         const TINY = Math.pow(2, -10);
         if (!index_1.isEq(Z - z, 0, TINY)) {
-            debugger;
             throw "invalid extent: zoom";
         }
         if (!index_1.isEq(X - x, 0, TINY)) {
-            debugger;
             throw "invalid extent: xmin";
         }
         if (!index_1.isEq(Y - y, 0, TINY)) {
-            debugger;
             throw "invalid extent: ymin";
         }
         return { X, Y, Z };
@@ -23086,7 +23083,6 @@ define("poc/fun/buildLoader", ["require", "exports", "node_modules/ol/src/extent
                                 text: `${f.getProperties()[response.objectIdFieldName]}`,
                             }));
                             source.addFeatures(features);
-                            debugger;
                             const parent = tree.parent(tileNode);
                             console.log(parent.data.feature);
                         }
@@ -23279,29 +23275,19 @@ define("poc/test/index", ["require", "exports", "mocha", "chai", "node_modules/o
             const tileGrid = tilegrid_1.createXYZ({ extent });
             const strategy = loadingstrategy_1.tile(tileGrid);
             const resolutions = tileGrid.getResolutions();
-            let quad0 = extent;
             const r0 = extentInfo.w / 256;
             chai_1.assert.equal(resolutions[0], r0, "meters per pixel");
             resolutions.forEach((r, i) => {
                 chai_1.assert.equal(r, r0 * Math.pow(2, -i), `resolution[${i}]`);
             });
-            resolutions.slice(0, 27).forEach((resolution, i) => {
-                const extents = strategy(quad0, resolution);
-                quad0 = extents[0];
-                tree.find(quad0);
-            });
-            debugger;
-            resolutions.slice(27, 28).forEach((resolution, i) => {
-                const extents = strategy(quad0, resolution);
-                quad0 = extents[0];
-                tree.find(quad0);
-            });
-            chai_1.assert.equal(0.0005831682455839253, resolutions[28]);
-            resolutions.slice(28).forEach((resolution, i) => {
-                const extents = strategy(quad0, resolution);
-                quad0 = extents[0];
-                tree.find(quad0);
-            });
+            {
+                let quad0 = extent;
+                resolutions.forEach((resolution, i) => {
+                    const extents = strategy(quad0, resolution);
+                    extents.forEach((q) => tree.find(q));
+                    quad0 = extents[0];
+                });
+            }
         });
         mocha_1.it("integrates with a feature source", () => {
             const url = "http://localhost:3002/mock/sampleserver3/arcgis/rest/services/Petroleum/KSFields/FeatureServer/0/query";
@@ -23324,10 +23310,12 @@ define("poc/test/index", ["require", "exports", "mocha", "chai", "node_modules/o
                 center: extent_4.getCenter([-11114555, 4696291, -10958012, 4852834]),
                 zoom: 10,
             });
+            const targetContainer = document.createElement("div");
+            targetContainer.className = "testmapcontainer";
             const target = document.createElement("div");
-            target.style.backgroundColor = "black";
             target.className = "map";
-            document.body.appendChild(target);
+            document.body.appendChild(targetContainer);
+            targetContainer.appendChild(target);
             const url = "http://localhost:3002/mock/sampleserver3/arcgis/rest/services/Petroleum/KSFields/FeatureServer/0/query";
             const tileGrid = tilegrid_1.createXYZ({ tileSize: 256 });
             const strategy = loadingstrategy_1.tile(tileGrid);
@@ -23346,7 +23334,7 @@ define("poc/test/index", ["require", "exports", "mocha", "chai", "node_modules/o
                             stroke: new style_1.Stroke({ color: "white", width: 1 }),
                         }),
                         text: new style_1.Text({
-                            text: text || count + "",
+                            text: (text || count) + "",
                             stroke: new style_1.Stroke({ color: "black", width: 1 }),
                             fill: new style_1.Fill({ color: "white" }),
                         }),
@@ -23360,10 +23348,10 @@ define("poc/test/index", ["require", "exports", "mocha", "chai", "node_modules/o
             const layers = [vectorLayer];
             const map = new Map_1.default({ view, target, layers });
             setTimeout(() => {
-                target.remove();
+                targetContainer.remove();
                 map.dispose();
             }, 60 * 1000);
-        }).timeout(10000);
+        });
     });
     mocha_1.describe("Playground", () => {
         mocha_1.it("prior failures", () => {
@@ -23421,7 +23409,6 @@ define("poc/test/index", ["require", "exports", "mocha", "chai", "node_modules/o
                     -20037470.1242751,
                     20037508.342789244,
                 ];
-                debugger;
                 const xyz = asXYZ_2.asXYZ(extent, x0);
                 chai_1.assert.deepEqual(xyz, { X: 0, Y: 1048575, Z: 20 });
                 const x = asExtent_2.asExtent(extent, xyz);

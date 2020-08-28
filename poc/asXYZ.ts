@@ -21,17 +21,14 @@ export function asXYZ(rootExtent: Extent, extent: Extent): XYZ {
   const TINY = Math.pow(2, -10);
 
   if (!isEq(Z - z, 0, TINY)) {
-    debugger;
     throw "invalid extent: zoom";
   }
 
   if (!isEq(X - x, 0, TINY)) {
-    debugger;
     throw "invalid extent: xmin";
   }
 
   if (!isEq(Y - y, 0, TINY)) {
-    debugger;
     throw "invalid extent: ymin";
   }
 

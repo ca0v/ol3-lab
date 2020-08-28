@@ -234,7 +234,6 @@ describe("TileTree Tests", () => {
     const tileGrid = createXYZ({ extent });
     const strategy = tileStrategy(tileGrid);
     const resolutions = tileGrid.getResolutions();
-    let quad0 = extent;
 
     // check resolutions
     const r0 = extentInfo.w / 256;
@@ -243,32 +242,14 @@ describe("TileTree Tests", () => {
       assert.equal(r, r0 * Math.pow(2, -i), `resolution[${i}]`);
     });
 
-    resolutions.slice(0, 27).forEach((resolution, i) => {
-      const extents = strategy(quad0, resolution) as Extent[];
-      quad0 = extents[0];
-      tree.find(quad0);
-    });
-
-    // things go bad here..the y values are off by 2^-23.2
-    // which is probably okay with 2^-17 values but it will only get worse
-    // what is going wrong?
-    debugger;
-    resolutions.slice(27, 28).forEach((resolution, i) => {
-      const extents = strategy(quad0, resolution) as Extent[];
-      quad0 = extents[0];
-      tree.find(quad0);
-    });
-
-    // my precision issues become problematic at this very small resolution
-    // which is fine with me but code may be more stable if I figure this out.
-    // perhaps I need X,Y,Z values instead of actual extents to eliminate fuzzy compares
-    assert.equal(0.0005831682455839253, resolutions[28]);
-    resolutions.slice(28).forEach((resolution, i) => {
-      const extents = strategy(quad0, resolution) as Extent[];
-      quad0 = extents[0];
-      // TODO: would prefer this to work
-      tree.find(quad0);
-    });
+    {
+      let quad0 = extent;
+      resolutions.forEach((resolution, i) => {
+        const extents = strategy(quad0, resolution) as Extent[];
+        extents.forEach((q) => tree.find(q));
+        quad0 = extents[0];
+      });
+    }
   });
 
   it("integrates with a feature source", () => {
@@ -305,10 +286,12 @@ describe("TileTree Tests", () => {
       center: getCenter([-11114555, 4696291, -10958012, 4852834]),
       zoom: 10,
     });
+    const targetContainer = document.createElement("div");
+    targetContainer.className = "testmapcontainer";
     const target = document.createElement("div");
-    target.style.backgroundColor = "black";
     target.className = "map";
-    document.body.appendChild(target);
+    document.body.appendChild(targetContainer);
+    targetContainer.appendChild(target);
 
     const url =
       "http://localhost:3002/mock/sampleserver3/arcgis/rest/services/Petroleum/KSFields/FeatureServer/0/query";
@@ -331,7 +314,7 @@ describe("TileTree Tests", () => {
             stroke: new Stroke({ color: "white", width: 1 }),
           }),
           text: new Text({
-            text: text || count + "",
+            text: (text || count) + "",
             stroke: new Stroke({ color: "black", width: 1 }),
             fill: new Fill({ color: "white" }),
           }),
@@ -347,10 +330,10 @@ describe("TileTree Tests", () => {
     const map = new Map({ view, target, layers });
 
     setTimeout(() => {
-      target.remove();
+      targetContainer.remove();
       map.dispose();
     }, 60 * 1000);
-  }).timeout(10000);
+  });
 });
 
 describe("Playground", () => {
@@ -419,7 +402,6 @@ describe("Playground", () => {
         20037508.342789244,
       ];
 
-      debugger;
       const xyz = asXYZ(extent, x0);
       assert.deepEqual(xyz, { X: 0, Y: 1048575, Z: 20 });
       const x = asExtent(extent, xyz);

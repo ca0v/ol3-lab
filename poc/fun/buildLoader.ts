@@ -99,7 +99,6 @@ export function buildLoader(options: {
             })
           );
           source.addFeatures(features);
-          debugger;
           const parent = tree.parent(tileNode);
           console.log(parent.data.feature);
         } else {
