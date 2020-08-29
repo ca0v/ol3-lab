@@ -231,11 +231,17 @@ describe("TileTree Tests", () => {
     const tileGrid = createXYZ({ tileSize: 512 });
     const strategy = tileStrategy(tileGrid);
 
-    const tree = new TileTree<{ count: number; feature: Feature<Polygon> }>({
+    const tree = new TileTree<{ count: number; center: [number, number] }>({
       extent: tileGrid.getExtent(),
     });
 
-    const source = buildLoader({ tree, strategy, url });
+    const source = buildLoader({
+      tree,
+      strategy,
+      url,
+      maxRecordCount: 1000,
+      maxFetchCount: 100,
+    });
 
     source.loadFeatures(
       tileGrid.getExtent(),
@@ -257,7 +263,9 @@ describe("TileTree Tests", () => {
 describe("Cluster Rendering Rules", () => {
   it("computes density", () => {
     const extent = [0, 0, 10, 10] as Extent;
-    const tree = new TileTree<{ count: number }>({ extent });
+    const tree = new TileTree<{ count: number; center: [number, number] }>({
+      extent,
+    });
     const helper = new TileTreeExt(tree);
     // if the density exceeds a threshold the clustered version of the tile is rendered
     // otherwise the features on that tile are rendered.  If the tile has not features
@@ -296,7 +304,7 @@ describe("Cluster Rendering Rules", () => {
     const center = helper.centerOfMass(root);
     assert.deepEqual(tree.findByXYZ(root).data.count, 15, "1,2,4,8");
     assert.deepEqual(tree.findByXYZ(root).data.center, [810, -135], "1,2,4,8");
-    assert.deepEqual(center, [54, -9], "center of mass of root tile");
+    assert.deepEqual(center, [810, -135], "center of mass of root tile");
   });
 });
 

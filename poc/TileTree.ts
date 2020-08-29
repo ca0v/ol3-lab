@@ -150,7 +150,12 @@ export class TileTree<T> {
 }
 
 export class TileTreeExt {
-  centerOfMass(root: XYZ) {
+  areChildrenLoaded(node: XYZ) {
+    const { tree } = this;
+    return 4 === tree.children(node).length;
+  }
+
+  centerOfMass(root: XYZ): [number, number] {
     const tree = this.tree;
     const data = tree.findByXYZ(root, { force: false })?.data;
     if (data?.center) return data.center;
@@ -162,7 +167,10 @@ export class TileTreeExt {
       if (!weight) return;
       if (!node.data.center) {
         //throw `cannot compute center: X:${d.X},Y:${d.Y},Z${d.Z}`;
-        node.data.center = getCenter(node.extent).map((v) => v * weight);
+        node.data.center = getCenter(node.extent).map((v) => v * weight) as [
+          number,
+          number
+        ];
       }
       const parentData = tree.findByXYZ(tree.parent(d), { force: true }).data;
       if (!parentData.center) {
@@ -172,16 +180,23 @@ export class TileTreeExt {
       node.data.center.forEach((c, i) => (parentData.center![i] += c));
       parentData.count += weight;
     });
-    return data.center?.map((v) => v / data.count);
+    if (!data.center) {
+      data.center = getCenter(tree.findByXYZ(root).extent) as [number, number];
+    } else {
+      data.center.map((v) => v / data.count) as [number, number];
+    }
+    return data.center;
   }
 
-  constructor(public tree: TileTree<{ count: number; center?: Coordinate }>) {}
+  constructor(
+    public tree: TileTree<{ count: number; center: [number, number] }>
+  ) {}
 
   public density(tileInfo: { Z: number; count: number }) {
     return tileInfo.count * Math.pow(2, 2 * tileInfo.Z);
   }
 
-  updateCount(tile: TileNode<{ count: number }>) {
+  updateCount(tile: TileNode<{ count: number; center: [number, number] }>) {
     const tree = this.tree;
     if (typeof tile.data.count === "number") return tile.data.count;
     const result = tree

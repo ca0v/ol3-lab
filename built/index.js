@@ -4799,8 +4799,12 @@ define("poc/TileTree", ["require", "exports", "node_modules/ol/src/extent", "nod
         constructor(tree) {
             this.tree = tree;
         }
+        areChildrenLoaded(node) {
+            const { tree } = this;
+            return 4 === tree.children(node).length;
+        }
         centerOfMass(root) {
-            var _a, _b;
+            var _a;
             const tree = this.tree;
             const data = (_a = tree.findByXYZ(root, { force: false })) === null || _a === void 0 ? void 0 : _a.data;
             if (data === null || data === void 0 ? void 0 : data.center)
@@ -4822,7 +4826,13 @@ define("poc/TileTree", ["require", "exports", "node_modules/ol/src/extent", "nod
                 node.data.center.forEach((c, i) => (parentData.center[i] += c));
                 parentData.count += weight;
             });
-            return (_b = data.center) === null || _b === void 0 ? void 0 : _b.map((v) => v / data.count);
+            if (!data.center) {
+                data.center = extent_1.getCenter(tree.findByXYZ(root).extent);
+            }
+            else {
+                data.center.map((v) => v / data.count);
+            }
+            return data.center;
         }
         density(tileInfo) {
             return tileInfo.count * Math.pow(2, 2 * tileInfo.Z);
@@ -23120,7 +23130,7 @@ define("node_modules/ol/src/format/EsriJSON", ["require", "exports", "node_modul
     }
     exports.default = EsriJSON;
 });
-define("poc/fun/buildLoader", ["require", "exports", "node_modules/ol/src/extent", "node_modules/ol/src/source/Vector", "node_modules/ol/src/geom/Point", "node_modules/ol/src/Feature", "poc/FeatureServiceProxy", "poc/fun/removeAuthority", "node_modules/ol/src/geom/Circle", "node_modules/ol/src/format/EsriJSON"], function (require, exports, extent_4, Vector_1, Point_2, Feature_2, FeatureServiceProxy_1, removeAuthority_1, Circle_1, EsriJSON_1) {
+define("poc/fun/buildLoader", ["require", "exports", "node_modules/ol/src/extent", "poc/TileTree", "node_modules/ol/src/source/Vector", "node_modules/ol/src/geom/Point", "node_modules/ol/src/Feature", "poc/FeatureServiceProxy", "poc/fun/removeAuthority", "node_modules/ol/src/format/EsriJSON", "node_modules/ol/src/tilegrid/common"], function (require, exports, extent_4, TileTree_1, Vector_1, Point_2, Feature_2, FeatureServiceProxy_1, removeAuthority_1, EsriJSON_1, common_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.buildLoader = void 0;
@@ -23129,20 +23139,16 @@ define("poc/fun/buildLoader", ["require", "exports", "node_modules/ol/src/extent
         return JSON.stringify({ xmin, ymin, xmax, ymax });
     }
     function buildLoader(options) {
+        const { tree, maxRecordCount, maxFetchCount, url } = options;
+        const helper = new TileTree_1.TileTreeExt(tree);
         let source;
         function loader(extent, resolution, projection) {
             return __awaiter(this, void 0, void 0, function* () {
                 source["loadedExtentsRtree_"].clear();
-                const { tree } = options;
-                const tileNode = tree.find(extent);
-                if (typeof tileNode.data.count === "number") {
-                    console.log(`already loaded: ${extent.map(Math.round)}, count:${tileNode.data.count}`);
-                    return;
-                }
-                tileNode.data.count = 0;
-                console.log(`loading: ${extent.map(Math.round)}`);
+                const tileIdentifier = tree.asXyz(tree.find(extent));
+                const tileData = tree.findByXYZ(tileIdentifier).data;
                 const proxy = new FeatureServiceProxy_1.FeatureServiceProxy({
-                    service: options.url,
+                    service: url,
                 });
                 const request = {
                     f: "json",
@@ -23155,42 +23161,60 @@ define("poc/fun/buildLoader", ["require", "exports", "node_modules/ol/src/extent
                     returnCountOnly: false,
                     spatialRel: "esriSpatialRelIntersects",
                 };
+                {
+                    if (0 < tree.children(tileIdentifier).length) {
+                        yield fetchChildren(tileIdentifier, resolution / 2, projection);
+                    }
+                    if (helper.areChildrenLoaded(tileIdentifier)) {
+                        helper.centerOfMass(tileIdentifier);
+                        const weight = tileData.count;
+                        const center = tileData.center.map((v) => v / weight);
+                        const geom = new Point_2.default(center);
+                        const feature = new Feature_2.default(geom);
+                        feature.setProperties({ tileInfo: tileIdentifier });
+                        source.addFeature(feature);
+                        return;
+                    }
+                    {
+                        if (typeof tileData.count === "number") {
+                            console.log(`already loaded: ${extent.map(Math.round)}, count:${tileData.count}`);
+                            return;
+                        }
+                    }
+                }
+                tileData.count = 0;
+                console.log(`loading: ${extent.map(Math.round)}`);
                 request.geometry = bbox(extent);
                 request.returnCountOnly = true;
                 try {
                     const response = yield proxy.fetch(request);
                     const count = response.count;
-                    tileNode.data.count = count;
+                    tileData.count = count;
                     console.log(`found ${count} features in ${extent
                         .map((v) => Math.round(v))
                         .join(",")}`);
                     if (count > 0) {
-                        if (count > 1000) {
-                            yield Promise.all(tree.ensureQuads(tileNode).map((q) => {
-                                source.loadFeatures(q.extent, resolution / 2, projection);
-                            }));
+                        if (count > maxRecordCount) {
+                            yield fetchChildren(tileIdentifier, resolution, projection);
                         }
-                        if (count < 100) {
-                            const esrijsonFormat = new EsriJSON_1.default();
-                            request.returnCountOnly = false;
-                            const response = yield proxy.fetch(request);
-                            console.log(response);
-                            const features = esrijsonFormat.readFeatures(response, {
-                                featureProjection: projection,
+                        if (count < maxFetchCount) {
+                            const features = yield loadFeatures(request, proxy, projection);
+                            features.forEach((feature) => {
+                                const geom = feature.getGeometry();
+                                const center = extent_4.getCenter(geom.getExtent());
+                                const featureTile = tree.findByPoint({
+                                    point: center,
+                                    zoom: common_1.DEFAULT_MAX_ZOOM,
+                                });
+                                feature.setProperties({ tileInfo: featureTile });
                             });
-                            features.forEach((f, i) => f.setProperties({
-                                text: `${f.getProperties()[response.objectIdFieldName]}`,
-                            }));
-                            source.addFeatures(features);
-                            const parent = tree.findByXYZ(tree.parent(tree.asXyz(tileNode)));
-                            console.log(parent.data.feature);
                         }
                         else {
-                            const geom = new Circle_1.default(extent_4.getCenter(extent), extent_4.getWidth(extent) / Math.PI);
+                            const center = helper.centerOfMass(tileIdentifier);
+                            const geom = new Point_2.default(center);
                             const feature = new Feature_2.default(geom);
-                            feature.setProperties({ count, resolution });
+                            feature.setProperties({ tileInfo: tileIdentifier });
                             source.addFeature(feature);
-                            tileNode.data.feature = feature;
                         }
                     }
                 }
@@ -23206,53 +23230,127 @@ define("poc/fun/buildLoader", ["require", "exports", "node_modules/ol/src/extent
             loader,
             strategy: options.strategy,
         }));
+        function loadFeatures(request, proxy, projection) {
+            return __awaiter(this, void 0, void 0, function* () {
+                const esrijsonFormat = new EsriJSON_1.default();
+                request.returnCountOnly = false;
+                const response = yield proxy.fetch(request);
+                console.log(response);
+                const features = esrijsonFormat.readFeatures(response, {
+                    featureProjection: projection,
+                });
+                features.forEach((f, i) => f.setProperties({
+                    text: `${f.getProperties()[response.objectIdFieldName]}`,
+                }));
+                source.addFeatures(features);
+                return features;
+            });
+        }
+        function fetchChildren(tileIdentifier, resolution, projection) {
+            return __awaiter(this, void 0, void 0, function* () {
+                yield Promise.all(tree.ensureQuads(tree.findByXYZ(tileIdentifier)).map((q) => {
+                    source.loadFeatures(q.extent, resolution / 2, projection);
+                }));
+            });
+        }
     }
     exports.buildLoader = buildLoader;
 });
-define("poc/AgsClusterLayer", ["require", "exports", "poc/TileTree", "node_modules/ol/src/tilegrid", "node_modules/ol/src/loadingstrategy", "node_modules/ol/src/layer/Vector", "poc/fun/buildLoader", "node_modules/ol/src/style", "node_modules/ol/src/style/Circle"], function (require, exports, TileTree_1, tilegrid_1, loadingstrategy_1, Vector_2, buildLoader_1, style_1, Circle_2) {
+define("poc/AgsClusterLayer", ["require", "exports", "poc/TileTree", "node_modules/ol/src/tilegrid", "node_modules/ol/src/loadingstrategy", "node_modules/ol/src/layer/Vector", "poc/fun/buildLoader", "node_modules/ol/src/style", "node_modules/ol/src/style/Circle", "node_modules/ol/src/extent", "node_modules/ol/src/geom/Point"], function (require, exports, TileTree_2, tilegrid_1, loadingstrategy_1, Vector_2, buildLoader_1, style_1, Circle_1, extent_5, Point_3) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.AgsClusterLayer = void 0;
     class AgsClusterLayer extends Vector_2.default {
         constructor(options) {
+            super();
             const { url } = options;
             const tileGrid = tilegrid_1.createXYZ({ tileSize: 256 });
             const strategy = loadingstrategy_1.tile(tileGrid);
-            const tree = new TileTree_1.TileTree({
+            this.tree = new TileTree_2.TileTree({
                 extent: tileGrid.getExtent(),
             });
-            const source = buildLoader_1.buildLoader({ tree, url, strategy });
-            const style = (feature) => {
-                const { text, count } = feature.getProperties();
-                const style = new style_1.Style({
-                    image: new Circle_2.default({
-                        radius: 10 + Math.sqrt(count) / 2,
-                        fill: new style_1.Fill({ color: "rgba(200,0,0,0.2)" }),
-                        stroke: new style_1.Stroke({ color: "white", width: 1 }),
-                    }),
-                    text: new style_1.Text({
-                        text: (text || count) + "",
-                        stroke: new style_1.Stroke({ color: "black", width: 1 }),
-                        fill: new style_1.Fill({ color: "white" }),
-                    }),
+            const source = buildLoader_1.buildLoader({
+                tree: this.tree,
+                url,
+                strategy,
+                maxFetchCount: 100,
+                maxRecordCount: 1000,
+            });
+            this.setStyle(this.createStyleFactory());
+            this.setSource(source);
+        }
+        createStyleFactory() {
+            const helper = new TileTree_2.TileTreeExt(this.tree);
+            const circleMaker = (count) => {
+                return new Circle_1.default({
+                    radius: 10 + Math.sqrt(count) / 2,
+                    fill: new style_1.Fill({ color: "rgba(200,0,0,1)" }),
+                    stroke: new style_1.Stroke({ color: "white", width: 1 }),
                 });
-                const vector = new style_1.Style({
-                    fill: new style_1.Fill({ color: "rgba(200,200,0,0.2)" }),
-                });
-                return [style, vector];
             };
-            super({ source, style: style });
+            const textMaker = (text) => new style_1.Text({
+                text: text,
+                stroke: new style_1.Stroke({ color: "black", width: 1 }),
+                fill: new style_1.Fill({ color: "white" }),
+            });
+            const style = (feature) => {
+                const { tileInfo: tileIdentifier, text } = feature.getProperties();
+                const result = [];
+                if (text) {
+                    const style = new style_1.Style({
+                        image: circleMaker(10),
+                        text: textMaker(text),
+                    });
+                    result.push(style);
+                }
+                if (tileIdentifier) {
+                    console.log(`rendering feature from ${tileIdentifier.Z}`);
+                    const tileNode = this.tree.findByXYZ(tileIdentifier);
+                    if (!tileNode) {
+                        const vector = new style_1.Style({
+                            fill: new style_1.Fill({ color: "rgba(200,0,200,0.2)" }),
+                        });
+                        result.push(vector);
+                    }
+                    else {
+                        let { count, center } = tileNode.data;
+                        if (!center) {
+                            debugger;
+                            center = helper.centerOfMass(tileIdentifier);
+                        }
+                        const style = new style_1.Style({
+                            image: circleMaker(count),
+                            text: textMaker(count + ""),
+                        });
+                        if (center) {
+                            style.setGeometry(new Point_3.default(center));
+                        }
+                        else {
+                            style.setGeometry(new Point_3.default(extent_5.getCenter(feature.getGeometry().getExtent())));
+                        }
+                        result.push(style);
+                    }
+                }
+                else {
+                    const vector = new style_1.Style({
+                        fill: new style_1.Fill({ color: "rgba(200,0,200,0.2)" }),
+                    });
+                    result.push(vector);
+                }
+                return result;
+            };
+            return style;
         }
     }
     exports.AgsClusterLayer = AgsClusterLayer;
 });
-define("poc/test/index", ["require", "exports", "mocha", "chai", "node_modules/ol/src/extent", "node_modules/ol/src/proj", "poc/TileTree", "node_modules/ol/src/tilegrid", "node_modules/ol/src/loadingstrategy", "node_modules/ol/src/source/VectorEventType", "poc/fun/createWeightedFeature", "node_modules/ol/src/Map", "node_modules/ol/src/View", "poc/fun/buildLoader", "poc/asExtent", "poc/asXYZ", "poc/explode", "poc/index", "poc/AgsClusterLayer"], function (require, exports, mocha_1, chai_1, extent_5, proj_1, TileTree_2, tilegrid_2, loadingstrategy_2, VectorEventType_1, createWeightedFeature_1, Map_1, View_1, buildLoader_2, asExtent_2, asXYZ_2, explode_4, index_3, AgsClusterLayer_1) {
+define("poc/test/index", ["require", "exports", "mocha", "chai", "node_modules/ol/src/extent", "node_modules/ol/src/proj", "poc/TileTree", "node_modules/ol/src/tilegrid", "node_modules/ol/src/loadingstrategy", "node_modules/ol/src/source/VectorEventType", "poc/fun/createWeightedFeature", "node_modules/ol/src/Map", "node_modules/ol/src/View", "poc/fun/buildLoader", "poc/asExtent", "poc/asXYZ", "poc/explode", "poc/index", "poc/AgsClusterLayer"], function (require, exports, mocha_1, chai_1, extent_6, proj_1, TileTree_3, tilegrid_2, loadingstrategy_2, VectorEventType_1, createWeightedFeature_1, Map_1, View_1, buildLoader_2, asExtent_2, asXYZ_2, explode_4, index_3, AgsClusterLayer_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     mocha_1.describe("Playground", () => {
         mocha_1.it("Past Failures", () => {
             const extent = [-180, -90, 180, 90];
-            const tree = new TileTree_2.TileTree({ extent });
+            const tree = new TileTree_3.TileTree({ extent });
             const xyz = { X: 0, Y: 1, Z: 1 };
             const node = tree.findByXYZ(xyz, { force: true });
             chai_1.assert.deepEqual(tree.asXyz(node), xyz);
@@ -23310,13 +23408,13 @@ define("poc/test/index", ["require", "exports", "mocha", "chai", "node_modules/o
     mocha_1.describe("TileTree Tests", () => {
         mocha_1.it("creates a tile tree", () => {
             const extent = [0, 0, 10, 10];
-            const tree = new TileTree_2.TileTree({ extent });
+            const tree = new TileTree_3.TileTree({ extent });
             const root = tree.find(extent);
             chai_1.assert.isTrue(index_3.isEq(extent[0], root.extent[0]));
         });
         mocha_1.it("inserts an extent outside of the bounds of the current tree", () => {
             const extent = [0, 0, 1, 1];
-            const tree = new TileTree_2.TileTree({ extent });
+            const tree = new TileTree_3.TileTree({ extent });
             chai_1.assert.throws(() => {
                 tree.find([1, 1, 2, 2]);
             }, "invalid X");
@@ -23326,7 +23424,7 @@ define("poc/test/index", ["require", "exports", "mocha", "chai", "node_modules/o
         });
         mocha_1.it("inserts an extent that misaligns to the established scale", () => {
             const extent = [0, 0, 1, 1];
-            const tree = new TileTree_2.TileTree({ extent });
+            const tree = new TileTree_3.TileTree({ extent });
             chai_1.assert.throws(() => {
                 tree.find([0, 0, 0.4, 0.4]);
             }, "invalid extent");
@@ -23339,7 +23437,7 @@ define("poc/test/index", ["require", "exports", "mocha", "chai", "node_modules/o
         });
         mocha_1.it("attaches data to the nodes", () => {
             const extent = [0, 0, 1, 1];
-            const tree = new TileTree_2.TileTree({ extent });
+            const tree = new TileTree_3.TileTree({ extent });
             const q0 = tree.find([0, 0, 0.25, 0.25]);
             const q1 = tree.find([0.25, 0, 0.5, 0.25]);
             const q2 = tree.find([0, 0.25, 0.25, 0.5]);
@@ -23355,7 +23453,7 @@ define("poc/test/index", ["require", "exports", "mocha", "chai", "node_modules/o
         });
         mocha_1.it("uses 3857 to find a tile for a given depth and coordinate", () => {
             const extent = proj_1.get("EPSG:3857").getExtent();
-            const tree = new TileTree_2.TileTree({ extent });
+            const tree = new TileTree_3.TileTree({ extent });
             const q0 = tree.findByPoint({ zoom: 3, point: [-1, -1] });
             const q1 = tree.findByPoint({ zoom: 3, point: [1, -1] });
             const q2 = tree.findByPoint({ zoom: 3, point: [-1, 1] });
@@ -23372,7 +23470,7 @@ define("poc/test/index", ["require", "exports", "mocha", "chai", "node_modules/o
         });
         mocha_1.it("can cache tiles from a TileGrid", () => {
             const extent = proj_1.get("EPSG:3857").getExtent();
-            const tree = new TileTree_2.TileTree({
+            const tree = new TileTree_3.TileTree({
                 extent,
             });
             const tileGrid = tilegrid_2.createXYZ({ extent });
@@ -23391,7 +23489,7 @@ define("poc/test/index", ["require", "exports", "mocha", "chai", "node_modules/o
         mocha_1.it("integrates with a tiling strategy", () => {
             const extent = proj_1.get("EPSG:3857").getExtent();
             const extentInfo = explode_4.explode(extent);
-            const tree = new TileTree_2.TileTree({ extent });
+            const tree = new TileTree_3.TileTree({ extent });
             const tileGrid = tilegrid_2.createXYZ({ extent });
             const strategy = loadingstrategy_2.tile(tileGrid);
             const resolutions = tileGrid.getResolutions();
@@ -23414,10 +23512,16 @@ define("poc/test/index", ["require", "exports", "mocha", "chai", "node_modules/o
             const projection = proj_1.get("EPSG:3857");
             const tileGrid = tilegrid_2.createXYZ({ tileSize: 512 });
             const strategy = loadingstrategy_2.tile(tileGrid);
-            const tree = new TileTree_2.TileTree({
+            const tree = new TileTree_3.TileTree({
                 extent: tileGrid.getExtent(),
             });
-            const source = buildLoader_2.buildLoader({ tree, strategy, url });
+            const source = buildLoader_2.buildLoader({
+                tree,
+                strategy,
+                url,
+                maxRecordCount: 1000,
+                maxFetchCount: 100,
+            });
             source.loadFeatures(tileGrid.getExtent(), tileGrid.getResolution(0), projection);
             source.on(VectorEventType_1.default.ADDFEATURE, (args) => {
                 const { count, resolution } = args.feature.getProperties();
@@ -23429,8 +23533,10 @@ define("poc/test/index", ["require", "exports", "mocha", "chai", "node_modules/o
     mocha_1.describe("Cluster Rendering Rules", () => {
         mocha_1.it("computes density", () => {
             const extent = [0, 0, 10, 10];
-            const tree = new TileTree_2.TileTree({ extent });
-            const helper = new TileTree_2.TileTreeExt(tree);
+            const tree = new TileTree_3.TileTree({
+                extent,
+            });
+            const helper = new TileTree_3.TileTreeExt(tree);
             chai_1.assert.equal(40, helper.density({ Z: 1, count: 10 }));
             const root = { X: 0, Y: 0, Z: 0 };
             const t000 = tree.findByXYZ(root);
@@ -23451,10 +23557,10 @@ define("poc/test/index", ["require", "exports", "mocha", "chai", "node_modules/o
         });
         mocha_1.it("computes center of mass", () => {
             const extent = proj_1.get("EPSG:4326").getExtent();
-            const tree = new TileTree_2.TileTree({
+            const tree = new TileTree_3.TileTree({
                 extent,
             });
-            const helper = new TileTree_2.TileTreeExt(tree);
+            const helper = new TileTree_3.TileTreeExt(tree);
             const root = { X: 0, Y: 0, Z: 0 };
             const t000 = tree.findByXYZ(root);
             const children = tree.ensureQuads(t000);
@@ -23462,13 +23568,13 @@ define("poc/test/index", ["require", "exports", "mocha", "chai", "node_modules/o
             const center = helper.centerOfMass(root);
             chai_1.assert.deepEqual(tree.findByXYZ(root).data.count, 15, "1,2,4,8");
             chai_1.assert.deepEqual(tree.findByXYZ(root).data.center, [810, -135], "1,2,4,8");
-            chai_1.assert.deepEqual(center, [54, -9], "center of mass of root tile");
+            chai_1.assert.deepEqual(center, [810, -135], "center of mass of root tile");
         });
     });
     mocha_1.describe("UI Labs", () => {
         mocha_1.it("renders on a map", () => {
             const view = new View_1.default({
-                center: extent_5.getCenter([-11114555, 4696291, -10958012, 4852834]),
+                center: extent_6.getCenter([-11114555, 4696291, -10958012, 4852834]),
                 zoom: 10,
             });
             const targetContainer = document.createElement("div");
