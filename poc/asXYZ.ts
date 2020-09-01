@@ -8,12 +8,9 @@ export function asXYZ(rootExtent: Extent, extent: Extent): XYZ {
   const nodeInfo = explode(extent);
 
   const z = Math.log2(rootInfo.w / nodeInfo.w);
-
   const Z = Math.round(z);
-
   const x = (Math.pow(2, Z) * (nodeInfo.xmin - rootInfo.xmin)) / rootInfo.w;
   const y = (Math.pow(2, Z) * (nodeInfo.ymin - rootInfo.ymin)) / rootInfo.h;
-
   const X = Math.round(x);
   const Y = Math.round(y);
 

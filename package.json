@@ -12,8 +12,9 @@
     "cp:js": "npm-run-all -p cp:ol cp:mocha cp:chai cp:requirejs",
     "cp": "npm-run-all -p cp:js",
     "clean": "rm built/** -rf",
-    "live": "live-server --port=5000 --wait=200 --watch=./built/index.js --open=./index.html --browser=CHROME",
+    "live": "live-server --port=5000 --wait=200 --watch=./built/index.js --open=./index.html",
     "build:index": "tsc -p tsconfig.json --outFile ./built/index.js",
+    "server": "cd ../reverse-proxy-server && npm run server",
     "postinstall": "npm-run-all cp build:index live"
   },
   "dependencies": {},

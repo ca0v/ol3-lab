@@ -4,36 +4,65 @@ import { tile as tileStrategy } from "@ol/loadingstrategy";
 import Feature from "@ol/Feature";
 import Geometry from "@ol/geom/Geometry";
 import VectorLayer from "@ol/layer/Vector";
-import { buildLoader } from "./fun/buildLoader";
+import { AgsFeatureLoader } from "./fun/AgsFeatureLoader";
 import { Style, Fill, Stroke, Text } from "@ol/style";
 import Circle from "@ol/style/Circle";
 import { getCenter } from "@ol/extent";
 import Point from "@ol/geom/Point";
 import { XYZ } from "./XYZ";
+import PluggableMap, { FrameState } from "@ol/PluggableMap";
+import { Extent } from "@ol/extent";
 
 export class AgsClusterLayer extends VectorLayer {
   private readonly tree: TileTree<{ count: number; center: [number, number] }>;
 
-  constructor(options: { url: string }) {
+  constructor(options: {
+    url: string;
+    tileSize: number;
+    maxFetchCount: number;
+    maxRecordCount: number;
+  }) {
     super();
-    const { url } = options;
-    const tileGrid = createXYZ({ tileSize: 256 });
+    const { url, tileSize, maxFetchCount, maxRecordCount } = options;
+    const tileGrid = createXYZ({ tileSize });
     const strategy = tileStrategy(tileGrid);
 
     this.tree = new TileTree<{ count: number; center: [number, number] }>({
       extent: tileGrid.getExtent(),
     });
 
-    const source = buildLoader({
+    const loader = new AgsFeatureLoader({
       tree: this.tree,
       url,
       strategy,
-      maxFetchCount: 100,
-      maxRecordCount: 1000,
+      maxFetchCount,
+      maxRecordCount,
     });
+    const source = loader.source;
 
     this.setStyle(<any>this.createStyleFactory());
     this.setSource(source);
+  }
+
+  // do not prevent future calls when resolution increases
+  public render(frameState: FrameState, target: HTMLElement): HTMLElement {
+    if (!frameState) return super.render(frameState, target);
+    const { center, zoom } = frameState.viewState;
+    const { tree } = this;
+    let tileIdentifier = tree.asXyz(
+      tree.findByPoint({ point: center, zoom: Math.ceil(zoom) })
+    );
+    const source = this.getSource();
+    console.log("removing parent extents:", tileIdentifier);
+    while (true) {
+      tileIdentifier = tree.parent(tileIdentifier);
+      const parentNode = tree.findByXYZ(tileIdentifier);
+      if (!parentNode) break;
+      console.log("removeLoadedExtent:", tileIdentifier);
+      source.removeLoadedExtent(parentNode.extent);
+      if (tileIdentifier.Z <= 0) break;
+    }
+    return super.render(frameState, target);
   }
 
   private createStyleFactory() {
@@ -55,23 +84,34 @@ export class AgsClusterLayer extends VectorLayer {
         fill: new Fill({ color: "white" }),
       });
 
-    const style = (feature: Feature<Geometry>) => {
+    // can control rendering from here by returning null styles
+    const style = (feature: Feature<Geometry>, resolution: number) => {
       const { tileInfo: tileIdentifier, text } = feature.getProperties() as {
         tileInfo: XYZ;
         text: string;
       };
+      if (!tileIdentifier) return;
+
       const result = [] as Style[];
 
-      if (text) {
-        const style = new Style({
-          image: circleMaker(10),
-          text: textMaker(text),
-        });
-        result.push(style);
-      }
-
       if (tileIdentifier) {
-        console.log(`rendering feature from ${tileIdentifier.Z}`);
+        // if density is too low and all children are available render them instead
+        if (helper.areChildrenLoaded(tileIdentifier)) {
+          const visibleChildren = this.tree
+            .children(tileIdentifier)
+            .filter((c) => {
+              const tileDensity = helper.nodeDensity(tileIdentifier);
+              if (!tileDensity) return null;
+              const effectiveDensity = Math.pow(resolution, 2) / tileDensity;
+              if (effectiveDensity < 256) return false;
+              return true;
+            });
+          if (4 === visibleChildren.length) {
+            console.log("rendering children only");
+            return null;
+          }
+        }
+
         const tileNode = this.tree.findByXYZ(tileIdentifier);
         if (!tileNode) {
           // there are no stats on this
@@ -83,8 +123,7 @@ export class AgsClusterLayer extends VectorLayer {
           // hereiam
           let { count, center } = tileNode.data;
           if (!center) {
-            debugger;
-            center = helper.centerOfMass(tileIdentifier);
+            center = helper.centerOfMass(tileIdentifier).center;
           }
           const style = new Style({
             image: circleMaker(count),
@@ -106,6 +145,15 @@ export class AgsClusterLayer extends VectorLayer {
         });
         result.push(vector);
       }
+
+      if (text) {
+        const style = new Style({
+          image: circleMaker(10),
+          text: textMaker(text),
+        });
+        result.push(style);
+      }
+
       return result;
     };
 

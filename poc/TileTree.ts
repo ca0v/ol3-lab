@@ -79,10 +79,10 @@ export class TileTree<T> {
     const x = X * 2;
     const y = Y * 2;
     const z = Z + 1;
-    const q0 = { X: X, Y: Y, Z: z };
-    const q1 = { X: X, Y: Y + 1, Z: z };
-    const q2 = { X: X + 1, Y: Y + 1, Z: z };
-    const q3 = { X: X + 1, Y: Y, Z: z };
+    const q0 = { X: x, Y: y, Z: z };
+    const q1 = { X: x, Y: y + 1, Z: z };
+    const q2 = { X: x + 1, Y: y + 1, Z: z };
+    const q3 = { X: x + 1, Y: y, Z: z };
     return [q0, q1, q2, q3];
   }
 
@@ -98,7 +98,7 @@ export class TileTree<T> {
       .map((n) => parseInt(n))
       .filter((z) => z > Z);
     Zs.forEach((Z, power) => {
-      const pow = Math.pow(2, power);
+      const pow = Math.pow(2, power + 1);
       const xmin = X * pow;
       const xmax = (X + 1) * pow;
       const ymin = Y * pow;
@@ -155,37 +155,51 @@ export class TileTreeExt {
     return 4 === tree.children(node).length;
   }
 
-  centerOfMass(root: XYZ): [number, number] {
+  centerOfMass(root: XYZ): { center: [number, number]; mass: number } {
     const tree = this.tree;
-    const data = tree.findByXYZ(root, { force: false })?.data;
-    if (data?.center) return data.center;
+    const rootNode = tree.findByXYZ(root, { force: false });
+    const data = rootNode?.data;
+    if (data?.center && data?.count)
+      return { center: data.center, mass: data.count };
     // need to loop through all nodes under this root backward, updating parent
+    const center = [0, 0];
+    const centerOfParentTile = getCenter(rootNode.extent);
+    console.log(centerOfParentTile, center);
+
+    let weight = 0;
     const descendants = tree.descendants(root).reverse();
+    console.log(descendants);
     descendants.forEach((d) => {
       const node = tree.findByXYZ(d);
-      const { count: weight } = node.data;
-      if (!weight) return;
-      if (!node.data.center) {
-        //throw `cannot compute center: X:${d.X},Y:${d.Y},Z${d.Z}`;
-        node.data.center = getCenter(node.extent).map((v) => v * weight) as [
-          number,
-          number
-        ];
-      }
-      const parentData = tree.findByXYZ(tree.parent(d), { force: true }).data;
-      if (!parentData.center) {
-        parentData.center = [0, 0];
-        parentData.count = 0;
-      }
-      node.data.center.forEach((c, i) => (parentData.center![i] += c));
-      parentData.count += weight;
+      const { count } = node.data;
+      if (!count) return;
+      console.log("node", d, "has weight", count);
+      weight += count;
+      //throw `cannot compute center: X:${d.X},Y:${d.Y},Z${d.Z}`;
+      const centerOfChildTile = getCenter(node.extent);
+      const relativeCenterOfChildTile = centerOfChildTile.map(
+        (v, i) => v - centerOfParentTile[i]
+      );
+      console.log(centerOfChildTile, relativeCenterOfChildTile);
+      center.forEach(
+        (v, i) => (center[i] = v + relativeCenterOfChildTile[i] * count)
+      );
+      console.log(center);
     });
-    if (!data.center) {
-      data.center = getCenter(tree.findByXYZ(root).extent) as [number, number];
-    } else {
-      data.center.map((v) => v / data.count) as [number, number];
+    if (weight == 0) {
+      if (!rootNode) throw "cannot compute center";
+      const centerOfExtent = getCenter(rootNode.extent) as [number, number];
+      return { center: centerOfExtent, mass: weight };
     }
-    return data.center;
+    const result = {
+      center: center.map((v, i) => centerOfParentTile[i] + v / weight) as [
+        number,
+        number
+      ],
+      mass: weight,
+    };
+    console.log(result);
+    return result;
   }
 
   constructor(
@@ -208,6 +222,7 @@ export class TileTreeExt {
   nodeDensity(xyz: XYZ) {
     const tree = this.tree;
     const node = tree.findByXYZ(xyz);
+    if (!node) return 0;
     const count = this.updateCount(node);
     return this.density({ Z: xyz.Z, count });
   }

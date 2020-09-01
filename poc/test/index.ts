@@ -13,8 +13,7 @@ import VectorEventType from "@ol/source/VectorEventType";
 import { createWeightedFeature } from "../fun/createWeightedFeature";
 import Map from "@ol/Map";
 import View from "@ol/View";
-import { buildLoader } from "../fun/buildLoader";
-import Polygon from "@ol/geom/Polygon";
+import { AgsFeatureLoader } from "../fun/AgsFeatureLoader";
 import { asExtent } from "poc/asExtent";
 import { asXYZ } from "poc/asXYZ";
 import { explode } from "poc/explode";
@@ -235,13 +234,13 @@ describe("TileTree Tests", () => {
       extent: tileGrid.getExtent(),
     });
 
-    const source = buildLoader({
+    const source = new AgsFeatureLoader({
       tree,
       strategy,
       url,
       maxRecordCount: 1000,
       maxFetchCount: 100,
-    });
+    }).source;
 
     source.loadFeatures(
       tileGrid.getExtent(),
@@ -261,6 +260,21 @@ describe("TileTree Tests", () => {
 });
 
 describe("Cluster Rendering Rules", () => {
+  it("tests ensureQuads", () => {
+    const extent = [0, 0, 10, 10] as Extent;
+    const tree = new TileTree<{ count: number; center: [number, number] }>({
+      extent,
+    });
+    const root = tree.find(extent);
+    let quad = tree
+      .ensureQuads(tree.findByXYZ({ X: 1, Y: 1, Z: 1 }, { force: true }))
+      .map((q) => tree.asXyz(q));
+    assert.deepEqual({ X: 2, Y: 2, Z: 2 }, quad[0], "1st quadrant");
+    assert.deepEqual({ X: 2, Y: 3, Z: 2 }, quad[1], "2nd quadrant");
+    assert.deepEqual({ X: 3, Y: 3, Z: 2 }, quad[2], "3rd quadrant");
+    assert.deepEqual({ X: 3, Y: 2, Z: 2 }, quad[3], "4th quadrant");
+  });
+
   it("computes density", () => {
     const extent = [0, 0, 10, 10] as Extent;
     const tree = new TileTree<{ count: number; center: [number, number] }>({
@@ -291,7 +305,7 @@ describe("Cluster Rendering Rules", () => {
   });
 
   it("computes center of mass", () => {
-    const extent = getProjection("EPSG:4326").getExtent() as Extent;
+    const extent = [0, 0, 16, 16] as Extent;
     const tree = new TileTree<{ count: number; center: [number, number] }>({
       extent,
     });
@@ -299,12 +313,40 @@ describe("Cluster Rendering Rules", () => {
 
     const root = { X: 0, Y: 0, Z: 0 };
     const t000 = tree.findByXYZ(root);
-    const children = tree.ensureQuads(t000);
-    children.forEach((c, i) => (c.data.count = Math.pow(2, i)));
-    const center = helper.centerOfMass(root);
-    assert.deepEqual(tree.findByXYZ(root).data.count, 15, "1,2,4,8");
-    assert.deepEqual(tree.findByXYZ(root).data.center, [810, -135], "1,2,4,8");
-    assert.deepEqual(center, [810, -135], "center of mass of root tile");
+    const [q0, q1, q2, q3] = tree.ensureQuads(t000);
+
+    // no mass
+    let com = helper.centerOfMass(root);
+    assert.deepEqual(com.mass, 0, "mass of root tile");
+    assert.deepEqual(com.center, [8, 8], "center of mass of root tile");
+
+    q0.data.count = 4;
+    com = helper.centerOfMass(root);
+    assert.deepEqual(com.mass, 4, "mass of q0");
+    assert.deepEqual(com.center, [4, 4], "center of mass of root tile");
+
+    q1.data.count = 2;
+    com = helper.centerOfMass(root);
+    assert.deepEqual(com.mass, 6, "mass of q0 + q1");
+    assert.deepEqual(com.center, [4, 8 - 4 / 3], "center of mass of root tile");
+
+    q2.data.count = 1;
+    com = helper.centerOfMass(root);
+    assert.deepEqual(com.mass, 7, "mass of q0 + q1 + q2");
+    assert.deepEqual(
+      com.center,
+      [8 - 20 / 7, 8 - 4 / 7],
+      "center of mass of root tile"
+    );
+
+    q3.data.count = 8;
+    com = helper.centerOfMass(root);
+    assert.deepEqual(com.mass, 15, "mass of q0 + q1 + q2 + q3");
+    assert.deepEqual(
+      com.center,
+      [8 + 12 / 15, 8 - 36 / 15],
+      "center of mass of root tile"
+    );
   });
 });
 
@@ -312,7 +354,9 @@ describe("UI Labs", () => {
   it("renders on a map", () => {
     const view = new View({
       center: getCenter([-11114555, 4696291, -10958012, 4852834]),
-      zoom: 10,
+      minZoom: 2,
+      maxZoom: 15,
+      zoom: 7,
     });
     const targetContainer = document.createElement("div");
     targetContainer.className = "testmapcontainer";
@@ -324,7 +368,12 @@ describe("UI Labs", () => {
     const url =
       "http://localhost:3002/mock/sampleserver3/arcgis/rest/services/Petroleum/KSFields/FeatureServer/0/query";
 
-    const vectorLayer = new AgsClusterLayer({ url });
+    const vectorLayer = new AgsClusterLayer({
+      url,
+      tileSize: 256,
+      maxRecordCount: 1024,
+      maxFetchCount: -1,
+    });
     const layers = [vectorLayer];
     const map = new Map({ view, target, layers });
 
