@@ -5,7 +5,7 @@ import { explode } from "./explode";
 import { asXYZ } from "./asXYZ";
 import { asExtent } from "./asExtent";
 import { TileNode } from "./TileNode";
-import { isEq } from "./index";
+import { isEq } from "./fun/tiny";
 import { XYZ } from "./XYZ";
 
 export class TileTree<T> {
@@ -164,28 +164,24 @@ export class TileTreeExt {
     // need to loop through all nodes under this root backward, updating parent
     const center = [0, 0];
     const centerOfParentTile = getCenter(rootNode.extent);
-    console.log(centerOfParentTile, center);
 
     let weight = 0;
     const descendants = tree.descendants(root).reverse();
-    console.log(descendants);
     descendants.forEach((d) => {
       const node = tree.findByXYZ(d);
       const { count } = node.data;
       if (!count) return;
-      console.log("node", d, "has weight", count);
       weight += count;
       //throw `cannot compute center: X:${d.X},Y:${d.Y},Z${d.Z}`;
       const centerOfChildTile = getCenter(node.extent);
       const relativeCenterOfChildTile = centerOfChildTile.map(
         (v, i) => v - centerOfParentTile[i]
       );
-      console.log(centerOfChildTile, relativeCenterOfChildTile);
       center.forEach(
         (v, i) => (center[i] = v + relativeCenterOfChildTile[i] * count)
       );
-      console.log(center);
     });
+    if (!descendants.length) weight = data.count;
     if (weight == 0) {
       if (!rootNode) throw "cannot compute center";
       const centerOfExtent = getCenter(rootNode.extent) as [number, number];
@@ -198,7 +194,6 @@ export class TileTreeExt {
       ],
       mass: weight,
     };
-    console.log(result);
     return result;
   }
 

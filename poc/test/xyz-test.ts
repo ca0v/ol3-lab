@@ -1,7 +1,7 @@
 import { describe, it } from "mocha";
 import { assert } from "chai";
 
-import { Extent, getCenter, getWidth } from "@ol/extent";
+import { Extent } from "@ol/extent";
 import { get as getProjection } from "@ol/proj";
 import { TileTree, TileTreeExt } from "../TileTree";
 import { TileNode } from "../TileNode";
@@ -10,15 +10,11 @@ import { tile as tileStrategy } from "@ol/loadingstrategy";
 import Point from "@ol/geom/Point";
 import Feature from "@ol/Feature";
 import VectorEventType from "@ol/source/VectorEventType";
-import { createWeightedFeature } from "../fun/createWeightedFeature";
-import Map from "@ol/Map";
-import View from "@ol/View";
-import { AgsFeatureLoader } from "../fun/AgsFeatureLoader";
+import { AgsClusterSource } from "../AgsClusterSource";
 import { asExtent } from "poc/asExtent";
 import { asXYZ } from "poc/asXYZ";
 import { explode } from "poc/explode";
-import { isEq } from "poc/index";
-import { AgsClusterLayer } from "../AgsClusterLayer";
+import { isEq } from "poc/fun/tiny";
 
 describe("Playground", () => {
   it("Past Failures", () => {
@@ -234,13 +230,13 @@ describe("TileTree Tests", () => {
       extent: tileGrid.getExtent(),
     });
 
-    const source = new AgsFeatureLoader({
+    const source = new AgsClusterSource({
       tree,
-      strategy,
       url,
+      strategy,
       maxRecordCount: 1000,
       maxFetchCount: 100,
-    }).source;
+    });
 
     source.loadFeatures(
       tileGrid.getExtent(),
@@ -253,7 +249,6 @@ describe("TileTree Tests", () => {
       (args: { feature: Feature<Point> }) => {
         const { count, resolution } = args.feature.getProperties();
         console.log(count, resolution);
-        createWeightedFeature;
       }
     );
   });
@@ -347,39 +342,5 @@ describe("Cluster Rendering Rules", () => {
       [8 + 12 / 15, 8 - 36 / 15],
       "center of mass of root tile"
     );
-  });
-});
-
-describe("UI Labs", () => {
-  it("renders on a map", () => {
-    const view = new View({
-      center: getCenter([-11114555, 4696291, -10958012, 4852834]),
-      minZoom: 2,
-      maxZoom: 15,
-      zoom: 7,
-    });
-    const targetContainer = document.createElement("div");
-    targetContainer.className = "testmapcontainer";
-    const target = document.createElement("div");
-    target.className = "map";
-    document.body.appendChild(targetContainer);
-    targetContainer.appendChild(target);
-
-    const url =
-      "http://localhost:3002/mock/sampleserver3/arcgis/rest/services/Petroleum/KSFields/FeatureServer/0/query";
-
-    const vectorLayer = new AgsClusterLayer({
-      url,
-      tileSize: 256,
-      maxRecordCount: 1024,
-      maxFetchCount: -1,
-    });
-    const layers = [vectorLayer];
-    const map = new Map({ view, target, layers });
-
-    setTimeout(() => {
-      targetContainer.remove();
-      map.dispose();
-    }, 60 * 1000);
   });
 });

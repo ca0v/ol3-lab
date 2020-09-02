@@ -1,7 +1,7 @@
 import { Extent } from "@ol/extent";
 import { explode } from "./explode";
 import { XYZ } from "./XYZ";
-import { isEq } from "./index";
+import { isEq } from "./fun/tiny";
 
 export function asXYZ(rootExtent: Extent, extent: Extent): XYZ {
   const rootInfo = explode(rootExtent);
@@ -18,6 +18,7 @@ export function asXYZ(rootExtent: Extent, extent: Extent): XYZ {
   const TINY = Math.pow(2, -10);
 
   if (!isEq(Z - z, 0, TINY)) {
+    debugger;
     throw "invalid extent: zoom";
   }
 

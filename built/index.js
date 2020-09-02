@@ -4596,7 +4596,7 @@ define("poc/XYZ", ["require", "exports"], function (require, exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
 });
-define("poc/index", ["require", "exports"], function (require, exports) {
+define("poc/fun/tiny", ["require", "exports"], function (require, exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.isGt = exports.isLt = exports.isEq = exports.isInt = void 0;
@@ -4618,7 +4618,7 @@ define("poc/index", ["require", "exports"], function (require, exports) {
     }
     exports.isGt = isGt;
 });
-define("poc/asXYZ", ["require", "exports", "poc/explode", "poc/index"], function (require, exports, explode_1, index_1) {
+define("poc/asXYZ", ["require", "exports", "poc/explode", "poc/fun/tiny"], function (require, exports, explode_1, tiny_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.asXYZ = void 0;
@@ -4632,13 +4632,14 @@ define("poc/asXYZ", ["require", "exports", "poc/explode", "poc/index"], function
         const X = Math.round(x);
         const Y = Math.round(y);
         const TINY = Math.pow(2, -10);
-        if (!index_1.isEq(Z - z, 0, TINY)) {
+        if (!tiny_1.isEq(Z - z, 0, TINY)) {
+            debugger;
             throw "invalid extent: zoom";
         }
-        if (!index_1.isEq(X - x, 0, TINY)) {
+        if (!tiny_1.isEq(X - x, 0, TINY)) {
             throw "invalid extent: xmin";
         }
-        if (!index_1.isEq(Y - y, 0, TINY)) {
+        if (!tiny_1.isEq(Y - y, 0, TINY)) {
             throw "invalid extent: ymin";
         }
         return { X, Y, Z };
@@ -4665,7 +4666,7 @@ define("poc/TileNode", ["require", "exports"], function (require, exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
 });
-define("poc/TileTree", ["require", "exports", "node_modules/ol/src/extent", "node_modules/ol/src/extent", "poc/explode", "poc/asXYZ", "poc/asExtent", "poc/index"], function (require, exports, extent_1, extent_2, explode_3, asXYZ_1, asExtent_1, index_2) {
+define("poc/TileTree", ["require", "exports", "node_modules/ol/src/extent", "node_modules/ol/src/extent", "poc/explode", "poc/asXYZ", "poc/asExtent", "poc/fun/tiny"], function (require, exports, extent_1, extent_2, explode_3, asXYZ_1, asExtent_1, tiny_2) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.TileTreeExt = exports.TileTree = void 0;
@@ -4683,7 +4684,7 @@ define("poc/TileTree", ["require", "exports", "node_modules/ol/src/extent", "nod
         asXYZ(node) {
             const { X, Y, Z } = asXYZ_1.asXYZ(this.root.extent, node.extent);
             const check = asExtent_1.asExtent(this.root.extent, { X, Y, Z });
-            if (!check.every((v, i) => index_2.isEq(v, node.extent[i])))
+            if (!check.every((v, i) => tiny_2.isEq(v, node.extent[i])))
                 throw "invalid extent";
             return { X, Y, Z };
         }
@@ -4811,23 +4812,20 @@ define("poc/TileTree", ["require", "exports", "node_modules/ol/src/extent", "nod
                 return { center: data.center, mass: data.count };
             const center = [0, 0];
             const centerOfParentTile = extent_1.getCenter(rootNode.extent);
-            console.log(centerOfParentTile, center);
             let weight = 0;
             const descendants = tree.descendants(root).reverse();
-            console.log(descendants);
             descendants.forEach((d) => {
                 const node = tree.findByXYZ(d);
                 const { count } = node.data;
                 if (!count)
                     return;
-                console.log("node", d, "has weight", count);
                 weight += count;
                 const centerOfChildTile = extent_1.getCenter(node.extent);
                 const relativeCenterOfChildTile = centerOfChildTile.map((v, i) => v - centerOfParentTile[i]);
-                console.log(centerOfChildTile, relativeCenterOfChildTile);
                 center.forEach((v, i) => (center[i] = v + relativeCenterOfChildTile[i] * count));
-                console.log(center);
             });
+            if (!descendants.length)
+                weight = data.count;
             if (weight == 0) {
                 if (!rootNode)
                     throw "cannot compute center";
@@ -4838,7 +4836,6 @@ define("poc/TileTree", ["require", "exports", "node_modules/ol/src/extent", "nod
                 center: center.map((v, i) => centerOfParentTile[i] + v / weight),
                 mass: weight,
             };
-            console.log(result);
             return result;
         }
         density(tileInfo) {
@@ -4882,115 +4879,51 @@ define("poc/TileTree", ["require", "exports", "node_modules/ol/src/extent", "nod
     }
     exports.TileTreeExt = TileTreeExt;
 });
-define("node_modules/ol/src/tilegrid", ["require", "exports", "node_modules/ol/src/extent/Corner", "node_modules/ol/src/tilegrid/TileGrid", "node_modules/ol/src/proj/Units", "node_modules/ol/src/tilegrid/common", "node_modules/ol/src/proj", "node_modules/ol/src/extent", "node_modules/ol/src/size"], function (require, exports, Corner_js_2, TileGrid_js_1, Units_js_6, common_js_2, proj_js_2, extent_js_13, size_js_2) {
+define("poc/FeatureServiceRequest", ["require", "exports"], function (require, exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    exports.extentFromProjection = exports.createForProjection = exports.createXYZ = exports.createForExtent = exports.wrapX = exports.getForProjection = void 0;
-    function getForProjection(projection) {
-        let tileGrid = projection.getDefaultTileGrid();
-        if (!tileGrid) {
-            tileGrid = createForProjection(projection);
-            projection.setDefaultTileGrid(tileGrid);
-        }
-        return tileGrid;
-    }
-    exports.getForProjection = getForProjection;
-    function wrapX(tileGrid, tileCoord, projection) {
-        const z = tileCoord[0];
-        const center = tileGrid.getTileCoordCenter(tileCoord);
-        const projectionExtent = extentFromProjection(projection);
-        if (!extent_js_13.containsCoordinate(projectionExtent, center)) {
-            const worldWidth = extent_js_13.getWidth(projectionExtent);
-            const worldsAway = Math.ceil((projectionExtent[0] - center[0]) / worldWidth);
-            center[0] += worldWidth * worldsAway;
-            return tileGrid.getTileCoordForCoordAndZ(center, z);
-        }
-        else {
-            return tileCoord;
-        }
-    }
-    exports.wrapX = wrapX;
-    function createForExtent(extent, opt_maxZoom, opt_tileSize, opt_corner) {
-        const corner = opt_corner !== undefined ? opt_corner : Corner_js_2.default.TOP_LEFT;
-        const resolutions = resolutionsFromExtent(extent, opt_maxZoom, opt_tileSize);
-        return new TileGrid_js_1.default({
-            extent: extent,
-            origin: extent_js_13.getCorner(extent, corner),
-            resolutions: resolutions,
-            tileSize: opt_tileSize,
-        });
-    }
-    exports.createForExtent = createForExtent;
-    function createXYZ(opt_options) {
-        const xyzOptions = opt_options || {};
-        const extent = xyzOptions.extent || proj_js_2.get('EPSG:3857').getExtent();
-        const gridOptions = {
-            extent: extent,
-            minZoom: xyzOptions.minZoom,
-            tileSize: xyzOptions.tileSize,
-            resolutions: resolutionsFromExtent(extent, xyzOptions.maxZoom, xyzOptions.tileSize, xyzOptions.maxResolution),
-        };
-        return new TileGrid_js_1.default(gridOptions);
-    }
-    exports.createXYZ = createXYZ;
-    function resolutionsFromExtent(extent, opt_maxZoom, opt_tileSize, opt_maxResolution) {
-        const maxZoom = opt_maxZoom !== undefined ? opt_maxZoom : common_js_2.DEFAULT_MAX_ZOOM;
-        const height = extent_js_13.getHeight(extent);
-        const width = extent_js_13.getWidth(extent);
-        const tileSize = size_js_2.toSize(opt_tileSize !== undefined ? opt_tileSize : common_js_2.DEFAULT_TILE_SIZE);
-        const maxResolution = opt_maxResolution > 0
-            ? opt_maxResolution
-            : Math.max(width / tileSize[0], height / tileSize[1]);
-        const length = maxZoom + 1;
-        const resolutions = new Array(length);
-        for (let z = 0; z < length; ++z) {
-            resolutions[z] = maxResolution / Math.pow(2, z);
-        }
-        return resolutions;
-    }
-    function createForProjection(projection, opt_maxZoom, opt_tileSize, opt_corner) {
-        const extent = extentFromProjection(projection);
-        return createForExtent(extent, opt_maxZoom, opt_tileSize, opt_corner);
-    }
-    exports.createForProjection = createForProjection;
-    function extentFromProjection(projection) {
-        projection = proj_js_2.get(projection);
-        let extent = projection.getExtent();
-        if (!extent) {
-            const half = (180 * proj_js_2.METERS_PER_UNIT[Units_js_6.default.DEGREES]) / projection.getMetersPerUnit();
-            extent = extent_js_13.createOrUpdate(-half, -half, half, half);
-        }
-        return extent;
-    }
-    exports.extentFromProjection = extentFromProjection;
 });
-define("node_modules/ol/src/loadingstrategy", ["require", "exports"], function (require, exports) {
+define("poc/fun/asQueryString", ["require", "exports"], function (require, exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    exports.tile = exports.bbox = exports.all = void 0;
-    function all(extent, resolution) {
-        return [[-Infinity, -Infinity, Infinity, Infinity]];
+    exports.asQueryString = void 0;
+    function asQueryString(o) {
+        return Object.keys(o)
+            .map((v) => `${v}=${o[v]}`)
+            .join("&");
     }
-    exports.all = all;
-    function bbox(extent, resolution) {
-        return [extent];
+    exports.asQueryString = asQueryString;
+});
+define("poc/FeatureServiceProxy", ["require", "exports", "poc/fun/asQueryString"], function (require, exports, asQueryString_1) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.FeatureServiceProxy = void 0;
+    class FeatureServiceProxy {
+        constructor(options) {
+            this.options = options;
+        }
+        fetch(request) {
+            return __awaiter(this, void 0, void 0, function* () {
+                const baseUrl = `${this.options.service}?${asQueryString_1.asQueryString(request)}`;
+                const response = yield fetch(baseUrl);
+                if (!response.ok)
+                    throw response.statusText;
+                const data = yield response.json();
+                return data;
+            });
+        }
     }
-    exports.bbox = bbox;
-    function tile(tileGrid) {
-        return (function (extent, resolution) {
-            const z = tileGrid.getZForResolution(resolution);
-            const tileRange = tileGrid.getTileRangeForExtentAndZ(extent, z);
-            const extents = [];
-            const tileCoord = [z, 0, 0];
-            for (tileCoord[1] = tileRange.minX; tileCoord[1] <= tileRange.maxX; ++tileCoord[1]) {
-                for (tileCoord[2] = tileRange.minY; tileCoord[2] <= tileRange.maxY; ++tileCoord[2]) {
-                    extents.push(tileGrid.getTileCoordExtent(tileCoord));
-                }
-            }
-            return extents;
-        });
+    exports.FeatureServiceProxy = FeatureServiceProxy;
+});
+define("poc/fun/removeAuthority", ["require", "exports"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.removeAuthority = void 0;
+    function removeAuthority(projCode) {
+        var _a;
+        return parseInt(((_a = projCode.split(":", 2)) === null || _a === void 0 ? void 0 : _a.pop()) || "0");
     }
-    exports.tile = tile;
+    exports.removeAuthority = removeAuthority;
 });
 define("node_modules/ol/src/geom/flat/interpolate", ["require", "exports", "node_modules/ol/src/array", "node_modules/ol/src/math"], function (require, exports, array_js_5, math_js_10) {
     "use strict";
@@ -5139,16 +5072,16 @@ define("node_modules/ol/src/geom/flat/interpolate", ["require", "exports", "node
     }
     exports.lineStringsCoordinateAtM = lineStringsCoordinateAtM;
 });
-define("node_modules/ol/src/geom/flat/center", ["require", "exports", "node_modules/ol/src/extent"], function (require, exports, extent_js_14) {
+define("node_modules/ol/src/geom/flat/center", ["require", "exports", "node_modules/ol/src/extent"], function (require, exports, extent_js_13) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.linearRingss = void 0;
     function linearRingss(flatCoordinates, offset, endss, stride) {
         const flatCenters = [];
-        let extent = extent_js_14.createEmpty();
+        let extent = extent_js_13.createEmpty();
         for (let i = 0, ii = endss.length; i < ii; ++i) {
             const ends = endss[i];
-            extent = extent_js_14.createOrUpdateFromFlatCoordinates(flatCoordinates, offset, ends[0], stride);
+            extent = extent_js_13.createOrUpdateFromFlatCoordinates(flatCoordinates, offset, ends[0], stride);
             flatCenters.push((extent[0] + extent[2]) / 2, (extent[1] + extent[3]) / 2);
             offset = ends[ends.length - 1];
         }
@@ -5156,7 +5089,7 @@ define("node_modules/ol/src/geom/flat/center", ["require", "exports", "node_modu
     }
     exports.linearRingss = linearRingss;
 });
-define("node_modules/ol/src/render/Feature", ["require", "exports", "node_modules/ol/src/geom/GeometryType", "node_modules/ol/src/transform", "node_modules/ol/src/extent", "node_modules/ol/src/array", "node_modules/ol/src/geom/flat/interiorpoint", "node_modules/ol/src/proj", "node_modules/ol/src/geom/flat/interpolate", "node_modules/ol/src/geom/flat/center", "node_modules/ol/src/geom/flat/transform"], function (require, exports, GeometryType_js_7, transform_js_5, extent_js_15, array_js_6, interiorpoint_js_2, proj_js_3, interpolate_js_1, center_js_1, transform_js_6) {
+define("node_modules/ol/src/render/Feature", ["require", "exports", "node_modules/ol/src/geom/GeometryType", "node_modules/ol/src/transform", "node_modules/ol/src/extent", "node_modules/ol/src/array", "node_modules/ol/src/geom/flat/interiorpoint", "node_modules/ol/src/proj", "node_modules/ol/src/geom/flat/interpolate", "node_modules/ol/src/geom/flat/center", "node_modules/ol/src/geom/flat/transform"], function (require, exports, GeometryType_js_7, transform_js_5, extent_js_14, array_js_6, interiorpoint_js_2, proj_js_2, interpolate_js_1, center_js_1, transform_js_6) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     const tmpTransform = transform_js_5.create();
@@ -5178,14 +5111,14 @@ define("node_modules/ol/src/render/Feature", ["require", "exports", "node_module
             if (!this.extent_) {
                 this.extent_ =
                     this.type_ === GeometryType_js_7.default.POINT
-                        ? extent_js_15.createOrUpdateFromCoordinate(this.flatCoordinates_)
-                        : extent_js_15.createOrUpdateFromFlatCoordinates(this.flatCoordinates_, 0, this.flatCoordinates_.length, 2);
+                        ? extent_js_14.createOrUpdateFromCoordinate(this.flatCoordinates_)
+                        : extent_js_14.createOrUpdateFromFlatCoordinates(this.flatCoordinates_, 0, this.flatCoordinates_.length, 2);
             }
             return this.extent_;
         }
         getFlatInteriorPoint() {
             if (!this.flatInteriorPoints_) {
-                const flatCenter = extent_js_15.getCenter(this.getExtent());
+                const flatCenter = extent_js_14.getCenter(this.getExtent());
                 this.flatInteriorPoints_ = interiorpoint_js_2.getInteriorPointOfArray(this.flatCoordinates_, 0, (this.ends_), 2, flatCenter, 0);
             }
             return this.flatInteriorPoints_;
@@ -5246,10 +5179,10 @@ define("node_modules/ol/src/render/Feature", ["require", "exports", "node_module
             return this.type_;
         }
         transform(source, destination) {
-            source = proj_js_3.get(source);
+            source = proj_js_2.get(source);
             const pixelExtent = source.getExtent();
             const projectedExtent = source.getWorldExtent();
-            const scale = extent_js_15.getHeight(projectedExtent) / extent_js_15.getHeight(pixelExtent);
+            const scale = extent_js_14.getHeight(projectedExtent) / extent_js_14.getHeight(pixelExtent);
             transform_js_5.compose(tmpTransform, projectedExtent[0], projectedExtent[3], scale, -scale, 0, 0, 0);
             transform_js_6.transform2D(this.flatCoordinates_, 0, this.flatCoordinates_.length, 2, tmpTransform, this.flatCoordinates_);
         }
@@ -5273,7 +5206,7 @@ define("node_modules/ol/src/ImageState", ["require", "exports"], function (requi
         EMPTY: 4,
     };
 });
-define("node_modules/ol/src/style/Image", ["require", "exports", "node_modules/ol/src/util", "node_modules/ol/src/size"], function (require, exports, util_js_5, size_js_3) {
+define("node_modules/ol/src/style/Image", ["require", "exports", "node_modules/ol/src/util", "node_modules/ol/src/size"], function (require, exports, util_js_5, size_js_2) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     class ImageStyle {
@@ -5282,7 +5215,7 @@ define("node_modules/ol/src/style/Image", ["require", "exports", "node_modules/o
             this.rotateWithView_ = options.rotateWithView;
             this.rotation_ = options.rotation;
             this.scale_ = options.scale;
-            this.scaleArray_ = size_js_3.toSize(options.scale);
+            this.scaleArray_ = size_js_2.toSize(options.scale);
             this.displacement_ = options.displacement;
         }
         clone() {
@@ -5351,7 +5284,7 @@ define("node_modules/ol/src/style/Image", ["require", "exports", "node_modules/o
         }
         setScale(scale) {
             this.scale_ = scale;
-            this.scaleArray_ = size_js_3.toSize(scale);
+            this.scaleArray_ = size_js_2.toSize(scale);
         }
         listenImageChange(listener) {
             util_js_5.abstract();
@@ -6316,7 +6249,7 @@ define("node_modules/ol/src/geom/flat/length", ["require", "exports"], function 
     }
     exports.linearRingLength = linearRingLength;
 });
-define("node_modules/ol/src/geom/LineString", ["require", "exports", "node_modules/ol/src/geom/GeometryLayout", "node_modules/ol/src/geom/GeometryType", "node_modules/ol/src/geom/SimpleGeometry", "node_modules/ol/src/geom/flat/closest", "node_modules/ol/src/extent", "node_modules/ol/src/geom/flat/deflate", "node_modules/ol/src/geom/flat/simplify", "node_modules/ol/src/array", "node_modules/ol/src/geom/flat/segments", "node_modules/ol/src/geom/flat/inflate", "node_modules/ol/src/geom/flat/interpolate", "node_modules/ol/src/geom/flat/intersectsextent", "node_modules/ol/src/geom/flat/length"], function (require, exports, GeometryLayout_js_4, GeometryType_js_8, SimpleGeometry_js_5, closest_js_3, extent_js_16, deflate_js_5, simplify_js_3, array_js_7, segments_js_2, inflate_js_3, interpolate_js_2, intersectsextent_js_2, length_js_1) {
+define("node_modules/ol/src/geom/LineString", ["require", "exports", "node_modules/ol/src/geom/GeometryLayout", "node_modules/ol/src/geom/GeometryType", "node_modules/ol/src/geom/SimpleGeometry", "node_modules/ol/src/geom/flat/closest", "node_modules/ol/src/extent", "node_modules/ol/src/geom/flat/deflate", "node_modules/ol/src/geom/flat/simplify", "node_modules/ol/src/array", "node_modules/ol/src/geom/flat/segments", "node_modules/ol/src/geom/flat/inflate", "node_modules/ol/src/geom/flat/interpolate", "node_modules/ol/src/geom/flat/intersectsextent", "node_modules/ol/src/geom/flat/length"], function (require, exports, GeometryLayout_js_4, GeometryType_js_8, SimpleGeometry_js_5, closest_js_3, extent_js_15, deflate_js_5, simplify_js_3, array_js_7, segments_js_2, inflate_js_3, interpolate_js_2, intersectsextent_js_2, length_js_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     class LineString extends SimpleGeometry_js_5.default {
@@ -6346,7 +6279,7 @@ define("node_modules/ol/src/geom/LineString", ["require", "exports", "node_modul
             return new LineString(this.flatCoordinates.slice(), this.layout);
         }
         closestPointXY(x, y, closestPoint, minSquaredDistance) {
-            if (minSquaredDistance < extent_js_16.closestSquaredDistanceXY(this.getExtent(), x, y)) {
+            if (minSquaredDistance < extent_js_15.closestSquaredDistanceXY(this.getExtent(), x, y)) {
                 return minSquaredDistance;
             }
             if (this.maxDeltaRevision_ != this.getRevision()) {
@@ -6404,7 +6337,7 @@ define("node_modules/ol/src/geom/LineString", ["require", "exports", "node_modul
     }
     exports.default = LineString;
 });
-define("node_modules/ol/src/geom/MultiLineString", ["require", "exports", "node_modules/ol/src/geom/GeometryLayout", "node_modules/ol/src/geom/GeometryType", "node_modules/ol/src/geom/LineString", "node_modules/ol/src/geom/SimpleGeometry", "node_modules/ol/src/geom/flat/closest", "node_modules/ol/src/extent", "node_modules/ol/src/geom/flat/deflate", "node_modules/ol/src/geom/flat/simplify", "node_modules/ol/src/array", "node_modules/ol/src/geom/flat/inflate", "node_modules/ol/src/geom/flat/interpolate", "node_modules/ol/src/geom/flat/intersectsextent"], function (require, exports, GeometryLayout_js_5, GeometryType_js_9, LineString_js_1, SimpleGeometry_js_6, closest_js_4, extent_js_17, deflate_js_6, simplify_js_4, array_js_8, inflate_js_4, interpolate_js_3, intersectsextent_js_3) {
+define("node_modules/ol/src/geom/MultiLineString", ["require", "exports", "node_modules/ol/src/geom/GeometryLayout", "node_modules/ol/src/geom/GeometryType", "node_modules/ol/src/geom/LineString", "node_modules/ol/src/geom/SimpleGeometry", "node_modules/ol/src/geom/flat/closest", "node_modules/ol/src/extent", "node_modules/ol/src/geom/flat/deflate", "node_modules/ol/src/geom/flat/simplify", "node_modules/ol/src/array", "node_modules/ol/src/geom/flat/inflate", "node_modules/ol/src/geom/flat/interpolate", "node_modules/ol/src/geom/flat/intersectsextent"], function (require, exports, GeometryLayout_js_5, GeometryType_js_9, LineString_js_1, SimpleGeometry_js_6, closest_js_4, extent_js_16, deflate_js_6, simplify_js_4, array_js_8, inflate_js_4, interpolate_js_3, intersectsextent_js_3) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     class MultiLineString extends SimpleGeometry_js_6.default {
@@ -6451,7 +6384,7 @@ define("node_modules/ol/src/geom/MultiLineString", ["require", "exports", "node_
             return new MultiLineString(this.flatCoordinates.slice(), this.layout, this.ends_.slice());
         }
         closestPointXY(x, y, closestPoint, minSquaredDistance) {
-            if (minSquaredDistance < extent_js_17.closestSquaredDistanceXY(this.getExtent(), x, y)) {
+            if (minSquaredDistance < extent_js_16.closestSquaredDistanceXY(this.getExtent(), x, y)) {
                 return minSquaredDistance;
             }
             if (this.maxDeltaRevision_ != this.getRevision()) {
@@ -6534,7 +6467,7 @@ define("node_modules/ol/src/geom/MultiLineString", ["require", "exports", "node_
     }
     exports.default = MultiLineString;
 });
-define("node_modules/ol/src/geom/MultiPoint", ["require", "exports", "node_modules/ol/src/geom/GeometryType", "node_modules/ol/src/geom/Point", "node_modules/ol/src/geom/SimpleGeometry", "node_modules/ol/src/extent", "node_modules/ol/src/geom/flat/deflate", "node_modules/ol/src/array", "node_modules/ol/src/geom/flat/inflate", "node_modules/ol/src/math"], function (require, exports, GeometryType_js_10, Point_js_2, SimpleGeometry_js_7, extent_js_18, deflate_js_7, array_js_9, inflate_js_5, math_js_12) {
+define("node_modules/ol/src/geom/MultiPoint", ["require", "exports", "node_modules/ol/src/geom/GeometryType", "node_modules/ol/src/geom/Point", "node_modules/ol/src/geom/SimpleGeometry", "node_modules/ol/src/extent", "node_modules/ol/src/geom/flat/deflate", "node_modules/ol/src/array", "node_modules/ol/src/geom/flat/inflate", "node_modules/ol/src/math"], function (require, exports, GeometryType_js_10, Point_js_2, SimpleGeometry_js_7, extent_js_17, deflate_js_7, array_js_9, inflate_js_5, math_js_12) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     class MultiPoint extends SimpleGeometry_js_7.default {
@@ -6561,7 +6494,7 @@ define("node_modules/ol/src/geom/MultiPoint", ["require", "exports", "node_modul
             return multiPoint;
         }
         closestPointXY(x, y, closestPoint, minSquaredDistance) {
-            if (minSquaredDistance < extent_js_18.closestSquaredDistanceXY(this.getExtent(), x, y)) {
+            if (minSquaredDistance < extent_js_17.closestSquaredDistanceXY(this.getExtent(), x, y)) {
                 return minSquaredDistance;
             }
             const flatCoordinates = this.flatCoordinates;
@@ -6610,7 +6543,7 @@ define("node_modules/ol/src/geom/MultiPoint", ["require", "exports", "node_modul
             for (let i = 0, ii = flatCoordinates.length; i < ii; i += stride) {
                 const x = flatCoordinates[i];
                 const y = flatCoordinates[i + 1];
-                if (extent_js_18.containsXY(extent, x, y)) {
+                if (extent_js_17.containsXY(extent, x, y)) {
                     return true;
                 }
             }
@@ -6627,7 +6560,7 @@ define("node_modules/ol/src/geom/MultiPoint", ["require", "exports", "node_modul
     }
     exports.default = MultiPoint;
 });
-define("node_modules/ol/src/geom/MultiPolygon", ["require", "exports", "node_modules/ol/src/geom/GeometryLayout", "node_modules/ol/src/geom/GeometryType", "node_modules/ol/src/geom/MultiPoint", "node_modules/ol/src/geom/Polygon", "node_modules/ol/src/geom/SimpleGeometry", "node_modules/ol/src/geom/flat/closest", "node_modules/ol/src/extent", "node_modules/ol/src/geom/flat/deflate", "node_modules/ol/src/array", "node_modules/ol/src/geom/flat/interiorpoint", "node_modules/ol/src/geom/flat/inflate", "node_modules/ol/src/geom/flat/intersectsextent", "node_modules/ol/src/geom/flat/orient", "node_modules/ol/src/geom/flat/area", "node_modules/ol/src/geom/flat/center", "node_modules/ol/src/geom/flat/contains", "node_modules/ol/src/geom/flat/simplify"], function (require, exports, GeometryLayout_js_6, GeometryType_js_11, MultiPoint_js_1, Polygon_js_1, SimpleGeometry_js_8, closest_js_5, extent_js_19, deflate_js_8, array_js_10, interiorpoint_js_3, inflate_js_6, intersectsextent_js_4, orient_js_2, area_js_3, center_js_2, contains_js_4, simplify_js_5) {
+define("node_modules/ol/src/geom/MultiPolygon", ["require", "exports", "node_modules/ol/src/geom/GeometryLayout", "node_modules/ol/src/geom/GeometryType", "node_modules/ol/src/geom/MultiPoint", "node_modules/ol/src/geom/Polygon", "node_modules/ol/src/geom/SimpleGeometry", "node_modules/ol/src/geom/flat/closest", "node_modules/ol/src/extent", "node_modules/ol/src/geom/flat/deflate", "node_modules/ol/src/array", "node_modules/ol/src/geom/flat/interiorpoint", "node_modules/ol/src/geom/flat/inflate", "node_modules/ol/src/geom/flat/intersectsextent", "node_modules/ol/src/geom/flat/orient", "node_modules/ol/src/geom/flat/area", "node_modules/ol/src/geom/flat/center", "node_modules/ol/src/geom/flat/contains", "node_modules/ol/src/geom/flat/simplify"], function (require, exports, GeometryLayout_js_6, GeometryType_js_11, MultiPoint_js_1, Polygon_js_1, SimpleGeometry_js_8, closest_js_5, extent_js_18, deflate_js_8, array_js_10, interiorpoint_js_3, inflate_js_6, intersectsextent_js_4, orient_js_2, area_js_3, center_js_2, contains_js_4, simplify_js_5) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     class MultiPolygon extends SimpleGeometry_js_8.default {
@@ -6697,7 +6630,7 @@ define("node_modules/ol/src/geom/MultiPolygon", ["require", "exports", "node_mod
             return new MultiPolygon(this.flatCoordinates.slice(), this.layout, newEndss);
         }
         closestPointXY(x, y, closestPoint, minSquaredDistance) {
-            if (minSquaredDistance < extent_js_19.closestSquaredDistanceXY(this.getExtent(), x, y)) {
+            if (minSquaredDistance < extent_js_18.closestSquaredDistanceXY(this.getExtent(), x, y)) {
                 return minSquaredDistance;
             }
             if (this.maxDeltaRevision_ != this.getRevision()) {
@@ -6831,7 +6764,7 @@ define("node_modules/ol/src/style/TextPlacement", ["require", "exports"], functi
         LINE: 'line',
     };
 });
-define("node_modules/ol/src/style/Text", ["require", "exports", "node_modules/ol/src/style/Fill", "node_modules/ol/src/style/TextPlacement", "node_modules/ol/src/size"], function (require, exports, Fill_js_1, TextPlacement_js_1, size_js_4) {
+define("node_modules/ol/src/style/Text", ["require", "exports", "node_modules/ol/src/style/Fill", "node_modules/ol/src/style/TextPlacement", "node_modules/ol/src/size"], function (require, exports, Fill_js_1, TextPlacement_js_1, size_js_3) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     const DEFAULT_FILL_COLOR = '#333';
@@ -6842,7 +6775,7 @@ define("node_modules/ol/src/style/Text", ["require", "exports", "node_modules/ol
             this.rotation_ = options.rotation;
             this.rotateWithView_ = options.rotateWithView;
             this.scale_ = options.scale;
-            this.scaleArray_ = size_js_4.toSize(options.scale !== undefined ? options.scale : 1);
+            this.scaleArray_ = size_js_3.toSize(options.scale !== undefined ? options.scale : 1);
             this.text_ = options.text;
             this.textAlign_ = options.textAlign;
             this.textBaseline_ = options.textBaseline;
@@ -6975,7 +6908,7 @@ define("node_modules/ol/src/style/Text", ["require", "exports", "node_modules/ol
         }
         setScale(scale) {
             this.scale_ = scale;
-            this.scaleArray_ = size_js_4.toSize(scale !== undefined ? scale : 1);
+            this.scaleArray_ = size_js_3.toSize(scale !== undefined ? scale : 1);
         }
         setStroke(stroke) {
             this.stroke_ = stroke;
@@ -7024,7 +6957,7 @@ define("node_modules/ol/src/render/VectorContext", ["require", "exports"], funct
     }
     exports.default = VectorContext;
 });
-define("node_modules/ol/src/render/canvas/Immediate", ["require", "exports", "node_modules/ol/src/geom/GeometryType", "node_modules/ol/src/render/VectorContext", "node_modules/ol/src/colorlike", "node_modules/ol/src/transform", "node_modules/ol/src/render/canvas", "node_modules/ol/src/array", "node_modules/ol/src/extent", "node_modules/ol/src/geom/flat/transform", "node_modules/ol/src/geom/SimpleGeometry"], function (require, exports, GeometryType_js_12, VectorContext_js_1, colorlike_js_2, transform_js_8, canvas_js_2, array_js_11, extent_js_20, transform_js_9, SimpleGeometry_js_9) {
+define("node_modules/ol/src/render/canvas/Immediate", ["require", "exports", "node_modules/ol/src/geom/GeometryType", "node_modules/ol/src/render/VectorContext", "node_modules/ol/src/colorlike", "node_modules/ol/src/transform", "node_modules/ol/src/render/canvas", "node_modules/ol/src/array", "node_modules/ol/src/extent", "node_modules/ol/src/geom/flat/transform", "node_modules/ol/src/geom/SimpleGeometry"], function (require, exports, GeometryType_js_12, VectorContext_js_1, colorlike_js_2, transform_js_8, canvas_js_2, array_js_11, extent_js_19, transform_js_9, SimpleGeometry_js_9) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     class CanvasImmediateRenderer extends VectorContext_js_1.default {
@@ -7171,7 +7104,7 @@ define("node_modules/ol/src/render/canvas/Immediate", ["require", "exports", "no
             return offset;
         }
         drawCircle(geometry) {
-            if (!extent_js_20.intersects(this.extent_, geometry.getExtent())) {
+            if (!extent_js_19.intersects(this.extent_, geometry.getExtent())) {
                 return;
             }
             if (this.fillState_ || this.strokeState_) {
@@ -7239,7 +7172,7 @@ define("node_modules/ol/src/render/canvas/Immediate", ["require", "exports", "no
         }
         drawFeature(feature, style) {
             const geometry = style.getGeometryFunction()(feature);
-            if (!geometry || !extent_js_20.intersects(this.extent_, geometry.getExtent())) {
+            if (!geometry || !extent_js_19.intersects(this.extent_, geometry.getExtent())) {
                 return;
             }
             this.setStyle(style);
@@ -7281,7 +7214,7 @@ define("node_modules/ol/src/render/canvas/Immediate", ["require", "exports", "no
             if (this.squaredTolerance_) {
                 geometry = (geometry.simplifyTransformed(this.squaredTolerance_, this.userTransform_));
             }
-            if (!extent_js_20.intersects(this.extent_, geometry.getExtent())) {
+            if (!extent_js_19.intersects(this.extent_, geometry.getExtent())) {
                 return;
             }
             if (this.strokeState_) {
@@ -7302,7 +7235,7 @@ define("node_modules/ol/src/render/canvas/Immediate", ["require", "exports", "no
                 geometry = (geometry.simplifyTransformed(this.squaredTolerance_, this.userTransform_));
             }
             const geometryExtent = geometry.getExtent();
-            if (!extent_js_20.intersects(this.extent_, geometryExtent)) {
+            if (!extent_js_19.intersects(this.extent_, geometryExtent)) {
                 return;
             }
             if (this.strokeState_) {
@@ -7327,7 +7260,7 @@ define("node_modules/ol/src/render/canvas/Immediate", ["require", "exports", "no
             if (this.squaredTolerance_) {
                 geometry = (geometry.simplifyTransformed(this.squaredTolerance_, this.userTransform_));
             }
-            if (!extent_js_20.intersects(this.extent_, geometry.getExtent())) {
+            if (!extent_js_19.intersects(this.extent_, geometry.getExtent())) {
                 return;
             }
             if (this.strokeState_ || this.fillState_) {
@@ -7356,7 +7289,7 @@ define("node_modules/ol/src/render/canvas/Immediate", ["require", "exports", "no
             if (this.squaredTolerance_) {
                 geometry = (geometry.simplifyTransformed(this.squaredTolerance_, this.userTransform_));
             }
-            if (!extent_js_20.intersects(this.extent_, geometry.getExtent())) {
+            if (!extent_js_19.intersects(this.extent_, geometry.getExtent())) {
                 return;
             }
             if (this.strokeState_ || this.fillState_) {
@@ -7683,7 +7616,7 @@ define("node_modules/ol/src/render/canvas/Instruction", ["require", "exports"], 
     exports.closePathInstruction = [Instruction.CLOSE_PATH];
     exports.default = Instruction;
 });
-define("node_modules/ol/src/render/canvas/Builder", ["require", "exports", "node_modules/ol/src/render/canvas/Instruction", "node_modules/ol/src/geom/GeometryType", "node_modules/ol/src/extent/Relationship", "node_modules/ol/src/render/VectorContext", "node_modules/ol/src/colorlike", "node_modules/ol/src/extent", "node_modules/ol/src/render/canvas", "node_modules/ol/src/array", "node_modules/ol/src/geom/flat/inflate"], function (require, exports, Instruction_js_1, GeometryType_js_13, Relationship_js_2, VectorContext_js_2, colorlike_js_3, extent_js_21, canvas_js_3, array_js_12, inflate_js_7) {
+define("node_modules/ol/src/render/canvas/Builder", ["require", "exports", "node_modules/ol/src/render/canvas/Instruction", "node_modules/ol/src/geom/GeometryType", "node_modules/ol/src/extent/Relationship", "node_modules/ol/src/render/VectorContext", "node_modules/ol/src/colorlike", "node_modules/ol/src/extent", "node_modules/ol/src/render/canvas", "node_modules/ol/src/array", "node_modules/ol/src/geom/flat/inflate"], function (require, exports, Instruction_js_1, GeometryType_js_13, Relationship_js_2, VectorContext_js_2, colorlike_js_3, extent_js_20, canvas_js_3, array_js_12, inflate_js_7) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     class CanvasBuilder extends VectorContext_js_2.default {
@@ -7725,7 +7658,7 @@ define("node_modules/ol/src/render/canvas/Builder", ["require", "exports", "node
             for (i = offset + stride; i < end; i += stride) {
                 nextCoord[0] = flatCoordinates[i];
                 nextCoord[1] = flatCoordinates[i + 1];
-                nextRel = extent_js_21.coordinateRelationship(extent, nextCoord);
+                nextRel = extent_js_20.coordinateRelationship(extent, nextCoord);
                 if (nextRel !== lastRel) {
                     if (skipped) {
                         this.coordinates[myEnd++] = lastXCoord;
@@ -7999,10 +7932,10 @@ define("node_modules/ol/src/render/canvas/Builder", ["require", "exports", "node
         }
         getBufferedMaxExtent() {
             if (!this.bufferedMaxExtent_) {
-                this.bufferedMaxExtent_ = extent_js_21.clone(this.maxExtent);
+                this.bufferedMaxExtent_ = extent_js_20.clone(this.maxExtent);
                 if (this.maxLineWidth > 0) {
                     const width = (this.resolution * (this.maxLineWidth + 1)) / 2;
-                    extent_js_21.buffer(this.bufferedMaxExtent_, width, this.bufferedMaxExtent_);
+                    extent_js_20.buffer(this.bufferedMaxExtent_, width, this.bufferedMaxExtent_);
                 }
             }
             return this.bufferedMaxExtent_;
@@ -8489,7 +8422,7 @@ define("node_modules/ol/src/geom/flat/straightchunk", ["require", "exports"], fu
     }
     exports.matchingChunk = matchingChunk;
 });
-define("node_modules/ol/src/render/canvas/TextBuilder", ["require", "exports", "node_modules/ol/src/render/canvas/Builder", "node_modules/ol/src/render/canvas/Instruction", "node_modules/ol/src/geom/GeometryType", "node_modules/ol/src/style/TextPlacement", "node_modules/ol/src/colorlike", "node_modules/ol/src/render/canvas", "node_modules/ol/src/util", "node_modules/ol/src/extent", "node_modules/ol/src/geom/flat/straightchunk"], function (require, exports, Builder_js_4, Instruction_js_5, GeometryType_js_14, TextPlacement_js_2, colorlike_js_4, canvas_js_5, util_js_6, extent_js_22, straightchunk_js_1) {
+define("node_modules/ol/src/render/canvas/TextBuilder", ["require", "exports", "node_modules/ol/src/render/canvas/Builder", "node_modules/ol/src/render/canvas/Instruction", "node_modules/ol/src/geom/GeometryType", "node_modules/ol/src/style/TextPlacement", "node_modules/ol/src/colorlike", "node_modules/ol/src/render/canvas", "node_modules/ol/src/util", "node_modules/ol/src/extent", "node_modules/ol/src/geom/flat/straightchunk"], function (require, exports, Builder_js_4, Instruction_js_5, GeometryType_js_14, TextPlacement_js_2, colorlike_js_4, canvas_js_5, util_js_6, extent_js_21, straightchunk_js_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.TEXT_ALIGN = void 0;
@@ -8547,7 +8480,7 @@ define("node_modules/ol/src/render/canvas/TextBuilder", ["require", "exports", "
             let stride = geometry.getStride();
             let i, ii;
             if (textState.placement === TextPlacement_js_2.default.LINE) {
-                if (!extent_js_22.intersects(this.getBufferedMaxExtent(), geometry.getExtent())) {
+                if (!extent_js_21.intersects(this.getBufferedMaxExtent(), geometry.getExtent())) {
                     return;
                 }
                 let ends;
@@ -9343,13 +9276,13 @@ define("node_modules/ol/src/source/State", ["require", "exports"], function (req
         ERROR: 'error',
     };
 });
-define("node_modules/ol/src/source/Source", ["require", "exports", "node_modules/ol/src/Object", "node_modules/ol/src/source/State", "node_modules/ol/src/util", "node_modules/ol/src/proj"], function (require, exports, Object_js_4, State_js_1, util_js_8, proj_js_4) {
+define("node_modules/ol/src/source/Source", ["require", "exports", "node_modules/ol/src/Object", "node_modules/ol/src/source/State", "node_modules/ol/src/util", "node_modules/ol/src/proj"], function (require, exports, Object_js_4, State_js_1, util_js_8, proj_js_3) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     class Source extends Object_js_4.default {
         constructor(options) {
             super();
-            this.projection_ = proj_js_4.get(options.projection);
+            this.projection_ = proj_js_3.get(options.projection);
             this.attributions_ = adaptAttributions(options.attributions);
             this.attributionsCollapsible_ =
                 options.attributionsCollapsible !== undefined
@@ -9736,6 +9669,88 @@ define("node_modules/ol/src/TileCache", ["require", "exports", "node_modules/ol/
         }
     }
     exports.default = TileCache;
+});
+define("node_modules/ol/src/tilegrid", ["require", "exports", "node_modules/ol/src/extent/Corner", "node_modules/ol/src/tilegrid/TileGrid", "node_modules/ol/src/proj/Units", "node_modules/ol/src/tilegrid/common", "node_modules/ol/src/proj", "node_modules/ol/src/extent", "node_modules/ol/src/size"], function (require, exports, Corner_js_2, TileGrid_js_1, Units_js_6, common_js_2, proj_js_4, extent_js_22, size_js_4) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.extentFromProjection = exports.createForProjection = exports.createXYZ = exports.createForExtent = exports.wrapX = exports.getForProjection = void 0;
+    function getForProjection(projection) {
+        let tileGrid = projection.getDefaultTileGrid();
+        if (!tileGrid) {
+            tileGrid = createForProjection(projection);
+            projection.setDefaultTileGrid(tileGrid);
+        }
+        return tileGrid;
+    }
+    exports.getForProjection = getForProjection;
+    function wrapX(tileGrid, tileCoord, projection) {
+        const z = tileCoord[0];
+        const center = tileGrid.getTileCoordCenter(tileCoord);
+        const projectionExtent = extentFromProjection(projection);
+        if (!extent_js_22.containsCoordinate(projectionExtent, center)) {
+            const worldWidth = extent_js_22.getWidth(projectionExtent);
+            const worldsAway = Math.ceil((projectionExtent[0] - center[0]) / worldWidth);
+            center[0] += worldWidth * worldsAway;
+            return tileGrid.getTileCoordForCoordAndZ(center, z);
+        }
+        else {
+            return tileCoord;
+        }
+    }
+    exports.wrapX = wrapX;
+    function createForExtent(extent, opt_maxZoom, opt_tileSize, opt_corner) {
+        const corner = opt_corner !== undefined ? opt_corner : Corner_js_2.default.TOP_LEFT;
+        const resolutions = resolutionsFromExtent(extent, opt_maxZoom, opt_tileSize);
+        return new TileGrid_js_1.default({
+            extent: extent,
+            origin: extent_js_22.getCorner(extent, corner),
+            resolutions: resolutions,
+            tileSize: opt_tileSize,
+        });
+    }
+    exports.createForExtent = createForExtent;
+    function createXYZ(opt_options) {
+        const xyzOptions = opt_options || {};
+        const extent = xyzOptions.extent || proj_js_4.get('EPSG:3857').getExtent();
+        const gridOptions = {
+            extent: extent,
+            minZoom: xyzOptions.minZoom,
+            tileSize: xyzOptions.tileSize,
+            resolutions: resolutionsFromExtent(extent, xyzOptions.maxZoom, xyzOptions.tileSize, xyzOptions.maxResolution),
+        };
+        return new TileGrid_js_1.default(gridOptions);
+    }
+    exports.createXYZ = createXYZ;
+    function resolutionsFromExtent(extent, opt_maxZoom, opt_tileSize, opt_maxResolution) {
+        const maxZoom = opt_maxZoom !== undefined ? opt_maxZoom : common_js_2.DEFAULT_MAX_ZOOM;
+        const height = extent_js_22.getHeight(extent);
+        const width = extent_js_22.getWidth(extent);
+        const tileSize = size_js_4.toSize(opt_tileSize !== undefined ? opt_tileSize : common_js_2.DEFAULT_TILE_SIZE);
+        const maxResolution = opt_maxResolution > 0
+            ? opt_maxResolution
+            : Math.max(width / tileSize[0], height / tileSize[1]);
+        const length = maxZoom + 1;
+        const resolutions = new Array(length);
+        for (let z = 0; z < length; ++z) {
+            resolutions[z] = maxResolution / Math.pow(2, z);
+        }
+        return resolutions;
+    }
+    function createForProjection(projection, opt_maxZoom, opt_tileSize, opt_corner) {
+        const extent = extentFromProjection(projection);
+        return createForExtent(extent, opt_maxZoom, opt_tileSize, opt_corner);
+    }
+    exports.createForProjection = createForProjection;
+    function extentFromProjection(projection) {
+        projection = proj_js_4.get(projection);
+        let extent = projection.getExtent();
+        if (!extent) {
+            const half = (180 * proj_js_4.METERS_PER_UNIT[Units_js_6.default.DEGREES]) / projection.getMetersPerUnit();
+            extent = extent_js_22.createOrUpdate(-half, -half, half, half);
+        }
+        return extent;
+    }
+    exports.extentFromProjection = extentFromProjection;
 });
 define("node_modules/ol/src/source/Tile", ["require", "exports", "node_modules/ol/src/events/Event", "node_modules/ol/src/source/Source", "node_modules/ol/src/TileCache", "node_modules/ol/src/TileState", "node_modules/ol/src/util", "node_modules/ol/src/proj", "node_modules/ol/src/tilecoord", "node_modules/ol/src/tilegrid", "node_modules/ol/src/size"], function (require, exports, Event_js_4, Source_js_1, TileCache_js_1, TileState_js_2, util_js_10, proj_js_5, tilecoord_js_3, tilegrid_js_1, size_js_5) {
     "use strict";
@@ -13682,2596 +13697,6 @@ define("node_modules/ol/src/Feature", ["require", "exports", "node_modules/ol/sr
     exports.createStyleFunction = createStyleFunction;
     exports.default = Feature;
 });
-define("node_modules/ol/src/source/VectorEventType", ["require", "exports"], function (require, exports) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    exports.default = {
-        ADDFEATURE: 'addfeature',
-        CHANGEFEATURE: 'changefeature',
-        CLEAR: 'clear',
-        REMOVEFEATURE: 'removefeature',
-    };
-});
-define("poc/fun/createWeightedFeature", ["require", "exports", "node_modules/ol/src/extent", "node_modules/ol/src/geom/Point", "node_modules/ol/src/Feature"], function (require, exports, extent_3, Point_1, Feature_1) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    exports.createWeightedFeature = void 0;
-    function createWeightedFeature(featureCountPerQuadrant, extent) {
-        const weight = featureCountPerQuadrant.reduce((a, b) => a + b, 0);
-        if (!weight)
-            return;
-        const dx = featureCountPerQuadrant[0] +
-            featureCountPerQuadrant[3] -
-            featureCountPerQuadrant[1] -
-            featureCountPerQuadrant[2];
-        const dy = featureCountPerQuadrant[0] +
-            featureCountPerQuadrant[1] -
-            featureCountPerQuadrant[2] -
-            featureCountPerQuadrant[3];
-        const [cx, cy] = extent_3.getCenter(extent);
-        const width = extent_3.getWidth(extent) / 2;
-        const height = extent_3.getHeight(extent) / 2;
-        const center = new Point_1.default([
-            cx + width * (dx / weight),
-            cy + height * (dy / weight),
-        ]);
-        const x = cx + (dx / weight) * (width / 2);
-        const y = cy + (dy / weight) * (height / 2);
-        const feature = new Feature_1.default(new Point_1.default([x, y]));
-        feature.setProperties({ count: weight });
-        return feature;
-    }
-    exports.createWeightedFeature = createWeightedFeature;
-});
-define("node_modules/ol/src/renderer/Composite", ["require", "exports", "node_modules/ol/src/renderer/Map", "node_modules/ol/src/ObjectEventType", "node_modules/ol/src/render/Event", "node_modules/ol/src/render/EventType", "node_modules/ol/src/source/State", "node_modules/ol/src/css", "node_modules/ol/src/render/canvas", "node_modules/ol/src/layer/Layer", "node_modules/ol/src/events", "node_modules/ol/src/dom"], function (require, exports, Map_js_1, ObjectEventType_js_4, Event_js_7, EventType_js_19, State_js_5, css_js_3, canvas_js_6, Layer_js_2, events_js_11, dom_js_7) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    class CompositeMapRenderer extends Map_js_1.default {
-        constructor(map) {
-            super(map);
-            this.fontChangeListenerKey_ = events_js_11.listen(canvas_js_6.checkedFonts, ObjectEventType_js_4.default.PROPERTYCHANGE, map.redrawText.bind(map));
-            this.element_ = document.createElement('div');
-            const style = this.element_.style;
-            style.position = 'absolute';
-            style.width = '100%';
-            style.height = '100%';
-            style.zIndex = '0';
-            this.element_.className = css_js_3.CLASS_UNSELECTABLE + ' ol-layers';
-            const container = map.getViewport();
-            container.insertBefore(this.element_, container.firstChild || null);
-            this.children_ = [];
-            this.renderedVisible_ = true;
-        }
-        dispatchRenderEvent(type, frameState) {
-            const map = this.getMap();
-            if (map.hasListener(type)) {
-                const event = new Event_js_7.default(type, undefined, frameState);
-                map.dispatchEvent(event);
-            }
-        }
-        disposeInternal() {
-            events_js_11.unlistenByKey(this.fontChangeListenerKey_);
-            this.element_.parentNode.removeChild(this.element_);
-            super.disposeInternal();
-        }
-        renderFrame(frameState) {
-            if (!frameState) {
-                if (this.renderedVisible_) {
-                    this.element_.style.display = 'none';
-                    this.renderedVisible_ = false;
-                }
-                return;
-            }
-            this.calculateMatrices2D(frameState);
-            this.dispatchRenderEvent(EventType_js_19.default.PRECOMPOSE, frameState);
-            const layerStatesArray = frameState.layerStatesArray.sort(function (a, b) {
-                return a.zIndex - b.zIndex;
-            });
-            const viewState = frameState.viewState;
-            this.children_.length = 0;
-            let previousElement = null;
-            for (let i = 0, ii = layerStatesArray.length; i < ii; ++i) {
-                const layerState = layerStatesArray[i];
-                frameState.layerIndex = i;
-                if (!Layer_js_2.inView(layerState, viewState) ||
-                    (layerState.sourceState != State_js_5.default.READY &&
-                        layerState.sourceState != State_js_5.default.UNDEFINED)) {
-                    continue;
-                }
-                const layer = layerState.layer;
-                const element = layer.render(frameState, previousElement);
-                if (!element) {
-                    continue;
-                }
-                if (element !== previousElement) {
-                    this.children_.push(element);
-                    previousElement = element;
-                }
-            }
-            super.renderFrame(frameState);
-            dom_js_7.replaceChildren(this.element_, this.children_);
-            this.dispatchRenderEvent(EventType_js_19.default.POSTCOMPOSE, frameState);
-            if (!this.renderedVisible_) {
-                this.element_.style.display = '';
-                this.renderedVisible_ = true;
-            }
-            this.scheduleExpireIconCache(frameState);
-        }
-        forEachLayerAtPixel(pixel, frameState, hitTolerance, callback, layerFilter) {
-            const viewState = frameState.viewState;
-            const layerStates = frameState.layerStatesArray;
-            const numLayers = layerStates.length;
-            for (let i = numLayers - 1; i >= 0; --i) {
-                const layerState = layerStates[i];
-                const layer = layerState.layer;
-                if (layer.hasRenderer() &&
-                    Layer_js_2.inView(layerState, viewState) &&
-                    layerFilter(layer)) {
-                    const layerRenderer = layer.getRenderer();
-                    const data = layerRenderer.getDataAtPixel(pixel, frameState, hitTolerance);
-                    if (data) {
-                        const result = callback(layer, data);
-                        if (result) {
-                            return result;
-                        }
-                    }
-                }
-            }
-            return undefined;
-        }
-    }
-    exports.default = CompositeMapRenderer;
-});
-define("node_modules/ol/src/control/Attribution", ["require", "exports", "node_modules/ol/src/control/Control", "node_modules/ol/src/events/EventType", "node_modules/ol/src/css", "node_modules/ol/src/array", "node_modules/ol/src/layer/Layer", "node_modules/ol/src/dom"], function (require, exports, Control_js_1, EventType_js_20, css_js_4, array_js_15, Layer_js_3, dom_js_8) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    class Attribution extends Control_js_1.default {
-        constructor(opt_options) {
-            const options = opt_options ? opt_options : {};
-            super({
-                element: document.createElement('div'),
-                render: options.render,
-                target: options.target,
-            });
-            this.ulElement_ = document.createElement('ul');
-            this.collapsed_ =
-                options.collapsed !== undefined ? options.collapsed : true;
-            this.overrideCollapsible_ = options.collapsible !== undefined;
-            this.collapsible_ =
-                options.collapsible !== undefined ? options.collapsible : true;
-            if (!this.collapsible_) {
-                this.collapsed_ = false;
-            }
-            const className = options.className !== undefined ? options.className : 'ol-attribution';
-            const tipLabel = options.tipLabel !== undefined ? options.tipLabel : 'Attributions';
-            const collapseLabel = options.collapseLabel !== undefined ? options.collapseLabel : '\u00BB';
-            if (typeof collapseLabel === 'string') {
-                this.collapseLabel_ = document.createElement('span');
-                this.collapseLabel_.textContent = collapseLabel;
-            }
-            else {
-                this.collapseLabel_ = collapseLabel;
-            }
-            const label = options.label !== undefined ? options.label : 'i';
-            if (typeof label === 'string') {
-                this.label_ = document.createElement('span');
-                this.label_.textContent = label;
-            }
-            else {
-                this.label_ = label;
-            }
-            const activeLabel = this.collapsible_ && !this.collapsed_ ? this.collapseLabel_ : this.label_;
-            const button = document.createElement('button');
-            button.setAttribute('type', 'button');
-            button.title = tipLabel;
-            button.appendChild(activeLabel);
-            button.addEventListener(EventType_js_20.default.CLICK, this.handleClick_.bind(this), false);
-            const cssClasses = className +
-                ' ' +
-                css_js_4.CLASS_UNSELECTABLE +
-                ' ' +
-                css_js_4.CLASS_CONTROL +
-                (this.collapsed_ && this.collapsible_ ? ' ' + css_js_4.CLASS_COLLAPSED : '') +
-                (this.collapsible_ ? '' : ' ol-uncollapsible');
-            const element = this.element;
-            element.className = cssClasses;
-            element.appendChild(this.ulElement_);
-            element.appendChild(button);
-            this.renderedAttributions_ = [];
-            this.renderedVisible_ = true;
-        }
-        collectSourceAttributions_(frameState) {
-            const lookup = {};
-            const visibleAttributions = [];
-            const layerStatesArray = frameState.layerStatesArray;
-            for (let i = 0, ii = layerStatesArray.length; i < ii; ++i) {
-                const layerState = layerStatesArray[i];
-                if (!Layer_js_3.inView(layerState, frameState.viewState)) {
-                    continue;
-                }
-                const source = (layerState.layer).getSource();
-                if (!source) {
-                    continue;
-                }
-                const attributionGetter = source.getAttributions();
-                if (!attributionGetter) {
-                    continue;
-                }
-                const attributions = attributionGetter(frameState);
-                if (!attributions) {
-                    continue;
-                }
-                if (!this.overrideCollapsible_ &&
-                    source.getAttributionsCollapsible() === false) {
-                    this.setCollapsible(false);
-                }
-                if (Array.isArray(attributions)) {
-                    for (let j = 0, jj = attributions.length; j < jj; ++j) {
-                        if (!(attributions[j] in lookup)) {
-                            visibleAttributions.push(attributions[j]);
-                            lookup[attributions[j]] = true;
-                        }
-                    }
-                }
-                else {
-                    if (!(attributions in lookup)) {
-                        visibleAttributions.push(attributions);
-                        lookup[attributions] = true;
-                    }
-                }
-            }
-            return visibleAttributions;
-        }
-        updateElement_(frameState) {
-            if (!frameState) {
-                if (this.renderedVisible_) {
-                    this.element.style.display = 'none';
-                    this.renderedVisible_ = false;
-                }
-                return;
-            }
-            const attributions = this.collectSourceAttributions_(frameState);
-            const visible = attributions.length > 0;
-            if (this.renderedVisible_ != visible) {
-                this.element.style.display = visible ? '' : 'none';
-                this.renderedVisible_ = visible;
-            }
-            if (array_js_15.equals(attributions, this.renderedAttributions_)) {
-                return;
-            }
-            dom_js_8.removeChildren(this.ulElement_);
-            for (let i = 0, ii = attributions.length; i < ii; ++i) {
-                const element = document.createElement('li');
-                element.innerHTML = attributions[i];
-                this.ulElement_.appendChild(element);
-            }
-            this.renderedAttributions_ = attributions;
-        }
-        handleClick_(event) {
-            event.preventDefault();
-            this.handleToggle_();
-        }
-        handleToggle_() {
-            this.element.classList.toggle(css_js_4.CLASS_COLLAPSED);
-            if (this.collapsed_) {
-                dom_js_8.replaceNode(this.collapseLabel_, this.label_);
-            }
-            else {
-                dom_js_8.replaceNode(this.label_, this.collapseLabel_);
-            }
-            this.collapsed_ = !this.collapsed_;
-        }
-        getCollapsible() {
-            return this.collapsible_;
-        }
-        setCollapsible(collapsible) {
-            if (this.collapsible_ === collapsible) {
-                return;
-            }
-            this.collapsible_ = collapsible;
-            this.element.classList.toggle('ol-uncollapsible');
-            if (!collapsible && this.collapsed_) {
-                this.handleToggle_();
-            }
-        }
-        setCollapsed(collapsed) {
-            if (!this.collapsible_ || this.collapsed_ === collapsed) {
-                return;
-            }
-            this.handleToggle_();
-        }
-        getCollapsed() {
-            return this.collapsed_;
-        }
-        render(mapEvent) {
-            this.updateElement_(mapEvent.frameState);
-        }
-    }
-    exports.default = Attribution;
-});
-define("node_modules/ol/src/control/Rotate", ["require", "exports", "node_modules/ol/src/control/Control", "node_modules/ol/src/events/EventType", "node_modules/ol/src/css", "node_modules/ol/src/easing"], function (require, exports, Control_js_2, EventType_js_21, css_js_5, easing_js_5) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    class Rotate extends Control_js_2.default {
-        constructor(opt_options) {
-            const options = opt_options ? opt_options : {};
-            super({
-                element: document.createElement('div'),
-                render: options.render,
-                target: options.target,
-            });
-            const className = options.className !== undefined ? options.className : 'ol-rotate';
-            const label = options.label !== undefined ? options.label : '\u21E7';
-            this.label_ = null;
-            if (typeof label === 'string') {
-                this.label_ = document.createElement('span');
-                this.label_.className = 'ol-compass';
-                this.label_.textContent = label;
-            }
-            else {
-                this.label_ = label;
-                this.label_.classList.add('ol-compass');
-            }
-            const tipLabel = options.tipLabel ? options.tipLabel : 'Reset rotation';
-            const button = document.createElement('button');
-            button.className = className + '-reset';
-            button.setAttribute('type', 'button');
-            button.title = tipLabel;
-            button.appendChild(this.label_);
-            button.addEventListener(EventType_js_21.default.CLICK, this.handleClick_.bind(this), false);
-            const cssClasses = className + ' ' + css_js_5.CLASS_UNSELECTABLE + ' ' + css_js_5.CLASS_CONTROL;
-            const element = this.element;
-            element.className = cssClasses;
-            element.appendChild(button);
-            this.callResetNorth_ = options.resetNorth ? options.resetNorth : undefined;
-            this.duration_ = options.duration !== undefined ? options.duration : 250;
-            this.autoHide_ = options.autoHide !== undefined ? options.autoHide : true;
-            this.rotation_ = undefined;
-            if (this.autoHide_) {
-                this.element.classList.add(css_js_5.CLASS_HIDDEN);
-            }
-        }
-        handleClick_(event) {
-            event.preventDefault();
-            if (this.callResetNorth_ !== undefined) {
-                this.callResetNorth_();
-            }
-            else {
-                this.resetNorth_();
-            }
-        }
-        resetNorth_() {
-            const map = this.getMap();
-            const view = map.getView();
-            if (!view) {
-                return;
-            }
-            const rotation = view.getRotation();
-            if (rotation !== undefined) {
-                if (this.duration_ > 0 && rotation % (2 * Math.PI) !== 0) {
-                    view.animate({
-                        rotation: 0,
-                        duration: this.duration_,
-                        easing: easing_js_5.easeOut,
-                    });
-                }
-                else {
-                    view.setRotation(0);
-                }
-            }
-        }
-        render(mapEvent) {
-            const frameState = mapEvent.frameState;
-            if (!frameState) {
-                return;
-            }
-            const rotation = frameState.viewState.rotation;
-            if (rotation != this.rotation_) {
-                const transform = 'rotate(' + rotation + 'rad)';
-                if (this.autoHide_) {
-                    const contains = this.element.classList.contains(css_js_5.CLASS_HIDDEN);
-                    if (!contains && rotation === 0) {
-                        this.element.classList.add(css_js_5.CLASS_HIDDEN);
-                    }
-                    else if (contains && rotation !== 0) {
-                        this.element.classList.remove(css_js_5.CLASS_HIDDEN);
-                    }
-                }
-                this.label_.style.transform = transform;
-            }
-            this.rotation_ = rotation;
-        }
-    }
-    exports.default = Rotate;
-});
-define("node_modules/ol/src/control/Zoom", ["require", "exports", "node_modules/ol/src/control/Control", "node_modules/ol/src/events/EventType", "node_modules/ol/src/css", "node_modules/ol/src/easing"], function (require, exports, Control_js_3, EventType_js_22, css_js_6, easing_js_6) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    class Zoom extends Control_js_3.default {
-        constructor(opt_options) {
-            const options = opt_options ? opt_options : {};
-            super({
-                element: document.createElement('div'),
-                target: options.target,
-            });
-            const className = options.className !== undefined ? options.className : 'ol-zoom';
-            const delta = options.delta !== undefined ? options.delta : 1;
-            const zoomInLabel = options.zoomInLabel !== undefined ? options.zoomInLabel : '+';
-            const zoomOutLabel = options.zoomOutLabel !== undefined ? options.zoomOutLabel : '\u2212';
-            const zoomInTipLabel = options.zoomInTipLabel !== undefined ? options.zoomInTipLabel : 'Zoom in';
-            const zoomOutTipLabel = options.zoomOutTipLabel !== undefined
-                ? options.zoomOutTipLabel
-                : 'Zoom out';
-            const inElement = document.createElement('button');
-            inElement.className = className + '-in';
-            inElement.setAttribute('type', 'button');
-            inElement.title = zoomInTipLabel;
-            inElement.appendChild(typeof zoomInLabel === 'string'
-                ? document.createTextNode(zoomInLabel)
-                : zoomInLabel);
-            inElement.addEventListener(EventType_js_22.default.CLICK, this.handleClick_.bind(this, delta), false);
-            const outElement = document.createElement('button');
-            outElement.className = className + '-out';
-            outElement.setAttribute('type', 'button');
-            outElement.title = zoomOutTipLabel;
-            outElement.appendChild(typeof zoomOutLabel === 'string'
-                ? document.createTextNode(zoomOutLabel)
-                : zoomOutLabel);
-            outElement.addEventListener(EventType_js_22.default.CLICK, this.handleClick_.bind(this, -delta), false);
-            const cssClasses = className + ' ' + css_js_6.CLASS_UNSELECTABLE + ' ' + css_js_6.CLASS_CONTROL;
-            const element = this.element;
-            element.className = cssClasses;
-            element.appendChild(inElement);
-            element.appendChild(outElement);
-            this.duration_ = options.duration !== undefined ? options.duration : 250;
-        }
-        handleClick_(delta, event) {
-            event.preventDefault();
-            this.zoomByDelta_(delta);
-        }
-        zoomByDelta_(delta) {
-            const map = this.getMap();
-            const view = map.getView();
-            if (!view) {
-                return;
-            }
-            const currentZoom = view.getZoom();
-            if (currentZoom !== undefined) {
-                const newZoom = view.getConstrainedZoom(currentZoom + delta);
-                if (this.duration_ > 0) {
-                    if (view.getAnimating()) {
-                        view.cancelAnimations();
-                    }
-                    view.animate({
-                        zoom: newZoom,
-                        duration: this.duration_,
-                        easing: easing_js_6.easeOut,
-                    });
-                }
-                else {
-                    view.setZoom(newZoom);
-                }
-            }
-        }
-    }
-    exports.default = Zoom;
-});
-define("node_modules/ol/src/control/FullScreen", ["require", "exports", "node_modules/ol/src/control/Control", "node_modules/ol/src/events/EventType", "node_modules/ol/src/css", "node_modules/ol/src/events", "node_modules/ol/src/dom"], function (require, exports, Control_js_4, EventType_js_23, css_js_7, events_js_12, dom_js_9) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    const events = [
-        'fullscreenchange',
-        'webkitfullscreenchange',
-        'MSFullscreenChange',
-    ];
-    const FullScreenEventType = {
-        ENTERFULLSCREEN: 'enterfullscreen',
-        LEAVEFULLSCREEN: 'leavefullscreen',
-    };
-    class FullScreen extends Control_js_4.default {
-        constructor(opt_options) {
-            const options = opt_options ? opt_options : {};
-            super({
-                element: document.createElement('div'),
-                target: options.target,
-            });
-            this.cssClassName_ =
-                options.className !== undefined ? options.className : 'ol-full-screen';
-            const label = options.label !== undefined ? options.label : '\u2922';
-            this.labelNode_ =
-                typeof label === 'string' ? document.createTextNode(label) : label;
-            const labelActive = options.labelActive !== undefined ? options.labelActive : '\u00d7';
-            this.labelActiveNode_ =
-                typeof labelActive === 'string'
-                    ? document.createTextNode(labelActive)
-                    : labelActive;
-            this.button_ = document.createElement('button');
-            const tipLabel = options.tipLabel ? options.tipLabel : 'Toggle full-screen';
-            this.setClassName_(this.button_, isFullScreen());
-            this.button_.setAttribute('type', 'button');
-            this.button_.title = tipLabel;
-            this.button_.appendChild(this.labelNode_);
-            this.button_.addEventListener(EventType_js_23.default.CLICK, this.handleClick_.bind(this), false);
-            const cssClasses = this.cssClassName_ +
-                ' ' +
-                css_js_7.CLASS_UNSELECTABLE +
-                ' ' +
-                css_js_7.CLASS_CONTROL +
-                ' ' +
-                (!isFullScreenSupported() ? css_js_7.CLASS_UNSUPPORTED : '');
-            const element = this.element;
-            element.className = cssClasses;
-            element.appendChild(this.button_);
-            this.keys_ = options.keys !== undefined ? options.keys : false;
-            this.source_ = options.source;
-        }
-        handleClick_(event) {
-            event.preventDefault();
-            this.handleFullScreen_();
-        }
-        handleFullScreen_() {
-            if (!isFullScreenSupported()) {
-                return;
-            }
-            const map = this.getMap();
-            if (!map) {
-                return;
-            }
-            if (isFullScreen()) {
-                exitFullScreen();
-            }
-            else {
-                let element;
-                if (this.source_) {
-                    element =
-                        typeof this.source_ === 'string'
-                            ? document.getElementById(this.source_)
-                            : this.source_;
-                }
-                else {
-                    element = map.getTargetElement();
-                }
-                if (this.keys_) {
-                    requestFullScreenWithKeys(element);
-                }
-                else {
-                    requestFullScreen(element);
-                }
-            }
-        }
-        handleFullScreenChange_() {
-            const map = this.getMap();
-            if (isFullScreen()) {
-                this.setClassName_(this.button_, true);
-                dom_js_9.replaceNode(this.labelActiveNode_, this.labelNode_);
-                this.dispatchEvent(FullScreenEventType.ENTERFULLSCREEN);
-            }
-            else {
-                this.setClassName_(this.button_, false);
-                dom_js_9.replaceNode(this.labelNode_, this.labelActiveNode_);
-                this.dispatchEvent(FullScreenEventType.LEAVEFULLSCREEN);
-            }
-            if (map) {
-                map.updateSize();
-            }
-        }
-        setClassName_(element, fullscreen) {
-            const activeClassName = this.cssClassName_ + '-true';
-            const inactiveClassName = this.cssClassName_ + '-false';
-            const nextClassName = fullscreen ? activeClassName : inactiveClassName;
-            element.classList.remove(activeClassName);
-            element.classList.remove(inactiveClassName);
-            element.classList.add(nextClassName);
-        }
-        setMap(map) {
-            super.setMap(map);
-            if (map) {
-                for (let i = 0, ii = events.length; i < ii; ++i) {
-                    this.listenerKeys.push(events_js_12.listen(document, events[i], this.handleFullScreenChange_, this));
-                }
-            }
-        }
-    }
-    function isFullScreenSupported() {
-        const body = document.body;
-        return !!(body['webkitRequestFullscreen'] ||
-            (body['msRequestFullscreen'] && document['msFullscreenEnabled']) ||
-            (body.requestFullscreen && document.fullscreenEnabled));
-    }
-    function isFullScreen() {
-        return !!(document['webkitIsFullScreen'] ||
-            document['msFullscreenElement'] ||
-            document.fullscreenElement);
-    }
-    function requestFullScreen(element) {
-        if (element.requestFullscreen) {
-            element.requestFullscreen();
-        }
-        else if (element['msRequestFullscreen']) {
-            element['msRequestFullscreen']();
-        }
-        else if (element['webkitRequestFullscreen']) {
-            element['webkitRequestFullscreen']();
-        }
-    }
-    function requestFullScreenWithKeys(element) {
-        if (element['webkitRequestFullscreen']) {
-            element['webkitRequestFullscreen']();
-        }
-        else {
-            requestFullScreen(element);
-        }
-    }
-    function exitFullScreen() {
-        if (document.exitFullscreen) {
-            document.exitFullscreen();
-        }
-        else if (document['msExitFullscreen']) {
-            document['msExitFullscreen']();
-        }
-        else if (document['webkitExitFullscreen']) {
-            document['webkitExitFullscreen']();
-        }
-    }
-    exports.default = FullScreen;
-});
-define("node_modules/ol/src/control/MousePosition", ["require", "exports", "node_modules/ol/src/control/Control", "node_modules/ol/src/pointer/EventType", "node_modules/ol/src/Object", "node_modules/ol/src/proj", "node_modules/ol/src/events"], function (require, exports, Control_js_5, EventType_js_24, Object_js_14, proj_js_9, events_js_13) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    const PROJECTION = 'projection';
-    const COORDINATE_FORMAT = 'coordinateFormat';
-    class MousePosition extends Control_js_5.default {
-        constructor(opt_options) {
-            const options = opt_options ? opt_options : {};
-            const element = document.createElement('div');
-            element.className =
-                options.className !== undefined ? options.className : 'ol-mouse-position';
-            super({
-                element: element,
-                render: options.render,
-                target: options.target,
-            });
-            this.addEventListener(Object_js_14.getChangeEventType(PROJECTION), this.handleProjectionChanged_);
-            if (options.coordinateFormat) {
-                this.setCoordinateFormat(options.coordinateFormat);
-            }
-            if (options.projection) {
-                this.setProjection(options.projection);
-            }
-            this.undefinedHTML_ =
-                options.undefinedHTML !== undefined ? options.undefinedHTML : '&#160;';
-            this.renderOnMouseOut_ = !!this.undefinedHTML_;
-            this.renderedHTML_ = element.innerHTML;
-            this.mapProjection_ = null;
-            this.transform_ = null;
-        }
-        handleProjectionChanged_() {
-            this.transform_ = null;
-        }
-        getCoordinateFormat() {
-            return (this.get(COORDINATE_FORMAT));
-        }
-        getProjection() {
-            return (this.get(PROJECTION));
-        }
-        handleMouseMove(event) {
-            const map = this.getMap();
-            this.updateHTML_(map.getEventPixel(event));
-        }
-        handleMouseOut(event) {
-            this.updateHTML_(null);
-        }
-        setMap(map) {
-            super.setMap(map);
-            if (map) {
-                const viewport = map.getViewport();
-                this.listenerKeys.push(events_js_13.listen(viewport, EventType_js_24.default.POINTERMOVE, this.handleMouseMove, this));
-                if (this.renderOnMouseOut_) {
-                    this.listenerKeys.push(events_js_13.listen(viewport, EventType_js_24.default.POINTEROUT, this.handleMouseOut, this));
-                }
-            }
-        }
-        setCoordinateFormat(format) {
-            this.set(COORDINATE_FORMAT, format);
-        }
-        setProjection(projection) {
-            this.set(PROJECTION, proj_js_9.get(projection));
-        }
-        updateHTML_(pixel) {
-            let html = this.undefinedHTML_;
-            if (pixel && this.mapProjection_) {
-                if (!this.transform_) {
-                    const projection = this.getProjection();
-                    if (projection) {
-                        this.transform_ = proj_js_9.getTransformFromProjections(this.mapProjection_, projection);
-                    }
-                    else {
-                        this.transform_ = proj_js_9.identityTransform;
-                    }
-                }
-                const map = this.getMap();
-                const coordinate = map.getCoordinateFromPixelInternal(pixel);
-                if (coordinate) {
-                    const userProjection = proj_js_9.getUserProjection();
-                    if (userProjection) {
-                        this.transform_ = proj_js_9.getTransformFromProjections(this.mapProjection_, userProjection);
-                    }
-                    this.transform_(coordinate, coordinate);
-                    const coordinateFormat = this.getCoordinateFormat();
-                    if (coordinateFormat) {
-                        html = coordinateFormat(coordinate);
-                    }
-                    else {
-                        html = coordinate.toString();
-                    }
-                }
-            }
-            if (!this.renderedHTML_ || html !== this.renderedHTML_) {
-                this.element.innerHTML = html;
-                this.renderedHTML_ = html;
-            }
-        }
-        render(mapEvent) {
-            const frameState = mapEvent.frameState;
-            if (!frameState) {
-                this.mapProjection_ = null;
-            }
-            else {
-                if (this.mapProjection_ != frameState.viewState.projection) {
-                    this.mapProjection_ = frameState.viewState.projection;
-                    this.transform_ = null;
-                }
-            }
-        }
-    }
-    exports.default = MousePosition;
-});
-define("node_modules/ol/src/control/OverviewMap", ["require", "exports", "node_modules/ol/src/renderer/Composite", "node_modules/ol/src/control/Control", "node_modules/ol/src/events/EventType", "node_modules/ol/src/MapEventType", "node_modules/ol/src/MapProperty", "node_modules/ol/src/ObjectEventType", "node_modules/ol/src/Overlay", "node_modules/ol/src/OverlayPositioning", "node_modules/ol/src/PluggableMap", "node_modules/ol/src/View", "node_modules/ol/src/ViewProperty", "node_modules/ol/src/css", "node_modules/ol/src/extent", "node_modules/ol/src/Object", "node_modules/ol/src/events", "node_modules/ol/src/geom/Polygon", "node_modules/ol/src/dom"], function (require, exports, Composite_js_1, Control_js_6, EventType_js_25, MapEventType_js_4, MapProperty_js_2, ObjectEventType_js_5, Overlay_js_1, OverlayPositioning_js_2, PluggableMap_js_1, View_js_2, ViewProperty_js_2, css_js_8, extent_js_30, Object_js_15, events_js_14, Polygon_js_3, dom_js_10) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    const MAX_RATIO = 0.75;
-    const MIN_RATIO = 0.1;
-    class ControlledMap extends PluggableMap_js_1.default {
-        createRenderer() {
-            return new Composite_js_1.default(this);
-        }
-    }
-    class OverviewMap extends Control_js_6.default {
-        constructor(opt_options) {
-            const options = opt_options ? opt_options : {};
-            super({
-                element: document.createElement('div'),
-                render: options.render,
-                target: options.target,
-            });
-            this.boundHandleRotationChanged_ = this.handleRotationChanged_.bind(this);
-            this.collapsed_ =
-                options.collapsed !== undefined ? options.collapsed : true;
-            this.collapsible_ =
-                options.collapsible !== undefined ? options.collapsible : true;
-            if (!this.collapsible_) {
-                this.collapsed_ = false;
-            }
-            this.rotateWithView_ =
-                options.rotateWithView !== undefined ? options.rotateWithView : false;
-            this.viewExtent_ = undefined;
-            const className = options.className !== undefined ? options.className : 'ol-overviewmap';
-            const tipLabel = options.tipLabel !== undefined ? options.tipLabel : 'Overview map';
-            const collapseLabel = options.collapseLabel !== undefined ? options.collapseLabel : '\u00AB';
-            if (typeof collapseLabel === 'string') {
-                this.collapseLabel_ = document.createElement('span');
-                this.collapseLabel_.textContent = collapseLabel;
-            }
-            else {
-                this.collapseLabel_ = collapseLabel;
-            }
-            const label = options.label !== undefined ? options.label : '\u00BB';
-            if (typeof label === 'string') {
-                this.label_ = document.createElement('span');
-                this.label_.textContent = label;
-            }
-            else {
-                this.label_ = label;
-            }
-            const activeLabel = this.collapsible_ && !this.collapsed_ ? this.collapseLabel_ : this.label_;
-            const button = document.createElement('button');
-            button.setAttribute('type', 'button');
-            button.title = tipLabel;
-            button.appendChild(activeLabel);
-            button.addEventListener(EventType_js_25.default.CLICK, this.handleClick_.bind(this), false);
-            this.ovmapDiv_ = document.createElement('div');
-            this.ovmapDiv_.className = 'ol-overviewmap-map';
-            this.view_ = options.view;
-            this.ovmap_ = new ControlledMap({
-                view: options.view,
-            });
-            const ovmap = this.ovmap_;
-            if (options.layers) {
-                options.layers.forEach(function (layer) {
-                    ovmap.addLayer(layer);
-                });
-            }
-            const box = document.createElement('div');
-            box.className = 'ol-overviewmap-box';
-            box.style.boxSizing = 'border-box';
-            this.boxOverlay_ = new Overlay_js_1.default({
-                position: [0, 0],
-                positioning: OverlayPositioning_js_2.default.CENTER_CENTER,
-                element: box,
-            });
-            this.ovmap_.addOverlay(this.boxOverlay_);
-            const cssClasses = className +
-                ' ' +
-                css_js_8.CLASS_UNSELECTABLE +
-                ' ' +
-                css_js_8.CLASS_CONTROL +
-                (this.collapsed_ && this.collapsible_ ? ' ' + css_js_8.CLASS_COLLAPSED : '') +
-                (this.collapsible_ ? '' : ' ol-uncollapsible');
-            const element = this.element;
-            element.className = cssClasses;
-            element.appendChild(this.ovmapDiv_);
-            element.appendChild(button);
-            const scope = this;
-            const overlay = this.boxOverlay_;
-            const overlayBox = this.boxOverlay_.getElement();
-            const computeDesiredMousePosition = function (mousePosition) {
-                return {
-                    clientX: mousePosition.clientX,
-                    clientY: mousePosition.clientY,
-                };
-            };
-            const move = function (event) {
-                const position = (computeDesiredMousePosition(event));
-                const coordinates = ovmap.getEventCoordinateInternal((position));
-                overlay.setPosition(coordinates);
-            };
-            const endMoving = function (event) {
-                const coordinates = ovmap.getEventCoordinateInternal(event);
-                scope.getMap().getView().setCenterInternal(coordinates);
-                window.removeEventListener('mousemove', move);
-                window.removeEventListener('mouseup', endMoving);
-            };
-            overlayBox.addEventListener('mousedown', function () {
-                window.addEventListener('mousemove', move);
-                window.addEventListener('mouseup', endMoving);
-            });
-        }
-        setMap(map) {
-            const oldMap = this.getMap();
-            if (map === oldMap) {
-                return;
-            }
-            if (oldMap) {
-                const oldView = oldMap.getView();
-                if (oldView) {
-                    this.unbindView_(oldView);
-                }
-                this.ovmap_.setTarget(null);
-            }
-            super.setMap(map);
-            if (map) {
-                this.ovmap_.setTarget(this.ovmapDiv_);
-                this.listenerKeys.push(events_js_14.listen(map, ObjectEventType_js_5.default.PROPERTYCHANGE, this.handleMapPropertyChange_, this));
-                const view = map.getView();
-                if (view) {
-                    this.bindView_(view);
-                    if (view.isDef()) {
-                        this.ovmap_.updateSize();
-                        this.resetExtent_();
-                    }
-                }
-            }
-        }
-        handleMapPropertyChange_(event) {
-            if (event.key === MapProperty_js_2.default.VIEW) {
-                const oldView = (event.oldValue);
-                if (oldView) {
-                    this.unbindView_(oldView);
-                }
-                const newView = this.getMap().getView();
-                this.bindView_(newView);
-            }
-        }
-        bindView_(view) {
-            if (!this.view_) {
-                const newView = new View_js_2.default({
-                    projection: view.getProjection(),
-                });
-                this.ovmap_.setView(newView);
-            }
-            view.addEventListener(Object_js_15.getChangeEventType(ViewProperty_js_2.default.ROTATION), this.boundHandleRotationChanged_);
-            this.handleRotationChanged_();
-        }
-        unbindView_(view) {
-            view.removeEventListener(Object_js_15.getChangeEventType(ViewProperty_js_2.default.ROTATION), this.boundHandleRotationChanged_);
-        }
-        handleRotationChanged_() {
-            if (this.rotateWithView_) {
-                this.ovmap_.getView().setRotation(this.getMap().getView().getRotation());
-            }
-        }
-        validateExtent_() {
-            const map = this.getMap();
-            const ovmap = this.ovmap_;
-            if (!map.isRendered() || !ovmap.isRendered()) {
-                return;
-            }
-            const mapSize = (map.getSize());
-            const view = map.getView();
-            const extent = view.calculateExtentInternal(mapSize);
-            if (this.viewExtent_ && extent_js_30.equals(extent, this.viewExtent_)) {
-                return;
-            }
-            this.viewExtent_ = extent;
-            const ovmapSize = (ovmap.getSize());
-            const ovview = ovmap.getView();
-            const ovextent = ovview.calculateExtentInternal(ovmapSize);
-            const topLeftPixel = ovmap.getPixelFromCoordinateInternal(extent_js_30.getTopLeft(extent));
-            const bottomRightPixel = ovmap.getPixelFromCoordinateInternal(extent_js_30.getBottomRight(extent));
-            const boxWidth = Math.abs(topLeftPixel[0] - bottomRightPixel[0]);
-            const boxHeight = Math.abs(topLeftPixel[1] - bottomRightPixel[1]);
-            const ovmapWidth = ovmapSize[0];
-            const ovmapHeight = ovmapSize[1];
-            if (boxWidth < ovmapWidth * MIN_RATIO ||
-                boxHeight < ovmapHeight * MIN_RATIO ||
-                boxWidth > ovmapWidth * MAX_RATIO ||
-                boxHeight > ovmapHeight * MAX_RATIO) {
-                this.resetExtent_();
-            }
-            else if (!extent_js_30.containsExtent(ovextent, extent)) {
-                this.recenter_();
-            }
-        }
-        resetExtent_() {
-            if (MAX_RATIO === 0 || MIN_RATIO === 0) {
-                return;
-            }
-            const map = this.getMap();
-            const ovmap = this.ovmap_;
-            const mapSize = (map.getSize());
-            const view = map.getView();
-            const extent = view.calculateExtentInternal(mapSize);
-            const ovview = ovmap.getView();
-            const steps = Math.log(MAX_RATIO / MIN_RATIO) / Math.LN2;
-            const ratio = 1 / (Math.pow(2, steps / 2) * MIN_RATIO);
-            extent_js_30.scaleFromCenter(extent, ratio);
-            ovview.fitInternal(Polygon_js_3.fromExtent(extent));
-        }
-        recenter_() {
-            const map = this.getMap();
-            const ovmap = this.ovmap_;
-            const view = map.getView();
-            const ovview = ovmap.getView();
-            ovview.setCenterInternal(view.getCenterInternal());
-        }
-        updateBox_() {
-            const map = this.getMap();
-            const ovmap = this.ovmap_;
-            if (!map.isRendered() || !ovmap.isRendered()) {
-                return;
-            }
-            const mapSize = (map.getSize());
-            const view = map.getView();
-            const ovview = ovmap.getView();
-            const rotation = this.rotateWithView_ ? 0 : -view.getRotation();
-            const overlay = this.boxOverlay_;
-            const box = this.boxOverlay_.getElement();
-            const center = view.getCenterInternal();
-            const resolution = view.getResolution();
-            const ovresolution = ovview.getResolution();
-            const width = (mapSize[0] * resolution) / ovresolution;
-            const height = (mapSize[1] * resolution) / ovresolution;
-            overlay.setPosition(center);
-            if (box) {
-                box.style.width = width + 'px';
-                box.style.height = height + 'px';
-                const transform = 'rotate(' + rotation + 'rad)';
-                box.style.transform = transform;
-            }
-        }
-        handleClick_(event) {
-            event.preventDefault();
-            this.handleToggle_();
-        }
-        handleToggle_() {
-            this.element.classList.toggle(css_js_8.CLASS_COLLAPSED);
-            if (this.collapsed_) {
-                dom_js_10.replaceNode(this.collapseLabel_, this.label_);
-            }
-            else {
-                dom_js_10.replaceNode(this.label_, this.collapseLabel_);
-            }
-            this.collapsed_ = !this.collapsed_;
-            const ovmap = this.ovmap_;
-            if (!this.collapsed_) {
-                if (ovmap.isRendered()) {
-                    this.viewExtent_ = undefined;
-                    ovmap.render();
-                    return;
-                }
-                ovmap.updateSize();
-                this.resetExtent_();
-                events_js_14.listenOnce(ovmap, MapEventType_js_4.default.POSTRENDER, function (event) {
-                    this.updateBox_();
-                }, this);
-            }
-        }
-        getCollapsible() {
-            return this.collapsible_;
-        }
-        setCollapsible(collapsible) {
-            if (this.collapsible_ === collapsible) {
-                return;
-            }
-            this.collapsible_ = collapsible;
-            this.element.classList.toggle('ol-uncollapsible');
-            if (!collapsible && this.collapsed_) {
-                this.handleToggle_();
-            }
-        }
-        setCollapsed(collapsed) {
-            if (!this.collapsible_ || this.collapsed_ === collapsed) {
-                return;
-            }
-            this.handleToggle_();
-        }
-        getCollapsed() {
-            return this.collapsed_;
-        }
-        getRotateWithView() {
-            return this.rotateWithView_;
-        }
-        setRotateWithView(rotateWithView) {
-            if (this.rotateWithView_ === rotateWithView) {
-                return;
-            }
-            this.rotateWithView_ = rotateWithView;
-            if (this.getMap().getView().getRotation() !== 0) {
-                if (this.rotateWithView_) {
-                    this.handleRotationChanged_();
-                }
-                else {
-                    this.ovmap_.getView().setRotation(0);
-                }
-                this.viewExtent_ = undefined;
-                this.validateExtent_();
-                this.updateBox_();
-            }
-        }
-        getOverviewMap() {
-            return this.ovmap_;
-        }
-        render(mapEvent) {
-            this.validateExtent_();
-            this.updateBox_();
-        }
-    }
-    exports.default = OverviewMap;
-});
-define("node_modules/ol/src/control/ScaleLine", ["require", "exports", "node_modules/ol/src/control/Control", "node_modules/ol/src/proj/Units", "node_modules/ol/src/css", "node_modules/ol/src/proj", "node_modules/ol/src/asserts", "node_modules/ol/src/Object"], function (require, exports, Control_js_7, Units_js_8, css_js_9, proj_js_10, asserts_js_14, Object_js_16) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    exports.Units = void 0;
-    const UNITS_PROP = 'units';
-    exports.Units = {
-        DEGREES: 'degrees',
-        IMPERIAL: 'imperial',
-        NAUTICAL: 'nautical',
-        METRIC: 'metric',
-        US: 'us',
-    };
-    const LEADING_DIGITS = [1, 2, 5];
-    const DEFAULT_DPI = 25.4 / 0.28;
-    class ScaleLine extends Control_js_7.default {
-        constructor(opt_options) {
-            const options = opt_options ? opt_options : {};
-            const className = options.className !== undefined
-                ? options.className
-                : options.bar
-                    ? 'ol-scale-bar'
-                    : 'ol-scale-line';
-            super({
-                element: document.createElement('div'),
-                render: options.render,
-                target: options.target,
-            });
-            this.innerElement_ = document.createElement('div');
-            this.innerElement_.className = className + '-inner';
-            this.element.className = className + ' ' + css_js_9.CLASS_UNSELECTABLE;
-            this.element.appendChild(this.innerElement_);
-            this.viewState_ = null;
-            this.minWidth_ = options.minWidth !== undefined ? options.minWidth : 64;
-            this.renderedVisible_ = false;
-            this.renderedWidth_ = undefined;
-            this.renderedHTML_ = '';
-            this.addEventListener(Object_js_16.getChangeEventType(UNITS_PROP), this.handleUnitsChanged_);
-            this.setUnits(options.units || exports.Units.METRIC);
-            this.scaleBar_ = options.bar || false;
-            this.scaleBarSteps_ = options.steps || 4;
-            this.scaleBarText_ = options.text || false;
-            this.dpi_ = options.dpi || undefined;
-        }
-        getUnits() {
-            return this.get(UNITS_PROP);
-        }
-        handleUnitsChanged_() {
-            this.updateElement_();
-        }
-        setUnits(units) {
-            this.set(UNITS_PROP, units);
-        }
-        setDpi(dpi) {
-            this.dpi_ = dpi;
-        }
-        updateElement_() {
-            const viewState = this.viewState_;
-            if (!viewState) {
-                if (this.renderedVisible_) {
-                    this.element.style.display = 'none';
-                    this.renderedVisible_ = false;
-                }
-                return;
-            }
-            const center = viewState.center;
-            const projection = viewState.projection;
-            const units = this.getUnits();
-            const pointResolutionUnits = units == exports.Units.DEGREES ? Units_js_8.default.DEGREES : Units_js_8.default.METERS;
-            let pointResolution = proj_js_10.getPointResolution(projection, viewState.resolution, center, pointResolutionUnits);
-            const minWidth = (this.minWidth_ * (this.dpi_ || DEFAULT_DPI)) / DEFAULT_DPI;
-            let nominalCount = minWidth * pointResolution;
-            let suffix = '';
-            if (units == exports.Units.DEGREES) {
-                const metersPerDegree = proj_js_10.METERS_PER_UNIT[Units_js_8.default.DEGREES];
-                nominalCount *= metersPerDegree;
-                if (nominalCount < metersPerDegree / 60) {
-                    suffix = '\u2033';
-                    pointResolution *= 3600;
-                }
-                else if (nominalCount < metersPerDegree) {
-                    suffix = '\u2032';
-                    pointResolution *= 60;
-                }
-                else {
-                    suffix = '\u00b0';
-                }
-            }
-            else if (units == exports.Units.IMPERIAL) {
-                if (nominalCount < 0.9144) {
-                    suffix = 'in';
-                    pointResolution /= 0.0254;
-                }
-                else if (nominalCount < 1609.344) {
-                    suffix = 'ft';
-                    pointResolution /= 0.3048;
-                }
-                else {
-                    suffix = 'mi';
-                    pointResolution /= 1609.344;
-                }
-            }
-            else if (units == exports.Units.NAUTICAL) {
-                pointResolution /= 1852;
-                suffix = 'nm';
-            }
-            else if (units == exports.Units.METRIC) {
-                if (nominalCount < 0.001) {
-                    suffix = 'μm';
-                    pointResolution *= 1000000;
-                }
-                else if (nominalCount < 1) {
-                    suffix = 'mm';
-                    pointResolution *= 1000;
-                }
-                else if (nominalCount < 1000) {
-                    suffix = 'm';
-                }
-                else {
-                    suffix = 'km';
-                    pointResolution /= 1000;
-                }
-            }
-            else if (units == exports.Units.US) {
-                if (nominalCount < 0.9144) {
-                    suffix = 'in';
-                    pointResolution *= 39.37;
-                }
-                else if (nominalCount < 1609.344) {
-                    suffix = 'ft';
-                    pointResolution /= 0.30480061;
-                }
-                else {
-                    suffix = 'mi';
-                    pointResolution /= 1609.3472;
-                }
-            }
-            else {
-                asserts_js_14.assert(false, 33);
-            }
-            let i = 3 * Math.floor(Math.log(minWidth * pointResolution) / Math.log(10));
-            let count, width, decimalCount;
-            while (true) {
-                decimalCount = Math.floor(i / 3);
-                const decimal = Math.pow(10, decimalCount);
-                count = LEADING_DIGITS[((i % 3) + 3) % 3] * decimal;
-                width = Math.round(count / pointResolution);
-                if (isNaN(width)) {
-                    this.element.style.display = 'none';
-                    this.renderedVisible_ = false;
-                    return;
-                }
-                else if (width >= minWidth) {
-                    break;
-                }
-                ++i;
-            }
-            let html;
-            if (this.scaleBar_) {
-                html = this.createScaleBar(width, count, suffix);
-            }
-            else {
-                html = count.toFixed(decimalCount < 0 ? -decimalCount : 0) + ' ' + suffix;
-            }
-            if (this.renderedHTML_ != html) {
-                this.innerElement_.innerHTML = html;
-                this.renderedHTML_ = html;
-            }
-            if (this.renderedWidth_ != width) {
-                this.innerElement_.style.width = width + 'px';
-                this.renderedWidth_ = width;
-            }
-            if (!this.renderedVisible_) {
-                this.element.style.display = '';
-                this.renderedVisible_ = true;
-            }
-        }
-        createScaleBar(width, scale, suffix) {
-            const mapScale = '1 : ' + Math.round(this.getScaleForResolution()).toLocaleString();
-            const scaleSteps = [];
-            const stepWidth = width / this.scaleBarSteps_;
-            let backgroundColor = '#ffffff';
-            for (let i = 0; i < this.scaleBarSteps_; i++) {
-                if (i === 0) {
-                    scaleSteps.push(this.createMarker('absolute', i));
-                }
-                scaleSteps.push('<div>' +
-                    '<div ' +
-                    'class="ol-scale-singlebar" ' +
-                    'style=' +
-                    '"width: ' +
-                    stepWidth +
-                    'px;' +
-                    'background-color: ' +
-                    backgroundColor +
-                    ';"' +
-                    '>' +
-                    '</div>' +
-                    this.createMarker('relative', i) +
-                    (i % 2 === 0 || this.scaleBarSteps_ === 2
-                        ? this.createStepText(i, width, false, scale, suffix)
-                        : '') +
-                    '</div>');
-                if (i === this.scaleBarSteps_ - 1) {
-                    {
-                    }
-                    scaleSteps.push(this.createStepText(i + 1, width, true, scale, suffix));
-                }
-                if (backgroundColor === '#ffffff') {
-                    backgroundColor = '#000000';
-                }
-                else {
-                    backgroundColor = '#ffffff';
-                }
-            }
-            let scaleBarText;
-            if (this.scaleBarText_) {
-                scaleBarText =
-                    '<div ' +
-                        'class="ol-scale-text" ' +
-                        'style="width: ' +
-                        width +
-                        'px;">' +
-                        mapScale +
-                        '</div>';
-            }
-            else {
-                scaleBarText = '';
-            }
-            const container = '<div ' +
-                'style="display: flex;">' +
-                scaleBarText +
-                scaleSteps.join('') +
-                '</div>';
-            return container;
-        }
-        createMarker(position, i) {
-            const top = position === 'absolute' ? 3 : -10;
-            return ('<div ' +
-                'class="ol-scale-step-marker" ' +
-                'style="position: ' +
-                position +
-                ';' +
-                'top: ' +
-                top +
-                'px;"' +
-                '></div>');
-        }
-        createStepText(i, width, isLast, scale, suffix) {
-            const length = i === 0 ? 0 : Math.round((scale / this.scaleBarSteps_) * i * 100) / 100;
-            const lengthString = length + (i === 0 ? '' : ' ' + suffix);
-            const margin = i === 0 ? -3 : (width / this.scaleBarSteps_) * -1;
-            const minWidth = i === 0 ? 0 : (width / this.scaleBarSteps_) * 2;
-            return ('<div ' +
-                'class="ol-scale-step-text" ' +
-                'style="' +
-                'margin-left: ' +
-                margin +
-                'px;' +
-                'text-align: ' +
-                (i === 0 ? 'left' : 'center') +
-                '; ' +
-                'min-width: ' +
-                minWidth +
-                'px;' +
-                'left: ' +
-                (isLast ? width + 'px' : 'unset') +
-                ';"' +
-                '>' +
-                lengthString +
-                '</div>');
-        }
-        getScaleForResolution() {
-            const resolution = proj_js_10.getPointResolution(this.viewState_.projection, this.viewState_.resolution, this.viewState_.center);
-            const dpi = this.dpi_ || DEFAULT_DPI;
-            const mpu = this.viewState_.projection.getMetersPerUnit();
-            const inchesPerMeter = 39.37;
-            return parseFloat(resolution.toString()) * mpu * inchesPerMeter * dpi;
-        }
-        render(mapEvent) {
-            const frameState = mapEvent.frameState;
-            if (!frameState) {
-                this.viewState_ = null;
-            }
-            else {
-                this.viewState_ = frameState.viewState;
-            }
-            this.updateElement_();
-        }
-    }
-    exports.default = ScaleLine;
-});
-define("node_modules/ol/src/control/ZoomSlider", ["require", "exports", "node_modules/ol/src/control/Control", "node_modules/ol/src/events/EventType", "node_modules/ol/src/pointer/EventType", "node_modules/ol/src/css", "node_modules/ol/src/math", "node_modules/ol/src/easing", "node_modules/ol/src/events", "node_modules/ol/src/events/Event"], function (require, exports, Control_js_8, EventType_js_26, EventType_js_27, css_js_10, math_js_18, easing_js_7, events_js_15, Event_js_8) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    const Direction = {
-        VERTICAL: 0,
-        HORIZONTAL: 1,
-    };
-    class ZoomSlider extends Control_js_8.default {
-        constructor(opt_options) {
-            const options = opt_options ? opt_options : {};
-            super({
-                element: document.createElement('div'),
-                render: options.render,
-            });
-            this.dragListenerKeys_ = [];
-            this.currentResolution_ = undefined;
-            this.direction_ = Direction.VERTICAL;
-            this.dragging_;
-            this.heightLimit_ = 0;
-            this.widthLimit_ = 0;
-            this.startX_;
-            this.startY_;
-            this.thumbSize_ = null;
-            this.sliderInitialized_ = false;
-            this.duration_ = options.duration !== undefined ? options.duration : 200;
-            const className = options.className !== undefined ? options.className : 'ol-zoomslider';
-            const thumbElement = document.createElement('button');
-            thumbElement.setAttribute('type', 'button');
-            thumbElement.className = className + '-thumb ' + css_js_10.CLASS_UNSELECTABLE;
-            const containerElement = this.element;
-            containerElement.className =
-                className + ' ' + css_js_10.CLASS_UNSELECTABLE + ' ' + css_js_10.CLASS_CONTROL;
-            containerElement.appendChild(thumbElement);
-            containerElement.addEventListener(EventType_js_27.default.POINTERDOWN, this.handleDraggerStart_.bind(this), false);
-            containerElement.addEventListener(EventType_js_27.default.POINTERMOVE, this.handleDraggerDrag_.bind(this), false);
-            containerElement.addEventListener(EventType_js_27.default.POINTERUP, this.handleDraggerEnd_.bind(this), false);
-            containerElement.addEventListener(EventType_js_26.default.CLICK, this.handleContainerClick_.bind(this), false);
-            thumbElement.addEventListener(EventType_js_26.default.CLICK, Event_js_8.stopPropagation, false);
-        }
-        setMap(map) {
-            super.setMap(map);
-            if (map) {
-                map.render();
-            }
-        }
-        initSlider_() {
-            const container = this.element;
-            const containerWidth = container.offsetWidth;
-            const containerHeight = container.offsetHeight;
-            if (containerWidth === 0 && containerHeight === 0) {
-                return (this.sliderInitialized_ = false);
-            }
-            const thumb = (container.firstElementChild);
-            const computedStyle = getComputedStyle(thumb);
-            const thumbWidth = thumb.offsetWidth +
-                parseFloat(computedStyle['marginRight']) +
-                parseFloat(computedStyle['marginLeft']);
-            const thumbHeight = thumb.offsetHeight +
-                parseFloat(computedStyle['marginTop']) +
-                parseFloat(computedStyle['marginBottom']);
-            this.thumbSize_ = [thumbWidth, thumbHeight];
-            if (containerWidth > containerHeight) {
-                this.direction_ = Direction.HORIZONTAL;
-                this.widthLimit_ = containerWidth - thumbWidth;
-            }
-            else {
-                this.direction_ = Direction.VERTICAL;
-                this.heightLimit_ = containerHeight - thumbHeight;
-            }
-            return (this.sliderInitialized_ = true);
-        }
-        handleContainerClick_(event) {
-            const view = this.getMap().getView();
-            const relativePosition = this.getRelativePosition_(event.offsetX - this.thumbSize_[0] / 2, event.offsetY - this.thumbSize_[1] / 2);
-            const resolution = this.getResolutionForPosition_(relativePosition);
-            const zoom = view.getConstrainedZoom(view.getZoomForResolution(resolution));
-            view.animateInternal({
-                zoom: zoom,
-                duration: this.duration_,
-                easing: easing_js_7.easeOut,
-            });
-        }
-        handleDraggerStart_(event) {
-            if (!this.dragging_ && event.target === this.element.firstElementChild) {
-                const element = (this.element
-                    .firstElementChild);
-                this.getMap().getView().beginInteraction();
-                this.startX_ = event.clientX - parseFloat(element.style.left);
-                this.startY_ = event.clientY - parseFloat(element.style.top);
-                this.dragging_ = true;
-                if (this.dragListenerKeys_.length === 0) {
-                    const drag = this.handleDraggerDrag_;
-                    const end = this.handleDraggerEnd_;
-                    this.dragListenerKeys_.push(events_js_15.listen(document, EventType_js_27.default.POINTERMOVE, drag, this), events_js_15.listen(document, EventType_js_27.default.POINTERUP, end, this));
-                }
-            }
-        }
-        handleDraggerDrag_(event) {
-            if (this.dragging_) {
-                const deltaX = event.clientX - this.startX_;
-                const deltaY = event.clientY - this.startY_;
-                const relativePosition = this.getRelativePosition_(deltaX, deltaY);
-                this.currentResolution_ = this.getResolutionForPosition_(relativePosition);
-                this.getMap().getView().setResolution(this.currentResolution_);
-            }
-        }
-        handleDraggerEnd_(event) {
-            if (this.dragging_) {
-                const view = this.getMap().getView();
-                view.endInteraction();
-                this.dragging_ = false;
-                this.startX_ = undefined;
-                this.startY_ = undefined;
-                this.dragListenerKeys_.forEach(events_js_15.unlistenByKey);
-                this.dragListenerKeys_.length = 0;
-            }
-        }
-        setThumbPosition_(res) {
-            const position = this.getPositionForResolution_(res);
-            const thumb = (this.element.firstElementChild);
-            if (this.direction_ == Direction.HORIZONTAL) {
-                thumb.style.left = this.widthLimit_ * position + 'px';
-            }
-            else {
-                thumb.style.top = this.heightLimit_ * position + 'px';
-            }
-        }
-        getRelativePosition_(x, y) {
-            let amount;
-            if (this.direction_ === Direction.HORIZONTAL) {
-                amount = x / this.widthLimit_;
-            }
-            else {
-                amount = y / this.heightLimit_;
-            }
-            return math_js_18.clamp(amount, 0, 1);
-        }
-        getResolutionForPosition_(position) {
-            const fn = this.getMap().getView().getResolutionForValueFunction();
-            return fn(1 - position);
-        }
-        getPositionForResolution_(res) {
-            const fn = this.getMap().getView().getValueForResolutionFunction();
-            return math_js_18.clamp(1 - fn(res), 0, 1);
-        }
-        render(mapEvent) {
-            if (!mapEvent.frameState) {
-                return;
-            }
-            if (!this.sliderInitialized_ && !this.initSlider_()) {
-                return;
-            }
-            const res = mapEvent.frameState.viewState.resolution;
-            this.currentResolution_ = res;
-            this.setThumbPosition_(res);
-        }
-    }
-    exports.default = ZoomSlider;
-});
-define("node_modules/ol/src/control/ZoomToExtent", ["require", "exports", "node_modules/ol/src/control/Control", "node_modules/ol/src/events/EventType", "node_modules/ol/src/css", "node_modules/ol/src/geom/Polygon"], function (require, exports, Control_js_9, EventType_js_28, css_js_11, Polygon_js_4) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    class ZoomToExtent extends Control_js_9.default {
-        constructor(opt_options) {
-            const options = opt_options ? opt_options : {};
-            super({
-                element: document.createElement('div'),
-                target: options.target,
-            });
-            this.extent = options.extent ? options.extent : null;
-            const className = options.className !== undefined ? options.className : 'ol-zoom-extent';
-            const label = options.label !== undefined ? options.label : 'E';
-            const tipLabel = options.tipLabel !== undefined ? options.tipLabel : 'Fit to extent';
-            const button = document.createElement('button');
-            button.setAttribute('type', 'button');
-            button.title = tipLabel;
-            button.appendChild(typeof label === 'string' ? document.createTextNode(label) : label);
-            button.addEventListener(EventType_js_28.default.CLICK, this.handleClick_.bind(this), false);
-            const cssClasses = className + ' ' + css_js_11.CLASS_UNSELECTABLE + ' ' + css_js_11.CLASS_CONTROL;
-            const element = this.element;
-            element.className = cssClasses;
-            element.appendChild(button);
-        }
-        handleClick_(event) {
-            event.preventDefault();
-            this.handleZoomToExtent();
-        }
-        handleZoomToExtent() {
-            const map = this.getMap();
-            const view = map.getView();
-            const extent = !this.extent
-                ? view.getProjection().getExtent()
-                : this.extent;
-            view.fitInternal(Polygon_js_4.fromExtent(extent));
-        }
-    }
-    exports.default = ZoomToExtent;
-});
-define("node_modules/ol/src/control", ["require", "exports", "node_modules/ol/src/control/Attribution", "node_modules/ol/src/Collection", "node_modules/ol/src/control/Rotate", "node_modules/ol/src/control/Zoom", "node_modules/ol/src/control/Attribution", "node_modules/ol/src/control/Control", "node_modules/ol/src/control/FullScreen", "node_modules/ol/src/control/MousePosition", "node_modules/ol/src/control/OverviewMap", "node_modules/ol/src/control/Rotate", "node_modules/ol/src/control/ScaleLine", "node_modules/ol/src/control/Zoom", "node_modules/ol/src/control/ZoomSlider", "node_modules/ol/src/control/ZoomToExtent"], function (require, exports, Attribution_js_1, Collection_js_3, Rotate_js_1, Zoom_js_1, Attribution_js_2, Control_js_10, FullScreen_js_1, MousePosition_js_1, OverviewMap_js_1, Rotate_js_2, ScaleLine_js_1, Zoom_js_2, ZoomSlider_js_1, ZoomToExtent_js_1) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    exports.defaults = exports.ZoomToExtent = exports.ZoomSlider = exports.Zoom = exports.ScaleLine = exports.Rotate = exports.OverviewMap = exports.MousePosition = exports.FullScreen = exports.Control = exports.Attribution = void 0;
-    Object.defineProperty(exports, "Attribution", { enumerable: true, get: function () { return Attribution_js_2.default; } });
-    Object.defineProperty(exports, "Control", { enumerable: true, get: function () { return Control_js_10.default; } });
-    Object.defineProperty(exports, "FullScreen", { enumerable: true, get: function () { return FullScreen_js_1.default; } });
-    Object.defineProperty(exports, "MousePosition", { enumerable: true, get: function () { return MousePosition_js_1.default; } });
-    Object.defineProperty(exports, "OverviewMap", { enumerable: true, get: function () { return OverviewMap_js_1.default; } });
-    Object.defineProperty(exports, "Rotate", { enumerable: true, get: function () { return Rotate_js_2.default; } });
-    Object.defineProperty(exports, "ScaleLine", { enumerable: true, get: function () { return ScaleLine_js_1.default; } });
-    Object.defineProperty(exports, "Zoom", { enumerable: true, get: function () { return Zoom_js_2.default; } });
-    Object.defineProperty(exports, "ZoomSlider", { enumerable: true, get: function () { return ZoomSlider_js_1.default; } });
-    Object.defineProperty(exports, "ZoomToExtent", { enumerable: true, get: function () { return ZoomToExtent_js_1.default; } });
-    function defaults(opt_options) {
-        const options = opt_options ? opt_options : {};
-        const controls = new Collection_js_3.default();
-        const zoomControl = options.zoom !== undefined ? options.zoom : true;
-        if (zoomControl) {
-            controls.push(new Zoom_js_1.default(options.zoomOptions));
-        }
-        const rotateControl = options.rotate !== undefined ? options.rotate : true;
-        if (rotateControl) {
-            controls.push(new Rotate_js_1.default(options.rotateOptions));
-        }
-        const attributionControl = options.attribution !== undefined ? options.attribution : true;
-        if (attributionControl) {
-            controls.push(new Attribution_js_1.default(options.attributionOptions));
-        }
-        return controls;
-    }
-    exports.defaults = defaults;
-});
-define("node_modules/ol/src/interaction/DoubleClickZoom", ["require", "exports", "node_modules/ol/src/interaction/Interaction", "node_modules/ol/src/MapBrowserEventType"], function (require, exports, Interaction_js_1, MapBrowserEventType_js_3) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    class DoubleClickZoom extends Interaction_js_1.default {
-        constructor(opt_options) {
-            super();
-            const options = opt_options ? opt_options : {};
-            this.delta_ = options.delta ? options.delta : 1;
-            this.duration_ = options.duration !== undefined ? options.duration : 250;
-        }
-        handleEvent(mapBrowserEvent) {
-            let stopEvent = false;
-            if (mapBrowserEvent.type == MapBrowserEventType_js_3.default.DBLCLICK) {
-                const browserEvent = (mapBrowserEvent.originalEvent);
-                const map = mapBrowserEvent.map;
-                const anchor = mapBrowserEvent.coordinate;
-                const delta = browserEvent.shiftKey ? -this.delta_ : this.delta_;
-                const view = map.getView();
-                Interaction_js_1.zoomByDelta(view, delta, anchor, this.duration_);
-                mapBrowserEvent.preventDefault();
-                stopEvent = true;
-            }
-            return !stopEvent;
-        }
-    }
-    exports.default = DoubleClickZoom;
-});
-define("node_modules/ol/src/interaction/Pointer", ["require", "exports", "node_modules/ol/src/interaction/Interaction", "node_modules/ol/src/MapBrowserEventType", "node_modules/ol/src/obj"], function (require, exports, Interaction_js_2, MapBrowserEventType_js_4, obj_js_11) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    exports.centroid = void 0;
-    class PointerInteraction extends Interaction_js_2.default {
-        constructor(opt_options) {
-            const options = opt_options ? opt_options : {};
-            super((options));
-            if (options.handleDownEvent) {
-                this.handleDownEvent = options.handleDownEvent;
-            }
-            if (options.handleDragEvent) {
-                this.handleDragEvent = options.handleDragEvent;
-            }
-            if (options.handleMoveEvent) {
-                this.handleMoveEvent = options.handleMoveEvent;
-            }
-            if (options.handleUpEvent) {
-                this.handleUpEvent = options.handleUpEvent;
-            }
-            if (options.stopDown) {
-                this.stopDown = options.stopDown;
-            }
-            this.handlingDownUpSequence = false;
-            this.trackedPointers_ = {};
-            this.targetPointers = [];
-        }
-        getPointerCount() {
-            return this.targetPointers.length;
-        }
-        handleDownEvent(mapBrowserEvent) {
-            return false;
-        }
-        handleDragEvent(mapBrowserEvent) { }
-        handleEvent(mapBrowserEvent) {
-            if (!mapBrowserEvent.originalEvent) {
-                return true;
-            }
-            let stopEvent = false;
-            this.updateTrackedPointers_(mapBrowserEvent);
-            if (this.handlingDownUpSequence) {
-                if (mapBrowserEvent.type == MapBrowserEventType_js_4.default.POINTERDRAG) {
-                    this.handleDragEvent(mapBrowserEvent);
-                    mapBrowserEvent.preventDefault();
-                }
-                else if (mapBrowserEvent.type == MapBrowserEventType_js_4.default.POINTERUP) {
-                    const handledUp = this.handleUpEvent(mapBrowserEvent);
-                    this.handlingDownUpSequence =
-                        handledUp && this.targetPointers.length > 0;
-                }
-            }
-            else {
-                if (mapBrowserEvent.type == MapBrowserEventType_js_4.default.POINTERDOWN) {
-                    const handled = this.handleDownEvent(mapBrowserEvent);
-                    this.handlingDownUpSequence = handled;
-                    stopEvent = this.stopDown(handled);
-                }
-                else if (mapBrowserEvent.type == MapBrowserEventType_js_4.default.POINTERMOVE) {
-                    this.handleMoveEvent(mapBrowserEvent);
-                }
-            }
-            return !stopEvent;
-        }
-        handleMoveEvent(mapBrowserEvent) { }
-        handleUpEvent(mapBrowserEvent) {
-            return false;
-        }
-        stopDown(handled) {
-            return handled;
-        }
-        updateTrackedPointers_(mapBrowserEvent) {
-            if (isPointerDraggingEvent(mapBrowserEvent)) {
-                const event = mapBrowserEvent.originalEvent;
-                const id = event.pointerId.toString();
-                if (mapBrowserEvent.type == MapBrowserEventType_js_4.default.POINTERUP) {
-                    delete this.trackedPointers_[id];
-                }
-                else if (mapBrowserEvent.type == MapBrowserEventType_js_4.default.POINTERDOWN) {
-                    this.trackedPointers_[id] = event;
-                }
-                else if (id in this.trackedPointers_) {
-                    this.trackedPointers_[id] = event;
-                }
-                this.targetPointers = obj_js_11.getValues(this.trackedPointers_);
-            }
-        }
-    }
-    function centroid(pointerEvents) {
-        const length = pointerEvents.length;
-        let clientX = 0;
-        let clientY = 0;
-        for (let i = 0; i < length; i++) {
-            clientX += pointerEvents[i].clientX;
-            clientY += pointerEvents[i].clientY;
-        }
-        return [clientX / length, clientY / length];
-    }
-    exports.centroid = centroid;
-    function isPointerDraggingEvent(mapBrowserEvent) {
-        const type = mapBrowserEvent.type;
-        return (type === MapBrowserEventType_js_4.default.POINTERDOWN ||
-            type === MapBrowserEventType_js_4.default.POINTERDRAG ||
-            type === MapBrowserEventType_js_4.default.POINTERUP);
-    }
-    exports.default = PointerInteraction;
-});
-define("node_modules/ol/src/events/condition", ["require", "exports", "node_modules/ol/src/MapBrowserEventType", "node_modules/ol/src/functions", "node_modules/ol/src/has", "node_modules/ol/src/asserts"], function (require, exports, MapBrowserEventType_js_5, functions_js_7, has_js_7, asserts_js_15) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    exports.primaryAction = exports.penOnly = exports.touchOnly = exports.mouseOnly = exports.targetNotEditable = exports.shiftKeyOnly = exports.platformModifierKeyOnly = exports.noModifierKeys = exports.doubleClick = exports.singleClick = exports.pointerMove = exports.never = exports.mouseActionButton = exports.click = exports.always = exports.focusWithTabindex = exports.focus = exports.altShiftKeysOnly = exports.altKeyOnly = exports.all = void 0;
-    function all(var_args) {
-        const conditions = arguments;
-        return function (event) {
-            let pass = true;
-            for (let i = 0, ii = conditions.length; i < ii; ++i) {
-                pass = pass && conditions[i](event);
-                if (!pass) {
-                    break;
-                }
-            }
-            return pass;
-        };
-    }
-    exports.all = all;
-    exports.altKeyOnly = function (mapBrowserEvent) {
-        const originalEvent = (mapBrowserEvent.originalEvent);
-        return (originalEvent.altKey &&
-            !(originalEvent.metaKey || originalEvent.ctrlKey) &&
-            !originalEvent.shiftKey);
-    };
-    exports.altShiftKeysOnly = function (mapBrowserEvent) {
-        const originalEvent = (mapBrowserEvent.originalEvent);
-        return (originalEvent.altKey &&
-            !(originalEvent.metaKey || originalEvent.ctrlKey) &&
-            originalEvent.shiftKey);
-    };
-    exports.focus = function (event) {
-        return event.target.getTargetElement().contains(document.activeElement);
-    };
-    exports.focusWithTabindex = function (event) {
-        return event.map.getTargetElement().hasAttribute('tabindex')
-            ? exports.focus(event)
-            : true;
-    };
-    exports.always = functions_js_7.TRUE;
-    exports.click = function (mapBrowserEvent) {
-        return mapBrowserEvent.type == MapBrowserEventType_js_5.default.CLICK;
-    };
-    exports.mouseActionButton = function (mapBrowserEvent) {
-        const originalEvent = (mapBrowserEvent.originalEvent);
-        return originalEvent.button == 0 && !(has_js_7.WEBKIT && has_js_7.MAC && originalEvent.ctrlKey);
-    };
-    exports.never = functions_js_7.FALSE;
-    exports.pointerMove = function (mapBrowserEvent) {
-        return mapBrowserEvent.type == 'pointermove';
-    };
-    exports.singleClick = function (mapBrowserEvent) {
-        return mapBrowserEvent.type == MapBrowserEventType_js_5.default.SINGLECLICK;
-    };
-    exports.doubleClick = function (mapBrowserEvent) {
-        return mapBrowserEvent.type == MapBrowserEventType_js_5.default.DBLCLICK;
-    };
-    exports.noModifierKeys = function (mapBrowserEvent) {
-        const originalEvent = (mapBrowserEvent.originalEvent);
-        return (!originalEvent.altKey &&
-            !(originalEvent.metaKey || originalEvent.ctrlKey) &&
-            !originalEvent.shiftKey);
-    };
-    exports.platformModifierKeyOnly = function (mapBrowserEvent) {
-        const originalEvent = (mapBrowserEvent.originalEvent);
-        return (!originalEvent.altKey &&
-            (has_js_7.MAC ? originalEvent.metaKey : originalEvent.ctrlKey) &&
-            !originalEvent.shiftKey);
-    };
-    exports.shiftKeyOnly = function (mapBrowserEvent) {
-        const originalEvent = (mapBrowserEvent.originalEvent);
-        return (!originalEvent.altKey &&
-            !(originalEvent.metaKey || originalEvent.ctrlKey) &&
-            originalEvent.shiftKey);
-    };
-    exports.targetNotEditable = function (mapBrowserEvent) {
-        const originalEvent = (mapBrowserEvent.originalEvent);
-        const tagName = (originalEvent.target).tagName;
-        return tagName !== 'INPUT' && tagName !== 'SELECT' && tagName !== 'TEXTAREA';
-    };
-    exports.mouseOnly = function (mapBrowserEvent) {
-        const pointerEvent = (mapBrowserEvent)
-            .originalEvent;
-        asserts_js_15.assert(pointerEvent !== undefined, 56);
-        return pointerEvent.pointerType == 'mouse';
-    };
-    exports.touchOnly = function (mapBrowserEvent) {
-        const pointerEvt = (mapBrowserEvent)
-            .originalEvent;
-        asserts_js_15.assert(pointerEvt !== undefined, 56);
-        return pointerEvt.pointerType === 'touch';
-    };
-    exports.penOnly = function (mapBrowserEvent) {
-        const pointerEvt = (mapBrowserEvent)
-            .originalEvent;
-        asserts_js_15.assert(pointerEvt !== undefined, 56);
-        return pointerEvt.pointerType === 'pen';
-    };
-    exports.primaryAction = function (mapBrowserEvent) {
-        const pointerEvent = (mapBrowserEvent)
-            .originalEvent;
-        asserts_js_15.assert(pointerEvent !== undefined, 56);
-        return pointerEvent.isPrimary && pointerEvent.button === 0;
-    };
-});
-define("node_modules/ol/src/Kinetic", ["require", "exports"], function (require, exports) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    class Kinetic {
-        constructor(decay, minVelocity, delay) {
-            this.decay_ = decay;
-            this.minVelocity_ = minVelocity;
-            this.delay_ = delay;
-            this.points_ = [];
-            this.angle_ = 0;
-            this.initialVelocity_ = 0;
-        }
-        begin() {
-            this.points_.length = 0;
-            this.angle_ = 0;
-            this.initialVelocity_ = 0;
-        }
-        update(x, y) {
-            this.points_.push(x, y, Date.now());
-        }
-        end() {
-            if (this.points_.length < 6) {
-                return false;
-            }
-            const delay = Date.now() - this.delay_;
-            const lastIndex = this.points_.length - 3;
-            if (this.points_[lastIndex + 2] < delay) {
-                return false;
-            }
-            let firstIndex = lastIndex - 3;
-            while (firstIndex > 0 && this.points_[firstIndex + 2] > delay) {
-                firstIndex -= 3;
-            }
-            const duration = this.points_[lastIndex + 2] - this.points_[firstIndex + 2];
-            if (duration < 1000 / 60) {
-                return false;
-            }
-            const dx = this.points_[lastIndex] - this.points_[firstIndex];
-            const dy = this.points_[lastIndex + 1] - this.points_[firstIndex + 1];
-            this.angle_ = Math.atan2(dy, dx);
-            this.initialVelocity_ = Math.sqrt(dx * dx + dy * dy) / duration;
-            return this.initialVelocity_ > this.minVelocity_;
-        }
-        getDistance() {
-            return (this.minVelocity_ - this.initialVelocity_) / this.decay_;
-        }
-        getAngle() {
-            return this.angle_;
-        }
-    }
-    exports.default = Kinetic;
-});
-define("node_modules/ol/src/interaction/DragPan", ["require", "exports", "node_modules/ol/src/interaction/Pointer", "node_modules/ol/src/functions", "node_modules/ol/src/events/condition", "node_modules/ol/src/easing", "node_modules/ol/src/coordinate"], function (require, exports, Pointer_js_1, functions_js_8, condition_js_1, easing_js_8, coordinate_js_5) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    class DragPan extends Pointer_js_1.default {
-        constructor(opt_options) {
-            super({
-                stopDown: functions_js_8.FALSE,
-            });
-            const options = opt_options ? opt_options : {};
-            this.kinetic_ = options.kinetic;
-            this.lastCentroid = null;
-            this.lastPointersCount_;
-            this.panning_ = false;
-            const condition = options.condition
-                ? options.condition
-                : condition_js_1.all(condition_js_1.noModifierKeys, condition_js_1.primaryAction);
-            this.condition_ = options.onFocusOnly
-                ? condition_js_1.all(condition_js_1.focusWithTabindex, condition)
-                : condition;
-            this.noKinetic_ = false;
-        }
-        handleDragEvent(mapBrowserEvent) {
-            if (!this.panning_) {
-                this.panning_ = true;
-                this.getMap().getView().beginInteraction();
-            }
-            const targetPointers = this.targetPointers;
-            const centroid = Pointer_js_1.centroid(targetPointers);
-            if (targetPointers.length == this.lastPointersCount_) {
-                if (this.kinetic_) {
-                    this.kinetic_.update(centroid[0], centroid[1]);
-                }
-                if (this.lastCentroid) {
-                    const delta = [
-                        this.lastCentroid[0] - centroid[0],
-                        centroid[1] - this.lastCentroid[1],
-                    ];
-                    const map = mapBrowserEvent.map;
-                    const view = map.getView();
-                    coordinate_js_5.scale(delta, view.getResolution());
-                    coordinate_js_5.rotate(delta, view.getRotation());
-                    view.adjustCenterInternal(delta);
-                }
-            }
-            else if (this.kinetic_) {
-                this.kinetic_.begin();
-            }
-            this.lastCentroid = centroid;
-            this.lastPointersCount_ = targetPointers.length;
-            mapBrowserEvent.originalEvent.preventDefault();
-        }
-        handleUpEvent(mapBrowserEvent) {
-            const map = mapBrowserEvent.map;
-            const view = map.getView();
-            if (this.targetPointers.length === 0) {
-                if (!this.noKinetic_ && this.kinetic_ && this.kinetic_.end()) {
-                    const distance = this.kinetic_.getDistance();
-                    const angle = this.kinetic_.getAngle();
-                    const center = view.getCenterInternal();
-                    const centerpx = map.getPixelFromCoordinateInternal(center);
-                    const dest = map.getCoordinateFromPixelInternal([
-                        centerpx[0] - distance * Math.cos(angle),
-                        centerpx[1] - distance * Math.sin(angle),
-                    ]);
-                    view.animateInternal({
-                        center: view.getConstrainedCenter(dest),
-                        duration: 500,
-                        easing: easing_js_8.easeOut,
-                    });
-                }
-                if (this.panning_) {
-                    this.panning_ = false;
-                    view.endInteraction();
-                }
-                return false;
-            }
-            else {
-                if (this.kinetic_) {
-                    this.kinetic_.begin();
-                }
-                this.lastCentroid = null;
-                return true;
-            }
-        }
-        handleDownEvent(mapBrowserEvent) {
-            if (this.targetPointers.length > 0 && this.condition_(mapBrowserEvent)) {
-                const map = mapBrowserEvent.map;
-                const view = map.getView();
-                this.lastCentroid = null;
-                if (view.getAnimating()) {
-                    view.cancelAnimations();
-                }
-                if (this.kinetic_) {
-                    this.kinetic_.begin();
-                }
-                this.noKinetic_ = this.targetPointers.length > 1;
-                return true;
-            }
-            else {
-                return false;
-            }
-        }
-    }
-    exports.default = DragPan;
-});
-define("node_modules/ol/src/interaction/DragRotate", ["require", "exports", "node_modules/ol/src/interaction/Pointer", "node_modules/ol/src/functions", "node_modules/ol/src/events/condition", "node_modules/ol/src/rotationconstraint"], function (require, exports, Pointer_js_2, functions_js_9, condition_js_2, rotationconstraint_js_2) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    class DragRotate extends Pointer_js_2.default {
-        constructor(opt_options) {
-            const options = opt_options ? opt_options : {};
-            super({
-                stopDown: functions_js_9.FALSE,
-            });
-            this.condition_ = options.condition ? options.condition : condition_js_2.altShiftKeysOnly;
-            this.lastAngle_ = undefined;
-            this.duration_ = options.duration !== undefined ? options.duration : 250;
-        }
-        handleDragEvent(mapBrowserEvent) {
-            if (!condition_js_2.mouseOnly(mapBrowserEvent)) {
-                return;
-            }
-            const map = mapBrowserEvent.map;
-            const view = map.getView();
-            if (view.getConstraints().rotation === rotationconstraint_js_2.disable) {
-                return;
-            }
-            const size = map.getSize();
-            const offset = mapBrowserEvent.pixel;
-            const theta = Math.atan2(size[1] / 2 - offset[1], offset[0] - size[0] / 2);
-            if (this.lastAngle_ !== undefined) {
-                const delta = theta - this.lastAngle_;
-                view.adjustRotationInternal(-delta);
-            }
-            this.lastAngle_ = theta;
-        }
-        handleUpEvent(mapBrowserEvent) {
-            if (!condition_js_2.mouseOnly(mapBrowserEvent)) {
-                return true;
-            }
-            const map = mapBrowserEvent.map;
-            const view = map.getView();
-            view.endInteraction(this.duration_);
-            return false;
-        }
-        handleDownEvent(mapBrowserEvent) {
-            if (!condition_js_2.mouseOnly(mapBrowserEvent)) {
-                return false;
-            }
-            if (condition_js_2.mouseActionButton(mapBrowserEvent) &&
-                this.condition_(mapBrowserEvent)) {
-                const map = mapBrowserEvent.map;
-                map.getView().beginInteraction();
-                this.lastAngle_ = undefined;
-                return true;
-            }
-            else {
-                return false;
-            }
-        }
-    }
-    exports.default = DragRotate;
-});
-define("node_modules/ol/src/render/Box", ["require", "exports", "node_modules/ol/src/Disposable", "node_modules/ol/src/geom/Polygon"], function (require, exports, Disposable_js_3, Polygon_js_5) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    class RenderBox extends Disposable_js_3.default {
-        constructor(className) {
-            super();
-            this.geometry_ = null;
-            this.element_ = document.createElement('div');
-            this.element_.style.position = 'absolute';
-            this.element_.style.pointerEvents = 'auto';
-            this.element_.className = 'ol-box ' + className;
-            this.map_ = null;
-            this.startPixel_ = null;
-            this.endPixel_ = null;
-        }
-        disposeInternal() {
-            this.setMap(null);
-        }
-        render_() {
-            const startPixel = this.startPixel_;
-            const endPixel = this.endPixel_;
-            const px = 'px';
-            const style = this.element_.style;
-            style.left = Math.min(startPixel[0], endPixel[0]) + px;
-            style.top = Math.min(startPixel[1], endPixel[1]) + px;
-            style.width = Math.abs(endPixel[0] - startPixel[0]) + px;
-            style.height = Math.abs(endPixel[1] - startPixel[1]) + px;
-        }
-        setMap(map) {
-            if (this.map_) {
-                this.map_.getOverlayContainer().removeChild(this.element_);
-                const style = this.element_.style;
-                style.left = 'inherit';
-                style.top = 'inherit';
-                style.width = 'inherit';
-                style.height = 'inherit';
-            }
-            this.map_ = map;
-            if (this.map_) {
-                this.map_.getOverlayContainer().appendChild(this.element_);
-            }
-        }
-        setPixels(startPixel, endPixel) {
-            this.startPixel_ = startPixel;
-            this.endPixel_ = endPixel;
-            this.createOrUpdateGeometry();
-            this.render_();
-        }
-        createOrUpdateGeometry() {
-            const startPixel = this.startPixel_;
-            const endPixel = this.endPixel_;
-            const pixels = [
-                startPixel,
-                [startPixel[0], endPixel[1]],
-                endPixel,
-                [endPixel[0], startPixel[1]],
-            ];
-            const coordinates = pixels.map(this.map_.getCoordinateFromPixelInternal, this.map_);
-            coordinates[4] = coordinates[0].slice();
-            if (!this.geometry_) {
-                this.geometry_ = new Polygon_js_5.default([coordinates]);
-            }
-            else {
-                this.geometry_.setCoordinates([coordinates]);
-            }
-        }
-        getGeometry() {
-            return this.geometry_;
-        }
-    }
-    exports.default = RenderBox;
-});
-define("node_modules/ol/src/interaction/DragBox", ["require", "exports", "node_modules/ol/src/events/Event", "node_modules/ol/src/interaction/Pointer", "node_modules/ol/src/render/Box", "node_modules/ol/src/events/condition"], function (require, exports, Event_js_9, Pointer_js_3, Box_js_1, condition_js_3) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    const DragBoxEventType = {
-        BOXSTART: 'boxstart',
-        BOXDRAG: 'boxdrag',
-        BOXEND: 'boxend',
-    };
-    class DragBoxEvent extends Event_js_9.default {
-        constructor(type, coordinate, mapBrowserEvent) {
-            super(type);
-            this.coordinate = coordinate;
-            this.mapBrowserEvent = mapBrowserEvent;
-        }
-    }
-    class DragBox extends Pointer_js_3.default {
-        constructor(opt_options) {
-            super();
-            const options = opt_options ? opt_options : {};
-            this.box_ = new Box_js_1.default(options.className || 'ol-dragbox');
-            this.minArea_ = options.minArea !== undefined ? options.minArea : 64;
-            if (options.onBoxEnd) {
-                this.onBoxEnd = options.onBoxEnd;
-            }
-            this.startPixel_ = null;
-            this.condition_ = options.condition ? options.condition : condition_js_3.mouseActionButton;
-            this.boxEndCondition_ = options.boxEndCondition
-                ? options.boxEndCondition
-                : this.defaultBoxEndCondition;
-        }
-        defaultBoxEndCondition(mapBrowserEvent, startPixel, endPixel) {
-            const width = endPixel[0] - startPixel[0];
-            const height = endPixel[1] - startPixel[1];
-            return width * width + height * height >= this.minArea_;
-        }
-        getGeometry() {
-            return this.box_.getGeometry();
-        }
-        handleDragEvent(mapBrowserEvent) {
-            this.box_.setPixels(this.startPixel_, mapBrowserEvent.pixel);
-            this.dispatchEvent(new DragBoxEvent(DragBoxEventType.BOXDRAG, mapBrowserEvent.coordinate, mapBrowserEvent));
-        }
-        handleUpEvent(mapBrowserEvent) {
-            this.box_.setMap(null);
-            if (this.boxEndCondition_(mapBrowserEvent, this.startPixel_, mapBrowserEvent.pixel)) {
-                this.onBoxEnd(mapBrowserEvent);
-                this.dispatchEvent(new DragBoxEvent(DragBoxEventType.BOXEND, mapBrowserEvent.coordinate, mapBrowserEvent));
-            }
-            return false;
-        }
-        handleDownEvent(mapBrowserEvent) {
-            if (this.condition_(mapBrowserEvent)) {
-                this.startPixel_ = mapBrowserEvent.pixel;
-                this.box_.setMap(mapBrowserEvent.map);
-                this.box_.setPixels(this.startPixel_, this.startPixel_);
-                this.dispatchEvent(new DragBoxEvent(DragBoxEventType.BOXSTART, mapBrowserEvent.coordinate, mapBrowserEvent));
-                return true;
-            }
-            else {
-                return false;
-            }
-        }
-        onBoxEnd(event) { }
-    }
-    exports.default = DragBox;
-});
-define("node_modules/ol/src/interaction/DragZoom", ["require", "exports", "node_modules/ol/src/interaction/DragBox", "node_modules/ol/src/extent", "node_modules/ol/src/easing", "node_modules/ol/src/events/condition"], function (require, exports, DragBox_js_1, extent_js_31, easing_js_9, condition_js_4) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    class DragZoom extends DragBox_js_1.default {
-        constructor(opt_options) {
-            const options = opt_options ? opt_options : {};
-            const condition = options.condition ? options.condition : condition_js_4.shiftKeyOnly;
-            super({
-                condition: condition,
-                className: options.className || 'ol-dragzoom',
-                minArea: options.minArea,
-            });
-            this.duration_ = options.duration !== undefined ? options.duration : 200;
-            this.out_ = options.out !== undefined ? options.out : false;
-        }
-        onBoxEnd(event) {
-            const map = this.getMap();
-            const view = (map.getView());
-            const size = (map.getSize());
-            let extent = this.getGeometry().getExtent();
-            if (this.out_) {
-                const mapExtent = view.calculateExtentInternal(size);
-                const boxPixelExtent = extent_js_31.createOrUpdateFromCoordinates([
-                    map.getPixelFromCoordinateInternal(extent_js_31.getBottomLeft(extent)),
-                    map.getPixelFromCoordinateInternal(extent_js_31.getTopRight(extent)),
-                ]);
-                const factor = view.getResolutionForExtentInternal(boxPixelExtent, size);
-                extent_js_31.scaleFromCenter(mapExtent, 1 / factor);
-                extent = mapExtent;
-            }
-            const resolution = view.getConstrainedResolution(view.getResolutionForExtentInternal(extent, size));
-            const center = view.getConstrainedCenter(extent_js_31.getCenter(extent), resolution);
-            view.animateInternal({
-                resolution: resolution,
-                center: center,
-                duration: this.duration_,
-                easing: easing_js_9.easeOut,
-            });
-        }
-    }
-    exports.default = DragZoom;
-});
-define("node_modules/ol/src/events/KeyCode", ["require", "exports"], function (require, exports) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    exports.default = {
-        LEFT: 37,
-        UP: 38,
-        RIGHT: 39,
-        DOWN: 40,
-    };
-});
-define("node_modules/ol/src/interaction/KeyboardPan", ["require", "exports", "node_modules/ol/src/events/EventType", "node_modules/ol/src/interaction/Interaction", "node_modules/ol/src/events/KeyCode", "node_modules/ol/src/events/condition", "node_modules/ol/src/coordinate"], function (require, exports, EventType_js_29, Interaction_js_3, KeyCode_js_1, condition_js_5, coordinate_js_6) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    class KeyboardPan extends Interaction_js_3.default {
-        constructor(opt_options) {
-            super();
-            const options = opt_options || {};
-            this.defaultCondition_ = function (mapBrowserEvent) {
-                return (condition_js_5.noModifierKeys(mapBrowserEvent) && condition_js_5.targetNotEditable(mapBrowserEvent));
-            };
-            this.condition_ =
-                options.condition !== undefined
-                    ? options.condition
-                    : this.defaultCondition_;
-            this.duration_ = options.duration !== undefined ? options.duration : 100;
-            this.pixelDelta_ =
-                options.pixelDelta !== undefined ? options.pixelDelta : 128;
-        }
-        handleEvent(mapBrowserEvent) {
-            let stopEvent = false;
-            if (mapBrowserEvent.type == EventType_js_29.default.KEYDOWN) {
-                const keyEvent = (mapBrowserEvent.originalEvent);
-                const keyCode = keyEvent.keyCode;
-                if (this.condition_(mapBrowserEvent) &&
-                    (keyCode == KeyCode_js_1.default.DOWN ||
-                        keyCode == KeyCode_js_1.default.LEFT ||
-                        keyCode == KeyCode_js_1.default.RIGHT ||
-                        keyCode == KeyCode_js_1.default.UP)) {
-                    const map = mapBrowserEvent.map;
-                    const view = map.getView();
-                    const mapUnitsDelta = view.getResolution() * this.pixelDelta_;
-                    let deltaX = 0, deltaY = 0;
-                    if (keyCode == KeyCode_js_1.default.DOWN) {
-                        deltaY = -mapUnitsDelta;
-                    }
-                    else if (keyCode == KeyCode_js_1.default.LEFT) {
-                        deltaX = -mapUnitsDelta;
-                    }
-                    else if (keyCode == KeyCode_js_1.default.RIGHT) {
-                        deltaX = mapUnitsDelta;
-                    }
-                    else {
-                        deltaY = mapUnitsDelta;
-                    }
-                    const delta = [deltaX, deltaY];
-                    coordinate_js_6.rotate(delta, view.getRotation());
-                    Interaction_js_3.pan(view, delta, this.duration_);
-                    mapBrowserEvent.preventDefault();
-                    stopEvent = true;
-                }
-            }
-            return !stopEvent;
-        }
-    }
-    exports.default = KeyboardPan;
-});
-define("node_modules/ol/src/interaction/KeyboardZoom", ["require", "exports", "node_modules/ol/src/events/EventType", "node_modules/ol/src/interaction/Interaction", "node_modules/ol/src/events/condition"], function (require, exports, EventType_js_30, Interaction_js_4, condition_js_6) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    class KeyboardZoom extends Interaction_js_4.default {
-        constructor(opt_options) {
-            super();
-            const options = opt_options ? opt_options : {};
-            this.condition_ = options.condition ? options.condition : condition_js_6.targetNotEditable;
-            this.delta_ = options.delta ? options.delta : 1;
-            this.duration_ = options.duration !== undefined ? options.duration : 100;
-        }
-        handleEvent(mapBrowserEvent) {
-            let stopEvent = false;
-            if (mapBrowserEvent.type == EventType_js_30.default.KEYDOWN ||
-                mapBrowserEvent.type == EventType_js_30.default.KEYPRESS) {
-                const keyEvent = (mapBrowserEvent.originalEvent);
-                const charCode = keyEvent.charCode;
-                if (this.condition_(mapBrowserEvent) &&
-                    (charCode == '+'.charCodeAt(0) || charCode == '-'.charCodeAt(0))) {
-                    const map = mapBrowserEvent.map;
-                    const delta = charCode == '+'.charCodeAt(0) ? this.delta_ : -this.delta_;
-                    const view = map.getView();
-                    Interaction_js_4.zoomByDelta(view, delta, undefined, this.duration_);
-                    mapBrowserEvent.preventDefault();
-                    stopEvent = true;
-                }
-            }
-            return !stopEvent;
-        }
-    }
-    exports.default = KeyboardZoom;
-});
-define("node_modules/ol/src/interaction/MouseWheelZoom", ["require", "exports", "node_modules/ol/src/events/EventType", "node_modules/ol/src/interaction/Interaction", "node_modules/ol/src/has", "node_modules/ol/src/events/condition", "node_modules/ol/src/math"], function (require, exports, EventType_js_31, Interaction_js_5, has_js_8, condition_js_7, math_js_19) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    exports.Mode = void 0;
-    exports.Mode = {
-        TRACKPAD: 'trackpad',
-        WHEEL: 'wheel',
-    };
-    class MouseWheelZoom extends Interaction_js_5.default {
-        constructor(opt_options) {
-            const options = opt_options ? opt_options : {};
-            super((options));
-            this.totalDelta_ = 0;
-            this.lastDelta_ = 0;
-            this.maxDelta_ = options.maxDelta !== undefined ? options.maxDelta : 1;
-            this.duration_ = options.duration !== undefined ? options.duration : 250;
-            this.timeout_ = options.timeout !== undefined ? options.timeout : 80;
-            this.useAnchor_ =
-                options.useAnchor !== undefined ? options.useAnchor : true;
-            this.constrainResolution_ =
-                options.constrainResolution !== undefined
-                    ? options.constrainResolution
-                    : false;
-            const condition = options.condition ? options.condition : condition_js_7.always;
-            this.condition_ = options.onFocusOnly
-                ? condition_js_7.all(condition_js_7.focusWithTabindex, condition)
-                : condition;
-            this.lastAnchor_ = null;
-            this.startTime_ = undefined;
-            this.timeoutId_;
-            this.mode_ = undefined;
-            this.trackpadEventGap_ = 400;
-            this.trackpadTimeoutId_;
-            this.deltaPerZoom_ = 300;
-        }
-        endInteraction_() {
-            this.trackpadTimeoutId_ = undefined;
-            const view = this.getMap().getView();
-            view.endInteraction(undefined, this.lastDelta_ ? (this.lastDelta_ > 0 ? 1 : -1) : 0, this.lastAnchor_);
-        }
-        handleEvent(mapBrowserEvent) {
-            if (!this.condition_(mapBrowserEvent)) {
-                return true;
-            }
-            const type = mapBrowserEvent.type;
-            if (type !== EventType_js_31.default.WHEEL) {
-                return true;
-            }
-            mapBrowserEvent.preventDefault();
-            const map = mapBrowserEvent.map;
-            const wheelEvent = (mapBrowserEvent.originalEvent);
-            if (this.useAnchor_) {
-                this.lastAnchor_ = mapBrowserEvent.coordinate;
-            }
-            let delta;
-            if (mapBrowserEvent.type == EventType_js_31.default.WHEEL) {
-                delta = wheelEvent.deltaY;
-                if (has_js_8.FIREFOX && wheelEvent.deltaMode === WheelEvent.DOM_DELTA_PIXEL) {
-                    delta /= has_js_8.DEVICE_PIXEL_RATIO;
-                }
-                if (wheelEvent.deltaMode === WheelEvent.DOM_DELTA_LINE) {
-                    delta *= 40;
-                }
-            }
-            if (delta === 0) {
-                return false;
-            }
-            else {
-                this.lastDelta_ = delta;
-            }
-            const now = Date.now();
-            if (this.startTime_ === undefined) {
-                this.startTime_ = now;
-            }
-            if (!this.mode_ || now - this.startTime_ > this.trackpadEventGap_) {
-                this.mode_ = Math.abs(delta) < 4 ? exports.Mode.TRACKPAD : exports.Mode.WHEEL;
-            }
-            const view = map.getView();
-            if (this.mode_ === exports.Mode.TRACKPAD &&
-                !(view.getConstrainResolution() || this.constrainResolution_)) {
-                if (this.trackpadTimeoutId_) {
-                    clearTimeout(this.trackpadTimeoutId_);
-                }
-                else {
-                    if (view.getAnimating()) {
-                        view.cancelAnimations();
-                    }
-                    view.beginInteraction();
-                }
-                this.trackpadTimeoutId_ = setTimeout(this.endInteraction_.bind(this), this.timeout_);
-                view.adjustZoom(-delta / this.deltaPerZoom_, this.lastAnchor_);
-                this.startTime_ = now;
-                return false;
-            }
-            this.totalDelta_ += delta;
-            const timeLeft = Math.max(this.timeout_ - (now - this.startTime_), 0);
-            clearTimeout(this.timeoutId_);
-            this.timeoutId_ = setTimeout(this.handleWheelZoom_.bind(this, map), timeLeft);
-            return false;
-        }
-        handleWheelZoom_(map) {
-            const view = map.getView();
-            if (view.getAnimating()) {
-                view.cancelAnimations();
-            }
-            let delta = -math_js_19.clamp(this.totalDelta_, -this.maxDelta_ * this.deltaPerZoom_, this.maxDelta_ * this.deltaPerZoom_) / this.deltaPerZoom_;
-            if (view.getConstrainResolution() || this.constrainResolution_) {
-                delta = delta ? (delta > 0 ? 1 : -1) : 0;
-            }
-            Interaction_js_5.zoomByDelta(view, delta, this.lastAnchor_, this.duration_);
-            this.mode_ = undefined;
-            this.totalDelta_ = 0;
-            this.lastAnchor_ = null;
-            this.startTime_ = undefined;
-            this.timeoutId_ = undefined;
-        }
-        setMouseAnchor(useAnchor) {
-            this.useAnchor_ = useAnchor;
-            if (!useAnchor) {
-                this.lastAnchor_ = null;
-            }
-        }
-    }
-    exports.default = MouseWheelZoom;
-});
-define("node_modules/ol/src/interaction/PinchRotate", ["require", "exports", "node_modules/ol/src/interaction/Pointer", "node_modules/ol/src/functions", "node_modules/ol/src/rotationconstraint"], function (require, exports, Pointer_js_4, functions_js_10, rotationconstraint_js_3) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    class PinchRotate extends Pointer_js_4.default {
-        constructor(opt_options) {
-            const options = opt_options ? opt_options : {};
-            const pointerOptions = (options);
-            if (!pointerOptions.stopDown) {
-                pointerOptions.stopDown = functions_js_10.FALSE;
-            }
-            super(pointerOptions);
-            this.anchor_ = null;
-            this.lastAngle_ = undefined;
-            this.rotating_ = false;
-            this.rotationDelta_ = 0.0;
-            this.threshold_ = options.threshold !== undefined ? options.threshold : 0.3;
-            this.duration_ = options.duration !== undefined ? options.duration : 250;
-        }
-        handleDragEvent(mapBrowserEvent) {
-            let rotationDelta = 0.0;
-            const touch0 = this.targetPointers[0];
-            const touch1 = this.targetPointers[1];
-            const angle = Math.atan2(touch1.clientY - touch0.clientY, touch1.clientX - touch0.clientX);
-            if (this.lastAngle_ !== undefined) {
-                const delta = angle - this.lastAngle_;
-                this.rotationDelta_ += delta;
-                if (!this.rotating_ && Math.abs(this.rotationDelta_) > this.threshold_) {
-                    this.rotating_ = true;
-                }
-                rotationDelta = delta;
-            }
-            this.lastAngle_ = angle;
-            const map = mapBrowserEvent.map;
-            const view = map.getView();
-            if (view.getConstraints().rotation === rotationconstraint_js_3.disable) {
-                return;
-            }
-            const viewportPosition = map.getViewport().getBoundingClientRect();
-            const centroid = Pointer_js_4.centroid(this.targetPointers);
-            centroid[0] -= viewportPosition.left;
-            centroid[1] -= viewportPosition.top;
-            this.anchor_ = map.getCoordinateFromPixelInternal(centroid);
-            if (this.rotating_) {
-                map.render();
-                view.adjustRotationInternal(rotationDelta, this.anchor_);
-            }
-        }
-        handleUpEvent(mapBrowserEvent) {
-            if (this.targetPointers.length < 2) {
-                const map = mapBrowserEvent.map;
-                const view = map.getView();
-                view.endInteraction(this.duration_);
-                return false;
-            }
-            else {
-                return true;
-            }
-        }
-        handleDownEvent(mapBrowserEvent) {
-            if (this.targetPointers.length >= 2) {
-                const map = mapBrowserEvent.map;
-                this.anchor_ = null;
-                this.lastAngle_ = undefined;
-                this.rotating_ = false;
-                this.rotationDelta_ = 0.0;
-                if (!this.handlingDownUpSequence) {
-                    map.getView().beginInteraction();
-                }
-                return true;
-            }
-            else {
-                return false;
-            }
-        }
-    }
-    exports.default = PinchRotate;
-});
-define("node_modules/ol/src/interaction/PinchZoom", ["require", "exports", "node_modules/ol/src/interaction/Pointer", "node_modules/ol/src/functions"], function (require, exports, Pointer_js_5, functions_js_11) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    class PinchZoom extends Pointer_js_5.default {
-        constructor(opt_options) {
-            const options = opt_options ? opt_options : {};
-            const pointerOptions = (options);
-            if (!pointerOptions.stopDown) {
-                pointerOptions.stopDown = functions_js_11.FALSE;
-            }
-            super(pointerOptions);
-            this.anchor_ = null;
-            this.duration_ = options.duration !== undefined ? options.duration : 400;
-            this.lastDistance_ = undefined;
-            this.lastScaleDelta_ = 1;
-        }
-        handleDragEvent(mapBrowserEvent) {
-            let scaleDelta = 1.0;
-            const touch0 = this.targetPointers[0];
-            const touch1 = this.targetPointers[1];
-            const dx = touch0.clientX - touch1.clientX;
-            const dy = touch0.clientY - touch1.clientY;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-            if (this.lastDistance_ !== undefined) {
-                scaleDelta = this.lastDistance_ / distance;
-            }
-            this.lastDistance_ = distance;
-            const map = mapBrowserEvent.map;
-            const view = map.getView();
-            if (scaleDelta != 1.0) {
-                this.lastScaleDelta_ = scaleDelta;
-            }
-            const viewportPosition = map.getViewport().getBoundingClientRect();
-            const centroid = Pointer_js_5.centroid(this.targetPointers);
-            centroid[0] -= viewportPosition.left;
-            centroid[1] -= viewportPosition.top;
-            this.anchor_ = map.getCoordinateFromPixelInternal(centroid);
-            map.render();
-            view.adjustResolutionInternal(scaleDelta, this.anchor_);
-        }
-        handleUpEvent(mapBrowserEvent) {
-            if (this.targetPointers.length < 2) {
-                const map = mapBrowserEvent.map;
-                const view = map.getView();
-                const direction = this.lastScaleDelta_ > 1 ? 1 : -1;
-                view.endInteraction(this.duration_, direction);
-                return false;
-            }
-            else {
-                return true;
-            }
-        }
-        handleDownEvent(mapBrowserEvent) {
-            if (this.targetPointers.length >= 2) {
-                const map = mapBrowserEvent.map;
-                this.anchor_ = null;
-                this.lastDistance_ = undefined;
-                this.lastScaleDelta_ = 1;
-                if (!this.handlingDownUpSequence) {
-                    map.getView().beginInteraction();
-                }
-                return true;
-            }
-            else {
-                return false;
-            }
-        }
-    }
-    exports.default = PinchZoom;
-});
 define("node_modules/ol/src/format/FormatType", ["require", "exports"], function (require, exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
@@ -16282,7 +13707,7 @@ define("node_modules/ol/src/format/FormatType", ["require", "exports"], function
         XML: 'xml',
     };
 });
-define("node_modules/ol/src/format/Feature", ["require", "exports", "node_modules/ol/src/proj/Units", "node_modules/ol/src/util", "node_modules/ol/src/obj", "node_modules/ol/src/proj"], function (require, exports, Units_js_9, util_js_16, obj_js_12, proj_js_11) {
+define("node_modules/ol/src/format/Feature", ["require", "exports", "node_modules/ol/src/proj/Units", "node_modules/ol/src/util", "node_modules/ol/src/obj", "node_modules/ol/src/proj"], function (require, exports, Units_js_8, util_js_16, obj_js_11, proj_js_9) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.transformExtentWithOptions = exports.transformGeometryWithOptions = void 0;
@@ -16295,12 +13720,12 @@ define("node_modules/ol/src/format/Feature", ["require", "exports", "node_module
             let options;
             if (opt_options) {
                 let dataProjection = opt_options.dataProjection
-                    ? proj_js_11.get(opt_options.dataProjection)
+                    ? proj_js_9.get(opt_options.dataProjection)
                     : this.readProjection(source);
                 if (opt_options.extent &&
                     dataProjection &&
-                    dataProjection.getUnits() === Units_js_9.default.TILE_PIXELS) {
-                    dataProjection = proj_js_11.get(dataProjection);
+                    dataProjection.getUnits() === Units_js_8.default.TILE_PIXELS) {
+                    dataProjection = proj_js_9.get(dataProjection);
                     dataProjection.setWorldExtent(opt_options.extent);
                 }
                 options = {
@@ -16311,7 +13736,7 @@ define("node_modules/ol/src/format/Feature", ["require", "exports", "node_module
             return this.adaptOptions(options);
         }
         adaptOptions(options) {
-            return obj_js_12.assign({
+            return obj_js_11.assign({
                 dataProjection: this.dataProjection,
                 featureProjection: this.defaultFeatureProjection,
             }, options);
@@ -16344,15 +13769,15 @@ define("node_modules/ol/src/format/Feature", ["require", "exports", "node_module
     exports.default = FeatureFormat;
     function transformGeometryWithOptions(geometry, write, opt_options) {
         const featureProjection = opt_options
-            ? proj_js_11.get(opt_options.featureProjection)
+            ? proj_js_9.get(opt_options.featureProjection)
             : null;
         const dataProjection = opt_options
-            ? proj_js_11.get(opt_options.dataProjection)
+            ? proj_js_9.get(opt_options.dataProjection)
             : null;
         let transformed;
         if (featureProjection &&
             dataProjection &&
-            !proj_js_11.equivalent(featureProjection, dataProjection)) {
+            !proj_js_9.equivalent(featureProjection, dataProjection)) {
             transformed = (write ? geometry.clone() : geometry).transform(write ? featureProjection : dataProjection, write ? dataProjection : featureProjection);
         }
         else {
@@ -16378,21 +13803,611 @@ define("node_modules/ol/src/format/Feature", ["require", "exports", "node_module
     exports.transformGeometryWithOptions = transformGeometryWithOptions;
     function transformExtentWithOptions(extent, opt_options) {
         const featureProjection = opt_options
-            ? proj_js_11.get(opt_options.featureProjection)
+            ? proj_js_9.get(opt_options.featureProjection)
             : null;
         const dataProjection = opt_options
-            ? proj_js_11.get(opt_options.dataProjection)
+            ? proj_js_9.get(opt_options.dataProjection)
             : null;
         if (featureProjection &&
             dataProjection &&
-            !proj_js_11.equivalent(featureProjection, dataProjection)) {
-            return proj_js_11.transformExtent(extent, dataProjection, featureProjection);
+            !proj_js_9.equivalent(featureProjection, dataProjection)) {
+            return proj_js_9.transformExtent(extent, dataProjection, featureProjection);
         }
         else {
             return extent;
         }
     }
     exports.transformExtentWithOptions = transformExtentWithOptions;
+});
+define("node_modules/ol/src/format/JSONFeature", ["require", "exports", "node_modules/ol/src/format/Feature", "node_modules/ol/src/format/FormatType", "node_modules/ol/src/util"], function (require, exports, Feature_js_1, FormatType_js_1, util_js_17) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    class JSONFeature extends Feature_js_1.default {
+        constructor() {
+            super();
+        }
+        getType() {
+            return FormatType_js_1.default.JSON;
+        }
+        readFeature(source, opt_options) {
+            return this.readFeatureFromObject(getObject(source), this.getReadOptions(source, opt_options));
+        }
+        readFeatures(source, opt_options) {
+            return this.readFeaturesFromObject(getObject(source), this.getReadOptions(source, opt_options));
+        }
+        readFeatureFromObject(object, opt_options) {
+            return util_js_17.abstract();
+        }
+        readFeaturesFromObject(object, opt_options) {
+            return util_js_17.abstract();
+        }
+        readGeometry(source, opt_options) {
+            return this.readGeometryFromObject(getObject(source), this.getReadOptions(source, opt_options));
+        }
+        readGeometryFromObject(object, opt_options) {
+            return util_js_17.abstract();
+        }
+        readProjection(source) {
+            return this.readProjectionFromObject(getObject(source));
+        }
+        readProjectionFromObject(object) {
+            return util_js_17.abstract();
+        }
+        writeFeature(feature, opt_options) {
+            return JSON.stringify(this.writeFeatureObject(feature, opt_options));
+        }
+        writeFeatureObject(feature, opt_options) {
+            return util_js_17.abstract();
+        }
+        writeFeatures(features, opt_options) {
+            return JSON.stringify(this.writeFeaturesObject(features, opt_options));
+        }
+        writeFeaturesObject(features, opt_options) {
+            return util_js_17.abstract();
+        }
+        writeGeometry(geometry, opt_options) {
+            return JSON.stringify(this.writeGeometryObject(geometry, opt_options));
+        }
+        writeGeometryObject(geometry, opt_options) {
+            return util_js_17.abstract();
+        }
+    }
+    function getObject(source) {
+        if (typeof source === 'string') {
+            const object = JSON.parse(source);
+            return object ? (object) : null;
+        }
+        else if (source !== null) {
+            return source;
+        }
+        else {
+            return null;
+        }
+    }
+    exports.default = JSONFeature;
+});
+define("node_modules/ol/src/format/EsriJSON", ["require", "exports", "node_modules/ol/src/Feature", "node_modules/ol/src/geom/GeometryLayout", "node_modules/ol/src/geom/GeometryType", "node_modules/ol/src/format/JSONFeature", "node_modules/ol/src/geom/LineString", "node_modules/ol/src/geom/LinearRing", "node_modules/ol/src/geom/MultiLineString", "node_modules/ol/src/geom/MultiPoint", "node_modules/ol/src/geom/MultiPolygon", "node_modules/ol/src/geom/Point", "node_modules/ol/src/geom/Polygon", "node_modules/ol/src/asserts", "node_modules/ol/src/obj", "node_modules/ol/src/extent", "node_modules/ol/src/geom/flat/deflate", "node_modules/ol/src/proj", "node_modules/ol/src/geom/flat/orient", "node_modules/ol/src/format/Feature"], function (require, exports, Feature_js_2, GeometryLayout_js_7, GeometryType_js_18, JSONFeature_js_1, LineString_js_2, LinearRing_js_2, MultiLineString_js_1, MultiPoint_js_2, MultiPolygon_js_1, Point_js_3, Polygon_js_3, asserts_js_14, obj_js_12, extent_js_30, deflate_js_9, proj_js_10, orient_js_3, Feature_js_3) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    const GEOMETRY_READERS = {};
+    GEOMETRY_READERS[GeometryType_js_18.default.POINT] = readPointGeometry;
+    GEOMETRY_READERS[GeometryType_js_18.default.LINE_STRING] = readLineStringGeometry;
+    GEOMETRY_READERS[GeometryType_js_18.default.POLYGON] = readPolygonGeometry;
+    GEOMETRY_READERS[GeometryType_js_18.default.MULTI_POINT] = readMultiPointGeometry;
+    GEOMETRY_READERS[GeometryType_js_18.default.MULTI_LINE_STRING] = readMultiLineStringGeometry;
+    GEOMETRY_READERS[GeometryType_js_18.default.MULTI_POLYGON] = readMultiPolygonGeometry;
+    const GEOMETRY_WRITERS = {};
+    GEOMETRY_WRITERS[GeometryType_js_18.default.POINT] = writePointGeometry;
+    GEOMETRY_WRITERS[GeometryType_js_18.default.LINE_STRING] = writeLineStringGeometry;
+    GEOMETRY_WRITERS[GeometryType_js_18.default.POLYGON] = writePolygonGeometry;
+    GEOMETRY_WRITERS[GeometryType_js_18.default.MULTI_POINT] = writeMultiPointGeometry;
+    GEOMETRY_WRITERS[GeometryType_js_18.default.MULTI_LINE_STRING] = writeMultiLineStringGeometry;
+    GEOMETRY_WRITERS[GeometryType_js_18.default.MULTI_POLYGON] = writeMultiPolygonGeometry;
+    class EsriJSON extends JSONFeature_js_1.default {
+        constructor(opt_options) {
+            const options = opt_options ? opt_options : {};
+            super();
+            this.geometryName_ = options.geometryName;
+        }
+        readFeatureFromObject(object, opt_options, opt_idField) {
+            const esriJSONFeature = (object);
+            const geometry = readGeometry(esriJSONFeature.geometry, opt_options);
+            const feature = new Feature_js_2.default();
+            if (this.geometryName_) {
+                feature.setGeometryName(this.geometryName_);
+            }
+            feature.setGeometry(geometry);
+            if (esriJSONFeature.attributes) {
+                feature.setProperties(esriJSONFeature.attributes, true);
+                const id = esriJSONFeature.attributes[opt_idField];
+                if (id !== undefined) {
+                    feature.setId((id));
+                }
+            }
+            return feature;
+        }
+        readFeaturesFromObject(object, opt_options) {
+            const options = opt_options ? opt_options : {};
+            if (object['features']) {
+                const esriJSONFeatureSet = (object);
+                const features = [];
+                const esriJSONFeatures = esriJSONFeatureSet.features;
+                for (let i = 0, ii = esriJSONFeatures.length; i < ii; ++i) {
+                    features.push(this.readFeatureFromObject(esriJSONFeatures[i], options, object.objectIdFieldName));
+                }
+                return features;
+            }
+            else {
+                return [this.readFeatureFromObject(object, options)];
+            }
+        }
+        readGeometryFromObject(object, opt_options) {
+            return readGeometry(object, opt_options);
+        }
+        readProjectionFromObject(object) {
+            if (object['spatialReference'] &&
+                object['spatialReference']['wkid'] !== undefined) {
+                const spatialReference = (object['spatialReference']);
+                const crs = spatialReference.wkid;
+                return proj_js_10.get('EPSG:' + crs);
+            }
+            else {
+                return null;
+            }
+        }
+        writeGeometryObject(geometry, opt_options) {
+            return writeGeometry(geometry, this.adaptOptions(opt_options));
+        }
+        writeFeatureObject(feature, opt_options) {
+            opt_options = this.adaptOptions(opt_options);
+            const object = {};
+            if (!feature.hasProperties()) {
+                object['attributes'] = {};
+                return object;
+            }
+            const properties = feature.getProperties();
+            const geometry = feature.getGeometry();
+            if (geometry) {
+                object['geometry'] = writeGeometry(geometry, opt_options);
+                if (opt_options && opt_options.featureProjection) {
+                    object['geometry']['spatialReference'] = ({
+                        wkid: Number(proj_js_10.get(opt_options.featureProjection)
+                            .getCode()
+                            .split(':')
+                            .pop()),
+                    });
+                }
+                delete properties[feature.getGeometryName()];
+            }
+            if (!obj_js_12.isEmpty(properties)) {
+                object['attributes'] = properties;
+            }
+            else {
+                object['attributes'] = {};
+            }
+            return object;
+        }
+        writeFeaturesObject(features, opt_options) {
+            opt_options = this.adaptOptions(opt_options);
+            const objects = [];
+            for (let i = 0, ii = features.length; i < ii; ++i) {
+                objects.push(this.writeFeatureObject(features[i], opt_options));
+            }
+            return {
+                'features': objects,
+            };
+        }
+    }
+    function readGeometry(object, opt_options) {
+        if (!object) {
+            return null;
+        }
+        let type;
+        if (typeof object['x'] === 'number' && typeof object['y'] === 'number') {
+            type = GeometryType_js_18.default.POINT;
+        }
+        else if (object['points']) {
+            type = GeometryType_js_18.default.MULTI_POINT;
+        }
+        else if (object['paths']) {
+            const esriJSONPolyline = (object);
+            if (esriJSONPolyline.paths.length === 1) {
+                type = GeometryType_js_18.default.LINE_STRING;
+            }
+            else {
+                type = GeometryType_js_18.default.MULTI_LINE_STRING;
+            }
+        }
+        else if (object['rings']) {
+            const esriJSONPolygon = (object);
+            const layout = getGeometryLayout(esriJSONPolygon);
+            const rings = convertRings(esriJSONPolygon.rings, layout);
+            if (rings.length === 1) {
+                type = GeometryType_js_18.default.POLYGON;
+                object = obj_js_12.assign({}, object, { ['rings']: rings[0] });
+            }
+            else {
+                type = GeometryType_js_18.default.MULTI_POLYGON;
+                object = obj_js_12.assign({}, object, { ['rings']: rings });
+            }
+        }
+        const geometryReader = GEOMETRY_READERS[type];
+        return Feature_js_3.transformGeometryWithOptions(geometryReader(object), false, opt_options);
+    }
+    function convertRings(rings, layout) {
+        const flatRing = [];
+        const outerRings = [];
+        const holes = [];
+        let i, ii;
+        for (i = 0, ii = rings.length; i < ii; ++i) {
+            flatRing.length = 0;
+            deflate_js_9.deflateCoordinates(flatRing, 0, rings[i], layout.length);
+            const clockwise = orient_js_3.linearRingIsClockwise(flatRing, 0, flatRing.length, layout.length);
+            if (clockwise) {
+                outerRings.push([rings[i]]);
+            }
+            else {
+                holes.push(rings[i]);
+            }
+        }
+        while (holes.length) {
+            const hole = holes.shift();
+            let matched = false;
+            for (i = outerRings.length - 1; i >= 0; i--) {
+                const outerRing = outerRings[i][0];
+                const containsHole = extent_js_30.containsExtent(new LinearRing_js_2.default(outerRing).getExtent(), new LinearRing_js_2.default(hole).getExtent());
+                if (containsHole) {
+                    outerRings[i].push(hole);
+                    matched = true;
+                    break;
+                }
+            }
+            if (!matched) {
+                outerRings.push([hole.reverse()]);
+            }
+        }
+        return outerRings;
+    }
+    function readPointGeometry(object) {
+        let point;
+        if (object.m !== undefined && object.z !== undefined) {
+            point = new Point_js_3.default([object.x, object.y, object.z, object.m], GeometryLayout_js_7.default.XYZM);
+        }
+        else if (object.z !== undefined) {
+            point = new Point_js_3.default([object.x, object.y, object.z], GeometryLayout_js_7.default.XYZ);
+        }
+        else if (object.m !== undefined) {
+            point = new Point_js_3.default([object.x, object.y, object.m], GeometryLayout_js_7.default.XYM);
+        }
+        else {
+            point = new Point_js_3.default([object.x, object.y]);
+        }
+        return point;
+    }
+    function readLineStringGeometry(object) {
+        const layout = getGeometryLayout(object);
+        return new LineString_js_2.default(object.paths[0], layout);
+    }
+    function readMultiLineStringGeometry(object) {
+        const layout = getGeometryLayout(object);
+        return new MultiLineString_js_1.default(object.paths, layout);
+    }
+    function getGeometryLayout(object) {
+        let layout = GeometryLayout_js_7.default.XY;
+        if (object.hasZ === true && object.hasM === true) {
+            layout = GeometryLayout_js_7.default.XYZM;
+        }
+        else if (object.hasZ === true) {
+            layout = GeometryLayout_js_7.default.XYZ;
+        }
+        else if (object.hasM === true) {
+            layout = GeometryLayout_js_7.default.XYM;
+        }
+        return layout;
+    }
+    function readMultiPointGeometry(object) {
+        const layout = getGeometryLayout(object);
+        return new MultiPoint_js_2.default(object.points, layout);
+    }
+    function readMultiPolygonGeometry(object) {
+        const layout = getGeometryLayout(object);
+        return new MultiPolygon_js_1.default(object.rings, layout);
+    }
+    function readPolygonGeometry(object) {
+        const layout = getGeometryLayout(object);
+        return new Polygon_js_3.default(object.rings, layout);
+    }
+    function writePointGeometry(geometry, opt_options) {
+        const coordinates = geometry.getCoordinates();
+        let esriJSON;
+        const layout = geometry.getLayout();
+        if (layout === GeometryLayout_js_7.default.XYZ) {
+            esriJSON = {
+                x: coordinates[0],
+                y: coordinates[1],
+                z: coordinates[2],
+            };
+        }
+        else if (layout === GeometryLayout_js_7.default.XYM) {
+            esriJSON = {
+                x: coordinates[0],
+                y: coordinates[1],
+                m: coordinates[2],
+            };
+        }
+        else if (layout === GeometryLayout_js_7.default.XYZM) {
+            esriJSON = {
+                x: coordinates[0],
+                y: coordinates[1],
+                z: coordinates[2],
+                m: coordinates[3],
+            };
+        }
+        else if (layout === GeometryLayout_js_7.default.XY) {
+            esriJSON = {
+                x: coordinates[0],
+                y: coordinates[1],
+            };
+        }
+        else {
+            asserts_js_14.assert(false, 34);
+        }
+        return esriJSON;
+    }
+    function getHasZM(geometry) {
+        const layout = geometry.getLayout();
+        return {
+            hasZ: layout === GeometryLayout_js_7.default.XYZ || layout === GeometryLayout_js_7.default.XYZM,
+            hasM: layout === GeometryLayout_js_7.default.XYM || layout === GeometryLayout_js_7.default.XYZM,
+        };
+    }
+    function writeLineStringGeometry(lineString, opt_options) {
+        const hasZM = getHasZM(lineString);
+        return {
+            hasZ: hasZM.hasZ,
+            hasM: hasZM.hasM,
+            paths: [
+                (lineString.getCoordinates()),
+            ],
+        };
+    }
+    function writePolygonGeometry(polygon, opt_options) {
+        const hasZM = getHasZM(polygon);
+        return {
+            hasZ: hasZM.hasZ,
+            hasM: hasZM.hasM,
+            rings: (polygon.getCoordinates(false)),
+        };
+    }
+    function writeMultiLineStringGeometry(multiLineString, opt_options) {
+        const hasZM = getHasZM(multiLineString);
+        return {
+            hasZ: hasZM.hasZ,
+            hasM: hasZM.hasM,
+            paths: (multiLineString.getCoordinates()),
+        };
+    }
+    function writeMultiPointGeometry(multiPoint, opt_options) {
+        const hasZM = getHasZM(multiPoint);
+        return {
+            hasZ: hasZM.hasZ,
+            hasM: hasZM.hasM,
+            points: (multiPoint.getCoordinates()),
+        };
+    }
+    function writeMultiPolygonGeometry(geometry, opt_options) {
+        const hasZM = getHasZM(geometry);
+        const coordinates = geometry.getCoordinates(false);
+        const output = [];
+        for (let i = 0; i < coordinates.length; i++) {
+            for (let x = coordinates[i].length - 1; x >= 0; x--) {
+                output.push(coordinates[i][x]);
+            }
+        }
+        return {
+            hasZ: hasZM.hasZ,
+            hasM: hasZM.hasM,
+            rings: (output),
+        };
+    }
+    function writeGeometry(geometry, opt_options) {
+        const geometryWriter = GEOMETRY_WRITERS[geometry.getType()];
+        return geometryWriter(Feature_js_3.transformGeometryWithOptions(geometry, true, opt_options), opt_options);
+    }
+    exports.default = EsriJSON;
+});
+define("poc/AgsFeatureLoader", ["require", "exports", "node_modules/ol/src/extent", "poc/TileTree", "poc/FeatureServiceProxy", "poc/fun/removeAuthority", "node_modules/ol/src/format/EsriJSON", "node_modules/ol/src/tilegrid/common"], function (require, exports, extent_3, TileTree_1, FeatureServiceProxy_1, removeAuthority_1, EsriJSON_1, common_1) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.AgsFeatureLoader = void 0;
+    function asRequest(projection) {
+        const request = {
+            f: "json",
+            geometry: "",
+            geometryType: "esriGeometryEnvelope",
+            inSR: removeAuthority_1.removeAuthority(projection.getCode()),
+            outFields: "*",
+            outSR: removeAuthority_1.removeAuthority(projection.getCode()),
+            returnGeometry: true,
+            returnCountOnly: false,
+            spatialRel: "esriSpatialRelEnvelopeIntersects",
+        };
+        return request;
+    }
+    function bbox(extent) {
+        const [xmin, ymin, xmax, ymax] = extent;
+        return JSON.stringify({ xmin, ymin, xmax, ymax });
+    }
+    class AgsFeatureLoader {
+        constructor(options) {
+            this.options = options;
+        }
+        loader(tileIdentifier, projection) {
+            return __awaiter(this, void 0, void 0, function* () {
+                const { tree, maxRecordCount, maxFetchCount, url } = this.options;
+                const helper = new TileTree_1.TileTreeExt(tree);
+                const tileNode = tree.findByXYZ(tileIdentifier, { force: true });
+                const tileData = tileNode.data;
+                const proxy = new FeatureServiceProxy_1.FeatureServiceProxy({
+                    service: url,
+                });
+                if (typeof tileData.count === "number" && !!tileData.center) {
+                    console.log(`already loaded: ${tileNode.extent.map(Math.round)}, count:${tileData.count}`);
+                    return tileNode;
+                }
+                tileData.count = 0;
+                tileData.center = extent_3.getCenter(tileNode.extent);
+                console.log(`loading: `, tileIdentifier);
+                const request = asRequest(projection);
+                request.geometry = bbox(tileNode.extent);
+                request.returnCountOnly = true;
+                try {
+                    const response = yield proxy.fetch(request);
+                    const count = response.count;
+                    tileData.count = count;
+                    console.log(`found ${count} features: `, tileIdentifier);
+                    if (count === 0)
+                        return tileNode;
+                    if (count > maxRecordCount) {
+                        const children = yield this.fetchChildren(tileIdentifier, projection);
+                        console.log("children fetched:", children);
+                        const com = this.recomputeCenterOfMass(tileIdentifier, helper, tileData);
+                        tileData.center = com.center;
+                        console.assert(tileData.count <= com.mass);
+                        return tileNode;
+                    }
+                    if (count < maxFetchCount) {
+                        const features = yield this.loadFeatures(request, proxy, projection);
+                        features.forEach((feature) => {
+                            const geom = feature.getGeometry();
+                            const center = extent_3.getCenter(geom.getExtent());
+                            const featureTile = tree.findByPoint({
+                                point: center,
+                                zoom: common_1.DEFAULT_MAX_ZOOM,
+                            });
+                            feature.setProperties({ tileInfo: featureTile });
+                        });
+                    }
+                    else {
+                        const com = helper.centerOfMass(tileIdentifier);
+                        tileData.center = com.center;
+                        tileData.count = com.mass;
+                    }
+                }
+                catch (ex) {
+                    console.error("network error", ex, tileIdentifier);
+                    tileData.count = -1;
+                }
+                return tileNode;
+            });
+        }
+        recomputeCenterOfMass(tileIdentifier, helper, tileData) {
+            console.log("computing center of mass", tileIdentifier);
+            const com = helper.centerOfMass(tileIdentifier);
+            if (tileData.count > com.mass) {
+                console.error("loss of mass:", tileIdentifier, tileData.count, com.mass);
+                debugger;
+            }
+            return com;
+        }
+        loadFeatures(request, proxy, projection) {
+            return __awaiter(this, void 0, void 0, function* () {
+                const esrijsonFormat = new EsriJSON_1.default();
+                request.returnCountOnly = false;
+                const response = yield proxy.fetch(request);
+                console.log(response);
+                const features = esrijsonFormat.readFeatures(response, {
+                    featureProjection: projection,
+                });
+                return features;
+            });
+        }
+        fetchChildren(tileIdentifier, projection) {
+            return __awaiter(this, void 0, void 0, function* () {
+                const { tree } = this.options;
+                console.log("fetching all children:", tileIdentifier);
+                return yield Promise.all(tree.ensureQuads(tree.findByXYZ(tileIdentifier)).map((q) => __awaiter(this, void 0, void 0, function* () {
+                    const childNodeIdentifier = tree.asXyz(q);
+                    yield this.loader(childNodeIdentifier, projection);
+                    console.log("fetched child:", childNodeIdentifier, "with mass:", q.data.count, "for parent:", tileIdentifier);
+                    return childNodeIdentifier;
+                })));
+            });
+        }
+    }
+    exports.AgsFeatureLoader = AgsFeatureLoader;
+});
+define("poc/test/ags-feature-loader-test", ["require", "exports", "mocha", "chai", "poc/AgsFeatureLoader", "poc/TileTree", "node_modules/ol/src/proj"], function (require, exports, mocha_1, chai_1, AgsFeatureLoader_1, TileTree_2, proj_1) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    mocha_1.describe("AgsFeatureLoader tests", () => {
+        mocha_1.it("loads features", () => __awaiter(void 0, void 0, void 0, function* () {
+            const url = "http://localhost:3002/mock/sampleserver3/arcgis/rest/services/Petroleum/KSFields/FeatureServer/0/query";
+            const maxFetchCount = -1;
+            const maxRecordCount = 1000;
+            const projection = proj_1.get("EPSG:3857");
+            const tree = new TileTree_2.TileTree({
+                extent: projection.getExtent(),
+            });
+            const rootNode = tree.find(projection.getExtent());
+            const loader = new AgsFeatureLoader_1.AgsFeatureLoader({
+                url,
+                maxFetchCount,
+                maxRecordCount,
+                tree,
+            });
+            const { count: q0mass } = (yield loader.loader({ X: 29 * 2, Y: 78 * 2, Z: 8 }, projection)).data;
+            chai_1.assert.equal(515, q0mass, "q0");
+            const { count: q1mass } = (yield loader.loader({ X: 29 * 2, Y: 78 * 2 + 1, Z: 8 }, projection)).data;
+            chai_1.assert.equal(472, q1mass, "q1");
+            const { count: q2mass } = (yield loader.loader({ X: 29 * 2 + 1, Y: 78 * 2, Z: 8 }, projection)).data;
+            chai_1.assert.equal(423, q2mass, "q2");
+            const { count: q3mass } = (yield loader.loader({ X: 29 * 2 + 1, Y: 78 * 2 + 1, Z: 8 }, projection)).data;
+            chai_1.assert.equal(292, q3mass, "q3");
+            const { count: mass } = (yield loader.loader({ X: 29, Y: 78, Z: 7 }, projection)).data;
+            chai_1.assert.equal(q0mass + q1mass + q2mass + q3mass - 50, mass);
+            const { count: totalMass } = (yield loader.loader({ X: 0, Y: 0, Z: 0 }, projection)).data;
+            chai_1.assert.equal(6918, totalMass);
+        }));
+    });
+});
+define("node_modules/ol/src/loadingstrategy", ["require", "exports"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.tile = exports.bbox = exports.all = void 0;
+    function all(extent, resolution) {
+        return [[-Infinity, -Infinity, Infinity, Infinity]];
+    }
+    exports.all = all;
+    function bbox(extent, resolution) {
+        return [extent];
+    }
+    exports.bbox = bbox;
+    function tile(tileGrid) {
+        return (function (extent, resolution) {
+            const z = tileGrid.getZForResolution(resolution);
+            const tileRange = tileGrid.getTileRangeForExtentAndZ(extent, z);
+            const extents = [];
+            const tileCoord = [z, 0, 0];
+            for (tileCoord[1] = tileRange.minX; tileCoord[1] <= tileRange.maxX; ++tileCoord[1]) {
+                for (tileCoord[2] = tileRange.minY; tileCoord[2] <= tileRange.maxY; ++tileCoord[2]) {
+                    extents.push(tileGrid.getTileCoordExtent(tileCoord));
+                }
+            }
+            return extents;
+        });
+    }
+    exports.tile = tile;
+});
+define("node_modules/ol/src/source/VectorEventType", ["require", "exports"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.default = {
+        ADDFEATURE: 'addfeature',
+        CHANGEFEATURE: 'changefeature',
+        CLEAR: 'clear',
+        REMOVEFEATURE: 'removefeature',
+    };
 });
 define("node_modules/quickselect/index", ["require", "exports"], function (require, exports) {
     "use strict";
@@ -16849,7 +14864,7 @@ define("node_modules/rbush/index", ["require", "exports", "node_modules/quicksel
         }
     }
 });
-define("node_modules/ol/src/structs/RBush", ["require", "exports", "node_modules/rbush/index", "node_modules/ol/src/extent", "node_modules/ol/src/util", "node_modules/ol/src/obj"], function (require, exports, rbush_js_1, extent_js_32, util_js_17, obj_js_13) {
+define("node_modules/ol/src/structs/RBush", ["require", "exports", "node_modules/rbush/index", "node_modules/ol/src/extent", "node_modules/ol/src/util", "node_modules/ol/src/obj"], function (require, exports, rbush_js_1, extent_js_31, util_js_18, obj_js_13) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     class RBush {
@@ -16866,7 +14881,7 @@ define("node_modules/ol/src/structs/RBush", ["require", "exports", "node_modules
                 value: value,
             };
             this.rbush_.insert(item);
-            this.items_[util_js_17.getUid(value)] = item;
+            this.items_[util_js_18.getUid(value)] = item;
         }
         load(extents, values) {
             const items = new Array(values.length);
@@ -16881,20 +14896,20 @@ define("node_modules/ol/src/structs/RBush", ["require", "exports", "node_modules
                     value: value,
                 };
                 items[i] = item;
-                this.items_[util_js_17.getUid(value)] = item;
+                this.items_[util_js_18.getUid(value)] = item;
             }
             this.rbush_.load(items);
         }
         remove(value) {
-            const uid = util_js_17.getUid(value);
+            const uid = util_js_18.getUid(value);
             const item = this.items_[uid];
             delete this.items_[uid];
             return this.rbush_.remove(item) !== null;
         }
         update(extent, value) {
-            const item = this.items_[util_js_17.getUid(value)];
+            const item = this.items_[util_js_18.getUid(value)];
             const bbox = [item.minX, item.minY, item.maxX, item.maxY];
-            if (!extent_js_32.equals(bbox, extent)) {
+            if (!extent_js_31.equals(bbox, extent)) {
                 this.remove(value);
                 this.insert(extent, value);
             }
@@ -16942,7 +14957,7 @@ define("node_modules/ol/src/structs/RBush", ["require", "exports", "node_modules
         }
         getExtent(opt_extent) {
             const data = this.rbush_.toJSON();
-            return extent_js_32.createOrUpdate(data.minX, data.minY, data.maxX, data.maxY, opt_extent);
+            return extent_js_31.createOrUpdate(data.minX, data.minY, data.maxX, data.maxY, opt_extent);
         }
         concat(rbush) {
             this.rbush_.load(rbush.rbush_.all());
@@ -17002,7 +15017,7 @@ define("node_modules/ol/src/VectorTile", ["require", "exports", "node_modules/ol
     }
     exports.default = VectorTile;
 });
-define("node_modules/ol/src/featureloader", ["require", "exports", "node_modules/ol/src/format/FormatType", "node_modules/ol/src/functions"], function (require, exports, FormatType_js_1, functions_js_12) {
+define("node_modules/ol/src/featureloader", ["require", "exports", "node_modules/ol/src/format/FormatType", "node_modules/ol/src/functions"], function (require, exports, FormatType_js_2, functions_js_7) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.setWithCredentials = exports.xhr = exports.loadFeaturesXhr = void 0;
@@ -17011,7 +15026,7 @@ define("node_modules/ol/src/featureloader", ["require", "exports", "node_modules
         return (function (extent, resolution, projection) {
             const xhr = new XMLHttpRequest();
             xhr.open('GET', typeof url === 'function' ? url(extent, resolution, projection) : url, true);
-            if (format.getType() == FormatType_js_1.default.ARRAY_BUFFER) {
+            if (format.getType() == FormatType_js_2.default.ARRAY_BUFFER) {
                 xhr.responseType = 'arraybuffer';
             }
             xhr.withCredentials = withCredentials;
@@ -17019,16 +15034,16 @@ define("node_modules/ol/src/featureloader", ["require", "exports", "node_modules
                 if (!xhr.status || (xhr.status >= 200 && xhr.status < 300)) {
                     const type = format.getType();
                     let source;
-                    if (type == FormatType_js_1.default.JSON || type == FormatType_js_1.default.TEXT) {
+                    if (type == FormatType_js_2.default.JSON || type == FormatType_js_2.default.TEXT) {
                         source = xhr.responseText;
                     }
-                    else if (type == FormatType_js_1.default.XML) {
+                    else if (type == FormatType_js_2.default.XML) {
                         source = xhr.responseXML;
                         if (!source) {
                             source = new DOMParser().parseFromString(xhr.responseText, 'application/xml');
                         }
                     }
-                    else if (type == FormatType_js_1.default.ARRAY_BUFFER) {
+                    else if (type == FormatType_js_2.default.ARRAY_BUFFER) {
                         source = (xhr.response);
                     }
                     if (source) {
@@ -17058,7 +15073,7 @@ define("node_modules/ol/src/featureloader", ["require", "exports", "node_modules
             if (typeof sourceOrTile.addFeatures === 'function') {
                 (sourceOrTile).addFeatures(features);
             }
-        }, functions_js_12.VOID);
+        }, functions_js_7.VOID);
     }
     exports.xhr = xhr;
     function setWithCredentials(xhrWithCredentials) {
@@ -17066,11 +15081,11 @@ define("node_modules/ol/src/featureloader", ["require", "exports", "node_modules
     }
     exports.setWithCredentials = setWithCredentials;
 });
-define("node_modules/ol/src/source/Vector", ["require", "exports", "node_modules/ol/src/Collection", "node_modules/ol/src/CollectionEventType", "node_modules/ol/src/events/Event", "node_modules/ol/src/events/EventType", "node_modules/ol/src/ObjectEventType", "node_modules/ol/src/structs/RBush", "node_modules/ol/src/source/Source", "node_modules/ol/src/source/State", "node_modules/ol/src/source/VectorEventType", "node_modules/ol/src/functions", "node_modules/ol/src/loadingstrategy", "node_modules/ol/src/asserts", "node_modules/ol/src/extent", "node_modules/ol/src/array", "node_modules/ol/src/util", "node_modules/ol/src/obj", "node_modules/ol/src/events", "node_modules/ol/src/featureloader"], function (require, exports, Collection_js_4, CollectionEventType_js_4, Event_js_10, EventType_js_32, ObjectEventType_js_6, RBush_js_1, Source_js_2, State_js_6, VectorEventType_js_1, functions_js_13, loadingstrategy_js_1, asserts_js_16, extent_js_33, array_js_16, util_js_18, obj_js_14, events_js_16, featureloader_js_1) {
+define("node_modules/ol/src/source/Vector", ["require", "exports", "node_modules/ol/src/Collection", "node_modules/ol/src/CollectionEventType", "node_modules/ol/src/events/Event", "node_modules/ol/src/events/EventType", "node_modules/ol/src/ObjectEventType", "node_modules/ol/src/structs/RBush", "node_modules/ol/src/source/Source", "node_modules/ol/src/source/State", "node_modules/ol/src/source/VectorEventType", "node_modules/ol/src/functions", "node_modules/ol/src/loadingstrategy", "node_modules/ol/src/asserts", "node_modules/ol/src/extent", "node_modules/ol/src/array", "node_modules/ol/src/util", "node_modules/ol/src/obj", "node_modules/ol/src/events", "node_modules/ol/src/featureloader"], function (require, exports, Collection_js_3, CollectionEventType_js_4, Event_js_7, EventType_js_19, ObjectEventType_js_4, RBush_js_1, Source_js_2, State_js_5, VectorEventType_js_1, functions_js_8, loadingstrategy_js_1, asserts_js_15, extent_js_32, array_js_15, util_js_19, obj_js_14, events_js_11, featureloader_js_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.VectorSourceEvent = void 0;
-    class VectorSourceEvent extends Event_js_10.default {
+    class VectorSourceEvent extends Event_js_7.default {
         constructor(type, opt_feature) {
             super(type);
             this.feature = opt_feature;
@@ -17083,10 +15098,10 @@ define("node_modules/ol/src/source/Vector", ["require", "exports", "node_modules
             super({
                 attributions: options.attributions,
                 projection: undefined,
-                state: State_js_6.default.READY,
+                state: State_js_5.default.READY,
                 wrapX: options.wrapX !== undefined ? options.wrapX : true,
             });
-            this.loader_ = functions_js_13.VOID;
+            this.loader_ = functions_js_8.VOID;
             this.format_ = options.format;
             this.overlaps_ = options.overlaps === undefined ? true : options.overlaps;
             this.url_ = options.url;
@@ -17094,7 +15109,7 @@ define("node_modules/ol/src/source/Vector", ["require", "exports", "node_modules
                 this.loader_ = options.loader;
             }
             else if (this.url_ !== undefined) {
-                asserts_js_16.assert(this.format_, 7);
+                asserts_js_15.assert(this.format_, 7);
                 this.loader_ = featureloader_js_1.xhr(this.url_, (this.format_));
             }
             this.strategy_ =
@@ -17116,7 +15131,7 @@ define("node_modules/ol/src/source/Vector", ["require", "exports", "node_modules
                 features = collection.getArray();
             }
             if (!useSpatialIndex && collection === undefined) {
-                collection = new Collection_js_4.default(features);
+                collection = new Collection_js_3.default(features);
             }
             if (features !== undefined) {
                 this.addFeaturesInternal(features);
@@ -17130,7 +15145,7 @@ define("node_modules/ol/src/source/Vector", ["require", "exports", "node_modules
             this.changed();
         }
         addFeatureInternal(feature) {
-            const featureKey = util_js_18.getUid(feature);
+            const featureKey = util_js_19.getUid(feature);
             if (!this.addToIndex_(featureKey, feature)) {
                 if (this.featuresCollection_) {
                     this.featuresCollection_.remove(feature);
@@ -17152,8 +15167,8 @@ define("node_modules/ol/src/source/Vector", ["require", "exports", "node_modules
         }
         setupChangeEvents_(featureKey, feature) {
             this.featureChangeKeys_[featureKey] = [
-                events_js_16.listen(feature, EventType_js_32.default.CHANGE, this.handleFeatureChange_, this),
-                events_js_16.listen(feature, ObjectEventType_js_6.default.PROPERTYCHANGE, this.handleFeatureChange_, this),
+                events_js_11.listen(feature, EventType_js_19.default.CHANGE, this.handleFeatureChange_, this),
+                events_js_11.listen(feature, ObjectEventType_js_4.default.PROPERTYCHANGE, this.handleFeatureChange_, this),
             ];
         }
         addToIndex_(featureKey, feature) {
@@ -17168,7 +15183,7 @@ define("node_modules/ol/src/source/Vector", ["require", "exports", "node_modules
                 }
             }
             if (valid) {
-                asserts_js_16.assert(!(featureKey in this.uidIndex_), 30);
+                asserts_js_15.assert(!(featureKey in this.uidIndex_), 30);
                 this.uidIndex_[featureKey] = feature;
             }
             return valid;
@@ -17183,14 +15198,14 @@ define("node_modules/ol/src/source/Vector", ["require", "exports", "node_modules
             const geometryFeatures = [];
             for (let i = 0, length = features.length; i < length; i++) {
                 const feature = features[i];
-                const featureKey = util_js_18.getUid(feature);
+                const featureKey = util_js_19.getUid(feature);
                 if (this.addToIndex_(featureKey, feature)) {
                     newFeatures.push(feature);
                 }
             }
             for (let i = 0, length = newFeatures.length; i < length; i++) {
                 const feature = newFeatures[i];
-                const featureKey = util_js_18.getUid(feature);
+                const featureKey = util_js_19.getUid(feature);
                 this.setupChangeEvents_(featureKey, feature);
                 const geometry = feature.getGeometry();
                 if (geometry) {
@@ -17245,7 +15260,7 @@ define("node_modules/ol/src/source/Vector", ["require", "exports", "node_modules
             if (opt_fast) {
                 for (const featureId in this.featureChangeKeys_) {
                     const keys = this.featureChangeKeys_[featureId];
-                    keys.forEach(events_js_16.unlistenByKey);
+                    keys.forEach(events_js_11.unlistenByKey);
                 }
                 if (!this.featuresCollection_) {
                     this.featureChangeKeys_ = {};
@@ -17322,7 +15337,7 @@ define("node_modules/ol/src/source/Vector", ["require", "exports", "node_modules
             else if (this.featuresRtree_) {
                 features = this.featuresRtree_.getAll();
                 if (!obj_js_14.isEmpty(this.nullGeometryFeatures_)) {
-                    array_js_16.extend(features, obj_js_14.getValues(this.nullGeometryFeatures_));
+                    array_js_15.extend(features, obj_js_14.getValues(this.nullGeometryFeatures_));
                 }
             }
             return (features);
@@ -17352,7 +15367,7 @@ define("node_modules/ol/src/source/Vector", ["require", "exports", "node_modules
             const closestPoint = [NaN, NaN];
             let minSquaredDistance = Infinity;
             const extent = [-Infinity, -Infinity, Infinity, Infinity];
-            const filter = opt_filter ? opt_filter : functions_js_13.TRUE;
+            const filter = opt_filter ? opt_filter : functions_js_8.TRUE;
             this.featuresRtree_.forEachInExtent(extent, function (feature) {
                 if (filter(feature)) {
                     const geometry = feature.getGeometry();
@@ -17392,7 +15407,7 @@ define("node_modules/ol/src/source/Vector", ["require", "exports", "node_modules
         }
         handleFeatureChange_(event) {
             const feature = (event.target);
-            const featureKey = util_js_18.getUid(feature);
+            const featureKey = util_js_19.getUid(feature);
             const geometry = feature.getGeometry();
             if (!geometry) {
                 if (!(featureKey in this.nullGeometryFeatures_)) {
@@ -17437,7 +15452,7 @@ define("node_modules/ol/src/source/Vector", ["require", "exports", "node_modules
                 return id in this.idIndex_;
             }
             else {
-                return util_js_18.getUid(feature) in this.uidIndex_;
+                return util_js_19.getUid(feature) in this.uidIndex_;
             }
         }
         isEmpty() {
@@ -17450,12 +15465,12 @@ define("node_modules/ol/src/source/Vector", ["require", "exports", "node_modules
             for (let i = 0, ii = extentsToLoad.length; i < ii; ++i) {
                 const extentToLoad = extentsToLoad[i];
                 const alreadyLoaded = loadedExtentsRtree.forEachInExtent(extentToLoad, function (object) {
-                    return extent_js_33.containsExtent(object.extent, extentToLoad);
+                    return extent_js_32.containsExtent(object.extent, extentToLoad);
                 });
                 if (!alreadyLoaded) {
                     this.loader_.call(this, extentToLoad, resolution, projection);
                     loadedExtentsRtree.insert(extentToLoad, { extent: extentToLoad.slice() });
-                    this.loading = this.loader_ !== functions_js_13.VOID;
+                    this.loading = this.loader_ !== functions_js_8.VOID;
                 }
             }
         }
@@ -17468,7 +15483,7 @@ define("node_modules/ol/src/source/Vector", ["require", "exports", "node_modules
             const loadedExtentsRtree = this.loadedExtentsRtree_;
             let obj;
             loadedExtentsRtree.forEachInExtent(extent, function (object) {
-                if (extent_js_33.equals(object.extent, extent)) {
+                if (extent_js_32.equals(object.extent, extent)) {
                     obj = object;
                     return true;
                 }
@@ -17478,7 +15493,7 @@ define("node_modules/ol/src/source/Vector", ["require", "exports", "node_modules
             }
         }
         removeFeature(feature) {
-            const featureKey = util_js_18.getUid(feature);
+            const featureKey = util_js_19.getUid(feature);
             if (featureKey in this.nullGeometryFeatures_) {
                 delete this.nullGeometryFeatures_[featureKey];
             }
@@ -17491,8 +15506,8 @@ define("node_modules/ol/src/source/Vector", ["require", "exports", "node_modules
             this.changed();
         }
         removeFeatureInternal(feature) {
-            const featureKey = util_js_18.getUid(feature);
-            this.featureChangeKeys_[featureKey].forEach(events_js_16.unlistenByKey);
+            const featureKey = util_js_19.getUid(feature);
+            this.featureChangeKeys_[featureKey].forEach(events_js_11.unlistenByKey);
             delete this.featureChangeKeys_[featureKey];
             const id = feature.getId();
             if (id !== undefined) {
@@ -17516,13 +15531,2892 @@ define("node_modules/ol/src/source/Vector", ["require", "exports", "node_modules
             this.loader_ = loader;
         }
         setUrl(url) {
-            asserts_js_16.assert(this.format_, 7);
+            asserts_js_15.assert(this.format_, 7);
             this.setLoader(featureloader_js_1.xhr(url, this.format_));
         }
     }
     exports.default = VectorSource;
 });
-define("node_modules/ol/src/interaction/DragAndDrop", ["require", "exports", "node_modules/ol/src/events/Event", "node_modules/ol/src/events/EventType", "node_modules/ol/src/interaction/Interaction", "node_modules/ol/src/functions", "node_modules/ol/src/proj", "node_modules/ol/src/events"], function (require, exports, Event_js_11, EventType_js_33, Interaction_js_6, functions_js_14, proj_js_12, events_js_17) {
+define("poc/AgsClusterSource", ["require", "exports", "node_modules/ol/src/source/Vector", "poc/AgsFeatureLoader", "node_modules/ol/src/Feature", "node_modules/ol/src/geom/Point"], function (require, exports, Vector_1, AgsFeatureLoader_2, Feature_1, Point_1) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.AgsClusterSource = void 0;
+    class AgsClusterSource extends Vector_1.default {
+        constructor(options) {
+            const { strategy, url, maxRecordCount, maxFetchCount, tree } = options;
+            super({ strategy });
+            this.tree = tree;
+            this.loadingStrategy = strategy;
+            this.featureLoader = new AgsFeatureLoader_2.AgsFeatureLoader({
+                tree,
+                url,
+                maxRecordCount,
+                maxFetchCount,
+            });
+        }
+        loadFeatures(extent, resolution, projection) {
+            return __awaiter(this, void 0, void 0, function* () {
+                const { tree } = this;
+                const render = (node) => {
+                    var _a;
+                    const nodeIdentifier = tree.asXyz(node);
+                    if (0 === node.data.count)
+                        return;
+                    const dz = Z - nodeIdentifier.Z;
+                    if (dz < 1) {
+                        if (!!tree.children(nodeIdentifier).filter((n) => n.data.center).length) {
+                        }
+                    }
+                    if (dz == 0) {
+                        const parentIdentifier = tree.parent(nodeIdentifier);
+                        const parentNode = tree.findByXYZ(parentIdentifier);
+                        if ((_a = parentNode === null || parentNode === void 0 ? void 0 : parentNode.data) === null || _a === void 0 ? void 0 : _a.center) {
+                            console.log(nodeIdentifier, "yields to", parentIdentifier);
+                            return;
+                        }
+                    }
+                    const point = new Point_1.default(node.data.center);
+                    const feature = new Feature_1.default();
+                    feature.setGeometry(point);
+                    feature.setProperties({
+                        tileInfo: nodeIdentifier,
+                        opacity: 1 / (1 + Math.abs(dz)),
+                    });
+                    this.addFeature(feature);
+                };
+                const extentsToLoad = this.loadingStrategy(extent, resolution).map((extent) => tree.asXyz(this.tree.find(extent)));
+                if (!extentsToLoad.length)
+                    return;
+                const Z = extentsToLoad[0].Z;
+                const unloadedExtents = extentsToLoad.filter((tileIdentifier) => !tree.findByXYZ(tileIdentifier).data.center);
+                if (!unloadedExtents.length)
+                    return;
+                const results = unloadedExtents.map((tileIdentifier) => this.loadTile(tileIdentifier, projection));
+                yield Promise.all(results);
+                this.clear(true);
+                tree.visit((a, b) => {
+                    if (!b.data)
+                        return 0;
+                    if (!b.data.center)
+                        return 0;
+                    render(b);
+                    return a + 1;
+                }, 0);
+            });
+        }
+        loadTile(tileIdentifier, projection) {
+            return __awaiter(this, void 0, void 0, function* () {
+                return this.featureLoader.loader(tileIdentifier, projection);
+            });
+        }
+    }
+    exports.AgsClusterSource = AgsClusterSource;
+});
+define("poc/test/xyz-test", ["require", "exports", "mocha", "chai", "node_modules/ol/src/proj", "poc/TileTree", "node_modules/ol/src/tilegrid", "node_modules/ol/src/loadingstrategy", "node_modules/ol/src/source/VectorEventType", "poc/AgsClusterSource", "poc/asExtent", "poc/asXYZ", "poc/explode", "poc/fun/tiny"], function (require, exports, mocha_2, chai_2, proj_2, TileTree_3, tilegrid_1, loadingstrategy_1, VectorEventType_1, AgsClusterSource_1, asExtent_2, asXYZ_2, explode_4, tiny_3) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    mocha_2.describe("Playground", () => {
+        mocha_2.it("Past Failures", () => {
+            const extent = [-180, -90, 180, 90];
+            const tree = new TileTree_3.TileTree({ extent });
+            const xyz = { X: 0, Y: 1, Z: 1 };
+            const node = tree.findByXYZ(xyz, { force: true });
+            chai_2.assert.deepEqual(tree.asXyz(node), xyz);
+        });
+    });
+    mocha_2.describe("XYZ testing", () => {
+        mocha_2.it("XYZ to extent", () => {
+            const extent = [0, 0, 16, 16];
+            let x = asExtent_2.asExtent(extent, { X: 0, Y: 0, Z: 0 });
+            chai_2.assert.deepEqual(x, [0, 0, 16, 16]);
+            x = asExtent_2.asExtent(extent, { X: 0, Y: 0, Z: 1 });
+            chai_2.assert.deepEqual(x, [0, 0, 8, 8]);
+            x = asExtent_2.asExtent(extent, { X: 1, Y: 0, Z: 1 });
+            chai_2.assert.deepEqual(x, [8, 0, 16, 8]);
+            x = asExtent_2.asExtent(extent, { X: 1, Y: 0, Z: 2 });
+            chai_2.assert.deepEqual(x, [4, 0, 8, 4]);
+            x = asExtent_2.asExtent(extent, { X: 1, Y: 0, Z: 3 });
+            chai_2.assert.deepEqual(x, [2, 0, 4, 2]);
+            x = asExtent_2.asExtent(extent, { X: 3, Y: 1020, Z: 10 });
+            console.log(x);
+            chai_2.assert.deepEqual(x, [0.046875, 15.9375, 0.0625, 15.953125]);
+        });
+        mocha_2.it("extent to XYZ", () => {
+            const extent = [0, 0, 16, 16];
+            let x = asXYZ_2.asXYZ(extent, [0, 0, 16, 16]);
+            chai_2.assert.deepEqual(x, { X: 0, Y: 0, Z: 0 });
+            x = asXYZ_2.asXYZ(extent, [0, 4, 4, 8]);
+            chai_2.assert.deepEqual(x, { X: 0, Y: 1, Z: 2 });
+            x = asXYZ_2.asXYZ(extent, [0.046875, 15.9375, 0.0625, 15.953125]);
+            chai_2.assert.deepEqual(x, { X: 3, Y: 1020, Z: 10 });
+        });
+        mocha_2.it("exhaustive XYZ", () => {
+            const extents = [
+                [0, 0, 1024, 1024],
+                proj_2.get("EPSG:3857").getExtent(),
+                proj_2.get("EPSG:4326").getExtent(),
+            ];
+            extents.forEach((extent) => {
+                console.log(extent);
+                for (let z = 0; z < 10; z++) {
+                    for (let x = 0; x < 10; x++) {
+                        for (let y = 0; y < 10; y++) {
+                            const v1 = asExtent_2.asExtent(extent, { X: x, Y: y, Z: z });
+                            const v2 = asXYZ_2.asXYZ(extent, v1);
+                            console.log(v1, v2, x, y, z);
+                            chai_2.assert.equal(v2.X, x, "x");
+                            chai_2.assert.equal(v2.Y, y, "y");
+                            chai_2.assert.equal(v2.Z, z, "z");
+                        }
+                    }
+                }
+            });
+        });
+    });
+    mocha_2.describe("TileTree Tests", () => {
+        mocha_2.it("creates a tile tree", () => {
+            const extent = [0, 0, 10, 10];
+            const tree = new TileTree_3.TileTree({ extent });
+            const root = tree.find(extent);
+            chai_2.assert.isTrue(tiny_3.isEq(extent[0], root.extent[0]));
+        });
+        mocha_2.it("inserts an extent outside of the bounds of the current tree", () => {
+            const extent = [0, 0, 1, 1];
+            const tree = new TileTree_3.TileTree({ extent });
+            chai_2.assert.throws(() => {
+                tree.find([1, 1, 2, 2]);
+            }, "invalid X");
+            chai_2.assert.throws(() => {
+                tree.find([0.1, 0.1, 0.9, 1.00001]);
+            }, "invalid extent");
+        });
+        mocha_2.it("inserts an extent that misaligns to the established scale", () => {
+            const extent = [0, 0, 1, 1];
+            const tree = new TileTree_3.TileTree({ extent });
+            chai_2.assert.throws(() => {
+                tree.find([0, 0, 0.4, 0.4]);
+            }, "invalid extent");
+            chai_2.assert.throws(() => {
+                tree.find([0, 0, 0.5, 0.4]);
+            }, "invalid extent");
+            chai_2.assert.throws(() => {
+                tree.find([0.1, 0, 0.6, 0.5]);
+            }, "invalid extent");
+        });
+        mocha_2.it("attaches data to the nodes", () => {
+            const extent = [0, 0, 1, 1];
+            const tree = new TileTree_3.TileTree({ extent });
+            const q0 = tree.find([0, 0, 0.25, 0.25]);
+            const q1 = tree.find([0.25, 0, 0.5, 0.25]);
+            const q2 = tree.find([0, 0.25, 0.25, 0.5]);
+            const q3 = tree.find([0.25, 0.25, 0.5, 0.5]);
+            const q33 = tree.find([0.375, 0.375, 0.5, 0.5]);
+            q0.data.count = 1;
+            q1.data.count = 2;
+            q2.data.count = 4;
+            q3.data.count = 8;
+            q33.data.count = 16;
+            const totalCount = tree.visit((a, b) => a + ((b === null || b === void 0 ? void 0 : b.data.count) || 0), 0);
+            chai_2.assert.equal(totalCount, 31);
+        });
+        mocha_2.it("uses 3857 to find a tile for a given depth and coordinate", () => {
+            const extent = proj_2.get("EPSG:3857").getExtent();
+            const tree = new TileTree_3.TileTree({ extent });
+            const q0 = tree.findByPoint({ zoom: 3, point: [-1, -1] });
+            const q1 = tree.findByPoint({ zoom: 3, point: [1, -1] });
+            const q2 = tree.findByPoint({ zoom: 3, point: [-1, 1] });
+            const q3 = tree.findByPoint({ zoom: 3, point: [1, 1] });
+            const size = -5009377.085697312;
+            chai_2.assert.isTrue(tiny_3.isEq(q0.extent[0], size), "q0.x");
+            chai_2.assert.equal(q1.extent[0], 0, "q1.x");
+            chai_2.assert.equal(q2.extent[0], size, "q2.x");
+            chai_2.assert.equal(q3.extent[0], 0, "q3.x");
+            chai_2.assert.equal(q0.extent[1], size, "q0.y");
+            chai_2.assert.equal(q1.extent[1], size, "q1.y");
+            chai_2.assert.equal(q2.extent[1], 0, "q2.y");
+            chai_2.assert.equal(q3.extent[1], 0, "q3.y");
+        });
+        mocha_2.it("can cache tiles from a TileGrid", () => {
+            const extent = proj_2.get("EPSG:3857").getExtent();
+            const tree = new TileTree_3.TileTree({
+                extent,
+            });
+            const tileGrid = tilegrid_1.createXYZ({ extent });
+            const addTiles = (level) => tileGrid.forEachTileCoord(extent, level, (tileCoord) => {
+                const [z, x, y] = tileCoord;
+                const extent = tileGrid.getTileCoordExtent(tileCoord);
+                tree.find(extent).data.tileCoord = tileCoord;
+            });
+            const maxX = () => tree.visit((a, b) => Math.max(a, b.data.tileCoord ? b.data.tileCoord[1] : a), 0);
+            for (let i = 0; i <= 8; i++) {
+                console.log(`adding ${i}`);
+                addTiles(i);
+                chai_2.assert.equal(Math.pow(2, i) - 1, maxX(), `addTiles(${i})`);
+            }
+        });
+        mocha_2.it("integrates with a tiling strategy", () => {
+            const extent = proj_2.get("EPSG:3857").getExtent();
+            const extentInfo = explode_4.explode(extent);
+            const tree = new TileTree_3.TileTree({ extent });
+            const tileGrid = tilegrid_1.createXYZ({ extent });
+            const strategy = loadingstrategy_1.tile(tileGrid);
+            const resolutions = tileGrid.getResolutions();
+            const r0 = extentInfo.w / 256;
+            chai_2.assert.equal(resolutions[0], r0, "meters per pixel");
+            resolutions.forEach((r, i) => {
+                chai_2.assert.equal(r, r0 * Math.pow(2, -i), `resolution[${i}]`);
+            });
+            {
+                let quad0 = extent;
+                resolutions.forEach((resolution, i) => {
+                    const extents = strategy(quad0, resolution);
+                    extents.forEach((q) => tree.find(q));
+                    quad0 = extents[0];
+                });
+            }
+        });
+        mocha_2.it("integrates with a feature source", () => {
+            const url = "http://localhost:3002/mock/sampleserver3/arcgis/rest/services/Petroleum/KSFields/FeatureServer/0/query";
+            const projection = proj_2.get("EPSG:3857");
+            const tileGrid = tilegrid_1.createXYZ({ tileSize: 512 });
+            const strategy = loadingstrategy_1.tile(tileGrid);
+            const tree = new TileTree_3.TileTree({
+                extent: tileGrid.getExtent(),
+            });
+            const source = new AgsClusterSource_1.AgsClusterSource({
+                tree,
+                url,
+                strategy,
+                maxRecordCount: 1000,
+                maxFetchCount: 100,
+            });
+            source.loadFeatures(tileGrid.getExtent(), tileGrid.getResolution(0), projection);
+            source.on(VectorEventType_1.default.ADDFEATURE, (args) => {
+                const { count, resolution } = args.feature.getProperties();
+                console.log(count, resolution);
+            });
+        });
+    });
+    mocha_2.describe("Cluster Rendering Rules", () => {
+        mocha_2.it("tests ensureQuads", () => {
+            const extent = [0, 0, 10, 10];
+            const tree = new TileTree_3.TileTree({
+                extent,
+            });
+            const root = tree.find(extent);
+            let quad = tree
+                .ensureQuads(tree.findByXYZ({ X: 1, Y: 1, Z: 1 }, { force: true }))
+                .map((q) => tree.asXyz(q));
+            chai_2.assert.deepEqual({ X: 2, Y: 2, Z: 2 }, quad[0], "1st quadrant");
+            chai_2.assert.deepEqual({ X: 2, Y: 3, Z: 2 }, quad[1], "2nd quadrant");
+            chai_2.assert.deepEqual({ X: 3, Y: 3, Z: 2 }, quad[2], "3rd quadrant");
+            chai_2.assert.deepEqual({ X: 3, Y: 2, Z: 2 }, quad[3], "4th quadrant");
+        });
+        mocha_2.it("computes density", () => {
+            const extent = [0, 0, 10, 10];
+            const tree = new TileTree_3.TileTree({
+                extent,
+            });
+            const helper = new TileTree_3.TileTreeExt(tree);
+            chai_2.assert.equal(40, helper.density({ Z: 1, count: 10 }));
+            const root = { X: 0, Y: 0, Z: 0 };
+            const t000 = tree.findByXYZ(root);
+            const children = tree.ensureQuads(t000);
+            children.forEach((c, i) => (c.data.count = 1 + i));
+            helper.updateCount(t000);
+            chai_2.assert.equal(10, t000.data.count, "total count");
+            chai_2.assert.equal(10, helper.nodeDensity(root), "density at Z=0");
+            chai_2.assert.equal(4, helper.nodeDensity(tree.asXyz(children[0])), "child 0");
+            chai_2.assert.equal(8, helper.nodeDensity(tree.asXyz(children[1])), "child 1");
+            chai_2.assert.equal(12, helper.nodeDensity(tree.asXyz(children[2])), "child 2");
+            chai_2.assert.equal(16, helper.nodeDensity(tree.asXyz(children[3])), "child 3");
+            chai_2.assert.equal(helper.tilesByDensity(root, 100).length, 4, "density <= 100");
+            chai_2.assert.equal(helper.tilesByDensity(root, 16).length, 4, "density <= 16");
+            chai_2.assert.equal(helper.tilesByDensity(root, 15).length, 1, "density <= 15");
+            chai_2.assert.equal(helper.tilesByDensity(root, 10).length, 1, "density <= 10");
+            chai_2.assert.equal(helper.tilesByDensity(root, 9).length, 0, "density <= 9");
+        });
+        mocha_2.it("computes center of mass", () => {
+            const extent = [0, 0, 16, 16];
+            const tree = new TileTree_3.TileTree({
+                extent,
+            });
+            const helper = new TileTree_3.TileTreeExt(tree);
+            const root = { X: 0, Y: 0, Z: 0 };
+            const t000 = tree.findByXYZ(root);
+            const [q0, q1, q2, q3] = tree.ensureQuads(t000);
+            let com = helper.centerOfMass(root);
+            chai_2.assert.deepEqual(com.mass, 0, "mass of root tile");
+            chai_2.assert.deepEqual(com.center, [8, 8], "center of mass of root tile");
+            q0.data.count = 4;
+            com = helper.centerOfMass(root);
+            chai_2.assert.deepEqual(com.mass, 4, "mass of q0");
+            chai_2.assert.deepEqual(com.center, [4, 4], "center of mass of root tile");
+            q1.data.count = 2;
+            com = helper.centerOfMass(root);
+            chai_2.assert.deepEqual(com.mass, 6, "mass of q0 + q1");
+            chai_2.assert.deepEqual(com.center, [4, 8 - 4 / 3], "center of mass of root tile");
+            q2.data.count = 1;
+            com = helper.centerOfMass(root);
+            chai_2.assert.deepEqual(com.mass, 7, "mass of q0 + q1 + q2");
+            chai_2.assert.deepEqual(com.center, [8 - 20 / 7, 8 - 4 / 7], "center of mass of root tile");
+            q3.data.count = 8;
+            com = helper.centerOfMass(root);
+            chai_2.assert.deepEqual(com.mass, 15, "mass of q0 + q1 + q2 + q3");
+            chai_2.assert.deepEqual(com.center, [8 + 12 / 15, 8 - 36 / 15], "center of mass of root tile");
+        });
+    });
+});
+define("node_modules/ol/src/renderer/Composite", ["require", "exports", "node_modules/ol/src/renderer/Map", "node_modules/ol/src/ObjectEventType", "node_modules/ol/src/render/Event", "node_modules/ol/src/render/EventType", "node_modules/ol/src/source/State", "node_modules/ol/src/css", "node_modules/ol/src/render/canvas", "node_modules/ol/src/layer/Layer", "node_modules/ol/src/events", "node_modules/ol/src/dom"], function (require, exports, Map_js_1, ObjectEventType_js_5, Event_js_8, EventType_js_20, State_js_6, css_js_3, canvas_js_6, Layer_js_2, events_js_12, dom_js_7) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    class CompositeMapRenderer extends Map_js_1.default {
+        constructor(map) {
+            super(map);
+            this.fontChangeListenerKey_ = events_js_12.listen(canvas_js_6.checkedFonts, ObjectEventType_js_5.default.PROPERTYCHANGE, map.redrawText.bind(map));
+            this.element_ = document.createElement('div');
+            const style = this.element_.style;
+            style.position = 'absolute';
+            style.width = '100%';
+            style.height = '100%';
+            style.zIndex = '0';
+            this.element_.className = css_js_3.CLASS_UNSELECTABLE + ' ol-layers';
+            const container = map.getViewport();
+            container.insertBefore(this.element_, container.firstChild || null);
+            this.children_ = [];
+            this.renderedVisible_ = true;
+        }
+        dispatchRenderEvent(type, frameState) {
+            const map = this.getMap();
+            if (map.hasListener(type)) {
+                const event = new Event_js_8.default(type, undefined, frameState);
+                map.dispatchEvent(event);
+            }
+        }
+        disposeInternal() {
+            events_js_12.unlistenByKey(this.fontChangeListenerKey_);
+            this.element_.parentNode.removeChild(this.element_);
+            super.disposeInternal();
+        }
+        renderFrame(frameState) {
+            if (!frameState) {
+                if (this.renderedVisible_) {
+                    this.element_.style.display = 'none';
+                    this.renderedVisible_ = false;
+                }
+                return;
+            }
+            this.calculateMatrices2D(frameState);
+            this.dispatchRenderEvent(EventType_js_20.default.PRECOMPOSE, frameState);
+            const layerStatesArray = frameState.layerStatesArray.sort(function (a, b) {
+                return a.zIndex - b.zIndex;
+            });
+            const viewState = frameState.viewState;
+            this.children_.length = 0;
+            let previousElement = null;
+            for (let i = 0, ii = layerStatesArray.length; i < ii; ++i) {
+                const layerState = layerStatesArray[i];
+                frameState.layerIndex = i;
+                if (!Layer_js_2.inView(layerState, viewState) ||
+                    (layerState.sourceState != State_js_6.default.READY &&
+                        layerState.sourceState != State_js_6.default.UNDEFINED)) {
+                    continue;
+                }
+                const layer = layerState.layer;
+                const element = layer.render(frameState, previousElement);
+                if (!element) {
+                    continue;
+                }
+                if (element !== previousElement) {
+                    this.children_.push(element);
+                    previousElement = element;
+                }
+            }
+            super.renderFrame(frameState);
+            dom_js_7.replaceChildren(this.element_, this.children_);
+            this.dispatchRenderEvent(EventType_js_20.default.POSTCOMPOSE, frameState);
+            if (!this.renderedVisible_) {
+                this.element_.style.display = '';
+                this.renderedVisible_ = true;
+            }
+            this.scheduleExpireIconCache(frameState);
+        }
+        forEachLayerAtPixel(pixel, frameState, hitTolerance, callback, layerFilter) {
+            const viewState = frameState.viewState;
+            const layerStates = frameState.layerStatesArray;
+            const numLayers = layerStates.length;
+            for (let i = numLayers - 1; i >= 0; --i) {
+                const layerState = layerStates[i];
+                const layer = layerState.layer;
+                if (layer.hasRenderer() &&
+                    Layer_js_2.inView(layerState, viewState) &&
+                    layerFilter(layer)) {
+                    const layerRenderer = layer.getRenderer();
+                    const data = layerRenderer.getDataAtPixel(pixel, frameState, hitTolerance);
+                    if (data) {
+                        const result = callback(layer, data);
+                        if (result) {
+                            return result;
+                        }
+                    }
+                }
+            }
+            return undefined;
+        }
+    }
+    exports.default = CompositeMapRenderer;
+});
+define("node_modules/ol/src/control/Attribution", ["require", "exports", "node_modules/ol/src/control/Control", "node_modules/ol/src/events/EventType", "node_modules/ol/src/css", "node_modules/ol/src/array", "node_modules/ol/src/layer/Layer", "node_modules/ol/src/dom"], function (require, exports, Control_js_1, EventType_js_21, css_js_4, array_js_16, Layer_js_3, dom_js_8) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    class Attribution extends Control_js_1.default {
+        constructor(opt_options) {
+            const options = opt_options ? opt_options : {};
+            super({
+                element: document.createElement('div'),
+                render: options.render,
+                target: options.target,
+            });
+            this.ulElement_ = document.createElement('ul');
+            this.collapsed_ =
+                options.collapsed !== undefined ? options.collapsed : true;
+            this.overrideCollapsible_ = options.collapsible !== undefined;
+            this.collapsible_ =
+                options.collapsible !== undefined ? options.collapsible : true;
+            if (!this.collapsible_) {
+                this.collapsed_ = false;
+            }
+            const className = options.className !== undefined ? options.className : 'ol-attribution';
+            const tipLabel = options.tipLabel !== undefined ? options.tipLabel : 'Attributions';
+            const collapseLabel = options.collapseLabel !== undefined ? options.collapseLabel : '\u00BB';
+            if (typeof collapseLabel === 'string') {
+                this.collapseLabel_ = document.createElement('span');
+                this.collapseLabel_.textContent = collapseLabel;
+            }
+            else {
+                this.collapseLabel_ = collapseLabel;
+            }
+            const label = options.label !== undefined ? options.label : 'i';
+            if (typeof label === 'string') {
+                this.label_ = document.createElement('span');
+                this.label_.textContent = label;
+            }
+            else {
+                this.label_ = label;
+            }
+            const activeLabel = this.collapsible_ && !this.collapsed_ ? this.collapseLabel_ : this.label_;
+            const button = document.createElement('button');
+            button.setAttribute('type', 'button');
+            button.title = tipLabel;
+            button.appendChild(activeLabel);
+            button.addEventListener(EventType_js_21.default.CLICK, this.handleClick_.bind(this), false);
+            const cssClasses = className +
+                ' ' +
+                css_js_4.CLASS_UNSELECTABLE +
+                ' ' +
+                css_js_4.CLASS_CONTROL +
+                (this.collapsed_ && this.collapsible_ ? ' ' + css_js_4.CLASS_COLLAPSED : '') +
+                (this.collapsible_ ? '' : ' ol-uncollapsible');
+            const element = this.element;
+            element.className = cssClasses;
+            element.appendChild(this.ulElement_);
+            element.appendChild(button);
+            this.renderedAttributions_ = [];
+            this.renderedVisible_ = true;
+        }
+        collectSourceAttributions_(frameState) {
+            const lookup = {};
+            const visibleAttributions = [];
+            const layerStatesArray = frameState.layerStatesArray;
+            for (let i = 0, ii = layerStatesArray.length; i < ii; ++i) {
+                const layerState = layerStatesArray[i];
+                if (!Layer_js_3.inView(layerState, frameState.viewState)) {
+                    continue;
+                }
+                const source = (layerState.layer).getSource();
+                if (!source) {
+                    continue;
+                }
+                const attributionGetter = source.getAttributions();
+                if (!attributionGetter) {
+                    continue;
+                }
+                const attributions = attributionGetter(frameState);
+                if (!attributions) {
+                    continue;
+                }
+                if (!this.overrideCollapsible_ &&
+                    source.getAttributionsCollapsible() === false) {
+                    this.setCollapsible(false);
+                }
+                if (Array.isArray(attributions)) {
+                    for (let j = 0, jj = attributions.length; j < jj; ++j) {
+                        if (!(attributions[j] in lookup)) {
+                            visibleAttributions.push(attributions[j]);
+                            lookup[attributions[j]] = true;
+                        }
+                    }
+                }
+                else {
+                    if (!(attributions in lookup)) {
+                        visibleAttributions.push(attributions);
+                        lookup[attributions] = true;
+                    }
+                }
+            }
+            return visibleAttributions;
+        }
+        updateElement_(frameState) {
+            if (!frameState) {
+                if (this.renderedVisible_) {
+                    this.element.style.display = 'none';
+                    this.renderedVisible_ = false;
+                }
+                return;
+            }
+            const attributions = this.collectSourceAttributions_(frameState);
+            const visible = attributions.length > 0;
+            if (this.renderedVisible_ != visible) {
+                this.element.style.display = visible ? '' : 'none';
+                this.renderedVisible_ = visible;
+            }
+            if (array_js_16.equals(attributions, this.renderedAttributions_)) {
+                return;
+            }
+            dom_js_8.removeChildren(this.ulElement_);
+            for (let i = 0, ii = attributions.length; i < ii; ++i) {
+                const element = document.createElement('li');
+                element.innerHTML = attributions[i];
+                this.ulElement_.appendChild(element);
+            }
+            this.renderedAttributions_ = attributions;
+        }
+        handleClick_(event) {
+            event.preventDefault();
+            this.handleToggle_();
+        }
+        handleToggle_() {
+            this.element.classList.toggle(css_js_4.CLASS_COLLAPSED);
+            if (this.collapsed_) {
+                dom_js_8.replaceNode(this.collapseLabel_, this.label_);
+            }
+            else {
+                dom_js_8.replaceNode(this.label_, this.collapseLabel_);
+            }
+            this.collapsed_ = !this.collapsed_;
+        }
+        getCollapsible() {
+            return this.collapsible_;
+        }
+        setCollapsible(collapsible) {
+            if (this.collapsible_ === collapsible) {
+                return;
+            }
+            this.collapsible_ = collapsible;
+            this.element.classList.toggle('ol-uncollapsible');
+            if (!collapsible && this.collapsed_) {
+                this.handleToggle_();
+            }
+        }
+        setCollapsed(collapsed) {
+            if (!this.collapsible_ || this.collapsed_ === collapsed) {
+                return;
+            }
+            this.handleToggle_();
+        }
+        getCollapsed() {
+            return this.collapsed_;
+        }
+        render(mapEvent) {
+            this.updateElement_(mapEvent.frameState);
+        }
+    }
+    exports.default = Attribution;
+});
+define("node_modules/ol/src/control/Rotate", ["require", "exports", "node_modules/ol/src/control/Control", "node_modules/ol/src/events/EventType", "node_modules/ol/src/css", "node_modules/ol/src/easing"], function (require, exports, Control_js_2, EventType_js_22, css_js_5, easing_js_5) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    class Rotate extends Control_js_2.default {
+        constructor(opt_options) {
+            const options = opt_options ? opt_options : {};
+            super({
+                element: document.createElement('div'),
+                render: options.render,
+                target: options.target,
+            });
+            const className = options.className !== undefined ? options.className : 'ol-rotate';
+            const label = options.label !== undefined ? options.label : '\u21E7';
+            this.label_ = null;
+            if (typeof label === 'string') {
+                this.label_ = document.createElement('span');
+                this.label_.className = 'ol-compass';
+                this.label_.textContent = label;
+            }
+            else {
+                this.label_ = label;
+                this.label_.classList.add('ol-compass');
+            }
+            const tipLabel = options.tipLabel ? options.tipLabel : 'Reset rotation';
+            const button = document.createElement('button');
+            button.className = className + '-reset';
+            button.setAttribute('type', 'button');
+            button.title = tipLabel;
+            button.appendChild(this.label_);
+            button.addEventListener(EventType_js_22.default.CLICK, this.handleClick_.bind(this), false);
+            const cssClasses = className + ' ' + css_js_5.CLASS_UNSELECTABLE + ' ' + css_js_5.CLASS_CONTROL;
+            const element = this.element;
+            element.className = cssClasses;
+            element.appendChild(button);
+            this.callResetNorth_ = options.resetNorth ? options.resetNorth : undefined;
+            this.duration_ = options.duration !== undefined ? options.duration : 250;
+            this.autoHide_ = options.autoHide !== undefined ? options.autoHide : true;
+            this.rotation_ = undefined;
+            if (this.autoHide_) {
+                this.element.classList.add(css_js_5.CLASS_HIDDEN);
+            }
+        }
+        handleClick_(event) {
+            event.preventDefault();
+            if (this.callResetNorth_ !== undefined) {
+                this.callResetNorth_();
+            }
+            else {
+                this.resetNorth_();
+            }
+        }
+        resetNorth_() {
+            const map = this.getMap();
+            const view = map.getView();
+            if (!view) {
+                return;
+            }
+            const rotation = view.getRotation();
+            if (rotation !== undefined) {
+                if (this.duration_ > 0 && rotation % (2 * Math.PI) !== 0) {
+                    view.animate({
+                        rotation: 0,
+                        duration: this.duration_,
+                        easing: easing_js_5.easeOut,
+                    });
+                }
+                else {
+                    view.setRotation(0);
+                }
+            }
+        }
+        render(mapEvent) {
+            const frameState = mapEvent.frameState;
+            if (!frameState) {
+                return;
+            }
+            const rotation = frameState.viewState.rotation;
+            if (rotation != this.rotation_) {
+                const transform = 'rotate(' + rotation + 'rad)';
+                if (this.autoHide_) {
+                    const contains = this.element.classList.contains(css_js_5.CLASS_HIDDEN);
+                    if (!contains && rotation === 0) {
+                        this.element.classList.add(css_js_5.CLASS_HIDDEN);
+                    }
+                    else if (contains && rotation !== 0) {
+                        this.element.classList.remove(css_js_5.CLASS_HIDDEN);
+                    }
+                }
+                this.label_.style.transform = transform;
+            }
+            this.rotation_ = rotation;
+        }
+    }
+    exports.default = Rotate;
+});
+define("node_modules/ol/src/control/Zoom", ["require", "exports", "node_modules/ol/src/control/Control", "node_modules/ol/src/events/EventType", "node_modules/ol/src/css", "node_modules/ol/src/easing"], function (require, exports, Control_js_3, EventType_js_23, css_js_6, easing_js_6) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    class Zoom extends Control_js_3.default {
+        constructor(opt_options) {
+            const options = opt_options ? opt_options : {};
+            super({
+                element: document.createElement('div'),
+                target: options.target,
+            });
+            const className = options.className !== undefined ? options.className : 'ol-zoom';
+            const delta = options.delta !== undefined ? options.delta : 1;
+            const zoomInLabel = options.zoomInLabel !== undefined ? options.zoomInLabel : '+';
+            const zoomOutLabel = options.zoomOutLabel !== undefined ? options.zoomOutLabel : '\u2212';
+            const zoomInTipLabel = options.zoomInTipLabel !== undefined ? options.zoomInTipLabel : 'Zoom in';
+            const zoomOutTipLabel = options.zoomOutTipLabel !== undefined
+                ? options.zoomOutTipLabel
+                : 'Zoom out';
+            const inElement = document.createElement('button');
+            inElement.className = className + '-in';
+            inElement.setAttribute('type', 'button');
+            inElement.title = zoomInTipLabel;
+            inElement.appendChild(typeof zoomInLabel === 'string'
+                ? document.createTextNode(zoomInLabel)
+                : zoomInLabel);
+            inElement.addEventListener(EventType_js_23.default.CLICK, this.handleClick_.bind(this, delta), false);
+            const outElement = document.createElement('button');
+            outElement.className = className + '-out';
+            outElement.setAttribute('type', 'button');
+            outElement.title = zoomOutTipLabel;
+            outElement.appendChild(typeof zoomOutLabel === 'string'
+                ? document.createTextNode(zoomOutLabel)
+                : zoomOutLabel);
+            outElement.addEventListener(EventType_js_23.default.CLICK, this.handleClick_.bind(this, -delta), false);
+            const cssClasses = className + ' ' + css_js_6.CLASS_UNSELECTABLE + ' ' + css_js_6.CLASS_CONTROL;
+            const element = this.element;
+            element.className = cssClasses;
+            element.appendChild(inElement);
+            element.appendChild(outElement);
+            this.duration_ = options.duration !== undefined ? options.duration : 250;
+        }
+        handleClick_(delta, event) {
+            event.preventDefault();
+            this.zoomByDelta_(delta);
+        }
+        zoomByDelta_(delta) {
+            const map = this.getMap();
+            const view = map.getView();
+            if (!view) {
+                return;
+            }
+            const currentZoom = view.getZoom();
+            if (currentZoom !== undefined) {
+                const newZoom = view.getConstrainedZoom(currentZoom + delta);
+                if (this.duration_ > 0) {
+                    if (view.getAnimating()) {
+                        view.cancelAnimations();
+                    }
+                    view.animate({
+                        zoom: newZoom,
+                        duration: this.duration_,
+                        easing: easing_js_6.easeOut,
+                    });
+                }
+                else {
+                    view.setZoom(newZoom);
+                }
+            }
+        }
+    }
+    exports.default = Zoom;
+});
+define("node_modules/ol/src/control/FullScreen", ["require", "exports", "node_modules/ol/src/control/Control", "node_modules/ol/src/events/EventType", "node_modules/ol/src/css", "node_modules/ol/src/events", "node_modules/ol/src/dom"], function (require, exports, Control_js_4, EventType_js_24, css_js_7, events_js_13, dom_js_9) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    const events = [
+        'fullscreenchange',
+        'webkitfullscreenchange',
+        'MSFullscreenChange',
+    ];
+    const FullScreenEventType = {
+        ENTERFULLSCREEN: 'enterfullscreen',
+        LEAVEFULLSCREEN: 'leavefullscreen',
+    };
+    class FullScreen extends Control_js_4.default {
+        constructor(opt_options) {
+            const options = opt_options ? opt_options : {};
+            super({
+                element: document.createElement('div'),
+                target: options.target,
+            });
+            this.cssClassName_ =
+                options.className !== undefined ? options.className : 'ol-full-screen';
+            const label = options.label !== undefined ? options.label : '\u2922';
+            this.labelNode_ =
+                typeof label === 'string' ? document.createTextNode(label) : label;
+            const labelActive = options.labelActive !== undefined ? options.labelActive : '\u00d7';
+            this.labelActiveNode_ =
+                typeof labelActive === 'string'
+                    ? document.createTextNode(labelActive)
+                    : labelActive;
+            this.button_ = document.createElement('button');
+            const tipLabel = options.tipLabel ? options.tipLabel : 'Toggle full-screen';
+            this.setClassName_(this.button_, isFullScreen());
+            this.button_.setAttribute('type', 'button');
+            this.button_.title = tipLabel;
+            this.button_.appendChild(this.labelNode_);
+            this.button_.addEventListener(EventType_js_24.default.CLICK, this.handleClick_.bind(this), false);
+            const cssClasses = this.cssClassName_ +
+                ' ' +
+                css_js_7.CLASS_UNSELECTABLE +
+                ' ' +
+                css_js_7.CLASS_CONTROL +
+                ' ' +
+                (!isFullScreenSupported() ? css_js_7.CLASS_UNSUPPORTED : '');
+            const element = this.element;
+            element.className = cssClasses;
+            element.appendChild(this.button_);
+            this.keys_ = options.keys !== undefined ? options.keys : false;
+            this.source_ = options.source;
+        }
+        handleClick_(event) {
+            event.preventDefault();
+            this.handleFullScreen_();
+        }
+        handleFullScreen_() {
+            if (!isFullScreenSupported()) {
+                return;
+            }
+            const map = this.getMap();
+            if (!map) {
+                return;
+            }
+            if (isFullScreen()) {
+                exitFullScreen();
+            }
+            else {
+                let element;
+                if (this.source_) {
+                    element =
+                        typeof this.source_ === 'string'
+                            ? document.getElementById(this.source_)
+                            : this.source_;
+                }
+                else {
+                    element = map.getTargetElement();
+                }
+                if (this.keys_) {
+                    requestFullScreenWithKeys(element);
+                }
+                else {
+                    requestFullScreen(element);
+                }
+            }
+        }
+        handleFullScreenChange_() {
+            const map = this.getMap();
+            if (isFullScreen()) {
+                this.setClassName_(this.button_, true);
+                dom_js_9.replaceNode(this.labelActiveNode_, this.labelNode_);
+                this.dispatchEvent(FullScreenEventType.ENTERFULLSCREEN);
+            }
+            else {
+                this.setClassName_(this.button_, false);
+                dom_js_9.replaceNode(this.labelNode_, this.labelActiveNode_);
+                this.dispatchEvent(FullScreenEventType.LEAVEFULLSCREEN);
+            }
+            if (map) {
+                map.updateSize();
+            }
+        }
+        setClassName_(element, fullscreen) {
+            const activeClassName = this.cssClassName_ + '-true';
+            const inactiveClassName = this.cssClassName_ + '-false';
+            const nextClassName = fullscreen ? activeClassName : inactiveClassName;
+            element.classList.remove(activeClassName);
+            element.classList.remove(inactiveClassName);
+            element.classList.add(nextClassName);
+        }
+        setMap(map) {
+            super.setMap(map);
+            if (map) {
+                for (let i = 0, ii = events.length; i < ii; ++i) {
+                    this.listenerKeys.push(events_js_13.listen(document, events[i], this.handleFullScreenChange_, this));
+                }
+            }
+        }
+    }
+    function isFullScreenSupported() {
+        const body = document.body;
+        return !!(body['webkitRequestFullscreen'] ||
+            (body['msRequestFullscreen'] && document['msFullscreenEnabled']) ||
+            (body.requestFullscreen && document.fullscreenEnabled));
+    }
+    function isFullScreen() {
+        return !!(document['webkitIsFullScreen'] ||
+            document['msFullscreenElement'] ||
+            document.fullscreenElement);
+    }
+    function requestFullScreen(element) {
+        if (element.requestFullscreen) {
+            element.requestFullscreen();
+        }
+        else if (element['msRequestFullscreen']) {
+            element['msRequestFullscreen']();
+        }
+        else if (element['webkitRequestFullscreen']) {
+            element['webkitRequestFullscreen']();
+        }
+    }
+    function requestFullScreenWithKeys(element) {
+        if (element['webkitRequestFullscreen']) {
+            element['webkitRequestFullscreen']();
+        }
+        else {
+            requestFullScreen(element);
+        }
+    }
+    function exitFullScreen() {
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        }
+        else if (document['msExitFullscreen']) {
+            document['msExitFullscreen']();
+        }
+        else if (document['webkitExitFullscreen']) {
+            document['webkitExitFullscreen']();
+        }
+    }
+    exports.default = FullScreen;
+});
+define("node_modules/ol/src/control/MousePosition", ["require", "exports", "node_modules/ol/src/control/Control", "node_modules/ol/src/pointer/EventType", "node_modules/ol/src/Object", "node_modules/ol/src/proj", "node_modules/ol/src/events"], function (require, exports, Control_js_5, EventType_js_25, Object_js_14, proj_js_11, events_js_14) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    const PROJECTION = 'projection';
+    const COORDINATE_FORMAT = 'coordinateFormat';
+    class MousePosition extends Control_js_5.default {
+        constructor(opt_options) {
+            const options = opt_options ? opt_options : {};
+            const element = document.createElement('div');
+            element.className =
+                options.className !== undefined ? options.className : 'ol-mouse-position';
+            super({
+                element: element,
+                render: options.render,
+                target: options.target,
+            });
+            this.addEventListener(Object_js_14.getChangeEventType(PROJECTION), this.handleProjectionChanged_);
+            if (options.coordinateFormat) {
+                this.setCoordinateFormat(options.coordinateFormat);
+            }
+            if (options.projection) {
+                this.setProjection(options.projection);
+            }
+            this.undefinedHTML_ =
+                options.undefinedHTML !== undefined ? options.undefinedHTML : '&#160;';
+            this.renderOnMouseOut_ = !!this.undefinedHTML_;
+            this.renderedHTML_ = element.innerHTML;
+            this.mapProjection_ = null;
+            this.transform_ = null;
+        }
+        handleProjectionChanged_() {
+            this.transform_ = null;
+        }
+        getCoordinateFormat() {
+            return (this.get(COORDINATE_FORMAT));
+        }
+        getProjection() {
+            return (this.get(PROJECTION));
+        }
+        handleMouseMove(event) {
+            const map = this.getMap();
+            this.updateHTML_(map.getEventPixel(event));
+        }
+        handleMouseOut(event) {
+            this.updateHTML_(null);
+        }
+        setMap(map) {
+            super.setMap(map);
+            if (map) {
+                const viewport = map.getViewport();
+                this.listenerKeys.push(events_js_14.listen(viewport, EventType_js_25.default.POINTERMOVE, this.handleMouseMove, this));
+                if (this.renderOnMouseOut_) {
+                    this.listenerKeys.push(events_js_14.listen(viewport, EventType_js_25.default.POINTEROUT, this.handleMouseOut, this));
+                }
+            }
+        }
+        setCoordinateFormat(format) {
+            this.set(COORDINATE_FORMAT, format);
+        }
+        setProjection(projection) {
+            this.set(PROJECTION, proj_js_11.get(projection));
+        }
+        updateHTML_(pixel) {
+            let html = this.undefinedHTML_;
+            if (pixel && this.mapProjection_) {
+                if (!this.transform_) {
+                    const projection = this.getProjection();
+                    if (projection) {
+                        this.transform_ = proj_js_11.getTransformFromProjections(this.mapProjection_, projection);
+                    }
+                    else {
+                        this.transform_ = proj_js_11.identityTransform;
+                    }
+                }
+                const map = this.getMap();
+                const coordinate = map.getCoordinateFromPixelInternal(pixel);
+                if (coordinate) {
+                    const userProjection = proj_js_11.getUserProjection();
+                    if (userProjection) {
+                        this.transform_ = proj_js_11.getTransformFromProjections(this.mapProjection_, userProjection);
+                    }
+                    this.transform_(coordinate, coordinate);
+                    const coordinateFormat = this.getCoordinateFormat();
+                    if (coordinateFormat) {
+                        html = coordinateFormat(coordinate);
+                    }
+                    else {
+                        html = coordinate.toString();
+                    }
+                }
+            }
+            if (!this.renderedHTML_ || html !== this.renderedHTML_) {
+                this.element.innerHTML = html;
+                this.renderedHTML_ = html;
+            }
+        }
+        render(mapEvent) {
+            const frameState = mapEvent.frameState;
+            if (!frameState) {
+                this.mapProjection_ = null;
+            }
+            else {
+                if (this.mapProjection_ != frameState.viewState.projection) {
+                    this.mapProjection_ = frameState.viewState.projection;
+                    this.transform_ = null;
+                }
+            }
+        }
+    }
+    exports.default = MousePosition;
+});
+define("node_modules/ol/src/control/OverviewMap", ["require", "exports", "node_modules/ol/src/renderer/Composite", "node_modules/ol/src/control/Control", "node_modules/ol/src/events/EventType", "node_modules/ol/src/MapEventType", "node_modules/ol/src/MapProperty", "node_modules/ol/src/ObjectEventType", "node_modules/ol/src/Overlay", "node_modules/ol/src/OverlayPositioning", "node_modules/ol/src/PluggableMap", "node_modules/ol/src/View", "node_modules/ol/src/ViewProperty", "node_modules/ol/src/css", "node_modules/ol/src/extent", "node_modules/ol/src/Object", "node_modules/ol/src/events", "node_modules/ol/src/geom/Polygon", "node_modules/ol/src/dom"], function (require, exports, Composite_js_1, Control_js_6, EventType_js_26, MapEventType_js_4, MapProperty_js_2, ObjectEventType_js_6, Overlay_js_1, OverlayPositioning_js_2, PluggableMap_js_1, View_js_2, ViewProperty_js_2, css_js_8, extent_js_33, Object_js_15, events_js_15, Polygon_js_4, dom_js_10) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    const MAX_RATIO = 0.75;
+    const MIN_RATIO = 0.1;
+    class ControlledMap extends PluggableMap_js_1.default {
+        createRenderer() {
+            return new Composite_js_1.default(this);
+        }
+    }
+    class OverviewMap extends Control_js_6.default {
+        constructor(opt_options) {
+            const options = opt_options ? opt_options : {};
+            super({
+                element: document.createElement('div'),
+                render: options.render,
+                target: options.target,
+            });
+            this.boundHandleRotationChanged_ = this.handleRotationChanged_.bind(this);
+            this.collapsed_ =
+                options.collapsed !== undefined ? options.collapsed : true;
+            this.collapsible_ =
+                options.collapsible !== undefined ? options.collapsible : true;
+            if (!this.collapsible_) {
+                this.collapsed_ = false;
+            }
+            this.rotateWithView_ =
+                options.rotateWithView !== undefined ? options.rotateWithView : false;
+            this.viewExtent_ = undefined;
+            const className = options.className !== undefined ? options.className : 'ol-overviewmap';
+            const tipLabel = options.tipLabel !== undefined ? options.tipLabel : 'Overview map';
+            const collapseLabel = options.collapseLabel !== undefined ? options.collapseLabel : '\u00AB';
+            if (typeof collapseLabel === 'string') {
+                this.collapseLabel_ = document.createElement('span');
+                this.collapseLabel_.textContent = collapseLabel;
+            }
+            else {
+                this.collapseLabel_ = collapseLabel;
+            }
+            const label = options.label !== undefined ? options.label : '\u00BB';
+            if (typeof label === 'string') {
+                this.label_ = document.createElement('span');
+                this.label_.textContent = label;
+            }
+            else {
+                this.label_ = label;
+            }
+            const activeLabel = this.collapsible_ && !this.collapsed_ ? this.collapseLabel_ : this.label_;
+            const button = document.createElement('button');
+            button.setAttribute('type', 'button');
+            button.title = tipLabel;
+            button.appendChild(activeLabel);
+            button.addEventListener(EventType_js_26.default.CLICK, this.handleClick_.bind(this), false);
+            this.ovmapDiv_ = document.createElement('div');
+            this.ovmapDiv_.className = 'ol-overviewmap-map';
+            this.view_ = options.view;
+            this.ovmap_ = new ControlledMap({
+                view: options.view,
+            });
+            const ovmap = this.ovmap_;
+            if (options.layers) {
+                options.layers.forEach(function (layer) {
+                    ovmap.addLayer(layer);
+                });
+            }
+            const box = document.createElement('div');
+            box.className = 'ol-overviewmap-box';
+            box.style.boxSizing = 'border-box';
+            this.boxOverlay_ = new Overlay_js_1.default({
+                position: [0, 0],
+                positioning: OverlayPositioning_js_2.default.CENTER_CENTER,
+                element: box,
+            });
+            this.ovmap_.addOverlay(this.boxOverlay_);
+            const cssClasses = className +
+                ' ' +
+                css_js_8.CLASS_UNSELECTABLE +
+                ' ' +
+                css_js_8.CLASS_CONTROL +
+                (this.collapsed_ && this.collapsible_ ? ' ' + css_js_8.CLASS_COLLAPSED : '') +
+                (this.collapsible_ ? '' : ' ol-uncollapsible');
+            const element = this.element;
+            element.className = cssClasses;
+            element.appendChild(this.ovmapDiv_);
+            element.appendChild(button);
+            const scope = this;
+            const overlay = this.boxOverlay_;
+            const overlayBox = this.boxOverlay_.getElement();
+            const computeDesiredMousePosition = function (mousePosition) {
+                return {
+                    clientX: mousePosition.clientX,
+                    clientY: mousePosition.clientY,
+                };
+            };
+            const move = function (event) {
+                const position = (computeDesiredMousePosition(event));
+                const coordinates = ovmap.getEventCoordinateInternal((position));
+                overlay.setPosition(coordinates);
+            };
+            const endMoving = function (event) {
+                const coordinates = ovmap.getEventCoordinateInternal(event);
+                scope.getMap().getView().setCenterInternal(coordinates);
+                window.removeEventListener('mousemove', move);
+                window.removeEventListener('mouseup', endMoving);
+            };
+            overlayBox.addEventListener('mousedown', function () {
+                window.addEventListener('mousemove', move);
+                window.addEventListener('mouseup', endMoving);
+            });
+        }
+        setMap(map) {
+            const oldMap = this.getMap();
+            if (map === oldMap) {
+                return;
+            }
+            if (oldMap) {
+                const oldView = oldMap.getView();
+                if (oldView) {
+                    this.unbindView_(oldView);
+                }
+                this.ovmap_.setTarget(null);
+            }
+            super.setMap(map);
+            if (map) {
+                this.ovmap_.setTarget(this.ovmapDiv_);
+                this.listenerKeys.push(events_js_15.listen(map, ObjectEventType_js_6.default.PROPERTYCHANGE, this.handleMapPropertyChange_, this));
+                const view = map.getView();
+                if (view) {
+                    this.bindView_(view);
+                    if (view.isDef()) {
+                        this.ovmap_.updateSize();
+                        this.resetExtent_();
+                    }
+                }
+            }
+        }
+        handleMapPropertyChange_(event) {
+            if (event.key === MapProperty_js_2.default.VIEW) {
+                const oldView = (event.oldValue);
+                if (oldView) {
+                    this.unbindView_(oldView);
+                }
+                const newView = this.getMap().getView();
+                this.bindView_(newView);
+            }
+        }
+        bindView_(view) {
+            if (!this.view_) {
+                const newView = new View_js_2.default({
+                    projection: view.getProjection(),
+                });
+                this.ovmap_.setView(newView);
+            }
+            view.addEventListener(Object_js_15.getChangeEventType(ViewProperty_js_2.default.ROTATION), this.boundHandleRotationChanged_);
+            this.handleRotationChanged_();
+        }
+        unbindView_(view) {
+            view.removeEventListener(Object_js_15.getChangeEventType(ViewProperty_js_2.default.ROTATION), this.boundHandleRotationChanged_);
+        }
+        handleRotationChanged_() {
+            if (this.rotateWithView_) {
+                this.ovmap_.getView().setRotation(this.getMap().getView().getRotation());
+            }
+        }
+        validateExtent_() {
+            const map = this.getMap();
+            const ovmap = this.ovmap_;
+            if (!map.isRendered() || !ovmap.isRendered()) {
+                return;
+            }
+            const mapSize = (map.getSize());
+            const view = map.getView();
+            const extent = view.calculateExtentInternal(mapSize);
+            if (this.viewExtent_ && extent_js_33.equals(extent, this.viewExtent_)) {
+                return;
+            }
+            this.viewExtent_ = extent;
+            const ovmapSize = (ovmap.getSize());
+            const ovview = ovmap.getView();
+            const ovextent = ovview.calculateExtentInternal(ovmapSize);
+            const topLeftPixel = ovmap.getPixelFromCoordinateInternal(extent_js_33.getTopLeft(extent));
+            const bottomRightPixel = ovmap.getPixelFromCoordinateInternal(extent_js_33.getBottomRight(extent));
+            const boxWidth = Math.abs(topLeftPixel[0] - bottomRightPixel[0]);
+            const boxHeight = Math.abs(topLeftPixel[1] - bottomRightPixel[1]);
+            const ovmapWidth = ovmapSize[0];
+            const ovmapHeight = ovmapSize[1];
+            if (boxWidth < ovmapWidth * MIN_RATIO ||
+                boxHeight < ovmapHeight * MIN_RATIO ||
+                boxWidth > ovmapWidth * MAX_RATIO ||
+                boxHeight > ovmapHeight * MAX_RATIO) {
+                this.resetExtent_();
+            }
+            else if (!extent_js_33.containsExtent(ovextent, extent)) {
+                this.recenter_();
+            }
+        }
+        resetExtent_() {
+            if (MAX_RATIO === 0 || MIN_RATIO === 0) {
+                return;
+            }
+            const map = this.getMap();
+            const ovmap = this.ovmap_;
+            const mapSize = (map.getSize());
+            const view = map.getView();
+            const extent = view.calculateExtentInternal(mapSize);
+            const ovview = ovmap.getView();
+            const steps = Math.log(MAX_RATIO / MIN_RATIO) / Math.LN2;
+            const ratio = 1 / (Math.pow(2, steps / 2) * MIN_RATIO);
+            extent_js_33.scaleFromCenter(extent, ratio);
+            ovview.fitInternal(Polygon_js_4.fromExtent(extent));
+        }
+        recenter_() {
+            const map = this.getMap();
+            const ovmap = this.ovmap_;
+            const view = map.getView();
+            const ovview = ovmap.getView();
+            ovview.setCenterInternal(view.getCenterInternal());
+        }
+        updateBox_() {
+            const map = this.getMap();
+            const ovmap = this.ovmap_;
+            if (!map.isRendered() || !ovmap.isRendered()) {
+                return;
+            }
+            const mapSize = (map.getSize());
+            const view = map.getView();
+            const ovview = ovmap.getView();
+            const rotation = this.rotateWithView_ ? 0 : -view.getRotation();
+            const overlay = this.boxOverlay_;
+            const box = this.boxOverlay_.getElement();
+            const center = view.getCenterInternal();
+            const resolution = view.getResolution();
+            const ovresolution = ovview.getResolution();
+            const width = (mapSize[0] * resolution) / ovresolution;
+            const height = (mapSize[1] * resolution) / ovresolution;
+            overlay.setPosition(center);
+            if (box) {
+                box.style.width = width + 'px';
+                box.style.height = height + 'px';
+                const transform = 'rotate(' + rotation + 'rad)';
+                box.style.transform = transform;
+            }
+        }
+        handleClick_(event) {
+            event.preventDefault();
+            this.handleToggle_();
+        }
+        handleToggle_() {
+            this.element.classList.toggle(css_js_8.CLASS_COLLAPSED);
+            if (this.collapsed_) {
+                dom_js_10.replaceNode(this.collapseLabel_, this.label_);
+            }
+            else {
+                dom_js_10.replaceNode(this.label_, this.collapseLabel_);
+            }
+            this.collapsed_ = !this.collapsed_;
+            const ovmap = this.ovmap_;
+            if (!this.collapsed_) {
+                if (ovmap.isRendered()) {
+                    this.viewExtent_ = undefined;
+                    ovmap.render();
+                    return;
+                }
+                ovmap.updateSize();
+                this.resetExtent_();
+                events_js_15.listenOnce(ovmap, MapEventType_js_4.default.POSTRENDER, function (event) {
+                    this.updateBox_();
+                }, this);
+            }
+        }
+        getCollapsible() {
+            return this.collapsible_;
+        }
+        setCollapsible(collapsible) {
+            if (this.collapsible_ === collapsible) {
+                return;
+            }
+            this.collapsible_ = collapsible;
+            this.element.classList.toggle('ol-uncollapsible');
+            if (!collapsible && this.collapsed_) {
+                this.handleToggle_();
+            }
+        }
+        setCollapsed(collapsed) {
+            if (!this.collapsible_ || this.collapsed_ === collapsed) {
+                return;
+            }
+            this.handleToggle_();
+        }
+        getCollapsed() {
+            return this.collapsed_;
+        }
+        getRotateWithView() {
+            return this.rotateWithView_;
+        }
+        setRotateWithView(rotateWithView) {
+            if (this.rotateWithView_ === rotateWithView) {
+                return;
+            }
+            this.rotateWithView_ = rotateWithView;
+            if (this.getMap().getView().getRotation() !== 0) {
+                if (this.rotateWithView_) {
+                    this.handleRotationChanged_();
+                }
+                else {
+                    this.ovmap_.getView().setRotation(0);
+                }
+                this.viewExtent_ = undefined;
+                this.validateExtent_();
+                this.updateBox_();
+            }
+        }
+        getOverviewMap() {
+            return this.ovmap_;
+        }
+        render(mapEvent) {
+            this.validateExtent_();
+            this.updateBox_();
+        }
+    }
+    exports.default = OverviewMap;
+});
+define("node_modules/ol/src/control/ScaleLine", ["require", "exports", "node_modules/ol/src/control/Control", "node_modules/ol/src/proj/Units", "node_modules/ol/src/css", "node_modules/ol/src/proj", "node_modules/ol/src/asserts", "node_modules/ol/src/Object"], function (require, exports, Control_js_7, Units_js_9, css_js_9, proj_js_12, asserts_js_16, Object_js_16) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.Units = void 0;
+    const UNITS_PROP = 'units';
+    exports.Units = {
+        DEGREES: 'degrees',
+        IMPERIAL: 'imperial',
+        NAUTICAL: 'nautical',
+        METRIC: 'metric',
+        US: 'us',
+    };
+    const LEADING_DIGITS = [1, 2, 5];
+    const DEFAULT_DPI = 25.4 / 0.28;
+    class ScaleLine extends Control_js_7.default {
+        constructor(opt_options) {
+            const options = opt_options ? opt_options : {};
+            const className = options.className !== undefined
+                ? options.className
+                : options.bar
+                    ? 'ol-scale-bar'
+                    : 'ol-scale-line';
+            super({
+                element: document.createElement('div'),
+                render: options.render,
+                target: options.target,
+            });
+            this.innerElement_ = document.createElement('div');
+            this.innerElement_.className = className + '-inner';
+            this.element.className = className + ' ' + css_js_9.CLASS_UNSELECTABLE;
+            this.element.appendChild(this.innerElement_);
+            this.viewState_ = null;
+            this.minWidth_ = options.minWidth !== undefined ? options.minWidth : 64;
+            this.renderedVisible_ = false;
+            this.renderedWidth_ = undefined;
+            this.renderedHTML_ = '';
+            this.addEventListener(Object_js_16.getChangeEventType(UNITS_PROP), this.handleUnitsChanged_);
+            this.setUnits(options.units || exports.Units.METRIC);
+            this.scaleBar_ = options.bar || false;
+            this.scaleBarSteps_ = options.steps || 4;
+            this.scaleBarText_ = options.text || false;
+            this.dpi_ = options.dpi || undefined;
+        }
+        getUnits() {
+            return this.get(UNITS_PROP);
+        }
+        handleUnitsChanged_() {
+            this.updateElement_();
+        }
+        setUnits(units) {
+            this.set(UNITS_PROP, units);
+        }
+        setDpi(dpi) {
+            this.dpi_ = dpi;
+        }
+        updateElement_() {
+            const viewState = this.viewState_;
+            if (!viewState) {
+                if (this.renderedVisible_) {
+                    this.element.style.display = 'none';
+                    this.renderedVisible_ = false;
+                }
+                return;
+            }
+            const center = viewState.center;
+            const projection = viewState.projection;
+            const units = this.getUnits();
+            const pointResolutionUnits = units == exports.Units.DEGREES ? Units_js_9.default.DEGREES : Units_js_9.default.METERS;
+            let pointResolution = proj_js_12.getPointResolution(projection, viewState.resolution, center, pointResolutionUnits);
+            const minWidth = (this.minWidth_ * (this.dpi_ || DEFAULT_DPI)) / DEFAULT_DPI;
+            let nominalCount = minWidth * pointResolution;
+            let suffix = '';
+            if (units == exports.Units.DEGREES) {
+                const metersPerDegree = proj_js_12.METERS_PER_UNIT[Units_js_9.default.DEGREES];
+                nominalCount *= metersPerDegree;
+                if (nominalCount < metersPerDegree / 60) {
+                    suffix = '\u2033';
+                    pointResolution *= 3600;
+                }
+                else if (nominalCount < metersPerDegree) {
+                    suffix = '\u2032';
+                    pointResolution *= 60;
+                }
+                else {
+                    suffix = '\u00b0';
+                }
+            }
+            else if (units == exports.Units.IMPERIAL) {
+                if (nominalCount < 0.9144) {
+                    suffix = 'in';
+                    pointResolution /= 0.0254;
+                }
+                else if (nominalCount < 1609.344) {
+                    suffix = 'ft';
+                    pointResolution /= 0.3048;
+                }
+                else {
+                    suffix = 'mi';
+                    pointResolution /= 1609.344;
+                }
+            }
+            else if (units == exports.Units.NAUTICAL) {
+                pointResolution /= 1852;
+                suffix = 'nm';
+            }
+            else if (units == exports.Units.METRIC) {
+                if (nominalCount < 0.001) {
+                    suffix = 'μm';
+                    pointResolution *= 1000000;
+                }
+                else if (nominalCount < 1) {
+                    suffix = 'mm';
+                    pointResolution *= 1000;
+                }
+                else if (nominalCount < 1000) {
+                    suffix = 'm';
+                }
+                else {
+                    suffix = 'km';
+                    pointResolution /= 1000;
+                }
+            }
+            else if (units == exports.Units.US) {
+                if (nominalCount < 0.9144) {
+                    suffix = 'in';
+                    pointResolution *= 39.37;
+                }
+                else if (nominalCount < 1609.344) {
+                    suffix = 'ft';
+                    pointResolution /= 0.30480061;
+                }
+                else {
+                    suffix = 'mi';
+                    pointResolution /= 1609.3472;
+                }
+            }
+            else {
+                asserts_js_16.assert(false, 33);
+            }
+            let i = 3 * Math.floor(Math.log(minWidth * pointResolution) / Math.log(10));
+            let count, width, decimalCount;
+            while (true) {
+                decimalCount = Math.floor(i / 3);
+                const decimal = Math.pow(10, decimalCount);
+                count = LEADING_DIGITS[((i % 3) + 3) % 3] * decimal;
+                width = Math.round(count / pointResolution);
+                if (isNaN(width)) {
+                    this.element.style.display = 'none';
+                    this.renderedVisible_ = false;
+                    return;
+                }
+                else if (width >= minWidth) {
+                    break;
+                }
+                ++i;
+            }
+            let html;
+            if (this.scaleBar_) {
+                html = this.createScaleBar(width, count, suffix);
+            }
+            else {
+                html = count.toFixed(decimalCount < 0 ? -decimalCount : 0) + ' ' + suffix;
+            }
+            if (this.renderedHTML_ != html) {
+                this.innerElement_.innerHTML = html;
+                this.renderedHTML_ = html;
+            }
+            if (this.renderedWidth_ != width) {
+                this.innerElement_.style.width = width + 'px';
+                this.renderedWidth_ = width;
+            }
+            if (!this.renderedVisible_) {
+                this.element.style.display = '';
+                this.renderedVisible_ = true;
+            }
+        }
+        createScaleBar(width, scale, suffix) {
+            const mapScale = '1 : ' + Math.round(this.getScaleForResolution()).toLocaleString();
+            const scaleSteps = [];
+            const stepWidth = width / this.scaleBarSteps_;
+            let backgroundColor = '#ffffff';
+            for (let i = 0; i < this.scaleBarSteps_; i++) {
+                if (i === 0) {
+                    scaleSteps.push(this.createMarker('absolute', i));
+                }
+                scaleSteps.push('<div>' +
+                    '<div ' +
+                    'class="ol-scale-singlebar" ' +
+                    'style=' +
+                    '"width: ' +
+                    stepWidth +
+                    'px;' +
+                    'background-color: ' +
+                    backgroundColor +
+                    ';"' +
+                    '>' +
+                    '</div>' +
+                    this.createMarker('relative', i) +
+                    (i % 2 === 0 || this.scaleBarSteps_ === 2
+                        ? this.createStepText(i, width, false, scale, suffix)
+                        : '') +
+                    '</div>');
+                if (i === this.scaleBarSteps_ - 1) {
+                    {
+                    }
+                    scaleSteps.push(this.createStepText(i + 1, width, true, scale, suffix));
+                }
+                if (backgroundColor === '#ffffff') {
+                    backgroundColor = '#000000';
+                }
+                else {
+                    backgroundColor = '#ffffff';
+                }
+            }
+            let scaleBarText;
+            if (this.scaleBarText_) {
+                scaleBarText =
+                    '<div ' +
+                        'class="ol-scale-text" ' +
+                        'style="width: ' +
+                        width +
+                        'px;">' +
+                        mapScale +
+                        '</div>';
+            }
+            else {
+                scaleBarText = '';
+            }
+            const container = '<div ' +
+                'style="display: flex;">' +
+                scaleBarText +
+                scaleSteps.join('') +
+                '</div>';
+            return container;
+        }
+        createMarker(position, i) {
+            const top = position === 'absolute' ? 3 : -10;
+            return ('<div ' +
+                'class="ol-scale-step-marker" ' +
+                'style="position: ' +
+                position +
+                ';' +
+                'top: ' +
+                top +
+                'px;"' +
+                '></div>');
+        }
+        createStepText(i, width, isLast, scale, suffix) {
+            const length = i === 0 ? 0 : Math.round((scale / this.scaleBarSteps_) * i * 100) / 100;
+            const lengthString = length + (i === 0 ? '' : ' ' + suffix);
+            const margin = i === 0 ? -3 : (width / this.scaleBarSteps_) * -1;
+            const minWidth = i === 0 ? 0 : (width / this.scaleBarSteps_) * 2;
+            return ('<div ' +
+                'class="ol-scale-step-text" ' +
+                'style="' +
+                'margin-left: ' +
+                margin +
+                'px;' +
+                'text-align: ' +
+                (i === 0 ? 'left' : 'center') +
+                '; ' +
+                'min-width: ' +
+                minWidth +
+                'px;' +
+                'left: ' +
+                (isLast ? width + 'px' : 'unset') +
+                ';"' +
+                '>' +
+                lengthString +
+                '</div>');
+        }
+        getScaleForResolution() {
+            const resolution = proj_js_12.getPointResolution(this.viewState_.projection, this.viewState_.resolution, this.viewState_.center);
+            const dpi = this.dpi_ || DEFAULT_DPI;
+            const mpu = this.viewState_.projection.getMetersPerUnit();
+            const inchesPerMeter = 39.37;
+            return parseFloat(resolution.toString()) * mpu * inchesPerMeter * dpi;
+        }
+        render(mapEvent) {
+            const frameState = mapEvent.frameState;
+            if (!frameState) {
+                this.viewState_ = null;
+            }
+            else {
+                this.viewState_ = frameState.viewState;
+            }
+            this.updateElement_();
+        }
+    }
+    exports.default = ScaleLine;
+});
+define("node_modules/ol/src/control/ZoomSlider", ["require", "exports", "node_modules/ol/src/control/Control", "node_modules/ol/src/events/EventType", "node_modules/ol/src/pointer/EventType", "node_modules/ol/src/css", "node_modules/ol/src/math", "node_modules/ol/src/easing", "node_modules/ol/src/events", "node_modules/ol/src/events/Event"], function (require, exports, Control_js_8, EventType_js_27, EventType_js_28, css_js_10, math_js_18, easing_js_7, events_js_16, Event_js_9) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    const Direction = {
+        VERTICAL: 0,
+        HORIZONTAL: 1,
+    };
+    class ZoomSlider extends Control_js_8.default {
+        constructor(opt_options) {
+            const options = opt_options ? opt_options : {};
+            super({
+                element: document.createElement('div'),
+                render: options.render,
+            });
+            this.dragListenerKeys_ = [];
+            this.currentResolution_ = undefined;
+            this.direction_ = Direction.VERTICAL;
+            this.dragging_;
+            this.heightLimit_ = 0;
+            this.widthLimit_ = 0;
+            this.startX_;
+            this.startY_;
+            this.thumbSize_ = null;
+            this.sliderInitialized_ = false;
+            this.duration_ = options.duration !== undefined ? options.duration : 200;
+            const className = options.className !== undefined ? options.className : 'ol-zoomslider';
+            const thumbElement = document.createElement('button');
+            thumbElement.setAttribute('type', 'button');
+            thumbElement.className = className + '-thumb ' + css_js_10.CLASS_UNSELECTABLE;
+            const containerElement = this.element;
+            containerElement.className =
+                className + ' ' + css_js_10.CLASS_UNSELECTABLE + ' ' + css_js_10.CLASS_CONTROL;
+            containerElement.appendChild(thumbElement);
+            containerElement.addEventListener(EventType_js_28.default.POINTERDOWN, this.handleDraggerStart_.bind(this), false);
+            containerElement.addEventListener(EventType_js_28.default.POINTERMOVE, this.handleDraggerDrag_.bind(this), false);
+            containerElement.addEventListener(EventType_js_28.default.POINTERUP, this.handleDraggerEnd_.bind(this), false);
+            containerElement.addEventListener(EventType_js_27.default.CLICK, this.handleContainerClick_.bind(this), false);
+            thumbElement.addEventListener(EventType_js_27.default.CLICK, Event_js_9.stopPropagation, false);
+        }
+        setMap(map) {
+            super.setMap(map);
+            if (map) {
+                map.render();
+            }
+        }
+        initSlider_() {
+            const container = this.element;
+            const containerWidth = container.offsetWidth;
+            const containerHeight = container.offsetHeight;
+            if (containerWidth === 0 && containerHeight === 0) {
+                return (this.sliderInitialized_ = false);
+            }
+            const thumb = (container.firstElementChild);
+            const computedStyle = getComputedStyle(thumb);
+            const thumbWidth = thumb.offsetWidth +
+                parseFloat(computedStyle['marginRight']) +
+                parseFloat(computedStyle['marginLeft']);
+            const thumbHeight = thumb.offsetHeight +
+                parseFloat(computedStyle['marginTop']) +
+                parseFloat(computedStyle['marginBottom']);
+            this.thumbSize_ = [thumbWidth, thumbHeight];
+            if (containerWidth > containerHeight) {
+                this.direction_ = Direction.HORIZONTAL;
+                this.widthLimit_ = containerWidth - thumbWidth;
+            }
+            else {
+                this.direction_ = Direction.VERTICAL;
+                this.heightLimit_ = containerHeight - thumbHeight;
+            }
+            return (this.sliderInitialized_ = true);
+        }
+        handleContainerClick_(event) {
+            const view = this.getMap().getView();
+            const relativePosition = this.getRelativePosition_(event.offsetX - this.thumbSize_[0] / 2, event.offsetY - this.thumbSize_[1] / 2);
+            const resolution = this.getResolutionForPosition_(relativePosition);
+            const zoom = view.getConstrainedZoom(view.getZoomForResolution(resolution));
+            view.animateInternal({
+                zoom: zoom,
+                duration: this.duration_,
+                easing: easing_js_7.easeOut,
+            });
+        }
+        handleDraggerStart_(event) {
+            if (!this.dragging_ && event.target === this.element.firstElementChild) {
+                const element = (this.element
+                    .firstElementChild);
+                this.getMap().getView().beginInteraction();
+                this.startX_ = event.clientX - parseFloat(element.style.left);
+                this.startY_ = event.clientY - parseFloat(element.style.top);
+                this.dragging_ = true;
+                if (this.dragListenerKeys_.length === 0) {
+                    const drag = this.handleDraggerDrag_;
+                    const end = this.handleDraggerEnd_;
+                    this.dragListenerKeys_.push(events_js_16.listen(document, EventType_js_28.default.POINTERMOVE, drag, this), events_js_16.listen(document, EventType_js_28.default.POINTERUP, end, this));
+                }
+            }
+        }
+        handleDraggerDrag_(event) {
+            if (this.dragging_) {
+                const deltaX = event.clientX - this.startX_;
+                const deltaY = event.clientY - this.startY_;
+                const relativePosition = this.getRelativePosition_(deltaX, deltaY);
+                this.currentResolution_ = this.getResolutionForPosition_(relativePosition);
+                this.getMap().getView().setResolution(this.currentResolution_);
+            }
+        }
+        handleDraggerEnd_(event) {
+            if (this.dragging_) {
+                const view = this.getMap().getView();
+                view.endInteraction();
+                this.dragging_ = false;
+                this.startX_ = undefined;
+                this.startY_ = undefined;
+                this.dragListenerKeys_.forEach(events_js_16.unlistenByKey);
+                this.dragListenerKeys_.length = 0;
+            }
+        }
+        setThumbPosition_(res) {
+            const position = this.getPositionForResolution_(res);
+            const thumb = (this.element.firstElementChild);
+            if (this.direction_ == Direction.HORIZONTAL) {
+                thumb.style.left = this.widthLimit_ * position + 'px';
+            }
+            else {
+                thumb.style.top = this.heightLimit_ * position + 'px';
+            }
+        }
+        getRelativePosition_(x, y) {
+            let amount;
+            if (this.direction_ === Direction.HORIZONTAL) {
+                amount = x / this.widthLimit_;
+            }
+            else {
+                amount = y / this.heightLimit_;
+            }
+            return math_js_18.clamp(amount, 0, 1);
+        }
+        getResolutionForPosition_(position) {
+            const fn = this.getMap().getView().getResolutionForValueFunction();
+            return fn(1 - position);
+        }
+        getPositionForResolution_(res) {
+            const fn = this.getMap().getView().getValueForResolutionFunction();
+            return math_js_18.clamp(1 - fn(res), 0, 1);
+        }
+        render(mapEvent) {
+            if (!mapEvent.frameState) {
+                return;
+            }
+            if (!this.sliderInitialized_ && !this.initSlider_()) {
+                return;
+            }
+            const res = mapEvent.frameState.viewState.resolution;
+            this.currentResolution_ = res;
+            this.setThumbPosition_(res);
+        }
+    }
+    exports.default = ZoomSlider;
+});
+define("node_modules/ol/src/control/ZoomToExtent", ["require", "exports", "node_modules/ol/src/control/Control", "node_modules/ol/src/events/EventType", "node_modules/ol/src/css", "node_modules/ol/src/geom/Polygon"], function (require, exports, Control_js_9, EventType_js_29, css_js_11, Polygon_js_5) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    class ZoomToExtent extends Control_js_9.default {
+        constructor(opt_options) {
+            const options = opt_options ? opt_options : {};
+            super({
+                element: document.createElement('div'),
+                target: options.target,
+            });
+            this.extent = options.extent ? options.extent : null;
+            const className = options.className !== undefined ? options.className : 'ol-zoom-extent';
+            const label = options.label !== undefined ? options.label : 'E';
+            const tipLabel = options.tipLabel !== undefined ? options.tipLabel : 'Fit to extent';
+            const button = document.createElement('button');
+            button.setAttribute('type', 'button');
+            button.title = tipLabel;
+            button.appendChild(typeof label === 'string' ? document.createTextNode(label) : label);
+            button.addEventListener(EventType_js_29.default.CLICK, this.handleClick_.bind(this), false);
+            const cssClasses = className + ' ' + css_js_11.CLASS_UNSELECTABLE + ' ' + css_js_11.CLASS_CONTROL;
+            const element = this.element;
+            element.className = cssClasses;
+            element.appendChild(button);
+        }
+        handleClick_(event) {
+            event.preventDefault();
+            this.handleZoomToExtent();
+        }
+        handleZoomToExtent() {
+            const map = this.getMap();
+            const view = map.getView();
+            const extent = !this.extent
+                ? view.getProjection().getExtent()
+                : this.extent;
+            view.fitInternal(Polygon_js_5.fromExtent(extent));
+        }
+    }
+    exports.default = ZoomToExtent;
+});
+define("node_modules/ol/src/control", ["require", "exports", "node_modules/ol/src/control/Attribution", "node_modules/ol/src/Collection", "node_modules/ol/src/control/Rotate", "node_modules/ol/src/control/Zoom", "node_modules/ol/src/control/Attribution", "node_modules/ol/src/control/Control", "node_modules/ol/src/control/FullScreen", "node_modules/ol/src/control/MousePosition", "node_modules/ol/src/control/OverviewMap", "node_modules/ol/src/control/Rotate", "node_modules/ol/src/control/ScaleLine", "node_modules/ol/src/control/Zoom", "node_modules/ol/src/control/ZoomSlider", "node_modules/ol/src/control/ZoomToExtent"], function (require, exports, Attribution_js_1, Collection_js_4, Rotate_js_1, Zoom_js_1, Attribution_js_2, Control_js_10, FullScreen_js_1, MousePosition_js_1, OverviewMap_js_1, Rotate_js_2, ScaleLine_js_1, Zoom_js_2, ZoomSlider_js_1, ZoomToExtent_js_1) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.defaults = exports.ZoomToExtent = exports.ZoomSlider = exports.Zoom = exports.ScaleLine = exports.Rotate = exports.OverviewMap = exports.MousePosition = exports.FullScreen = exports.Control = exports.Attribution = void 0;
+    Object.defineProperty(exports, "Attribution", { enumerable: true, get: function () { return Attribution_js_2.default; } });
+    Object.defineProperty(exports, "Control", { enumerable: true, get: function () { return Control_js_10.default; } });
+    Object.defineProperty(exports, "FullScreen", { enumerable: true, get: function () { return FullScreen_js_1.default; } });
+    Object.defineProperty(exports, "MousePosition", { enumerable: true, get: function () { return MousePosition_js_1.default; } });
+    Object.defineProperty(exports, "OverviewMap", { enumerable: true, get: function () { return OverviewMap_js_1.default; } });
+    Object.defineProperty(exports, "Rotate", { enumerable: true, get: function () { return Rotate_js_2.default; } });
+    Object.defineProperty(exports, "ScaleLine", { enumerable: true, get: function () { return ScaleLine_js_1.default; } });
+    Object.defineProperty(exports, "Zoom", { enumerable: true, get: function () { return Zoom_js_2.default; } });
+    Object.defineProperty(exports, "ZoomSlider", { enumerable: true, get: function () { return ZoomSlider_js_1.default; } });
+    Object.defineProperty(exports, "ZoomToExtent", { enumerable: true, get: function () { return ZoomToExtent_js_1.default; } });
+    function defaults(opt_options) {
+        const options = opt_options ? opt_options : {};
+        const controls = new Collection_js_4.default();
+        const zoomControl = options.zoom !== undefined ? options.zoom : true;
+        if (zoomControl) {
+            controls.push(new Zoom_js_1.default(options.zoomOptions));
+        }
+        const rotateControl = options.rotate !== undefined ? options.rotate : true;
+        if (rotateControl) {
+            controls.push(new Rotate_js_1.default(options.rotateOptions));
+        }
+        const attributionControl = options.attribution !== undefined ? options.attribution : true;
+        if (attributionControl) {
+            controls.push(new Attribution_js_1.default(options.attributionOptions));
+        }
+        return controls;
+    }
+    exports.defaults = defaults;
+});
+define("node_modules/ol/src/interaction/DoubleClickZoom", ["require", "exports", "node_modules/ol/src/interaction/Interaction", "node_modules/ol/src/MapBrowserEventType"], function (require, exports, Interaction_js_1, MapBrowserEventType_js_3) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    class DoubleClickZoom extends Interaction_js_1.default {
+        constructor(opt_options) {
+            super();
+            const options = opt_options ? opt_options : {};
+            this.delta_ = options.delta ? options.delta : 1;
+            this.duration_ = options.duration !== undefined ? options.duration : 250;
+        }
+        handleEvent(mapBrowserEvent) {
+            let stopEvent = false;
+            if (mapBrowserEvent.type == MapBrowserEventType_js_3.default.DBLCLICK) {
+                const browserEvent = (mapBrowserEvent.originalEvent);
+                const map = mapBrowserEvent.map;
+                const anchor = mapBrowserEvent.coordinate;
+                const delta = browserEvent.shiftKey ? -this.delta_ : this.delta_;
+                const view = map.getView();
+                Interaction_js_1.zoomByDelta(view, delta, anchor, this.duration_);
+                mapBrowserEvent.preventDefault();
+                stopEvent = true;
+            }
+            return !stopEvent;
+        }
+    }
+    exports.default = DoubleClickZoom;
+});
+define("node_modules/ol/src/interaction/Pointer", ["require", "exports", "node_modules/ol/src/interaction/Interaction", "node_modules/ol/src/MapBrowserEventType", "node_modules/ol/src/obj"], function (require, exports, Interaction_js_2, MapBrowserEventType_js_4, obj_js_15) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.centroid = void 0;
+    class PointerInteraction extends Interaction_js_2.default {
+        constructor(opt_options) {
+            const options = opt_options ? opt_options : {};
+            super((options));
+            if (options.handleDownEvent) {
+                this.handleDownEvent = options.handleDownEvent;
+            }
+            if (options.handleDragEvent) {
+                this.handleDragEvent = options.handleDragEvent;
+            }
+            if (options.handleMoveEvent) {
+                this.handleMoveEvent = options.handleMoveEvent;
+            }
+            if (options.handleUpEvent) {
+                this.handleUpEvent = options.handleUpEvent;
+            }
+            if (options.stopDown) {
+                this.stopDown = options.stopDown;
+            }
+            this.handlingDownUpSequence = false;
+            this.trackedPointers_ = {};
+            this.targetPointers = [];
+        }
+        getPointerCount() {
+            return this.targetPointers.length;
+        }
+        handleDownEvent(mapBrowserEvent) {
+            return false;
+        }
+        handleDragEvent(mapBrowserEvent) { }
+        handleEvent(mapBrowserEvent) {
+            if (!mapBrowserEvent.originalEvent) {
+                return true;
+            }
+            let stopEvent = false;
+            this.updateTrackedPointers_(mapBrowserEvent);
+            if (this.handlingDownUpSequence) {
+                if (mapBrowserEvent.type == MapBrowserEventType_js_4.default.POINTERDRAG) {
+                    this.handleDragEvent(mapBrowserEvent);
+                    mapBrowserEvent.preventDefault();
+                }
+                else if (mapBrowserEvent.type == MapBrowserEventType_js_4.default.POINTERUP) {
+                    const handledUp = this.handleUpEvent(mapBrowserEvent);
+                    this.handlingDownUpSequence =
+                        handledUp && this.targetPointers.length > 0;
+                }
+            }
+            else {
+                if (mapBrowserEvent.type == MapBrowserEventType_js_4.default.POINTERDOWN) {
+                    const handled = this.handleDownEvent(mapBrowserEvent);
+                    this.handlingDownUpSequence = handled;
+                    stopEvent = this.stopDown(handled);
+                }
+                else if (mapBrowserEvent.type == MapBrowserEventType_js_4.default.POINTERMOVE) {
+                    this.handleMoveEvent(mapBrowserEvent);
+                }
+            }
+            return !stopEvent;
+        }
+        handleMoveEvent(mapBrowserEvent) { }
+        handleUpEvent(mapBrowserEvent) {
+            return false;
+        }
+        stopDown(handled) {
+            return handled;
+        }
+        updateTrackedPointers_(mapBrowserEvent) {
+            if (isPointerDraggingEvent(mapBrowserEvent)) {
+                const event = mapBrowserEvent.originalEvent;
+                const id = event.pointerId.toString();
+                if (mapBrowserEvent.type == MapBrowserEventType_js_4.default.POINTERUP) {
+                    delete this.trackedPointers_[id];
+                }
+                else if (mapBrowserEvent.type == MapBrowserEventType_js_4.default.POINTERDOWN) {
+                    this.trackedPointers_[id] = event;
+                }
+                else if (id in this.trackedPointers_) {
+                    this.trackedPointers_[id] = event;
+                }
+                this.targetPointers = obj_js_15.getValues(this.trackedPointers_);
+            }
+        }
+    }
+    function centroid(pointerEvents) {
+        const length = pointerEvents.length;
+        let clientX = 0;
+        let clientY = 0;
+        for (let i = 0; i < length; i++) {
+            clientX += pointerEvents[i].clientX;
+            clientY += pointerEvents[i].clientY;
+        }
+        return [clientX / length, clientY / length];
+    }
+    exports.centroid = centroid;
+    function isPointerDraggingEvent(mapBrowserEvent) {
+        const type = mapBrowserEvent.type;
+        return (type === MapBrowserEventType_js_4.default.POINTERDOWN ||
+            type === MapBrowserEventType_js_4.default.POINTERDRAG ||
+            type === MapBrowserEventType_js_4.default.POINTERUP);
+    }
+    exports.default = PointerInteraction;
+});
+define("node_modules/ol/src/events/condition", ["require", "exports", "node_modules/ol/src/MapBrowserEventType", "node_modules/ol/src/functions", "node_modules/ol/src/has", "node_modules/ol/src/asserts"], function (require, exports, MapBrowserEventType_js_5, functions_js_9, has_js_7, asserts_js_17) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.primaryAction = exports.penOnly = exports.touchOnly = exports.mouseOnly = exports.targetNotEditable = exports.shiftKeyOnly = exports.platformModifierKeyOnly = exports.noModifierKeys = exports.doubleClick = exports.singleClick = exports.pointerMove = exports.never = exports.mouseActionButton = exports.click = exports.always = exports.focusWithTabindex = exports.focus = exports.altShiftKeysOnly = exports.altKeyOnly = exports.all = void 0;
+    function all(var_args) {
+        const conditions = arguments;
+        return function (event) {
+            let pass = true;
+            for (let i = 0, ii = conditions.length; i < ii; ++i) {
+                pass = pass && conditions[i](event);
+                if (!pass) {
+                    break;
+                }
+            }
+            return pass;
+        };
+    }
+    exports.all = all;
+    exports.altKeyOnly = function (mapBrowserEvent) {
+        const originalEvent = (mapBrowserEvent.originalEvent);
+        return (originalEvent.altKey &&
+            !(originalEvent.metaKey || originalEvent.ctrlKey) &&
+            !originalEvent.shiftKey);
+    };
+    exports.altShiftKeysOnly = function (mapBrowserEvent) {
+        const originalEvent = (mapBrowserEvent.originalEvent);
+        return (originalEvent.altKey &&
+            !(originalEvent.metaKey || originalEvent.ctrlKey) &&
+            originalEvent.shiftKey);
+    };
+    exports.focus = function (event) {
+        return event.target.getTargetElement().contains(document.activeElement);
+    };
+    exports.focusWithTabindex = function (event) {
+        return event.map.getTargetElement().hasAttribute('tabindex')
+            ? exports.focus(event)
+            : true;
+    };
+    exports.always = functions_js_9.TRUE;
+    exports.click = function (mapBrowserEvent) {
+        return mapBrowserEvent.type == MapBrowserEventType_js_5.default.CLICK;
+    };
+    exports.mouseActionButton = function (mapBrowserEvent) {
+        const originalEvent = (mapBrowserEvent.originalEvent);
+        return originalEvent.button == 0 && !(has_js_7.WEBKIT && has_js_7.MAC && originalEvent.ctrlKey);
+    };
+    exports.never = functions_js_9.FALSE;
+    exports.pointerMove = function (mapBrowserEvent) {
+        return mapBrowserEvent.type == 'pointermove';
+    };
+    exports.singleClick = function (mapBrowserEvent) {
+        return mapBrowserEvent.type == MapBrowserEventType_js_5.default.SINGLECLICK;
+    };
+    exports.doubleClick = function (mapBrowserEvent) {
+        return mapBrowserEvent.type == MapBrowserEventType_js_5.default.DBLCLICK;
+    };
+    exports.noModifierKeys = function (mapBrowserEvent) {
+        const originalEvent = (mapBrowserEvent.originalEvent);
+        return (!originalEvent.altKey &&
+            !(originalEvent.metaKey || originalEvent.ctrlKey) &&
+            !originalEvent.shiftKey);
+    };
+    exports.platformModifierKeyOnly = function (mapBrowserEvent) {
+        const originalEvent = (mapBrowserEvent.originalEvent);
+        return (!originalEvent.altKey &&
+            (has_js_7.MAC ? originalEvent.metaKey : originalEvent.ctrlKey) &&
+            !originalEvent.shiftKey);
+    };
+    exports.shiftKeyOnly = function (mapBrowserEvent) {
+        const originalEvent = (mapBrowserEvent.originalEvent);
+        return (!originalEvent.altKey &&
+            !(originalEvent.metaKey || originalEvent.ctrlKey) &&
+            originalEvent.shiftKey);
+    };
+    exports.targetNotEditable = function (mapBrowserEvent) {
+        const originalEvent = (mapBrowserEvent.originalEvent);
+        const tagName = (originalEvent.target).tagName;
+        return tagName !== 'INPUT' && tagName !== 'SELECT' && tagName !== 'TEXTAREA';
+    };
+    exports.mouseOnly = function (mapBrowserEvent) {
+        const pointerEvent = (mapBrowserEvent)
+            .originalEvent;
+        asserts_js_17.assert(pointerEvent !== undefined, 56);
+        return pointerEvent.pointerType == 'mouse';
+    };
+    exports.touchOnly = function (mapBrowserEvent) {
+        const pointerEvt = (mapBrowserEvent)
+            .originalEvent;
+        asserts_js_17.assert(pointerEvt !== undefined, 56);
+        return pointerEvt.pointerType === 'touch';
+    };
+    exports.penOnly = function (mapBrowserEvent) {
+        const pointerEvt = (mapBrowserEvent)
+            .originalEvent;
+        asserts_js_17.assert(pointerEvt !== undefined, 56);
+        return pointerEvt.pointerType === 'pen';
+    };
+    exports.primaryAction = function (mapBrowserEvent) {
+        const pointerEvent = (mapBrowserEvent)
+            .originalEvent;
+        asserts_js_17.assert(pointerEvent !== undefined, 56);
+        return pointerEvent.isPrimary && pointerEvent.button === 0;
+    };
+});
+define("node_modules/ol/src/Kinetic", ["require", "exports"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    class Kinetic {
+        constructor(decay, minVelocity, delay) {
+            this.decay_ = decay;
+            this.minVelocity_ = minVelocity;
+            this.delay_ = delay;
+            this.points_ = [];
+            this.angle_ = 0;
+            this.initialVelocity_ = 0;
+        }
+        begin() {
+            this.points_.length = 0;
+            this.angle_ = 0;
+            this.initialVelocity_ = 0;
+        }
+        update(x, y) {
+            this.points_.push(x, y, Date.now());
+        }
+        end() {
+            if (this.points_.length < 6) {
+                return false;
+            }
+            const delay = Date.now() - this.delay_;
+            const lastIndex = this.points_.length - 3;
+            if (this.points_[lastIndex + 2] < delay) {
+                return false;
+            }
+            let firstIndex = lastIndex - 3;
+            while (firstIndex > 0 && this.points_[firstIndex + 2] > delay) {
+                firstIndex -= 3;
+            }
+            const duration = this.points_[lastIndex + 2] - this.points_[firstIndex + 2];
+            if (duration < 1000 / 60) {
+                return false;
+            }
+            const dx = this.points_[lastIndex] - this.points_[firstIndex];
+            const dy = this.points_[lastIndex + 1] - this.points_[firstIndex + 1];
+            this.angle_ = Math.atan2(dy, dx);
+            this.initialVelocity_ = Math.sqrt(dx * dx + dy * dy) / duration;
+            return this.initialVelocity_ > this.minVelocity_;
+        }
+        getDistance() {
+            return (this.minVelocity_ - this.initialVelocity_) / this.decay_;
+        }
+        getAngle() {
+            return this.angle_;
+        }
+    }
+    exports.default = Kinetic;
+});
+define("node_modules/ol/src/interaction/DragPan", ["require", "exports", "node_modules/ol/src/interaction/Pointer", "node_modules/ol/src/functions", "node_modules/ol/src/events/condition", "node_modules/ol/src/easing", "node_modules/ol/src/coordinate"], function (require, exports, Pointer_js_1, functions_js_10, condition_js_1, easing_js_8, coordinate_js_5) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    class DragPan extends Pointer_js_1.default {
+        constructor(opt_options) {
+            super({
+                stopDown: functions_js_10.FALSE,
+            });
+            const options = opt_options ? opt_options : {};
+            this.kinetic_ = options.kinetic;
+            this.lastCentroid = null;
+            this.lastPointersCount_;
+            this.panning_ = false;
+            const condition = options.condition
+                ? options.condition
+                : condition_js_1.all(condition_js_1.noModifierKeys, condition_js_1.primaryAction);
+            this.condition_ = options.onFocusOnly
+                ? condition_js_1.all(condition_js_1.focusWithTabindex, condition)
+                : condition;
+            this.noKinetic_ = false;
+        }
+        handleDragEvent(mapBrowserEvent) {
+            if (!this.panning_) {
+                this.panning_ = true;
+                this.getMap().getView().beginInteraction();
+            }
+            const targetPointers = this.targetPointers;
+            const centroid = Pointer_js_1.centroid(targetPointers);
+            if (targetPointers.length == this.lastPointersCount_) {
+                if (this.kinetic_) {
+                    this.kinetic_.update(centroid[0], centroid[1]);
+                }
+                if (this.lastCentroid) {
+                    const delta = [
+                        this.lastCentroid[0] - centroid[0],
+                        centroid[1] - this.lastCentroid[1],
+                    ];
+                    const map = mapBrowserEvent.map;
+                    const view = map.getView();
+                    coordinate_js_5.scale(delta, view.getResolution());
+                    coordinate_js_5.rotate(delta, view.getRotation());
+                    view.adjustCenterInternal(delta);
+                }
+            }
+            else if (this.kinetic_) {
+                this.kinetic_.begin();
+            }
+            this.lastCentroid = centroid;
+            this.lastPointersCount_ = targetPointers.length;
+            mapBrowserEvent.originalEvent.preventDefault();
+        }
+        handleUpEvent(mapBrowserEvent) {
+            const map = mapBrowserEvent.map;
+            const view = map.getView();
+            if (this.targetPointers.length === 0) {
+                if (!this.noKinetic_ && this.kinetic_ && this.kinetic_.end()) {
+                    const distance = this.kinetic_.getDistance();
+                    const angle = this.kinetic_.getAngle();
+                    const center = view.getCenterInternal();
+                    const centerpx = map.getPixelFromCoordinateInternal(center);
+                    const dest = map.getCoordinateFromPixelInternal([
+                        centerpx[0] - distance * Math.cos(angle),
+                        centerpx[1] - distance * Math.sin(angle),
+                    ]);
+                    view.animateInternal({
+                        center: view.getConstrainedCenter(dest),
+                        duration: 500,
+                        easing: easing_js_8.easeOut,
+                    });
+                }
+                if (this.panning_) {
+                    this.panning_ = false;
+                    view.endInteraction();
+                }
+                return false;
+            }
+            else {
+                if (this.kinetic_) {
+                    this.kinetic_.begin();
+                }
+                this.lastCentroid = null;
+                return true;
+            }
+        }
+        handleDownEvent(mapBrowserEvent) {
+            if (this.targetPointers.length > 0 && this.condition_(mapBrowserEvent)) {
+                const map = mapBrowserEvent.map;
+                const view = map.getView();
+                this.lastCentroid = null;
+                if (view.getAnimating()) {
+                    view.cancelAnimations();
+                }
+                if (this.kinetic_) {
+                    this.kinetic_.begin();
+                }
+                this.noKinetic_ = this.targetPointers.length > 1;
+                return true;
+            }
+            else {
+                return false;
+            }
+        }
+    }
+    exports.default = DragPan;
+});
+define("node_modules/ol/src/interaction/DragRotate", ["require", "exports", "node_modules/ol/src/interaction/Pointer", "node_modules/ol/src/functions", "node_modules/ol/src/events/condition", "node_modules/ol/src/rotationconstraint"], function (require, exports, Pointer_js_2, functions_js_11, condition_js_2, rotationconstraint_js_2) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    class DragRotate extends Pointer_js_2.default {
+        constructor(opt_options) {
+            const options = opt_options ? opt_options : {};
+            super({
+                stopDown: functions_js_11.FALSE,
+            });
+            this.condition_ = options.condition ? options.condition : condition_js_2.altShiftKeysOnly;
+            this.lastAngle_ = undefined;
+            this.duration_ = options.duration !== undefined ? options.duration : 250;
+        }
+        handleDragEvent(mapBrowserEvent) {
+            if (!condition_js_2.mouseOnly(mapBrowserEvent)) {
+                return;
+            }
+            const map = mapBrowserEvent.map;
+            const view = map.getView();
+            if (view.getConstraints().rotation === rotationconstraint_js_2.disable) {
+                return;
+            }
+            const size = map.getSize();
+            const offset = mapBrowserEvent.pixel;
+            const theta = Math.atan2(size[1] / 2 - offset[1], offset[0] - size[0] / 2);
+            if (this.lastAngle_ !== undefined) {
+                const delta = theta - this.lastAngle_;
+                view.adjustRotationInternal(-delta);
+            }
+            this.lastAngle_ = theta;
+        }
+        handleUpEvent(mapBrowserEvent) {
+            if (!condition_js_2.mouseOnly(mapBrowserEvent)) {
+                return true;
+            }
+            const map = mapBrowserEvent.map;
+            const view = map.getView();
+            view.endInteraction(this.duration_);
+            return false;
+        }
+        handleDownEvent(mapBrowserEvent) {
+            if (!condition_js_2.mouseOnly(mapBrowserEvent)) {
+                return false;
+            }
+            if (condition_js_2.mouseActionButton(mapBrowserEvent) &&
+                this.condition_(mapBrowserEvent)) {
+                const map = mapBrowserEvent.map;
+                map.getView().beginInteraction();
+                this.lastAngle_ = undefined;
+                return true;
+            }
+            else {
+                return false;
+            }
+        }
+    }
+    exports.default = DragRotate;
+});
+define("node_modules/ol/src/render/Box", ["require", "exports", "node_modules/ol/src/Disposable", "node_modules/ol/src/geom/Polygon"], function (require, exports, Disposable_js_3, Polygon_js_6) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    class RenderBox extends Disposable_js_3.default {
+        constructor(className) {
+            super();
+            this.geometry_ = null;
+            this.element_ = document.createElement('div');
+            this.element_.style.position = 'absolute';
+            this.element_.style.pointerEvents = 'auto';
+            this.element_.className = 'ol-box ' + className;
+            this.map_ = null;
+            this.startPixel_ = null;
+            this.endPixel_ = null;
+        }
+        disposeInternal() {
+            this.setMap(null);
+        }
+        render_() {
+            const startPixel = this.startPixel_;
+            const endPixel = this.endPixel_;
+            const px = 'px';
+            const style = this.element_.style;
+            style.left = Math.min(startPixel[0], endPixel[0]) + px;
+            style.top = Math.min(startPixel[1], endPixel[1]) + px;
+            style.width = Math.abs(endPixel[0] - startPixel[0]) + px;
+            style.height = Math.abs(endPixel[1] - startPixel[1]) + px;
+        }
+        setMap(map) {
+            if (this.map_) {
+                this.map_.getOverlayContainer().removeChild(this.element_);
+                const style = this.element_.style;
+                style.left = 'inherit';
+                style.top = 'inherit';
+                style.width = 'inherit';
+                style.height = 'inherit';
+            }
+            this.map_ = map;
+            if (this.map_) {
+                this.map_.getOverlayContainer().appendChild(this.element_);
+            }
+        }
+        setPixels(startPixel, endPixel) {
+            this.startPixel_ = startPixel;
+            this.endPixel_ = endPixel;
+            this.createOrUpdateGeometry();
+            this.render_();
+        }
+        createOrUpdateGeometry() {
+            const startPixel = this.startPixel_;
+            const endPixel = this.endPixel_;
+            const pixels = [
+                startPixel,
+                [startPixel[0], endPixel[1]],
+                endPixel,
+                [endPixel[0], startPixel[1]],
+            ];
+            const coordinates = pixels.map(this.map_.getCoordinateFromPixelInternal, this.map_);
+            coordinates[4] = coordinates[0].slice();
+            if (!this.geometry_) {
+                this.geometry_ = new Polygon_js_6.default([coordinates]);
+            }
+            else {
+                this.geometry_.setCoordinates([coordinates]);
+            }
+        }
+        getGeometry() {
+            return this.geometry_;
+        }
+    }
+    exports.default = RenderBox;
+});
+define("node_modules/ol/src/interaction/DragBox", ["require", "exports", "node_modules/ol/src/events/Event", "node_modules/ol/src/interaction/Pointer", "node_modules/ol/src/render/Box", "node_modules/ol/src/events/condition"], function (require, exports, Event_js_10, Pointer_js_3, Box_js_1, condition_js_3) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    const DragBoxEventType = {
+        BOXSTART: 'boxstart',
+        BOXDRAG: 'boxdrag',
+        BOXEND: 'boxend',
+    };
+    class DragBoxEvent extends Event_js_10.default {
+        constructor(type, coordinate, mapBrowserEvent) {
+            super(type);
+            this.coordinate = coordinate;
+            this.mapBrowserEvent = mapBrowserEvent;
+        }
+    }
+    class DragBox extends Pointer_js_3.default {
+        constructor(opt_options) {
+            super();
+            const options = opt_options ? opt_options : {};
+            this.box_ = new Box_js_1.default(options.className || 'ol-dragbox');
+            this.minArea_ = options.minArea !== undefined ? options.minArea : 64;
+            if (options.onBoxEnd) {
+                this.onBoxEnd = options.onBoxEnd;
+            }
+            this.startPixel_ = null;
+            this.condition_ = options.condition ? options.condition : condition_js_3.mouseActionButton;
+            this.boxEndCondition_ = options.boxEndCondition
+                ? options.boxEndCondition
+                : this.defaultBoxEndCondition;
+        }
+        defaultBoxEndCondition(mapBrowserEvent, startPixel, endPixel) {
+            const width = endPixel[0] - startPixel[0];
+            const height = endPixel[1] - startPixel[1];
+            return width * width + height * height >= this.minArea_;
+        }
+        getGeometry() {
+            return this.box_.getGeometry();
+        }
+        handleDragEvent(mapBrowserEvent) {
+            this.box_.setPixels(this.startPixel_, mapBrowserEvent.pixel);
+            this.dispatchEvent(new DragBoxEvent(DragBoxEventType.BOXDRAG, mapBrowserEvent.coordinate, mapBrowserEvent));
+        }
+        handleUpEvent(mapBrowserEvent) {
+            this.box_.setMap(null);
+            if (this.boxEndCondition_(mapBrowserEvent, this.startPixel_, mapBrowserEvent.pixel)) {
+                this.onBoxEnd(mapBrowserEvent);
+                this.dispatchEvent(new DragBoxEvent(DragBoxEventType.BOXEND, mapBrowserEvent.coordinate, mapBrowserEvent));
+            }
+            return false;
+        }
+        handleDownEvent(mapBrowserEvent) {
+            if (this.condition_(mapBrowserEvent)) {
+                this.startPixel_ = mapBrowserEvent.pixel;
+                this.box_.setMap(mapBrowserEvent.map);
+                this.box_.setPixels(this.startPixel_, this.startPixel_);
+                this.dispatchEvent(new DragBoxEvent(DragBoxEventType.BOXSTART, mapBrowserEvent.coordinate, mapBrowserEvent));
+                return true;
+            }
+            else {
+                return false;
+            }
+        }
+        onBoxEnd(event) { }
+    }
+    exports.default = DragBox;
+});
+define("node_modules/ol/src/interaction/DragZoom", ["require", "exports", "node_modules/ol/src/interaction/DragBox", "node_modules/ol/src/extent", "node_modules/ol/src/easing", "node_modules/ol/src/events/condition"], function (require, exports, DragBox_js_1, extent_js_34, easing_js_9, condition_js_4) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    class DragZoom extends DragBox_js_1.default {
+        constructor(opt_options) {
+            const options = opt_options ? opt_options : {};
+            const condition = options.condition ? options.condition : condition_js_4.shiftKeyOnly;
+            super({
+                condition: condition,
+                className: options.className || 'ol-dragzoom',
+                minArea: options.minArea,
+            });
+            this.duration_ = options.duration !== undefined ? options.duration : 200;
+            this.out_ = options.out !== undefined ? options.out : false;
+        }
+        onBoxEnd(event) {
+            const map = this.getMap();
+            const view = (map.getView());
+            const size = (map.getSize());
+            let extent = this.getGeometry().getExtent();
+            if (this.out_) {
+                const mapExtent = view.calculateExtentInternal(size);
+                const boxPixelExtent = extent_js_34.createOrUpdateFromCoordinates([
+                    map.getPixelFromCoordinateInternal(extent_js_34.getBottomLeft(extent)),
+                    map.getPixelFromCoordinateInternal(extent_js_34.getTopRight(extent)),
+                ]);
+                const factor = view.getResolutionForExtentInternal(boxPixelExtent, size);
+                extent_js_34.scaleFromCenter(mapExtent, 1 / factor);
+                extent = mapExtent;
+            }
+            const resolution = view.getConstrainedResolution(view.getResolutionForExtentInternal(extent, size));
+            const center = view.getConstrainedCenter(extent_js_34.getCenter(extent), resolution);
+            view.animateInternal({
+                resolution: resolution,
+                center: center,
+                duration: this.duration_,
+                easing: easing_js_9.easeOut,
+            });
+        }
+    }
+    exports.default = DragZoom;
+});
+define("node_modules/ol/src/events/KeyCode", ["require", "exports"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.default = {
+        LEFT: 37,
+        UP: 38,
+        RIGHT: 39,
+        DOWN: 40,
+    };
+});
+define("node_modules/ol/src/interaction/KeyboardPan", ["require", "exports", "node_modules/ol/src/events/EventType", "node_modules/ol/src/interaction/Interaction", "node_modules/ol/src/events/KeyCode", "node_modules/ol/src/events/condition", "node_modules/ol/src/coordinate"], function (require, exports, EventType_js_30, Interaction_js_3, KeyCode_js_1, condition_js_5, coordinate_js_6) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    class KeyboardPan extends Interaction_js_3.default {
+        constructor(opt_options) {
+            super();
+            const options = opt_options || {};
+            this.defaultCondition_ = function (mapBrowserEvent) {
+                return (condition_js_5.noModifierKeys(mapBrowserEvent) && condition_js_5.targetNotEditable(mapBrowserEvent));
+            };
+            this.condition_ =
+                options.condition !== undefined
+                    ? options.condition
+                    : this.defaultCondition_;
+            this.duration_ = options.duration !== undefined ? options.duration : 100;
+            this.pixelDelta_ =
+                options.pixelDelta !== undefined ? options.pixelDelta : 128;
+        }
+        handleEvent(mapBrowserEvent) {
+            let stopEvent = false;
+            if (mapBrowserEvent.type == EventType_js_30.default.KEYDOWN) {
+                const keyEvent = (mapBrowserEvent.originalEvent);
+                const keyCode = keyEvent.keyCode;
+                if (this.condition_(mapBrowserEvent) &&
+                    (keyCode == KeyCode_js_1.default.DOWN ||
+                        keyCode == KeyCode_js_1.default.LEFT ||
+                        keyCode == KeyCode_js_1.default.RIGHT ||
+                        keyCode == KeyCode_js_1.default.UP)) {
+                    const map = mapBrowserEvent.map;
+                    const view = map.getView();
+                    const mapUnitsDelta = view.getResolution() * this.pixelDelta_;
+                    let deltaX = 0, deltaY = 0;
+                    if (keyCode == KeyCode_js_1.default.DOWN) {
+                        deltaY = -mapUnitsDelta;
+                    }
+                    else if (keyCode == KeyCode_js_1.default.LEFT) {
+                        deltaX = -mapUnitsDelta;
+                    }
+                    else if (keyCode == KeyCode_js_1.default.RIGHT) {
+                        deltaX = mapUnitsDelta;
+                    }
+                    else {
+                        deltaY = mapUnitsDelta;
+                    }
+                    const delta = [deltaX, deltaY];
+                    coordinate_js_6.rotate(delta, view.getRotation());
+                    Interaction_js_3.pan(view, delta, this.duration_);
+                    mapBrowserEvent.preventDefault();
+                    stopEvent = true;
+                }
+            }
+            return !stopEvent;
+        }
+    }
+    exports.default = KeyboardPan;
+});
+define("node_modules/ol/src/interaction/KeyboardZoom", ["require", "exports", "node_modules/ol/src/events/EventType", "node_modules/ol/src/interaction/Interaction", "node_modules/ol/src/events/condition"], function (require, exports, EventType_js_31, Interaction_js_4, condition_js_6) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    class KeyboardZoom extends Interaction_js_4.default {
+        constructor(opt_options) {
+            super();
+            const options = opt_options ? opt_options : {};
+            this.condition_ = options.condition ? options.condition : condition_js_6.targetNotEditable;
+            this.delta_ = options.delta ? options.delta : 1;
+            this.duration_ = options.duration !== undefined ? options.duration : 100;
+        }
+        handleEvent(mapBrowserEvent) {
+            let stopEvent = false;
+            if (mapBrowserEvent.type == EventType_js_31.default.KEYDOWN ||
+                mapBrowserEvent.type == EventType_js_31.default.KEYPRESS) {
+                const keyEvent = (mapBrowserEvent.originalEvent);
+                const charCode = keyEvent.charCode;
+                if (this.condition_(mapBrowserEvent) &&
+                    (charCode == '+'.charCodeAt(0) || charCode == '-'.charCodeAt(0))) {
+                    const map = mapBrowserEvent.map;
+                    const delta = charCode == '+'.charCodeAt(0) ? this.delta_ : -this.delta_;
+                    const view = map.getView();
+                    Interaction_js_4.zoomByDelta(view, delta, undefined, this.duration_);
+                    mapBrowserEvent.preventDefault();
+                    stopEvent = true;
+                }
+            }
+            return !stopEvent;
+        }
+    }
+    exports.default = KeyboardZoom;
+});
+define("node_modules/ol/src/interaction/MouseWheelZoom", ["require", "exports", "node_modules/ol/src/events/EventType", "node_modules/ol/src/interaction/Interaction", "node_modules/ol/src/has", "node_modules/ol/src/events/condition", "node_modules/ol/src/math"], function (require, exports, EventType_js_32, Interaction_js_5, has_js_8, condition_js_7, math_js_19) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.Mode = void 0;
+    exports.Mode = {
+        TRACKPAD: 'trackpad',
+        WHEEL: 'wheel',
+    };
+    class MouseWheelZoom extends Interaction_js_5.default {
+        constructor(opt_options) {
+            const options = opt_options ? opt_options : {};
+            super((options));
+            this.totalDelta_ = 0;
+            this.lastDelta_ = 0;
+            this.maxDelta_ = options.maxDelta !== undefined ? options.maxDelta : 1;
+            this.duration_ = options.duration !== undefined ? options.duration : 250;
+            this.timeout_ = options.timeout !== undefined ? options.timeout : 80;
+            this.useAnchor_ =
+                options.useAnchor !== undefined ? options.useAnchor : true;
+            this.constrainResolution_ =
+                options.constrainResolution !== undefined
+                    ? options.constrainResolution
+                    : false;
+            const condition = options.condition ? options.condition : condition_js_7.always;
+            this.condition_ = options.onFocusOnly
+                ? condition_js_7.all(condition_js_7.focusWithTabindex, condition)
+                : condition;
+            this.lastAnchor_ = null;
+            this.startTime_ = undefined;
+            this.timeoutId_;
+            this.mode_ = undefined;
+            this.trackpadEventGap_ = 400;
+            this.trackpadTimeoutId_;
+            this.deltaPerZoom_ = 300;
+        }
+        endInteraction_() {
+            this.trackpadTimeoutId_ = undefined;
+            const view = this.getMap().getView();
+            view.endInteraction(undefined, this.lastDelta_ ? (this.lastDelta_ > 0 ? 1 : -1) : 0, this.lastAnchor_);
+        }
+        handleEvent(mapBrowserEvent) {
+            if (!this.condition_(mapBrowserEvent)) {
+                return true;
+            }
+            const type = mapBrowserEvent.type;
+            if (type !== EventType_js_32.default.WHEEL) {
+                return true;
+            }
+            mapBrowserEvent.preventDefault();
+            const map = mapBrowserEvent.map;
+            const wheelEvent = (mapBrowserEvent.originalEvent);
+            if (this.useAnchor_) {
+                this.lastAnchor_ = mapBrowserEvent.coordinate;
+            }
+            let delta;
+            if (mapBrowserEvent.type == EventType_js_32.default.WHEEL) {
+                delta = wheelEvent.deltaY;
+                if (has_js_8.FIREFOX && wheelEvent.deltaMode === WheelEvent.DOM_DELTA_PIXEL) {
+                    delta /= has_js_8.DEVICE_PIXEL_RATIO;
+                }
+                if (wheelEvent.deltaMode === WheelEvent.DOM_DELTA_LINE) {
+                    delta *= 40;
+                }
+            }
+            if (delta === 0) {
+                return false;
+            }
+            else {
+                this.lastDelta_ = delta;
+            }
+            const now = Date.now();
+            if (this.startTime_ === undefined) {
+                this.startTime_ = now;
+            }
+            if (!this.mode_ || now - this.startTime_ > this.trackpadEventGap_) {
+                this.mode_ = Math.abs(delta) < 4 ? exports.Mode.TRACKPAD : exports.Mode.WHEEL;
+            }
+            const view = map.getView();
+            if (this.mode_ === exports.Mode.TRACKPAD &&
+                !(view.getConstrainResolution() || this.constrainResolution_)) {
+                if (this.trackpadTimeoutId_) {
+                    clearTimeout(this.trackpadTimeoutId_);
+                }
+                else {
+                    if (view.getAnimating()) {
+                        view.cancelAnimations();
+                    }
+                    view.beginInteraction();
+                }
+                this.trackpadTimeoutId_ = setTimeout(this.endInteraction_.bind(this), this.timeout_);
+                view.adjustZoom(-delta / this.deltaPerZoom_, this.lastAnchor_);
+                this.startTime_ = now;
+                return false;
+            }
+            this.totalDelta_ += delta;
+            const timeLeft = Math.max(this.timeout_ - (now - this.startTime_), 0);
+            clearTimeout(this.timeoutId_);
+            this.timeoutId_ = setTimeout(this.handleWheelZoom_.bind(this, map), timeLeft);
+            return false;
+        }
+        handleWheelZoom_(map) {
+            const view = map.getView();
+            if (view.getAnimating()) {
+                view.cancelAnimations();
+            }
+            let delta = -math_js_19.clamp(this.totalDelta_, -this.maxDelta_ * this.deltaPerZoom_, this.maxDelta_ * this.deltaPerZoom_) / this.deltaPerZoom_;
+            if (view.getConstrainResolution() || this.constrainResolution_) {
+                delta = delta ? (delta > 0 ? 1 : -1) : 0;
+            }
+            Interaction_js_5.zoomByDelta(view, delta, this.lastAnchor_, this.duration_);
+            this.mode_ = undefined;
+            this.totalDelta_ = 0;
+            this.lastAnchor_ = null;
+            this.startTime_ = undefined;
+            this.timeoutId_ = undefined;
+        }
+        setMouseAnchor(useAnchor) {
+            this.useAnchor_ = useAnchor;
+            if (!useAnchor) {
+                this.lastAnchor_ = null;
+            }
+        }
+    }
+    exports.default = MouseWheelZoom;
+});
+define("node_modules/ol/src/interaction/PinchRotate", ["require", "exports", "node_modules/ol/src/interaction/Pointer", "node_modules/ol/src/functions", "node_modules/ol/src/rotationconstraint"], function (require, exports, Pointer_js_4, functions_js_12, rotationconstraint_js_3) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    class PinchRotate extends Pointer_js_4.default {
+        constructor(opt_options) {
+            const options = opt_options ? opt_options : {};
+            const pointerOptions = (options);
+            if (!pointerOptions.stopDown) {
+                pointerOptions.stopDown = functions_js_12.FALSE;
+            }
+            super(pointerOptions);
+            this.anchor_ = null;
+            this.lastAngle_ = undefined;
+            this.rotating_ = false;
+            this.rotationDelta_ = 0.0;
+            this.threshold_ = options.threshold !== undefined ? options.threshold : 0.3;
+            this.duration_ = options.duration !== undefined ? options.duration : 250;
+        }
+        handleDragEvent(mapBrowserEvent) {
+            let rotationDelta = 0.0;
+            const touch0 = this.targetPointers[0];
+            const touch1 = this.targetPointers[1];
+            const angle = Math.atan2(touch1.clientY - touch0.clientY, touch1.clientX - touch0.clientX);
+            if (this.lastAngle_ !== undefined) {
+                const delta = angle - this.lastAngle_;
+                this.rotationDelta_ += delta;
+                if (!this.rotating_ && Math.abs(this.rotationDelta_) > this.threshold_) {
+                    this.rotating_ = true;
+                }
+                rotationDelta = delta;
+            }
+            this.lastAngle_ = angle;
+            const map = mapBrowserEvent.map;
+            const view = map.getView();
+            if (view.getConstraints().rotation === rotationconstraint_js_3.disable) {
+                return;
+            }
+            const viewportPosition = map.getViewport().getBoundingClientRect();
+            const centroid = Pointer_js_4.centroid(this.targetPointers);
+            centroid[0] -= viewportPosition.left;
+            centroid[1] -= viewportPosition.top;
+            this.anchor_ = map.getCoordinateFromPixelInternal(centroid);
+            if (this.rotating_) {
+                map.render();
+                view.adjustRotationInternal(rotationDelta, this.anchor_);
+            }
+        }
+        handleUpEvent(mapBrowserEvent) {
+            if (this.targetPointers.length < 2) {
+                const map = mapBrowserEvent.map;
+                const view = map.getView();
+                view.endInteraction(this.duration_);
+                return false;
+            }
+            else {
+                return true;
+            }
+        }
+        handleDownEvent(mapBrowserEvent) {
+            if (this.targetPointers.length >= 2) {
+                const map = mapBrowserEvent.map;
+                this.anchor_ = null;
+                this.lastAngle_ = undefined;
+                this.rotating_ = false;
+                this.rotationDelta_ = 0.0;
+                if (!this.handlingDownUpSequence) {
+                    map.getView().beginInteraction();
+                }
+                return true;
+            }
+            else {
+                return false;
+            }
+        }
+    }
+    exports.default = PinchRotate;
+});
+define("node_modules/ol/src/interaction/PinchZoom", ["require", "exports", "node_modules/ol/src/interaction/Pointer", "node_modules/ol/src/functions"], function (require, exports, Pointer_js_5, functions_js_13) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    class PinchZoom extends Pointer_js_5.default {
+        constructor(opt_options) {
+            const options = opt_options ? opt_options : {};
+            const pointerOptions = (options);
+            if (!pointerOptions.stopDown) {
+                pointerOptions.stopDown = functions_js_13.FALSE;
+            }
+            super(pointerOptions);
+            this.anchor_ = null;
+            this.duration_ = options.duration !== undefined ? options.duration : 400;
+            this.lastDistance_ = undefined;
+            this.lastScaleDelta_ = 1;
+        }
+        handleDragEvent(mapBrowserEvent) {
+            let scaleDelta = 1.0;
+            const touch0 = this.targetPointers[0];
+            const touch1 = this.targetPointers[1];
+            const dx = touch0.clientX - touch1.clientX;
+            const dy = touch0.clientY - touch1.clientY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            if (this.lastDistance_ !== undefined) {
+                scaleDelta = this.lastDistance_ / distance;
+            }
+            this.lastDistance_ = distance;
+            const map = mapBrowserEvent.map;
+            const view = map.getView();
+            if (scaleDelta != 1.0) {
+                this.lastScaleDelta_ = scaleDelta;
+            }
+            const viewportPosition = map.getViewport().getBoundingClientRect();
+            const centroid = Pointer_js_5.centroid(this.targetPointers);
+            centroid[0] -= viewportPosition.left;
+            centroid[1] -= viewportPosition.top;
+            this.anchor_ = map.getCoordinateFromPixelInternal(centroid);
+            map.render();
+            view.adjustResolutionInternal(scaleDelta, this.anchor_);
+        }
+        handleUpEvent(mapBrowserEvent) {
+            if (this.targetPointers.length < 2) {
+                const map = mapBrowserEvent.map;
+                const view = map.getView();
+                const direction = this.lastScaleDelta_ > 1 ? 1 : -1;
+                view.endInteraction(this.duration_, direction);
+                return false;
+            }
+            else {
+                return true;
+            }
+        }
+        handleDownEvent(mapBrowserEvent) {
+            if (this.targetPointers.length >= 2) {
+                const map = mapBrowserEvent.map;
+                this.anchor_ = null;
+                this.lastDistance_ = undefined;
+                this.lastScaleDelta_ = 1;
+                if (!this.handlingDownUpSequence) {
+                    map.getView().beginInteraction();
+                }
+                return true;
+            }
+            else {
+                return false;
+            }
+        }
+    }
+    exports.default = PinchZoom;
+});
+define("node_modules/ol/src/interaction/DragAndDrop", ["require", "exports", "node_modules/ol/src/events/Event", "node_modules/ol/src/events/EventType", "node_modules/ol/src/interaction/Interaction", "node_modules/ol/src/functions", "node_modules/ol/src/proj", "node_modules/ol/src/events"], function (require, exports, Event_js_11, EventType_js_33, Interaction_js_6, functions_js_14, proj_js_13, events_js_17) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     const DragAndDropEventType = {
@@ -17546,7 +18440,7 @@ define("node_modules/ol/src/interaction/DragAndDrop", ["require", "exports", "no
                 ? options.formatConstructors
                 : [];
             this.projection_ = options.projection
-                ? proj_js_12.get(options.projection)
+                ? proj_js_13.get(options.projection)
                 : null;
             this.dropListenKeys_ = null;
             this.source_ = options.source || null;
@@ -17710,7 +18604,7 @@ define("node_modules/ol/src/source/TileEventType", ["require", "exports"], funct
         TILELOADERROR: 'tileloaderror',
     };
 });
-define("node_modules/ol/src/tileurlfunction", ["require", "exports", "node_modules/ol/src/asserts", "node_modules/ol/src/math", "node_modules/ol/src/tilecoord"], function (require, exports, asserts_js_17, math_js_20, tilecoord_js_4) {
+define("node_modules/ol/src/tileurlfunction", ["require", "exports", "node_modules/ol/src/asserts", "node_modules/ol/src/math", "node_modules/ol/src/tilecoord"], function (require, exports, asserts_js_18, math_js_20, tilecoord_js_4) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.expandUrl = exports.nullTileUrlFunction = exports.createFromTileUrlFunctions = exports.createFromTemplates = exports.createFromTemplate = void 0;
@@ -17731,7 +18625,7 @@ define("node_modules/ol/src/tileurlfunction", ["require", "exports", "node_modul
                     .replace(dashYRegEx, function () {
                     const z = tileCoord[0];
                     const range = tileGrid.getFullTileRange(z);
-                    asserts_js_17.assert(range, 55);
+                    asserts_js_18.assert(range, 55);
                     const y = range.getHeight() - tileCoord[2] - 1;
                     return y.toString();
                 });
@@ -17793,7 +18687,7 @@ define("node_modules/ol/src/tileurlfunction", ["require", "exports", "node_modul
     }
     exports.expandUrl = expandUrl;
 });
-define("node_modules/ol/src/source/UrlTile", ["require", "exports", "node_modules/ol/src/source/TileEventType", "node_modules/ol/src/source/Tile", "node_modules/ol/src/TileState", "node_modules/ol/src/tileurlfunction", "node_modules/ol/src/tilecoord", "node_modules/ol/src/util"], function (require, exports, TileEventType_js_1, Tile_js_2, TileState_js_5, tileurlfunction_js_1, tilecoord_js_5, util_js_19) {
+define("node_modules/ol/src/source/UrlTile", ["require", "exports", "node_modules/ol/src/source/TileEventType", "node_modules/ol/src/source/Tile", "node_modules/ol/src/TileState", "node_modules/ol/src/tileurlfunction", "node_modules/ol/src/tilecoord", "node_modules/ol/src/util"], function (require, exports, TileEventType_js_1, Tile_js_2, TileState_js_5, tileurlfunction_js_1, tilecoord_js_5, util_js_20) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     class UrlTile extends Tile_js_2.default {
@@ -17838,7 +18732,7 @@ define("node_modules/ol/src/source/UrlTile", ["require", "exports", "node_module
         }
         handleTileChange(event) {
             const tile = (event.target);
-            const uid = util_js_19.getUid(tile);
+            const uid = util_js_20.getUid(tile);
             const tileState = tile.getState();
             let type;
             if (tileState == TileState_js_5.default.LOADING) {
@@ -17967,10 +18861,10 @@ define("node_modules/ol/src/geom/flat/textpath", ["require", "exports", "node_mo
     }
     exports.drawTextOnPath = drawTextOnPath;
 });
-define("node_modules/ol/src/render/canvas/Executor", ["require", "exports", "node_modules/ol/src/render/canvas/Instruction", "node_modules/rbush/index", "node_modules/ol/src/render/canvas/TextBuilder", "node_modules/ol/src/has", "node_modules/ol/src/transform", "node_modules/ol/src/extent", "node_modules/ol/src/render/canvas", "node_modules/ol/src/render/canvas", "node_modules/ol/src/geom/flat/textpath", "node_modules/ol/src/array", "node_modules/ol/src/geom/flat/length", "node_modules/ol/src/geom/flat/transform"], function (require, exports, Instruction_js_6, rbush_js_2, TextBuilder_js_2, has_js_9, transform_js_14, extent_js_34, canvas_js_7, canvas_js_8, textpath_js_1, array_js_17, length_js_2, transform_js_15) {
+define("node_modules/ol/src/render/canvas/Executor", ["require", "exports", "node_modules/ol/src/render/canvas/Instruction", "node_modules/rbush/index", "node_modules/ol/src/render/canvas/TextBuilder", "node_modules/ol/src/has", "node_modules/ol/src/transform", "node_modules/ol/src/extent", "node_modules/ol/src/render/canvas", "node_modules/ol/src/render/canvas", "node_modules/ol/src/geom/flat/textpath", "node_modules/ol/src/array", "node_modules/ol/src/geom/flat/length", "node_modules/ol/src/geom/flat/transform"], function (require, exports, Instruction_js_6, rbush_js_2, TextBuilder_js_2, has_js_9, transform_js_14, extent_js_35, canvas_js_7, canvas_js_8, textpath_js_1, array_js_17, length_js_2, transform_js_15) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    const tmpExtent = extent_js_34.createEmpty();
+    const tmpExtent = extent_js_35.createEmpty();
     const tmpTransform = transform_js_14.create();
     const p1 = [];
     const p2 = [];
@@ -18126,18 +19020,18 @@ define("node_modules/ol/src/render/canvas/Executor", ["require", "exports", "nod
                 transform_js_14.apply(tmpTransform, p2);
                 transform_js_14.apply(tmpTransform, p3);
                 transform_js_14.apply(tmpTransform, p4);
-                extent_js_34.createOrUpdate(Math.min(p1[0], p2[0], p3[0], p4[0]), Math.min(p1[1], p2[1], p3[1], p4[1]), Math.max(p1[0], p2[0], p3[0], p4[0]), Math.max(p1[1], p2[1], p3[1], p4[1]), tmpExtent);
+                extent_js_35.createOrUpdate(Math.min(p1[0], p2[0], p3[0], p4[0]), Math.min(p1[1], p2[1], p3[1], p4[1]), Math.max(p1[0], p2[0], p3[0], p4[0]), Math.max(p1[1], p2[1], p3[1], p4[1]), tmpExtent);
             }
             else {
-                extent_js_34.createOrUpdate(boxX, boxY, boxX + boxW, boxY + boxH, tmpExtent);
+                extent_js_35.createOrUpdate(boxX, boxY, boxX + boxW, boxY + boxH, tmpExtent);
             }
             let renderBufferX = 0;
             let renderBufferY = 0;
             if (declutterGroup) {
                 const renderBuffer = this.renderBuffer_;
-                renderBuffer[0] = Math.max(renderBuffer[0], extent_js_34.getWidth(tmpExtent));
+                renderBuffer[0] = Math.max(renderBuffer[0], extent_js_35.getWidth(tmpExtent));
                 renderBufferX = renderBuffer[0];
-                renderBuffer[1] = Math.max(renderBuffer[1], extent_js_34.getHeight(tmpExtent));
+                renderBuffer[1] = Math.max(renderBuffer[1], extent_js_35.getHeight(tmpExtent));
                 renderBufferY = renderBuffer[1];
             }
             const canvas = context.canvas;
@@ -18320,7 +19214,7 @@ define("node_modules/ol/src/render/canvas/Executor", ["require", "exports", "nod
                             i = (instruction[2]);
                         }
                         else if (opt_hitExtent !== undefined &&
-                            !extent_js_34.intersects(opt_hitExtent, instruction[3])) {
+                            !extent_js_35.intersects(opt_hitExtent, instruction[3])) {
                             i = (instruction[2]) + 1;
                         }
                         else {
@@ -18646,7 +19540,7 @@ define("node_modules/ol/src/render/canvas/Executor", ["require", "exports", "nod
     }
     exports.default = Executor;
 });
-define("node_modules/ol/src/render/canvas/ExecutorGroup", ["require", "exports", "node_modules/ol/src/render/canvas/BuilderType", "node_modules/ol/src/render/canvas/Executor", "node_modules/ol/src/extent", "node_modules/ol/src/transform", "node_modules/ol/src/dom", "node_modules/ol/src/obj", "node_modules/ol/src/array", "node_modules/ol/src/geom/flat/transform"], function (require, exports, BuilderType_js_2, Executor_js_1, extent_js_35, transform_js_16, dom_js_11, obj_js_15, array_js_18, transform_js_17) {
+define("node_modules/ol/src/render/canvas/ExecutorGroup", ["require", "exports", "node_modules/ol/src/render/canvas/BuilderType", "node_modules/ol/src/render/canvas/Executor", "node_modules/ol/src/extent", "node_modules/ol/src/transform", "node_modules/ol/src/dom", "node_modules/ol/src/obj", "node_modules/ol/src/array", "node_modules/ol/src/geom/flat/transform"], function (require, exports, BuilderType_js_2, Executor_js_1, extent_js_36, transform_js_16, dom_js_11, obj_js_16, array_js_18, transform_js_17) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.replayDeclutter = exports.getCircleArray = void 0;
@@ -18723,9 +19617,9 @@ define("node_modules/ol/src/render/canvas/ExecutorGroup", ["require", "exports",
             }
             let hitExtent;
             if (this.renderBuffer_ !== undefined) {
-                hitExtent = extent_js_35.createEmpty();
-                extent_js_35.extendCoordinate(hitExtent, coordinate);
-                extent_js_35.buffer(hitExtent, resolution * (this.renderBuffer_ + hitTolerance), hitExtent);
+                hitExtent = extent_js_36.createEmpty();
+                extent_js_36.extendCoordinate(hitExtent, coordinate);
+                extent_js_36.buffer(hitExtent, resolution * (this.renderBuffer_ + hitTolerance), hitExtent);
             }
             const mask = getCircleArray(hitTolerance);
             let builderType;
@@ -18788,7 +19682,7 @@ define("node_modules/ol/src/render/canvas/ExecutorGroup", ["require", "exports",
             return flatClipCoords;
         }
         isEmpty() {
-            return obj_js_15.isEmpty(this.executorsByZIndex_);
+            return obj_js_16.isEmpty(this.executorsByZIndex_);
         }
         execute(context, contextScale, transform, viewRotation, snapToPixel, opt_builderTypes, opt_declutterReplays) {
             const zs = Object.keys(this.executorsByZIndex_).map(Number);
@@ -18901,7 +19795,7 @@ define("node_modules/ol/src/render/canvas/ExecutorGroup", ["require", "exports",
     exports.replayDeclutter = replayDeclutter;
     exports.default = ExecutorGroup;
 });
-define("node_modules/ol/src/VectorRenderTile", ["require", "exports", "node_modules/ol/src/Tile", "node_modules/ol/src/dom", "node_modules/ol/src/util"], function (require, exports, Tile_js_3, dom_js_12, util_js_20) {
+define("node_modules/ol/src/VectorRenderTile", ["require", "exports", "node_modules/ol/src/Tile", "node_modules/ol/src/dom", "node_modules/ol/src/util"], function (require, exports, Tile_js_3, dom_js_12, util_js_21) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     const canvasPool = [];
@@ -18922,20 +19816,20 @@ define("node_modules/ol/src/VectorRenderTile", ["require", "exports", "node_modu
             this.wrappedTileCoord = urlTileCoord;
         }
         getContext(layer) {
-            const key = util_js_20.getUid(layer);
+            const key = util_js_21.getUid(layer);
             if (!(key in this.context_)) {
                 this.context_[key] = dom_js_12.createCanvasContext2D(1, 1, canvasPool);
             }
             return this.context_[key];
         }
         hasContext(layer) {
-            return util_js_20.getUid(layer) in this.context_;
+            return util_js_21.getUid(layer) in this.context_;
         }
         getImage(layer) {
             return this.hasContext(layer) ? this.getContext(layer).canvas : null;
         }
         getReplayState(layer) {
-            const key = util_js_20.getUid(layer);
+            const key = util_js_21.getUid(layer);
             if (!(key in this.replayState_)) {
                 this.replayState_[key] = {
                     dirty: false,
@@ -18962,7 +19856,7 @@ define("node_modules/ol/src/VectorRenderTile", ["require", "exports", "node_modu
     }
     exports.default = VectorRenderTile;
 });
-define("node_modules/ol/src/source/VectorTile", ["require", "exports", "node_modules/ol/src/events/EventType", "node_modules/ol/src/VectorTile", "node_modules/ol/src/TileCache", "node_modules/ol/src/TileState", "node_modules/ol/src/source/UrlTile", "node_modules/ol/src/VectorRenderTile", "node_modules/ol/src/extent", "node_modules/ol/src/tilegrid", "node_modules/ol/src/array", "node_modules/ol/src/tilecoord", "node_modules/ol/src/featureloader", "node_modules/ol/src/size"], function (require, exports, EventType_js_34, VectorTile_js_1, TileCache_js_2, TileState_js_6, UrlTile_js_1, VectorRenderTile_js_1, extent_js_36, tilegrid_js_2, array_js_19, tilecoord_js_6, featureloader_js_2, size_js_7) {
+define("node_modules/ol/src/source/VectorTile", ["require", "exports", "node_modules/ol/src/events/EventType", "node_modules/ol/src/VectorTile", "node_modules/ol/src/TileCache", "node_modules/ol/src/TileState", "node_modules/ol/src/source/UrlTile", "node_modules/ol/src/VectorRenderTile", "node_modules/ol/src/extent", "node_modules/ol/src/tilegrid", "node_modules/ol/src/array", "node_modules/ol/src/tilecoord", "node_modules/ol/src/featureloader", "node_modules/ol/src/size"], function (require, exports, EventType_js_34, VectorTile_js_1, TileCache_js_2, TileState_js_6, UrlTile_js_1, VectorRenderTile_js_1, extent_js_37, tilegrid_js_2, array_js_19, tilecoord_js_6, featureloader_js_2, size_js_7) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.defaultLoadFunction = void 0;
@@ -19019,13 +19913,13 @@ define("node_modules/ol/src/source/VectorTile", ["require", "exports", "node_mod
                 for (let i = 0, ii = sourceTiles.length; i < ii; ++i) {
                     const sourceTile = sourceTiles[i];
                     const tileCoord = sourceTile.tileCoord;
-                    if (extent_js_36.intersects(extent, tileGrid.getTileCoordExtent(tileCoord))) {
+                    if (extent_js_37.intersects(extent, tileGrid.getTileCoordExtent(tileCoord))) {
                         const tileFeatures = sourceTile.getFeatures();
                         if (tileFeatures) {
                             for (let j = 0, jj = tileFeatures.length; j < jj; ++j) {
                                 const candidate = tileFeatures[j];
                                 const geometry = candidate.getGeometry();
-                                if (extent_js_36.intersects(extent, geometry.getExtent())) {
+                                if (extent_js_37.intersects(extent, geometry.getExtent())) {
                                     features.push(candidate);
                                 }
                             }
@@ -19052,11 +19946,11 @@ define("node_modules/ol/src/source/VectorTile", ["require", "exports", "node_mod
             const extent = tileGrid.getTileCoordExtent(urlTileCoord);
             const z = urlTileCoord[0];
             const resolution = tileGrid.getResolution(z);
-            extent_js_36.buffer(extent, -resolution, extent);
+            extent_js_37.buffer(extent, -resolution, extent);
             const sourceTileGrid = this.tileGrid;
             const sourceExtent = sourceTileGrid.getExtent();
             if (sourceExtent) {
-                extent_js_36.getIntersection(extent, sourceExtent, extent);
+                extent_js_37.getIntersection(extent, sourceExtent, extent);
             }
             const sourceZ = sourceTileGrid.getZForResolution(resolution, 1);
             const minZoom = sourceTileGrid.getMinZoom();
@@ -19169,8 +20063,8 @@ define("node_modules/ol/src/source/VectorTile", ["require", "exports", "node_mod
             const tileGrid = this.getTileGridForProjection(projection);
             if (urlTileCoord && sourceExtent) {
                 const tileExtent = tileGrid.getTileCoordExtent(urlTileCoord);
-                extent_js_36.buffer(tileExtent, -tileGrid.getResolution(z), tileExtent);
-                if (!extent_js_36.intersects(sourceExtent, tileExtent)) {
+                extent_js_37.buffer(tileExtent, -tileGrid.getResolution(z), tileExtent);
+                if (!extent_js_37.intersects(sourceExtent, tileExtent)) {
                     urlTileCoord = null;
                 }
             }
@@ -19180,7 +20074,7 @@ define("node_modules/ol/src/source/VectorTile", ["require", "exports", "node_mod
                 const resolution = tileGrid.getResolution(z);
                 const sourceZ = sourceTileGrid.getZForResolution(resolution, 1);
                 const extent = tileGrid.getTileCoordExtent(urlTileCoord);
-                extent_js_36.buffer(extent, -resolution, extent);
+                extent_js_37.buffer(extent, -resolution, extent);
                 sourceTileGrid.forEachTileCoord(extent, sourceZ, function (sourceTileCoord) {
                     empty =
                         empty &&
@@ -19233,7 +20127,7 @@ define("node_modules/ol/src/source/VectorTile", ["require", "exports", "node_mod
     }
     exports.defaultLoadFunction = defaultLoadFunction;
 });
-define("node_modules/ol/src/layer/BaseVector", ["require", "exports", "node_modules/ol/src/layer/Layer", "node_modules/ol/src/obj", "node_modules/ol/src/style/Style"], function (require, exports, Layer_js_4, obj_js_16, Style_js_1) {
+define("node_modules/ol/src/layer/BaseVector", ["require", "exports", "node_modules/ol/src/layer/Layer", "node_modules/ol/src/obj", "node_modules/ol/src/style/Style"], function (require, exports, Layer_js_4, obj_js_17, Style_js_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     const Property = {
@@ -19242,7 +20136,7 @@ define("node_modules/ol/src/layer/BaseVector", ["require", "exports", "node_modu
     class BaseVectorLayer extends Layer_js_4.default {
         constructor(opt_options) {
             const options = opt_options ? opt_options : {};
-            const baseOptions = obj_js_16.assign({}, options);
+            const baseOptions = obj_js_17.assign({}, options);
             delete baseOptions.style;
             delete baseOptions.renderBuffer;
             delete baseOptions.updateWhileAnimating;
@@ -19300,7 +20194,7 @@ define("node_modules/ol/src/layer/BaseVector", ["require", "exports", "node_modu
     }
     exports.default = BaseVectorLayer;
 });
-define("node_modules/ol/src/renderer/canvas/Layer", ["require", "exports", "node_modules/ol/src/renderer/Layer", "node_modules/ol/src/render/Event", "node_modules/ol/src/render/EventType", "node_modules/ol/src/transform", "node_modules/ol/src/dom", "node_modules/ol/src/extent", "node_modules/ol/src/render/canvas"], function (require, exports, Layer_js_5, Event_js_12, EventType_js_35, transform_js_18, dom_js_13, extent_js_37, canvas_js_9) {
+define("node_modules/ol/src/renderer/canvas/Layer", ["require", "exports", "node_modules/ol/src/renderer/Layer", "node_modules/ol/src/render/Event", "node_modules/ol/src/render/EventType", "node_modules/ol/src/transform", "node_modules/ol/src/dom", "node_modules/ol/src/extent", "node_modules/ol/src/render/canvas"], function (require, exports, Layer_js_5, Event_js_12, EventType_js_35, transform_js_18, dom_js_13, extent_js_38, canvas_js_9) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     class CanvasLayerRenderer extends Layer_js_5.default {
@@ -19360,10 +20254,10 @@ define("node_modules/ol/src/renderer/canvas/Layer", ["require", "exports", "node
             const halfWidth = (frameState.size[0] * pixelRatio) / 2;
             const halfHeight = (frameState.size[1] * pixelRatio) / 2;
             const rotation = frameState.viewState.rotation;
-            const topLeft = extent_js_37.getTopLeft(extent);
-            const topRight = extent_js_37.getTopRight(extent);
-            const bottomRight = extent_js_37.getBottomRight(extent);
-            const bottomLeft = extent_js_37.getBottomLeft(extent);
+            const topLeft = extent_js_38.getTopLeft(extent);
+            const topRight = extent_js_38.getTopRight(extent);
+            const bottomRight = extent_js_38.getBottomRight(extent);
+            const bottomLeft = extent_js_38.getBottomLeft(extent);
             transform_js_18.apply(frameState.coordinateToPixelTransform, topLeft);
             transform_js_18.apply(frameState.coordinateToPixelTransform, topRight);
             transform_js_18.apply(frameState.coordinateToPixelTransform, bottomRight);
@@ -19379,10 +20273,10 @@ define("node_modules/ol/src/renderer/canvas/Layer", ["require", "exports", "node
             canvas_js_9.rotateAtOffset(context, rotation, halfWidth, halfHeight);
         }
         clipUnrotated(context, frameState, extent) {
-            const topLeft = extent_js_37.getTopLeft(extent);
-            const topRight = extent_js_37.getTopRight(extent);
-            const bottomRight = extent_js_37.getBottomRight(extent);
-            const bottomLeft = extent_js_37.getBottomLeft(extent);
+            const topLeft = extent_js_38.getTopLeft(extent);
+            const topRight = extent_js_38.getTopRight(extent);
+            const bottomRight = extent_js_38.getBottomRight(extent);
+            const bottomLeft = extent_js_38.getBottomLeft(extent);
             transform_js_18.apply(frameState.coordinateToPixelTransform, topLeft);
             transform_js_18.apply(frameState.coordinateToPixelTransform, topRight);
             transform_js_18.apply(frameState.coordinateToPixelTransform, bottomRight);
@@ -19469,7 +20363,7 @@ define("node_modules/ol/src/style/IconOrigin", ["require", "exports"], function 
         TOP_RIGHT: 'top-right',
     };
 });
-define("node_modules/ol/src/style/Icon", ["require", "exports", "node_modules/ol/src/events/EventType", "node_modules/ol/src/style/IconAnchorUnits", "node_modules/ol/src/style/IconOrigin", "node_modules/ol/src/ImageState", "node_modules/ol/src/style/Image", "node_modules/ol/src/color", "node_modules/ol/src/asserts", "node_modules/ol/src/style/IconImage", "node_modules/ol/src/util"], function (require, exports, EventType_js_36, IconAnchorUnits_js_1, IconOrigin_js_1, ImageState_js_6, Image_js_3, color_js_4, asserts_js_18, IconImage_js_1, util_js_21) {
+define("node_modules/ol/src/style/Icon", ["require", "exports", "node_modules/ol/src/events/EventType", "node_modules/ol/src/style/IconAnchorUnits", "node_modules/ol/src/style/IconOrigin", "node_modules/ol/src/ImageState", "node_modules/ol/src/style/Image", "node_modules/ol/src/color", "node_modules/ol/src/asserts", "node_modules/ol/src/style/IconImage", "node_modules/ol/src/util"], function (require, exports, EventType_js_36, IconAnchorUnits_js_1, IconOrigin_js_1, ImageState_js_6, Image_js_3, color_js_4, asserts_js_19, IconImage_js_1, util_js_22) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     class Icon extends Image_js_3.default {
@@ -19505,12 +20399,12 @@ define("node_modules/ol/src/style/Icon", ["require", "exports", "node_modules/ol
             const image = options.img !== undefined ? options.img : null;
             const imgSize = options.imgSize !== undefined ? options.imgSize : null;
             let src = options.src;
-            asserts_js_18.assert(!(src !== undefined && image), 4);
-            asserts_js_18.assert(!image || (image && imgSize), 5);
+            asserts_js_19.assert(!(src !== undefined && image), 4);
+            asserts_js_19.assert(!image || (image && imgSize), 5);
             if ((src === undefined || src.length === 0) && image) {
-                src = (image).src || util_js_21.getUid(image);
+                src = (image).src || util_js_22.getUid(image);
             }
-            asserts_js_18.assert(src !== undefined && src.length > 0, 6);
+            asserts_js_19.assert(src !== undefined && src.length > 0, 6);
             const imageState = options.src !== undefined ? ImageState_js_6.default.IDLE : ImageState_js_6.default.LOADED;
             this.color_ = options.color !== undefined ? color_js_4.asArray(options.color) : null;
             this.iconImage_ = IconImage_js_1.get(image, (src), imgSize, this.crossOrigin_, imageState, this.color_);
@@ -19665,7 +20559,7 @@ define("node_modules/ol/src/style", ["require", "exports", "node_modules/ol/src/
     Object.defineProperty(exports, "Style", { enumerable: true, get: function () { return Style_js_2.default; } });
     Object.defineProperty(exports, "Text", { enumerable: true, get: function () { return Text_js_1.default; } });
 });
-define("node_modules/ol/src/render/canvas/hitdetect", ["require", "exports", "node_modules/ol/src/render/canvas/Immediate", "node_modules/ol/src/geom/GeometryType", "node_modules/ol/src/style/IconAnchorUnits", "node_modules/ol/src/style", "node_modules/ol/src/dom", "node_modules/ol/src/extent", "node_modules/ol/src/array"], function (require, exports, Immediate_js_2, GeometryType_js_18, IconAnchorUnits_js_2, style_js_1, dom_js_14, extent_js_38, array_js_20) {
+define("node_modules/ol/src/render/canvas/hitdetect", ["require", "exports", "node_modules/ol/src/render/canvas/Immediate", "node_modules/ol/src/geom/GeometryType", "node_modules/ol/src/style/IconAnchorUnits", "node_modules/ol/src/style", "node_modules/ol/src/dom", "node_modules/ol/src/extent", "node_modules/ol/src/array"], function (require, exports, Immediate_js_2, GeometryType_js_19, IconAnchorUnits_js_2, style_js_1, dom_js_14, extent_js_39, array_js_20) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.hitDetect = exports.createHitDetectionImageData = void 0;
@@ -19742,13 +20636,13 @@ define("node_modules/ol/src/render/canvas/hitdetect", ["require", "exports", "no
                 if (!byGeometryType) {
                     byGeometryType = {};
                     featuresByZIndex[zIndex] = byGeometryType;
-                    byGeometryType[GeometryType_js_18.default.POLYGON] = [];
-                    byGeometryType[GeometryType_js_18.default.CIRCLE] = [];
-                    byGeometryType[GeometryType_js_18.default.LINE_STRING] = [];
-                    byGeometryType[GeometryType_js_18.default.POINT] = [];
+                    byGeometryType[GeometryType_js_19.default.POLYGON] = [];
+                    byGeometryType[GeometryType_js_19.default.CIRCLE] = [];
+                    byGeometryType[GeometryType_js_19.default.LINE_STRING] = [];
+                    byGeometryType[GeometryType_js_19.default.POINT] = [];
                 }
                 const geometry = style.getGeometryFunction()(feature);
-                if (geometry && extent_js_38.intersects(extent, geometry.getExtent())) {
+                if (geometry && extent_js_39.intersects(extent, geometry.getExtent())) {
                     byGeometryType[geometry.getType().replace('Multi', '')].push(geometry, style);
                 }
             }
@@ -19790,7 +20684,7 @@ define("node_modules/ol/src/render/canvas/hitdetect", ["require", "exports", "no
     }
     exports.hitDetect = hitDetect;
 });
-define("node_modules/ol/src/renderer/canvas/VectorLayer", ["require", "exports", "node_modules/ol/src/render/canvas/BuilderGroup", "node_modules/ol/src/renderer/canvas/Layer", "node_modules/ol/src/render/canvas/ExecutorGroup", "node_modules/ol/src/ViewHint", "node_modules/ol/src/transform", "node_modules/ol/src/extent", "node_modules/ol/src/render/canvas/hitdetect", "node_modules/ol/src/renderer/vector", "node_modules/ol/src/proj", "node_modules/ol/src/util", "node_modules/ol/src/coordinate"], function (require, exports, BuilderGroup_js_1, Layer_js_6, ExecutorGroup_js_1, ViewHint_js_3, transform_js_19, extent_js_39, hitdetect_js_1, vector_js_2, proj_js_13, util_js_22, coordinate_js_7) {
+define("node_modules/ol/src/renderer/canvas/VectorLayer", ["require", "exports", "node_modules/ol/src/render/canvas/BuilderGroup", "node_modules/ol/src/renderer/canvas/Layer", "node_modules/ol/src/render/canvas/ExecutorGroup", "node_modules/ol/src/ViewHint", "node_modules/ol/src/transform", "node_modules/ol/src/extent", "node_modules/ol/src/render/canvas/hitdetect", "node_modules/ol/src/renderer/vector", "node_modules/ol/src/proj", "node_modules/ol/src/util", "node_modules/ol/src/coordinate"], function (require, exports, BuilderGroup_js_1, Layer_js_6, ExecutorGroup_js_1, ViewHint_js_3, transform_js_19, extent_js_40, hitdetect_js_1, vector_js_2, proj_js_14, util_js_23, coordinate_js_7) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     class CanvasVectorLayerRenderer extends Layer_js_6.default {
@@ -19803,7 +20697,7 @@ define("node_modules/ol/src/renderer/canvas/VectorLayer", ["require", "exports",
             this.renderedFeatures_ = null;
             this.renderedRevision_ = -1;
             this.renderedResolution_ = NaN;
-            this.renderedExtent_ = extent_js_39.createEmpty();
+            this.renderedExtent_ = extent_js_40.createEmpty();
             this.renderedRotation_;
             this.renderedCenter_ = null;
             this.renderedProjection_ = null;
@@ -19857,10 +20751,10 @@ define("node_modules/ol/src/renderer/canvas/VectorLayer", ["require", "exports",
             const vectorSource = this.getLayer().getSource();
             let clipped = false;
             if (layerState.extent && this.clipping) {
-                const layerExtent = proj_js_13.fromUserExtent(layerState.extent, projection);
+                const layerExtent = proj_js_14.fromUserExtent(layerState.extent, projection);
                 clipped =
-                    !extent_js_39.containsExtent(layerExtent, frameState.extent) &&
-                        extent_js_39.intersects(layerExtent, frameState.extent);
+                    !extent_js_40.containsExtent(layerExtent, frameState.extent) &&
+                        extent_js_40.intersects(layerExtent, frameState.extent);
                 if (clipped) {
                     this.clipUnrotated(context, frameState, layerExtent);
                 }
@@ -19872,9 +20766,9 @@ define("node_modules/ol/src/renderer/canvas/VectorLayer", ["require", "exports",
             replayGroup.execute(context, 1, transform, rotation, snapToPixel, undefined, declutterReplays);
             if (vectorSource.getWrapX() &&
                 projection.canWrapX() &&
-                !extent_js_39.containsExtent(projectionExtent, extent)) {
+                !extent_js_40.containsExtent(projectionExtent, extent)) {
                 let startX = extent[0];
-                const worldWidth = extent_js_39.getWidth(projectionExtent);
+                const worldWidth = extent_js_40.getWidth(projectionExtent);
                 let world = 0;
                 let offsetX;
                 while (startX < projectionExtent[0]) {
@@ -19933,9 +20827,9 @@ define("node_modules/ol/src/renderer/canvas/VectorLayer", ["require", "exports",
                     const projectionExtent = projection.getExtent();
                     if (source.getWrapX() &&
                         projection.canWrapX() &&
-                        !extent_js_39.containsExtent(projectionExtent, extent)) {
+                        !extent_js_40.containsExtent(projectionExtent, extent)) {
                         let startX = extent[0];
-                        const worldWidth = extent_js_39.getWidth(projectionExtent);
+                        const worldWidth = extent_js_40.getWidth(projectionExtent);
                         let world = 0;
                         let offsetX;
                         while (startX < projectionExtent[0]) {
@@ -19968,7 +20862,7 @@ define("node_modules/ol/src/renderer/canvas/VectorLayer", ["require", "exports",
                 const layer = this.getLayer();
                 const features = {};
                 const result = this.replayGroup_.forEachFeatureAtCoordinate(coordinate, resolution, rotation, hitTolerance, function (feature) {
-                    const key = util_js_22.getUid(feature);
+                    const key = util_js_23.getUid(feature);
                     if (!(key in features)) {
                         features[key] = true;
                         return callback(feature, layer);
@@ -20014,18 +20908,18 @@ define("node_modules/ol/src/renderer/canvas/VectorLayer", ["require", "exports",
                 vectorLayerRenderOrder = vector_js_2.defaultOrder;
             }
             const center = viewState.center.slice();
-            const extent = extent_js_39.buffer(frameStateExtent, vectorLayerRenderBuffer * resolution);
+            const extent = extent_js_40.buffer(frameStateExtent, vectorLayerRenderBuffer * resolution);
             const loadExtents = [extent.slice()];
             const projectionExtent = projection.getExtent();
             if (vectorSource.getWrapX() &&
                 projection.canWrapX() &&
-                !extent_js_39.containsExtent(projectionExtent, frameState.extent)) {
-                const worldWidth = extent_js_39.getWidth(projectionExtent);
-                const gutter = Math.max(extent_js_39.getWidth(extent) / 2, worldWidth);
+                !extent_js_40.containsExtent(projectionExtent, frameState.extent)) {
+                const worldWidth = extent_js_40.getWidth(projectionExtent);
+                const gutter = Math.max(extent_js_40.getWidth(extent) / 2, worldWidth);
                 extent[0] = projectionExtent[0] - gutter;
                 extent[2] = projectionExtent[2] + gutter;
                 coordinate_js_7.wrapX(center, projection);
-                const loadExtent = extent_js_39.wrapX(loadExtents[0], projection);
+                const loadExtent = extent_js_40.wrapX(loadExtents[0], projection);
                 if (loadExtent[0] < projectionExtent[0] &&
                     loadExtent[2] < projectionExtent[2]) {
                     loadExtents.push([
@@ -20049,20 +20943,20 @@ define("node_modules/ol/src/renderer/canvas/VectorLayer", ["require", "exports",
                 this.renderedResolution_ == resolution &&
                 this.renderedRevision_ == vectorLayerRevision &&
                 this.renderedRenderOrder_ == vectorLayerRenderOrder &&
-                extent_js_39.containsExtent(this.renderedExtent_, extent)) {
+                extent_js_40.containsExtent(this.renderedExtent_, extent)) {
                 this.replayGroupChanged = false;
                 return true;
             }
             this.replayGroup_ = null;
             this.dirty_ = false;
             const replayGroup = new BuilderGroup_js_1.default(vector_js_2.getTolerance(resolution, pixelRatio), extent, resolution, pixelRatio, vectorLayer.getDeclutter());
-            const userProjection = proj_js_13.getUserProjection();
+            const userProjection = proj_js_14.getUserProjection();
             let userTransform;
             if (userProjection) {
                 for (let i = 0, ii = loadExtents.length; i < ii; ++i) {
-                    vectorSource.loadFeatures(proj_js_13.toUserExtent(loadExtents[i], projection), resolution, userProjection);
+                    vectorSource.loadFeatures(proj_js_14.toUserExtent(loadExtents[i], projection), resolution, userProjection);
                 }
-                userTransform = proj_js_13.getTransformFromProjections(userProjection, projection);
+                userTransform = proj_js_14.getTransformFromProjections(userProjection, projection);
             }
             else {
                 for (let i = 0, ii = loadExtents.length; i < ii; ++i) {
@@ -20081,7 +20975,7 @@ define("node_modules/ol/src/renderer/canvas/VectorLayer", ["require", "exports",
                     this.dirty_ = this.dirty_ || dirty;
                 }
             }.bind(this);
-            const userExtent = proj_js_13.toUserExtent(extent, projection);
+            const userExtent = proj_js_14.toUserExtent(extent, projection);
             const features = vectorSource.getFeaturesInExtent(userExtent);
             if (vectorLayerRenderOrder) {
                 features.sort(vectorLayerRenderOrder);
@@ -20135,7 +21029,7 @@ define("node_modules/ol/src/layer/Vector", ["require", "exports", "node_modules/
     }
     exports.default = VectorLayer;
 });
-define("node_modules/ol/src/interaction/Draw", ["require", "exports", "node_modules/ol/src/geom/Circle", "node_modules/ol/src/events/Event", "node_modules/ol/src/events/EventType", "node_modules/ol/src/Feature", "node_modules/ol/src/geom/GeometryType", "node_modules/ol/src/interaction/Property", "node_modules/ol/src/geom/LineString", "node_modules/ol/src/MapBrowserEvent", "node_modules/ol/src/MapBrowserEventType", "node_modules/ol/src/geom/MultiLineString", "node_modules/ol/src/geom/MultiPoint", "node_modules/ol/src/geom/MultiPolygon", "node_modules/ol/src/geom/Point", "node_modules/ol/src/interaction/Pointer", "node_modules/ol/src/geom/Polygon", "node_modules/ol/src/layer/Vector", "node_modules/ol/src/source/Vector", "node_modules/ol/src/functions", "node_modules/ol/src/events/condition", "node_modules/ol/src/extent", "node_modules/ol/src/style/Style", "node_modules/ol/src/proj", "node_modules/ol/src/Object", "node_modules/ol/src/coordinate"], function (require, exports, Circle_js_3, Event_js_13, EventType_js_37, Feature_js_1, GeometryType_js_19, Property_js_4, LineString_js_2, MapBrowserEvent_js_3, MapBrowserEventType_js_6, MultiLineString_js_1, MultiPoint_js_2, MultiPolygon_js_1, Point_js_3, Pointer_js_7, Polygon_js_6, Vector_js_1, Vector_js_2, functions_js_15, condition_js_9, extent_js_40, Style_js_3, proj_js_14, Object_js_17, coordinate_js_8) {
+define("node_modules/ol/src/interaction/Draw", ["require", "exports", "node_modules/ol/src/geom/Circle", "node_modules/ol/src/events/Event", "node_modules/ol/src/events/EventType", "node_modules/ol/src/Feature", "node_modules/ol/src/geom/GeometryType", "node_modules/ol/src/interaction/Property", "node_modules/ol/src/geom/LineString", "node_modules/ol/src/MapBrowserEvent", "node_modules/ol/src/MapBrowserEventType", "node_modules/ol/src/geom/MultiLineString", "node_modules/ol/src/geom/MultiPoint", "node_modules/ol/src/geom/MultiPolygon", "node_modules/ol/src/geom/Point", "node_modules/ol/src/interaction/Pointer", "node_modules/ol/src/geom/Polygon", "node_modules/ol/src/layer/Vector", "node_modules/ol/src/source/Vector", "node_modules/ol/src/functions", "node_modules/ol/src/events/condition", "node_modules/ol/src/extent", "node_modules/ol/src/style/Style", "node_modules/ol/src/proj", "node_modules/ol/src/Object", "node_modules/ol/src/coordinate"], function (require, exports, Circle_js_3, Event_js_13, EventType_js_37, Feature_js_4, GeometryType_js_20, Property_js_4, LineString_js_3, MapBrowserEvent_js_3, MapBrowserEventType_js_6, MultiLineString_js_2, MultiPoint_js_3, MultiPolygon_js_2, Point_js_4, Pointer_js_7, Polygon_js_7, Vector_js_1, Vector_js_2, functions_js_15, condition_js_9, extent_js_41, Style_js_3, proj_js_15, Object_js_17, coordinate_js_8) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.createBox = exports.createRegularPolygon = void 0;
@@ -20185,15 +21079,15 @@ define("node_modules/ol/src/interaction/Draw", ["require", "exports", "node_modu
                 : functions_js_15.TRUE;
             let geometryFunction = options.geometryFunction;
             if (!geometryFunction) {
-                if (this.type_ === GeometryType_js_19.default.CIRCLE) {
+                if (this.type_ === GeometryType_js_20.default.CIRCLE) {
                     geometryFunction = function (coordinates, opt_geometry, projection) {
                         const circle = opt_geometry
                             ? (opt_geometry)
                             : new Circle_js_3.default([NaN, NaN]);
-                        const center = proj_js_14.fromUserCoordinate(coordinates[0], projection);
-                        const squaredLength = coordinate_js_8.squaredDistance(center, proj_js_14.fromUserCoordinate(coordinates[1], projection));
+                        const center = proj_js_15.fromUserCoordinate(coordinates[0], projection);
+                        const squaredLength = coordinate_js_8.squaredDistance(center, proj_js_15.fromUserCoordinate(coordinates[1], projection));
                         circle.setCenterAndRadius(center, Math.sqrt(squaredLength));
-                        const userProjection = proj_js_14.getUserProjection();
+                        const userProjection = proj_js_15.getUserProjection();
                         if (userProjection) {
                             circle.transform(projection, userProjection);
                         }
@@ -20204,13 +21098,13 @@ define("node_modules/ol/src/interaction/Draw", ["require", "exports", "node_modu
                     let Constructor;
                     const mode = this.mode_;
                     if (mode === Mode.POINT) {
-                        Constructor = Point_js_3.default;
+                        Constructor = Point_js_4.default;
                     }
                     else if (mode === Mode.LINE_STRING) {
-                        Constructor = LineString_js_2.default;
+                        Constructor = LineString_js_3.default;
                     }
                     else if (mode === Mode.POLYGON) {
-                        Constructor = Polygon_js_6.default;
+                        Constructor = Polygon_js_7.default;
                     }
                     geometryFunction = function (coordinates, opt_geometry, projection) {
                         let geometry = opt_geometry;
@@ -20449,7 +21343,7 @@ define("node_modules/ol/src/interaction/Draw", ["require", "exports", "node_modu
         createOrUpdateSketchPoint_(event) {
             const coordinates = event.coordinate.slice();
             if (!this.sketchPoint_) {
-                this.sketchPoint_ = new Feature_js_1.default(new Point_js_3.default(coordinates));
+                this.sketchPoint_ = new Feature_js_4.default(new Point_js_4.default(coordinates));
                 this.updateSketchFeatures_();
             }
             else {
@@ -20472,10 +21366,10 @@ define("node_modules/ol/src/interaction/Draw", ["require", "exports", "node_modu
                 this.sketchCoords_ = [start.slice(), start.slice()];
             }
             if (this.sketchLineCoords_) {
-                this.sketchLine_ = new Feature_js_1.default(new LineString_js_2.default(this.sketchLineCoords_));
+                this.sketchLine_ = new Feature_js_4.default(new LineString_js_3.default(this.sketchLineCoords_));
             }
             const geometry = this.geometryFunction_(this.sketchCoords_, undefined, projection);
-            this.sketchFeature_ = new Feature_js_1.default();
+            this.sketchFeature_ = new Feature_js_4.default();
             if (this.geometryName_) {
                 this.sketchFeature_.setGeometryName(this.geometryName_);
             }
@@ -20510,15 +21404,15 @@ define("node_modules/ol/src/interaction/Draw", ["require", "exports", "node_modu
                 sketchPointGeom.setCoordinates(coordinate);
             }
             let sketchLineGeom;
-            if (geometry.getType() == GeometryType_js_19.default.POLYGON &&
+            if (geometry.getType() == GeometryType_js_20.default.POLYGON &&
                 this.mode_ !== Mode.POLYGON) {
                 if (!this.sketchLine_) {
-                    this.sketchLine_ = new Feature_js_1.default();
+                    this.sketchLine_ = new Feature_js_4.default();
                 }
                 const ring = geometry.getLinearRing(0);
                 sketchLineGeom = this.sketchLine_.getGeometry();
                 if (!sketchLineGeom) {
-                    sketchLineGeom = new LineString_js_2.default(ring.getFlatCoordinates(), ring.getLayout());
+                    sketchLineGeom = new LineString_js_3.default(ring.getFlatCoordinates(), ring.getLayout());
                     this.sketchLine_.setGeometry(sketchLineGeom);
                 }
                 else {
@@ -20617,14 +21511,14 @@ define("node_modules/ol/src/interaction/Draw", ["require", "exports", "node_modu
                 this.geometryFunction_(coordinates, geometry, projection);
                 coordinates = geometry.getCoordinates();
             }
-            if (this.type_ === GeometryType_js_19.default.MULTI_POINT) {
-                sketchFeature.setGeometry(new MultiPoint_js_2.default([(coordinates)]));
+            if (this.type_ === GeometryType_js_20.default.MULTI_POINT) {
+                sketchFeature.setGeometry(new MultiPoint_js_3.default([(coordinates)]));
             }
-            else if (this.type_ === GeometryType_js_19.default.MULTI_LINE_STRING) {
-                sketchFeature.setGeometry(new MultiLineString_js_1.default([(coordinates)]));
+            else if (this.type_ === GeometryType_js_20.default.MULTI_LINE_STRING) {
+                sketchFeature.setGeometry(new MultiLineString_js_2.default([(coordinates)]));
             }
-            else if (this.type_ === GeometryType_js_19.default.MULTI_POLYGON) {
-                sketchFeature.setGeometry(new MultiPolygon_js_1.default([(coordinates)]));
+            else if (this.type_ === GeometryType_js_20.default.MULTI_POLYGON) {
+                sketchFeature.setGeometry(new MultiPolygon_js_2.default([(coordinates)]));
             }
             this.dispatchEvent(new DrawEvent(DrawEventType.DRAWEND, sketchFeature));
             if (this.features_) {
@@ -20710,20 +21604,20 @@ define("node_modules/ol/src/interaction/Draw", ["require", "exports", "node_modu
     }
     function createRegularPolygon(opt_sides, opt_angle) {
         return function (coordinates, opt_geometry, projection) {
-            const center = proj_js_14.fromUserCoordinate((coordinates)[0], projection);
-            const end = proj_js_14.fromUserCoordinate((coordinates)[1], projection);
+            const center = proj_js_15.fromUserCoordinate((coordinates)[0], projection);
+            const end = proj_js_15.fromUserCoordinate((coordinates)[1], projection);
             const radius = Math.sqrt(coordinate_js_8.squaredDistance(center, end));
             const geometry = opt_geometry
                 ? (opt_geometry)
-                : Polygon_js_6.fromCircle(new Circle_js_3.default(center), opt_sides);
+                : Polygon_js_7.fromCircle(new Circle_js_3.default(center), opt_sides);
             let angle = opt_angle;
             if (!opt_angle) {
                 const x = end[0] - center[0];
                 const y = end[1] - center[1];
                 angle = Math.atan(y / x) - (x < 0 ? Math.PI : 0);
             }
-            Polygon_js_6.makeRegular(geometry, center, radius, angle);
-            const userProjection = proj_js_14.getUserProjection();
+            Polygon_js_7.makeRegular(geometry, center, radius, angle);
+            const userProjection = proj_js_15.getUserProjection();
             if (userProjection) {
                 geometry.transform(projection, userProjection);
             }
@@ -20733,16 +21627,16 @@ define("node_modules/ol/src/interaction/Draw", ["require", "exports", "node_modu
     exports.createRegularPolygon = createRegularPolygon;
     function createBox() {
         return function (coordinates, opt_geometry, projection) {
-            const extent = extent_js_40.boundingExtent((coordinates).map(function (coordinate) {
-                return proj_js_14.fromUserCoordinate(coordinate, projection);
+            const extent = extent_js_41.boundingExtent((coordinates).map(function (coordinate) {
+                return proj_js_15.fromUserCoordinate(coordinate, projection);
             }));
             const boxCoordinates = [
                 [
-                    extent_js_40.getBottomLeft(extent),
-                    extent_js_40.getBottomRight(extent),
-                    extent_js_40.getTopRight(extent),
-                    extent_js_40.getTopLeft(extent),
-                    extent_js_40.getBottomLeft(extent),
+                    extent_js_41.getBottomLeft(extent),
+                    extent_js_41.getBottomRight(extent),
+                    extent_js_41.getTopRight(extent),
+                    extent_js_41.getTopLeft(extent),
+                    extent_js_41.getBottomLeft(extent),
                 ],
             ];
             let geometry = opt_geometry;
@@ -20750,9 +21644,9 @@ define("node_modules/ol/src/interaction/Draw", ["require", "exports", "node_modu
                 geometry.setCoordinates(boxCoordinates);
             }
             else {
-                geometry = new Polygon_js_6.default(boxCoordinates);
+                geometry = new Polygon_js_7.default(boxCoordinates);
             }
-            const userProjection = proj_js_14.getUserProjection();
+            const userProjection = proj_js_15.getUserProjection();
             if (userProjection) {
                 geometry.transform(projection, userProjection);
             }
@@ -20762,25 +21656,25 @@ define("node_modules/ol/src/interaction/Draw", ["require", "exports", "node_modu
     exports.createBox = createBox;
     function getMode(type) {
         let mode;
-        if (type === GeometryType_js_19.default.POINT || type === GeometryType_js_19.default.MULTI_POINT) {
+        if (type === GeometryType_js_20.default.POINT || type === GeometryType_js_20.default.MULTI_POINT) {
             mode = Mode.POINT;
         }
-        else if (type === GeometryType_js_19.default.LINE_STRING ||
-            type === GeometryType_js_19.default.MULTI_LINE_STRING) {
+        else if (type === GeometryType_js_20.default.LINE_STRING ||
+            type === GeometryType_js_20.default.MULTI_LINE_STRING) {
             mode = Mode.LINE_STRING;
         }
-        else if (type === GeometryType_js_19.default.POLYGON ||
-            type === GeometryType_js_19.default.MULTI_POLYGON) {
+        else if (type === GeometryType_js_20.default.POLYGON ||
+            type === GeometryType_js_20.default.MULTI_POLYGON) {
             mode = Mode.POLYGON;
         }
-        else if (type === GeometryType_js_19.default.CIRCLE) {
+        else if (type === GeometryType_js_20.default.CIRCLE) {
             mode = Mode.CIRCLE;
         }
         return (mode);
     }
     exports.default = Draw;
 });
-define("node_modules/ol/src/interaction/Extent", ["require", "exports", "node_modules/ol/src/events/Event", "node_modules/ol/src/Feature", "node_modules/ol/src/geom/GeometryType", "node_modules/ol/src/MapBrowserEventType", "node_modules/ol/src/geom/Point", "node_modules/ol/src/interaction/Pointer", "node_modules/ol/src/layer/Vector", "node_modules/ol/src/source/Vector", "node_modules/ol/src/events/condition", "node_modules/ol/src/extent", "node_modules/ol/src/coordinate", "node_modules/ol/src/style/Style", "node_modules/ol/src/geom/Polygon", "node_modules/ol/src/proj"], function (require, exports, Event_js_14, Feature_js_2, GeometryType_js_20, MapBrowserEventType_js_7, Point_js_4, Pointer_js_8, Vector_js_3, Vector_js_4, condition_js_10, extent_js_41, coordinate_js_9, Style_js_4, Polygon_js_7, proj_js_15) {
+define("node_modules/ol/src/interaction/Extent", ["require", "exports", "node_modules/ol/src/events/Event", "node_modules/ol/src/Feature", "node_modules/ol/src/geom/GeometryType", "node_modules/ol/src/MapBrowserEventType", "node_modules/ol/src/geom/Point", "node_modules/ol/src/interaction/Pointer", "node_modules/ol/src/layer/Vector", "node_modules/ol/src/source/Vector", "node_modules/ol/src/events/condition", "node_modules/ol/src/extent", "node_modules/ol/src/coordinate", "node_modules/ol/src/style/Style", "node_modules/ol/src/geom/Polygon", "node_modules/ol/src/proj"], function (require, exports, Event_js_14, Feature_js_5, GeometryType_js_21, MapBrowserEventType_js_7, Point_js_5, Pointer_js_8, Vector_js_3, Vector_js_4, condition_js_10, extent_js_42, coordinate_js_9, Style_js_4, Polygon_js_8, proj_js_16) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     const ExtentEventType = {
@@ -20875,10 +21769,10 @@ define("node_modules/ol/src/interaction/Extent", ["require", "exports", "node_mo
             let extentFeature = this.extentFeature_;
             if (!extentFeature) {
                 if (!extent) {
-                    extentFeature = new Feature_js_2.default({});
+                    extentFeature = new Feature_js_5.default({});
                 }
                 else {
-                    extentFeature = new Feature_js_2.default(Polygon_js_7.fromExtent(extent));
+                    extentFeature = new Feature_js_5.default(Polygon_js_8.fromExtent(extent));
                 }
                 this.extentFeature_ = extentFeature;
                 this.extentOverlay_.getSource().addFeature(extentFeature);
@@ -20888,7 +21782,7 @@ define("node_modules/ol/src/interaction/Extent", ["require", "exports", "node_mo
                     extentFeature.setGeometry(undefined);
                 }
                 else {
-                    extentFeature.setGeometry(Polygon_js_7.fromExtent(extent));
+                    extentFeature.setGeometry(Polygon_js_8.fromExtent(extent));
                 }
             }
             return extentFeature;
@@ -20896,7 +21790,7 @@ define("node_modules/ol/src/interaction/Extent", ["require", "exports", "node_mo
         createOrUpdatePointerFeature_(vertex) {
             let vertexFeature = this.vertexFeature_;
             if (!vertexFeature) {
-                vertexFeature = new Feature_js_2.default(new Point_js_4.default(vertex));
+                vertexFeature = new Feature_js_5.default(new Point_js_5.default(vertex));
                 this.vertexFeature_ = vertexFeature;
                 this.vertexOverlay_.getSource().addFeature(vertexFeature);
             }
@@ -20972,7 +21866,7 @@ define("node_modules/ol/src/interaction/Extent", ["require", "exports", "node_mo
         handleUpEvent(mapBrowserEvent) {
             this.pointerHandler_ = null;
             const extent = this.getExtentInternal();
-            if (!extent || extent_js_41.getArea(extent) === 0) {
+            if (!extent || extent_js_42.getArea(extent) === 0) {
                 this.setExtent(null);
             }
             return false;
@@ -20983,7 +21877,7 @@ define("node_modules/ol/src/interaction/Extent", ["require", "exports", "node_mo
             super.setMap(map);
         }
         getExtent() {
-            return proj_js_15.toUserExtent(this.getExtentInternal(), this.getMap().getView().getProjection());
+            return proj_js_16.toUserExtent(this.getExtentInternal(), this.getMap().getView().getProjection());
         }
         getExtentInternal() {
             return this.extent_;
@@ -20997,29 +21891,29 @@ define("node_modules/ol/src/interaction/Extent", ["require", "exports", "node_mo
     function getDefaultExtentStyleFunction() {
         const style = Style_js_4.createEditingStyle();
         return function (feature, resolution) {
-            return style[GeometryType_js_20.default.POLYGON];
+            return style[GeometryType_js_21.default.POLYGON];
         };
     }
     function getDefaultPointerStyleFunction() {
         const style = Style_js_4.createEditingStyle();
         return function (feature, resolution) {
-            return style[GeometryType_js_20.default.POINT];
+            return style[GeometryType_js_21.default.POINT];
         };
     }
     function getPointHandler(fixedPoint) {
         return function (point) {
-            return extent_js_41.boundingExtent([fixedPoint, point]);
+            return extent_js_42.boundingExtent([fixedPoint, point]);
         };
     }
     function getEdgeHandler(fixedP1, fixedP2) {
         if (fixedP1[0] == fixedP2[0]) {
             return function (point) {
-                return extent_js_41.boundingExtent([fixedP1, [point[0], fixedP2[1]]]);
+                return extent_js_42.boundingExtent([fixedP1, [point[0], fixedP2[1]]]);
             };
         }
         else if (fixedP1[1] == fixedP2[1]) {
             return function (point) {
-                return extent_js_41.boundingExtent([fixedP1, [fixedP2[0], point[1]]]);
+                return extent_js_42.boundingExtent([fixedP1, [fixedP2[0], point[1]]]);
             };
         }
         else {
@@ -21048,7 +21942,7 @@ define("node_modules/ol/src/interaction/Extent", ["require", "exports", "node_mo
     }
     exports.default = Extent;
 });
-define("node_modules/ol/src/interaction/Modify", ["require", "exports", "node_modules/ol/src/Collection", "node_modules/ol/src/CollectionEventType", "node_modules/ol/src/events/Event", "node_modules/ol/src/events/EventType", "node_modules/ol/src/Feature", "node_modules/ol/src/geom/GeometryType", "node_modules/ol/src/MapBrowserEventType", "node_modules/ol/src/geom/Point", "node_modules/ol/src/interaction/Pointer", "node_modules/ol/src/structs/RBush", "node_modules/ol/src/source/VectorEventType", "node_modules/ol/src/layer/Vector", "node_modules/ol/src/source/Vector", "node_modules/ol/src/events/condition", "node_modules/ol/src/extent", "node_modules/ol/src/coordinate", "node_modules/ol/src/style/Style", "node_modules/ol/src/array", "node_modules/ol/src/geom/Polygon", "node_modules/ol/src/proj", "node_modules/ol/src/util"], function (require, exports, Collection_js_5, CollectionEventType_js_5, Event_js_15, EventType_js_38, Feature_js_3, GeometryType_js_21, MapBrowserEventType_js_8, Point_js_5, Pointer_js_9, RBush_js_2, VectorEventType_js_2, Vector_js_5, Vector_js_6, condition_js_11, extent_js_42, coordinate_js_10, Style_js_5, array_js_21, Polygon_js_8, proj_js_16, util_js_23) {
+define("node_modules/ol/src/interaction/Modify", ["require", "exports", "node_modules/ol/src/Collection", "node_modules/ol/src/CollectionEventType", "node_modules/ol/src/events/Event", "node_modules/ol/src/events/EventType", "node_modules/ol/src/Feature", "node_modules/ol/src/geom/GeometryType", "node_modules/ol/src/MapBrowserEventType", "node_modules/ol/src/geom/Point", "node_modules/ol/src/interaction/Pointer", "node_modules/ol/src/structs/RBush", "node_modules/ol/src/source/VectorEventType", "node_modules/ol/src/layer/Vector", "node_modules/ol/src/source/Vector", "node_modules/ol/src/events/condition", "node_modules/ol/src/extent", "node_modules/ol/src/coordinate", "node_modules/ol/src/style/Style", "node_modules/ol/src/array", "node_modules/ol/src/geom/Polygon", "node_modules/ol/src/proj", "node_modules/ol/src/util"], function (require, exports, Collection_js_5, CollectionEventType_js_5, Event_js_15, EventType_js_38, Feature_js_6, GeometryType_js_22, MapBrowserEventType_js_8, Point_js_6, Pointer_js_9, RBush_js_2, VectorEventType_js_2, Vector_js_5, Vector_js_6, condition_js_11, extent_js_43, coordinate_js_10, Style_js_5, array_js_21, Polygon_js_9, proj_js_17, util_js_24) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.ModifyEvent = void 0;
@@ -21250,7 +22144,7 @@ define("node_modules/ol/src/interaction/Modify", ["require", "exports", "node_mo
                     index: i,
                     segment: segment,
                 };
-                this.rBush_.insert(extent_js_42.boundingExtent(segment), segmentData);
+                this.rBush_.insert(extent_js_43.boundingExtent(segment), segmentData);
             }
         }
         writeMultiLineStringGeometry_(feature, geometry) {
@@ -21266,7 +22160,7 @@ define("node_modules/ol/src/interaction/Modify", ["require", "exports", "node_mo
                         index: i,
                         segment: segment,
                     };
-                    this.rBush_.insert(extent_js_42.boundingExtent(segment), segmentData);
+                    this.rBush_.insert(extent_js_43.boundingExtent(segment), segmentData);
                 }
             }
         }
@@ -21283,7 +22177,7 @@ define("node_modules/ol/src/interaction/Modify", ["require", "exports", "node_mo
                         index: i,
                         segment: segment,
                     };
-                    this.rBush_.insert(extent_js_42.boundingExtent(segment), segmentData);
+                    this.rBush_.insert(extent_js_43.boundingExtent(segment), segmentData);
                 }
             }
         }
@@ -21302,7 +22196,7 @@ define("node_modules/ol/src/interaction/Modify", ["require", "exports", "node_mo
                             index: i,
                             segment: segment,
                         };
-                        this.rBush_.insert(extent_js_42.boundingExtent(segment), segmentData);
+                        this.rBush_.insert(extent_js_43.boundingExtent(segment), segmentData);
                     }
                 }
             }
@@ -21324,15 +22218,15 @@ define("node_modules/ol/src/interaction/Modify", ["require", "exports", "node_mo
             const featureSegments = [centerSegmentData, circumferenceSegmentData];
             centerSegmentData.featureSegments = featureSegments;
             circumferenceSegmentData.featureSegments = featureSegments;
-            this.rBush_.insert(extent_js_42.createOrUpdateFromCoordinate(coordinates), centerSegmentData);
+            this.rBush_.insert(extent_js_43.createOrUpdateFromCoordinate(coordinates), centerSegmentData);
             let circleGeometry = (geometry);
-            const userProjection = proj_js_16.getUserProjection();
+            const userProjection = proj_js_17.getUserProjection();
             if (userProjection && this.getMap()) {
                 const projection = this.getMap().getView().getProjection();
                 circleGeometry = circleGeometry
                     .clone()
                     .transform(userProjection, projection);
-                circleGeometry = Polygon_js_8.fromCircle((circleGeometry)).transform(projection, userProjection);
+                circleGeometry = Polygon_js_9.fromCircle((circleGeometry)).transform(projection, userProjection);
             }
             this.rBush_.insert(circleGeometry.getExtent(), circumferenceSegmentData);
         }
@@ -21347,7 +22241,7 @@ define("node_modules/ol/src/interaction/Modify", ["require", "exports", "node_mo
         createOrUpdateVertexFeature_(coordinates) {
             let vertexFeature = this.vertexFeature_;
             if (!vertexFeature) {
-                vertexFeature = new Feature_js_3.default(new Point_js_5.default(coordinates));
+                vertexFeature = new Feature_js_6.default(new Point_js_6.default(coordinates));
                 this.vertexFeature_ = vertexFeature;
                 this.overlay_.getSource().addFeature(vertexFeature);
             }
@@ -21398,38 +22292,38 @@ define("node_modules/ol/src/interaction/Modify", ["require", "exports", "node_mo
                     vertex.push(segment[index][vertex.length]);
                 }
                 switch (geometry.getType()) {
-                    case GeometryType_js_21.default.POINT:
+                    case GeometryType_js_22.default.POINT:
                         coordinates = vertex;
                         segment[0] = vertex;
                         segment[1] = vertex;
                         break;
-                    case GeometryType_js_21.default.MULTI_POINT:
+                    case GeometryType_js_22.default.MULTI_POINT:
                         coordinates = geometry.getCoordinates();
                         coordinates[segmentData.index] = vertex;
                         segment[0] = vertex;
                         segment[1] = vertex;
                         break;
-                    case GeometryType_js_21.default.LINE_STRING:
+                    case GeometryType_js_22.default.LINE_STRING:
                         coordinates = geometry.getCoordinates();
                         coordinates[segmentData.index + index] = vertex;
                         segment[index] = vertex;
                         break;
-                    case GeometryType_js_21.default.MULTI_LINE_STRING:
+                    case GeometryType_js_22.default.MULTI_LINE_STRING:
                         coordinates = geometry.getCoordinates();
                         coordinates[depth[0]][segmentData.index + index] = vertex;
                         segment[index] = vertex;
                         break;
-                    case GeometryType_js_21.default.POLYGON:
+                    case GeometryType_js_22.default.POLYGON:
                         coordinates = geometry.getCoordinates();
                         coordinates[depth[0]][segmentData.index + index] = vertex;
                         segment[index] = vertex;
                         break;
-                    case GeometryType_js_21.default.MULTI_POLYGON:
+                    case GeometryType_js_22.default.MULTI_POLYGON:
                         coordinates = geometry.getCoordinates();
                         coordinates[depth[1]][depth[0]][segmentData.index + index] = vertex;
                         segment[index] = vertex;
                         break;
-                    case GeometryType_js_21.default.CIRCLE:
+                    case GeometryType_js_22.default.CIRCLE:
                         segment[0] = vertex;
                         segment[1] = vertex;
                         if (segmentData.index === CIRCLE_CENTER_INDEX) {
@@ -21440,8 +22334,8 @@ define("node_modules/ol/src/interaction/Modify", ["require", "exports", "node_mo
                         else {
                             this.changingFeature_ = true;
                             const projection = evt.map.getView().getProjection();
-                            let radius = coordinate_js_10.distance(proj_js_16.fromUserCoordinate(geometry.getCenter(), projection), proj_js_16.fromUserCoordinate(vertex, projection));
-                            const userProjection = proj_js_16.getUserProjection();
+                            let radius = coordinate_js_10.distance(proj_js_17.fromUserCoordinate(geometry.getCenter(), projection), proj_js_17.fromUserCoordinate(vertex, projection));
+                            const userProjection = proj_js_17.getUserProjection();
                             if (userProjection) {
                                 const circleGeometry = geometry
                                     .clone()
@@ -21476,14 +22370,14 @@ define("node_modules/ol/src/interaction/Modify", ["require", "exports", "node_mo
                 const projection = evt.map.getView().getProjection();
                 const insertVertices = [];
                 const vertex = vertexFeature.getGeometry().getCoordinates();
-                const vertexExtent = extent_js_42.boundingExtent([vertex]);
+                const vertexExtent = extent_js_43.boundingExtent([vertex]);
                 const segmentDataMatches = this.rBush_.getInExtent(vertexExtent);
                 const componentSegments = {};
                 segmentDataMatches.sort(compareIndexes);
                 for (let i = 0, ii = segmentDataMatches.length; i < ii; ++i) {
                     const segmentDataMatch = segmentDataMatches[i];
                     const segment = segmentDataMatch.segment;
-                    let uid = util_js_23.getUid(segmentDataMatch.geometry);
+                    let uid = util_js_24.getUid(segmentDataMatch.geometry);
                     const depth = segmentDataMatch.depth;
                     if (depth) {
                         uid += '-' + depth.join('-');
@@ -21491,7 +22385,7 @@ define("node_modules/ol/src/interaction/Modify", ["require", "exports", "node_mo
                     if (!componentSegments[uid]) {
                         componentSegments[uid] = new Array(2);
                     }
-                    if (segmentDataMatch.geometry.getType() === GeometryType_js_21.default.CIRCLE &&
+                    if (segmentDataMatch.geometry.getType() === GeometryType_js_22.default.CIRCLE &&
                         segmentDataMatch.index === CIRCLE_CIRCUMFERENCE_INDEX) {
                         const closestVertex = closestOnSegmentData(pixelCoordinate, segmentDataMatch, projection);
                         if (coordinate_js_10.equals(closestVertex, vertex) &&
@@ -21509,9 +22403,9 @@ define("node_modules/ol/src/interaction/Modify", ["require", "exports", "node_mo
                     }
                     if (coordinate_js_10.equals(segment[1], vertex) &&
                         !componentSegments[uid][1]) {
-                        if ((segmentDataMatch.geometry.getType() === GeometryType_js_21.default.LINE_STRING ||
+                        if ((segmentDataMatch.geometry.getType() === GeometryType_js_22.default.LINE_STRING ||
                             segmentDataMatch.geometry.getType() ===
-                                GeometryType_js_21.default.MULTI_LINE_STRING) &&
+                                GeometryType_js_22.default.MULTI_LINE_STRING) &&
                             componentSegments[uid][0] &&
                             componentSegments[uid][0].index === 0) {
                             continue;
@@ -21520,7 +22414,7 @@ define("node_modules/ol/src/interaction/Modify", ["require", "exports", "node_mo
                         componentSegments[uid][1] = segmentDataMatch;
                         continue;
                     }
-                    if (util_js_23.getUid(segment) in this.vertexSegments_ &&
+                    if (util_js_24.getUid(segment) in this.vertexSegments_ &&
                         !componentSegments[uid][0] &&
                         !componentSegments[uid][1] &&
                         this.insertVertexCondition_(evt)) {
@@ -21540,7 +22434,7 @@ define("node_modules/ol/src/interaction/Modify", ["require", "exports", "node_mo
             for (let i = this.dragSegments_.length - 1; i >= 0; --i) {
                 const segmentData = this.dragSegments_[i][0];
                 const geometry = segmentData.geometry;
-                if (geometry.getType() === GeometryType_js_21.default.CIRCLE) {
+                if (geometry.getType() === GeometryType_js_22.default.CIRCLE) {
                     const coordinates = geometry.getCenter();
                     const centerSegmentData = segmentData.featureSegments[0];
                     const circumferenceSegmentData = segmentData.featureSegments[1];
@@ -21548,20 +22442,20 @@ define("node_modules/ol/src/interaction/Modify", ["require", "exports", "node_mo
                     centerSegmentData.segment[1] = coordinates;
                     circumferenceSegmentData.segment[0] = coordinates;
                     circumferenceSegmentData.segment[1] = coordinates;
-                    this.rBush_.update(extent_js_42.createOrUpdateFromCoordinate(coordinates), centerSegmentData);
+                    this.rBush_.update(extent_js_43.createOrUpdateFromCoordinate(coordinates), centerSegmentData);
                     let circleGeometry = geometry;
-                    const userProjection = proj_js_16.getUserProjection();
+                    const userProjection = proj_js_17.getUserProjection();
                     if (userProjection) {
                         const projection = evt.map.getView().getProjection();
                         circleGeometry = circleGeometry
                             .clone()
                             .transform(userProjection, projection);
-                        circleGeometry = Polygon_js_8.fromCircle(circleGeometry).transform(projection, userProjection);
+                        circleGeometry = Polygon_js_9.fromCircle(circleGeometry).transform(projection, userProjection);
                     }
                     this.rBush_.update(circleGeometry.getExtent(), circumferenceSegmentData);
                 }
                 else {
-                    this.rBush_.update(extent_js_42.boundingExtent(segmentData.segment), segmentData);
+                    this.rBush_.update(extent_js_43.boundingExtent(segmentData.segment), segmentData);
                 }
             }
             if (this.modified_) {
@@ -21581,9 +22475,9 @@ define("node_modules/ol/src/interaction/Modify", ["require", "exports", "node_mo
                 return (projectedDistanceToSegmentDataSquared(pixelCoordinate, a, projection) -
                     projectedDistanceToSegmentDataSquared(pixelCoordinate, b, projection));
             };
-            const viewExtent = proj_js_16.fromUserExtent(extent_js_42.createOrUpdateFromCoordinate(pixelCoordinate, tempExtent), projection);
+            const viewExtent = proj_js_17.fromUserExtent(extent_js_43.createOrUpdateFromCoordinate(pixelCoordinate, tempExtent), projection);
             const buffer = map.getView().getResolution() * this.pixelTolerance_;
-            const box = proj_js_16.toUserExtent(extent_js_42.buffer(viewExtent, buffer, tempExtent), projection);
+            const box = proj_js_17.toUserExtent(extent_js_43.buffer(viewExtent, buffer, tempExtent), projection);
             const rBush = this.rBush_;
             const nodes = rBush.getInExtent(box);
             if (nodes.length > 0) {
@@ -21595,7 +22489,7 @@ define("node_modules/ol/src/interaction/Modify", ["require", "exports", "node_mo
                 let dist = coordinate_js_10.distance(pixel, vertexPixel);
                 if (dist <= this.pixelTolerance_) {
                     const vertexSegments = {};
-                    if (node.geometry.getType() === GeometryType_js_21.default.CIRCLE &&
+                    if (node.geometry.getType() === GeometryType_js_22.default.CIRCLE &&
                         node.index === CIRCLE_CIRCUMFERENCE_INDEX) {
                         this.snappedToVertex_ = true;
                         this.createOrUpdateVertexFeature_(vertex);
@@ -21620,14 +22514,14 @@ define("node_modules/ol/src/interaction/Modify", ["require", "exports", "node_mo
                                 coordinate_js_10.equals(closestSegment[1], segment[1])) ||
                                 (coordinate_js_10.equals(closestSegment[0], segment[1]) &&
                                     coordinate_js_10.equals(closestSegment[1], segment[0]))) {
-                                vertexSegments[util_js_23.getUid(segment)] = true;
+                                vertexSegments[util_js_24.getUid(segment)] = true;
                             }
                             else {
                                 break;
                             }
                         }
                     }
-                    vertexSegments[util_js_23.getUid(closestSegment)] = true;
+                    vertexSegments[util_js_24.getUid(closestSegment)] = true;
                     this.vertexSegments_ = vertexSegments;
                     return;
                 }
@@ -21648,19 +22542,19 @@ define("node_modules/ol/src/interaction/Modify", ["require", "exports", "node_mo
                 vertex.push(0);
             }
             switch (geometry.getType()) {
-                case GeometryType_js_21.default.MULTI_LINE_STRING:
+                case GeometryType_js_22.default.MULTI_LINE_STRING:
                     coordinates = geometry.getCoordinates();
                     coordinates[depth[0]].splice(index + 1, 0, vertex);
                     break;
-                case GeometryType_js_21.default.POLYGON:
+                case GeometryType_js_22.default.POLYGON:
                     coordinates = geometry.getCoordinates();
                     coordinates[depth[0]].splice(index + 1, 0, vertex);
                     break;
-                case GeometryType_js_21.default.MULTI_POLYGON:
+                case GeometryType_js_22.default.MULTI_POLYGON:
                     coordinates = geometry.getCoordinates();
                     coordinates[depth[1]][depth[0]].splice(index + 1, 0, vertex);
                     break;
-                case GeometryType_js_21.default.LINE_STRING:
+                case GeometryType_js_22.default.LINE_STRING:
                     coordinates = geometry.getCoordinates();
                     coordinates.splice(index + 1, 0, vertex);
                     break;
@@ -21678,7 +22572,7 @@ define("node_modules/ol/src/interaction/Modify", ["require", "exports", "node_mo
                 depth: depth,
                 index: index,
             };
-            rTree.insert(extent_js_42.boundingExtent(newSegmentData.segment), newSegmentData);
+            rTree.insert(extent_js_43.boundingExtent(newSegmentData.segment), newSegmentData);
             this.dragSegments_.push([newSegmentData, 1]);
             const newSegmentData2 = {
                 segment: [vertex, segment[1]],
@@ -21687,7 +22581,7 @@ define("node_modules/ol/src/interaction/Modify", ["require", "exports", "node_mo
                 depth: depth,
                 index: index + 1,
             };
-            rTree.insert(extent_js_42.boundingExtent(newSegmentData2.segment), newSegmentData2);
+            rTree.insert(extent_js_43.boundingExtent(newSegmentData2.segment), newSegmentData2);
             this.dragSegments_.push([newSegmentData2, 0]);
             this.ignoreNextSingleClick_ = true;
         }
@@ -21712,7 +22606,7 @@ define("node_modules/ol/src/interaction/Modify", ["require", "exports", "node_mo
             for (i = dragSegments.length - 1; i >= 0; --i) {
                 dragSegment = dragSegments[i];
                 segmentData = dragSegment[0];
-                uid = util_js_23.getUid(segmentData.feature);
+                uid = util_js_24.getUid(segmentData.feature);
                 if (segmentData.depth) {
                     uid += '-' + segmentData.depth.join('-');
                 }
@@ -21747,21 +22641,21 @@ define("node_modules/ol/src/interaction/Modify", ["require", "exports", "node_mo
                 component = coordinates;
                 deleted = false;
                 switch (geometry.getType()) {
-                    case GeometryType_js_21.default.MULTI_LINE_STRING:
+                    case GeometryType_js_22.default.MULTI_LINE_STRING:
                         if (coordinates[segmentData.depth[0]].length > 2) {
                             coordinates[segmentData.depth[0]].splice(index, 1);
                             deleted = true;
                         }
                         break;
-                    case GeometryType_js_21.default.LINE_STRING:
+                    case GeometryType_js_22.default.LINE_STRING:
                         if (coordinates.length > 2) {
                             coordinates.splice(index, 1);
                             deleted = true;
                         }
                         break;
-                    case GeometryType_js_21.default.MULTI_POLYGON:
+                    case GeometryType_js_22.default.MULTI_POLYGON:
                         component = component[segmentData.depth[1]];
-                    case GeometryType_js_21.default.POLYGON:
+                    case GeometryType_js_22.default.POLYGON:
                         component = component[segmentData.depth[0]];
                         if (component.length > 4) {
                             if (index == component.length - 1) {
@@ -21797,7 +22691,7 @@ define("node_modules/ol/src/interaction/Modify", ["require", "exports", "node_mo
                             index: newIndex,
                             segment: segments,
                         };
-                        this.rBush_.insert(extent_js_42.boundingExtent(newSegmentData.segment), newSegmentData);
+                        this.rBush_.insert(extent_js_43.boundingExtent(newSegmentData.segment), newSegmentData);
                     }
                     this.updateSegmentIndices_(geometry, index, segmentData.depth, -1);
                     if (this.vertexFeature_) {
@@ -21831,52 +22725,52 @@ define("node_modules/ol/src/interaction/Modify", ["require", "exports", "node_mo
     }
     function projectedDistanceToSegmentDataSquared(pointCoordinates, segmentData, projection) {
         const geometry = segmentData.geometry;
-        if (geometry.getType() === GeometryType_js_21.default.CIRCLE) {
+        if (geometry.getType() === GeometryType_js_22.default.CIRCLE) {
             let circleGeometry = (geometry);
             if (segmentData.index === CIRCLE_CIRCUMFERENCE_INDEX) {
-                const userProjection = proj_js_16.getUserProjection();
+                const userProjection = proj_js_17.getUserProjection();
                 if (userProjection) {
                     circleGeometry = (circleGeometry
                         .clone()
                         .transform(userProjection, projection));
                 }
-                const distanceToCenterSquared = coordinate_js_10.squaredDistance(circleGeometry.getCenter(), proj_js_16.fromUserCoordinate(pointCoordinates, projection));
+                const distanceToCenterSquared = coordinate_js_10.squaredDistance(circleGeometry.getCenter(), proj_js_17.fromUserCoordinate(pointCoordinates, projection));
                 const distanceToCircumference = Math.sqrt(distanceToCenterSquared) - circleGeometry.getRadius();
                 return distanceToCircumference * distanceToCircumference;
             }
         }
-        const coordinate = proj_js_16.fromUserCoordinate(pointCoordinates, projection);
-        tempSegment[0] = proj_js_16.fromUserCoordinate(segmentData.segment[0], projection);
-        tempSegment[1] = proj_js_16.fromUserCoordinate(segmentData.segment[1], projection);
+        const coordinate = proj_js_17.fromUserCoordinate(pointCoordinates, projection);
+        tempSegment[0] = proj_js_17.fromUserCoordinate(segmentData.segment[0], projection);
+        tempSegment[1] = proj_js_17.fromUserCoordinate(segmentData.segment[1], projection);
         return coordinate_js_10.squaredDistanceToSegment(coordinate, tempSegment);
     }
     function closestOnSegmentData(pointCoordinates, segmentData, projection) {
         const geometry = segmentData.geometry;
-        if (geometry.getType() === GeometryType_js_21.default.CIRCLE &&
+        if (geometry.getType() === GeometryType_js_22.default.CIRCLE &&
             segmentData.index === CIRCLE_CIRCUMFERENCE_INDEX) {
             let circleGeometry = (geometry);
-            const userProjection = proj_js_16.getUserProjection();
+            const userProjection = proj_js_17.getUserProjection();
             if (userProjection) {
                 circleGeometry = (circleGeometry
                     .clone()
                     .transform(userProjection, projection));
             }
-            return proj_js_16.toUserCoordinate(circleGeometry.getClosestPoint(proj_js_16.fromUserCoordinate(pointCoordinates, projection)), projection);
+            return proj_js_17.toUserCoordinate(circleGeometry.getClosestPoint(proj_js_17.fromUserCoordinate(pointCoordinates, projection)), projection);
         }
-        const coordinate = proj_js_16.fromUserCoordinate(pointCoordinates, projection);
-        tempSegment[0] = proj_js_16.fromUserCoordinate(segmentData.segment[0], projection);
-        tempSegment[1] = proj_js_16.fromUserCoordinate(segmentData.segment[1], projection);
-        return proj_js_16.toUserCoordinate(coordinate_js_10.closestOnSegment(coordinate, tempSegment), projection);
+        const coordinate = proj_js_17.fromUserCoordinate(pointCoordinates, projection);
+        tempSegment[0] = proj_js_17.fromUserCoordinate(segmentData.segment[0], projection);
+        tempSegment[1] = proj_js_17.fromUserCoordinate(segmentData.segment[1], projection);
+        return proj_js_17.toUserCoordinate(coordinate_js_10.closestOnSegment(coordinate, tempSegment), projection);
     }
     function getDefaultStyleFunction() {
         const style = Style_js_5.createEditingStyle();
         return function (feature, resolution) {
-            return style[GeometryType_js_21.default.POINT];
+            return style[GeometryType_js_22.default.POINT];
         };
     }
     exports.default = Modify;
 });
-define("node_modules/ol/src/interaction/Select", ["require", "exports", "node_modules/ol/src/Collection", "node_modules/ol/src/CollectionEventType", "node_modules/ol/src/events/Event", "node_modules/ol/src/geom/GeometryType", "node_modules/ol/src/interaction/Interaction", "node_modules/ol/src/functions", "node_modules/ol/src/obj", "node_modules/ol/src/style/Style", "node_modules/ol/src/array", "node_modules/ol/src/util", "node_modules/ol/src/events/condition"], function (require, exports, Collection_js_6, CollectionEventType_js_6, Event_js_16, GeometryType_js_22, Interaction_js_7, functions_js_16, obj_js_17, Style_js_6, array_js_22, util_js_24, condition_js_12) {
+define("node_modules/ol/src/interaction/Select", ["require", "exports", "node_modules/ol/src/Collection", "node_modules/ol/src/CollectionEventType", "node_modules/ol/src/events/Event", "node_modules/ol/src/geom/GeometryType", "node_modules/ol/src/interaction/Interaction", "node_modules/ol/src/functions", "node_modules/ol/src/obj", "node_modules/ol/src/style/Style", "node_modules/ol/src/array", "node_modules/ol/src/util", "node_modules/ol/src/events/condition"], function (require, exports, Collection_js_6, CollectionEventType_js_6, Event_js_16, GeometryType_js_23, Interaction_js_7, functions_js_16, obj_js_18, Style_js_6, array_js_22, util_js_25, condition_js_12) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     const SelectEventType = {
@@ -21930,7 +22824,7 @@ define("node_modules/ol/src/interaction/Select", ["require", "exports", "node_mo
             this.featureLayerAssociation_ = {};
         }
         addFeatureLayerAssociation_(feature, layer) {
-            this.featureLayerAssociation_[util_js_24.getUid(feature)] = layer;
+            this.featureLayerAssociation_[util_js_25.getUid(feature)] = layer;
         }
         getFeatures() {
             return this.features_;
@@ -21940,7 +22834,7 @@ define("node_modules/ol/src/interaction/Select", ["require", "exports", "node_mo
         }
         getLayer(feature) {
             return (this
-                .featureLayerAssociation_[util_js_24.getUid(feature)]);
+                .featureLayerAssociation_[util_js_25.getUid(feature)]);
         }
         setHitTolerance(hitTolerance) {
             this.hitTolerance_ = hitTolerance;
@@ -21979,14 +22873,14 @@ define("node_modules/ol/src/interaction/Select", ["require", "exports", "node_mo
             return this.style_;
         }
         applySelectedStyle_(feature) {
-            const key = util_js_24.getUid(feature);
+            const key = util_js_25.getUid(feature);
             if (!(key in originalFeatureStyles)) {
                 originalFeatureStyles[key] = feature.getStyle();
             }
             feature.setStyle(this.style_);
         }
         restorePreviousStyle_(feature) {
-            const key = util_js_24.getUid(feature);
+            const key = util_js_25.getUid(feature);
             const selectInteractions = (this.getMap()
                 .getInteractions()
                 .getArray()
@@ -22004,7 +22898,7 @@ define("node_modules/ol/src/interaction/Select", ["require", "exports", "node_mo
             }
         }
         removeFeatureLayerAssociation_(feature) {
-            delete this.featureLayerAssociation_[util_js_24.getUid(feature)];
+            delete this.featureLayerAssociation_[util_js_25.getUid(feature)];
         }
         handleEvent(mapBrowserEvent) {
             if (!this.condition_(mapBrowserEvent)) {
@@ -22019,7 +22913,7 @@ define("node_modules/ol/src/interaction/Select", ["require", "exports", "node_mo
             const deselected = [];
             const selected = [];
             if (set) {
-                obj_js_17.clear(this.featureLayerAssociation_);
+                obj_js_18.clear(this.featureLayerAssociation_);
                 map.forEachFeatureAtPixel(mapBrowserEvent.pixel, function (feature, layer) {
                     if (this.filter_(feature, layer)) {
                         selected.push(feature);
@@ -22076,8 +22970,8 @@ define("node_modules/ol/src/interaction/Select", ["require", "exports", "node_mo
     }
     function getDefaultStyleFunction() {
         const styles = Style_js_6.createEditingStyle();
-        array_js_22.extend(styles[GeometryType_js_22.default.POLYGON], styles[GeometryType_js_22.default.LINE_STRING]);
-        array_js_22.extend(styles[GeometryType_js_22.default.GEOMETRY_COLLECTION], styles[GeometryType_js_22.default.LINE_STRING]);
+        array_js_22.extend(styles[GeometryType_js_23.default.POLYGON], styles[GeometryType_js_23.default.LINE_STRING]);
+        array_js_22.extend(styles[GeometryType_js_23.default.GEOMETRY_COLLECTION], styles[GeometryType_js_23.default.LINE_STRING]);
         return function (feature) {
             if (!feature.getGeometry()) {
                 return null;
@@ -22087,7 +22981,7 @@ define("node_modules/ol/src/interaction/Select", ["require", "exports", "node_mo
     }
     exports.default = Select;
 });
-define("node_modules/ol/src/interaction/Snap", ["require", "exports", "node_modules/ol/src/CollectionEventType", "node_modules/ol/src/events/EventType", "node_modules/ol/src/geom/GeometryType", "node_modules/ol/src/interaction/Pointer", "node_modules/ol/src/structs/RBush", "node_modules/ol/src/source/VectorEventType", "node_modules/ol/src/functions", "node_modules/ol/src/extent", "node_modules/ol/src/coordinate", "node_modules/ol/src/geom/Polygon", "node_modules/ol/src/proj", "node_modules/ol/src/util", "node_modules/ol/src/obj", "node_modules/ol/src/events"], function (require, exports, CollectionEventType_js_7, EventType_js_39, GeometryType_js_23, Pointer_js_10, RBush_js_3, VectorEventType_js_3, functions_js_17, extent_js_43, coordinate_js_11, Polygon_js_9, proj_js_17, util_js_25, obj_js_18, events_js_18) {
+define("node_modules/ol/src/interaction/Snap", ["require", "exports", "node_modules/ol/src/CollectionEventType", "node_modules/ol/src/events/EventType", "node_modules/ol/src/geom/GeometryType", "node_modules/ol/src/interaction/Pointer", "node_modules/ol/src/structs/RBush", "node_modules/ol/src/source/VectorEventType", "node_modules/ol/src/functions", "node_modules/ol/src/extent", "node_modules/ol/src/coordinate", "node_modules/ol/src/geom/Polygon", "node_modules/ol/src/proj", "node_modules/ol/src/util", "node_modules/ol/src/obj", "node_modules/ol/src/events"], function (require, exports, CollectionEventType_js_7, EventType_js_39, GeometryType_js_24, Pointer_js_10, RBush_js_3, VectorEventType_js_3, functions_js_17, extent_js_44, coordinate_js_11, Polygon_js_10, proj_js_18, util_js_26, obj_js_19, events_js_18) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     function getFeatureFromEvent(evt) {
@@ -22136,12 +23030,12 @@ define("node_modules/ol/src/interaction/Snap", ["require", "exports", "node_modu
         }
         addFeature(feature, opt_listen) {
             const register = opt_listen !== undefined ? opt_listen : true;
-            const feature_uid = util_js_25.getUid(feature);
+            const feature_uid = util_js_26.getUid(feature);
             const geometry = feature.getGeometry();
             if (geometry) {
                 const segmentWriter = this.SEGMENT_WRITERS_[geometry.getType()];
                 if (segmentWriter) {
-                    this.indexedFeaturesExtents_[feature_uid] = geometry.getExtent(extent_js_43.createEmpty());
+                    this.indexedFeaturesExtents_[feature_uid] = geometry.getExtent(extent_js_44.createEmpty());
                     segmentWriter(feature, geometry);
                 }
             }
@@ -22184,7 +23078,7 @@ define("node_modules/ol/src/interaction/Snap", ["require", "exports", "node_modu
         handleFeatureChange_(evt) {
             const feature = (evt.target);
             if (this.handlingDownUpSequence) {
-                const uid = util_js_25.getUid(feature);
+                const uid = util_js_26.getUid(feature);
                 if (!(uid in this.pendingFeatures_)) {
                     this.pendingFeatures_[uid] = feature;
                 }
@@ -22194,7 +23088,7 @@ define("node_modules/ol/src/interaction/Snap", ["require", "exports", "node_modu
             }
         }
         handleUpEvent(evt) {
-            const featuresToUpdate = obj_js_18.getValues(this.pendingFeatures_);
+            const featuresToUpdate = obj_js_19.getValues(this.pendingFeatures_);
             if (featuresToUpdate.length) {
                 featuresToUpdate.forEach(this.updateFeature_.bind(this));
                 this.pendingFeatures_ = {};
@@ -22203,7 +23097,7 @@ define("node_modules/ol/src/interaction/Snap", ["require", "exports", "node_modu
         }
         removeFeature(feature, opt_unlisten) {
             const unregister = opt_unlisten !== undefined ? opt_unlisten : true;
-            const feature_uid = util_js_25.getUid(feature);
+            const feature_uid = util_js_26.getUid(feature);
             const extent = this.indexedFeaturesExtents_[feature_uid];
             if (extent) {
                 const rBush = this.rBush_;
@@ -22251,11 +23145,11 @@ define("node_modules/ol/src/interaction/Snap", ["require", "exports", "node_modu
                 pixel[0] + this.pixelTolerance_,
                 pixel[1] - this.pixelTolerance_,
             ]);
-            const box = extent_js_43.boundingExtent([lowerLeft, upperRight]);
+            const box = extent_js_44.boundingExtent([lowerLeft, upperRight]);
             let segments = this.rBush_.getInExtent(box);
             if (this.vertex_ && !this.edge_) {
                 segments = segments.filter(function (segment) {
-                    return segment.feature.getGeometry().getType() !== GeometryType_js_23.default.CIRCLE;
+                    return segment.feature.getGeometry().getType() !== GeometryType_js_24.default.CIRCLE;
                 });
             }
             let snapped = false;
@@ -22269,13 +23163,13 @@ define("node_modules/ol/src/interaction/Snap", ["require", "exports", "node_modu
                 };
             }
             const projection = map.getView().getProjection();
-            const projectedCoordinate = proj_js_17.fromUserCoordinate(pixelCoordinate, projection);
+            const projectedCoordinate = proj_js_18.fromUserCoordinate(pixelCoordinate, projection);
             let closestSegmentData;
             let minSquaredDistance = Infinity;
             for (let i = 0; i < segments.length; ++i) {
                 const segmentData = segments[i];
-                tempSegment[0] = proj_js_17.fromUserCoordinate(segmentData.segment[0], projection);
-                tempSegment[1] = proj_js_17.fromUserCoordinate(segmentData.segment[1], projection);
+                tempSegment[0] = proj_js_18.fromUserCoordinate(segmentData.segment[0], projection);
+                tempSegment[1] = proj_js_18.fromUserCoordinate(segmentData.segment[1], projection);
                 const delta = coordinate_js_11.squaredDistanceToSegment(projectedCoordinate, tempSegment);
                 if (delta < minSquaredDistance) {
                     closestSegmentData = segmentData;
@@ -22298,21 +23192,21 @@ define("node_modules/ol/src/interaction/Snap", ["require", "exports", "node_modu
             }
             else if (this.edge_) {
                 const isCircle = closestSegmentData.feature.getGeometry().getType() ===
-                    GeometryType_js_23.default.CIRCLE;
+                    GeometryType_js_24.default.CIRCLE;
                 if (isCircle) {
                     let circleGeometry = closestSegmentData.feature.getGeometry();
-                    const userProjection = proj_js_17.getUserProjection();
+                    const userProjection = proj_js_18.getUserProjection();
                     if (userProjection) {
                         circleGeometry = circleGeometry
                             .clone()
                             .transform(userProjection, projection);
                     }
-                    vertex = proj_js_17.toUserCoordinate(coordinate_js_11.closestOnCircle(projectedCoordinate, (circleGeometry)), projection);
+                    vertex = proj_js_18.toUserCoordinate(coordinate_js_11.closestOnCircle(projectedCoordinate, (circleGeometry)), projection);
                 }
                 else {
-                    tempSegment[0] = proj_js_17.fromUserCoordinate(closestSegment[0], projection);
-                    tempSegment[1] = proj_js_17.fromUserCoordinate(closestSegment[1], projection);
-                    vertex = proj_js_17.toUserCoordinate(coordinate_js_11.closestOnSegment(projectedCoordinate, tempSegment), projection);
+                    tempSegment[0] = proj_js_18.fromUserCoordinate(closestSegment[0], projection);
+                    tempSegment[1] = proj_js_18.fromUserCoordinate(closestSegment[1], projection);
+                    vertex = proj_js_18.toUserCoordinate(coordinate_js_11.closestOnSegment(projectedCoordinate, tempSegment), projection);
                 }
                 vertexPixel = map.getPixelFromCoordinate(vertex);
                 if (coordinate_js_11.distance(pixel, vertexPixel) <= this.pixelTolerance_) {
@@ -22349,13 +23243,13 @@ define("node_modules/ol/src/interaction/Snap", ["require", "exports", "node_modu
         writeCircleGeometry_(feature, geometry) {
             const projection = this.getMap().getView().getProjection();
             let circleGeometry = geometry;
-            const userProjection = proj_js_17.getUserProjection();
+            const userProjection = proj_js_18.getUserProjection();
             if (userProjection) {
                 circleGeometry = (circleGeometry
                     .clone()
                     .transform(userProjection, projection));
             }
-            const polygon = Polygon_js_9.fromCircle(circleGeometry);
+            const polygon = Polygon_js_10.fromCircle(circleGeometry);
             if (userProjection) {
                 polygon.transform(projection, userProjection);
             }
@@ -22366,7 +23260,7 @@ define("node_modules/ol/src/interaction/Snap", ["require", "exports", "node_modu
                     feature: feature,
                     segment: segment,
                 };
-                this.rBush_.insert(extent_js_43.boundingExtent(segment), segmentData);
+                this.rBush_.insert(extent_js_44.boundingExtent(segment), segmentData);
             }
         }
         writeGeometryCollectionGeometry_(feature, geometry) {
@@ -22386,7 +23280,7 @@ define("node_modules/ol/src/interaction/Snap", ["require", "exports", "node_modu
                     feature: feature,
                     segment: segment,
                 };
-                this.rBush_.insert(extent_js_43.boundingExtent(segment), segmentData);
+                this.rBush_.insert(extent_js_44.boundingExtent(segment), segmentData);
             }
         }
         writeMultiLineStringGeometry_(feature, geometry) {
@@ -22399,7 +23293,7 @@ define("node_modules/ol/src/interaction/Snap", ["require", "exports", "node_modu
                         feature: feature,
                         segment: segment,
                     };
-                    this.rBush_.insert(extent_js_43.boundingExtent(segment), segmentData);
+                    this.rBush_.insert(extent_js_44.boundingExtent(segment), segmentData);
                 }
             }
         }
@@ -22426,7 +23320,7 @@ define("node_modules/ol/src/interaction/Snap", ["require", "exports", "node_modu
                             feature: feature,
                             segment: segment,
                         };
-                        this.rBush_.insert(extent_js_43.boundingExtent(segment), segmentData);
+                        this.rBush_.insert(extent_js_44.boundingExtent(segment), segmentData);
                     }
                 }
             }
@@ -22449,7 +23343,7 @@ define("node_modules/ol/src/interaction/Snap", ["require", "exports", "node_modu
                         feature: feature,
                         segment: segment,
                     };
-                    this.rBush_.insert(extent_js_43.boundingExtent(segment), segmentData);
+                    this.rBush_.insert(extent_js_44.boundingExtent(segment), segmentData);
                 }
             }
         }
@@ -22674,12 +23568,12 @@ define("node_modules/ol/src/interaction", ["require", "exports", "node_modules/o
     }
     exports.defaults = defaults;
 });
-define("node_modules/ol/src/Map", ["require", "exports", "node_modules/ol/src/renderer/Composite", "node_modules/ol/src/PluggableMap", "node_modules/ol/src/obj", "node_modules/ol/src/control", "node_modules/ol/src/interaction"], function (require, exports, Composite_js_2, PluggableMap_js_2, obj_js_19, control_js_1, interaction_js_1) {
+define("node_modules/ol/src/Map", ["require", "exports", "node_modules/ol/src/renderer/Composite", "node_modules/ol/src/PluggableMap", "node_modules/ol/src/obj", "node_modules/ol/src/control", "node_modules/ol/src/interaction"], function (require, exports, Composite_js_2, PluggableMap_js_2, obj_js_20, control_js_1, interaction_js_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     class Map extends PluggableMap_js_2.default {
         constructor(options) {
-            options = obj_js_19.assign({}, options);
+            options = obj_js_20.assign({}, options);
             if (!options.controls) {
                 options.controls = control_js_1.defaults();
             }
@@ -22696,986 +23590,100 @@ define("node_modules/ol/src/Map", ["require", "exports", "node_modules/ol/src/re
     }
     exports.default = Map;
 });
-define("poc/FeatureServiceRequest", ["require", "exports"], function (require, exports) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-});
-define("poc/fun/asQueryString", ["require", "exports"], function (require, exports) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    exports.asQueryString = void 0;
-    function asQueryString(o) {
-        return Object.keys(o)
-            .map((v) => `${v}=${o[v]}`)
-            .join("&");
-    }
-    exports.asQueryString = asQueryString;
-});
-define("poc/FeatureServiceProxy", ["require", "exports", "poc/fun/asQueryString"], function (require, exports, asQueryString_1) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    exports.FeatureServiceProxy = void 0;
-    class FeatureServiceProxy {
-        constructor(options) {
-            this.options = options;
-        }
-        fetch(request) {
-            return __awaiter(this, void 0, void 0, function* () {
-                const baseUrl = `${this.options.service}?${asQueryString_1.asQueryString(request)}`;
-                const response = yield fetch(baseUrl);
-                if (!response.ok)
-                    throw response.statusText;
-                const data = yield response.json();
-                return data;
-            });
-        }
-    }
-    exports.FeatureServiceProxy = FeatureServiceProxy;
-});
-define("poc/fun/removeAuthority", ["require", "exports"], function (require, exports) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    exports.removeAuthority = void 0;
-    function removeAuthority(projCode) {
-        var _a;
-        return parseInt(((_a = projCode.split(":", 2)) === null || _a === void 0 ? void 0 : _a.pop()) || "0");
-    }
-    exports.removeAuthority = removeAuthority;
-});
-define("node_modules/ol/src/format/JSONFeature", ["require", "exports", "node_modules/ol/src/format/Feature", "node_modules/ol/src/format/FormatType", "node_modules/ol/src/util"], function (require, exports, Feature_js_4, FormatType_js_2, util_js_26) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    class JSONFeature extends Feature_js_4.default {
-        constructor() {
-            super();
-        }
-        getType() {
-            return FormatType_js_2.default.JSON;
-        }
-        readFeature(source, opt_options) {
-            return this.readFeatureFromObject(getObject(source), this.getReadOptions(source, opt_options));
-        }
-        readFeatures(source, opt_options) {
-            return this.readFeaturesFromObject(getObject(source), this.getReadOptions(source, opt_options));
-        }
-        readFeatureFromObject(object, opt_options) {
-            return util_js_26.abstract();
-        }
-        readFeaturesFromObject(object, opt_options) {
-            return util_js_26.abstract();
-        }
-        readGeometry(source, opt_options) {
-            return this.readGeometryFromObject(getObject(source), this.getReadOptions(source, opt_options));
-        }
-        readGeometryFromObject(object, opt_options) {
-            return util_js_26.abstract();
-        }
-        readProjection(source) {
-            return this.readProjectionFromObject(getObject(source));
-        }
-        readProjectionFromObject(object) {
-            return util_js_26.abstract();
-        }
-        writeFeature(feature, opt_options) {
-            return JSON.stringify(this.writeFeatureObject(feature, opt_options));
-        }
-        writeFeatureObject(feature, opt_options) {
-            return util_js_26.abstract();
-        }
-        writeFeatures(features, opt_options) {
-            return JSON.stringify(this.writeFeaturesObject(features, opt_options));
-        }
-        writeFeaturesObject(features, opt_options) {
-            return util_js_26.abstract();
-        }
-        writeGeometry(geometry, opt_options) {
-            return JSON.stringify(this.writeGeometryObject(geometry, opt_options));
-        }
-        writeGeometryObject(geometry, opt_options) {
-            return util_js_26.abstract();
-        }
-    }
-    function getObject(source) {
-        if (typeof source === 'string') {
-            const object = JSON.parse(source);
-            return object ? (object) : null;
-        }
-        else if (source !== null) {
-            return source;
-        }
-        else {
-            return null;
-        }
-    }
-    exports.default = JSONFeature;
-});
-define("node_modules/ol/src/format/EsriJSON", ["require", "exports", "node_modules/ol/src/Feature", "node_modules/ol/src/geom/GeometryLayout", "node_modules/ol/src/geom/GeometryType", "node_modules/ol/src/format/JSONFeature", "node_modules/ol/src/geom/LineString", "node_modules/ol/src/geom/LinearRing", "node_modules/ol/src/geom/MultiLineString", "node_modules/ol/src/geom/MultiPoint", "node_modules/ol/src/geom/MultiPolygon", "node_modules/ol/src/geom/Point", "node_modules/ol/src/geom/Polygon", "node_modules/ol/src/asserts", "node_modules/ol/src/obj", "node_modules/ol/src/extent", "node_modules/ol/src/geom/flat/deflate", "node_modules/ol/src/proj", "node_modules/ol/src/geom/flat/orient", "node_modules/ol/src/format/Feature"], function (require, exports, Feature_js_5, GeometryLayout_js_7, GeometryType_js_24, JSONFeature_js_1, LineString_js_3, LinearRing_js_2, MultiLineString_js_2, MultiPoint_js_3, MultiPolygon_js_2, Point_js_6, Polygon_js_10, asserts_js_19, obj_js_20, extent_js_44, deflate_js_9, proj_js_18, orient_js_3, Feature_js_6) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    const GEOMETRY_READERS = {};
-    GEOMETRY_READERS[GeometryType_js_24.default.POINT] = readPointGeometry;
-    GEOMETRY_READERS[GeometryType_js_24.default.LINE_STRING] = readLineStringGeometry;
-    GEOMETRY_READERS[GeometryType_js_24.default.POLYGON] = readPolygonGeometry;
-    GEOMETRY_READERS[GeometryType_js_24.default.MULTI_POINT] = readMultiPointGeometry;
-    GEOMETRY_READERS[GeometryType_js_24.default.MULTI_LINE_STRING] = readMultiLineStringGeometry;
-    GEOMETRY_READERS[GeometryType_js_24.default.MULTI_POLYGON] = readMultiPolygonGeometry;
-    const GEOMETRY_WRITERS = {};
-    GEOMETRY_WRITERS[GeometryType_js_24.default.POINT] = writePointGeometry;
-    GEOMETRY_WRITERS[GeometryType_js_24.default.LINE_STRING] = writeLineStringGeometry;
-    GEOMETRY_WRITERS[GeometryType_js_24.default.POLYGON] = writePolygonGeometry;
-    GEOMETRY_WRITERS[GeometryType_js_24.default.MULTI_POINT] = writeMultiPointGeometry;
-    GEOMETRY_WRITERS[GeometryType_js_24.default.MULTI_LINE_STRING] = writeMultiLineStringGeometry;
-    GEOMETRY_WRITERS[GeometryType_js_24.default.MULTI_POLYGON] = writeMultiPolygonGeometry;
-    class EsriJSON extends JSONFeature_js_1.default {
-        constructor(opt_options) {
-            const options = opt_options ? opt_options : {};
-            super();
-            this.geometryName_ = options.geometryName;
-        }
-        readFeatureFromObject(object, opt_options, opt_idField) {
-            const esriJSONFeature = (object);
-            const geometry = readGeometry(esriJSONFeature.geometry, opt_options);
-            const feature = new Feature_js_5.default();
-            if (this.geometryName_) {
-                feature.setGeometryName(this.geometryName_);
-            }
-            feature.setGeometry(geometry);
-            if (esriJSONFeature.attributes) {
-                feature.setProperties(esriJSONFeature.attributes, true);
-                const id = esriJSONFeature.attributes[opt_idField];
-                if (id !== undefined) {
-                    feature.setId((id));
-                }
-            }
-            return feature;
-        }
-        readFeaturesFromObject(object, opt_options) {
-            const options = opt_options ? opt_options : {};
-            if (object['features']) {
-                const esriJSONFeatureSet = (object);
-                const features = [];
-                const esriJSONFeatures = esriJSONFeatureSet.features;
-                for (let i = 0, ii = esriJSONFeatures.length; i < ii; ++i) {
-                    features.push(this.readFeatureFromObject(esriJSONFeatures[i], options, object.objectIdFieldName));
-                }
-                return features;
-            }
-            else {
-                return [this.readFeatureFromObject(object, options)];
-            }
-        }
-        readGeometryFromObject(object, opt_options) {
-            return readGeometry(object, opt_options);
-        }
-        readProjectionFromObject(object) {
-            if (object['spatialReference'] &&
-                object['spatialReference']['wkid'] !== undefined) {
-                const spatialReference = (object['spatialReference']);
-                const crs = spatialReference.wkid;
-                return proj_js_18.get('EPSG:' + crs);
-            }
-            else {
-                return null;
-            }
-        }
-        writeGeometryObject(geometry, opt_options) {
-            return writeGeometry(geometry, this.adaptOptions(opt_options));
-        }
-        writeFeatureObject(feature, opt_options) {
-            opt_options = this.adaptOptions(opt_options);
-            const object = {};
-            if (!feature.hasProperties()) {
-                object['attributes'] = {};
-                return object;
-            }
-            const properties = feature.getProperties();
-            const geometry = feature.getGeometry();
-            if (geometry) {
-                object['geometry'] = writeGeometry(geometry, opt_options);
-                if (opt_options && opt_options.featureProjection) {
-                    object['geometry']['spatialReference'] = ({
-                        wkid: Number(proj_js_18.get(opt_options.featureProjection)
-                            .getCode()
-                            .split(':')
-                            .pop()),
-                    });
-                }
-                delete properties[feature.getGeometryName()];
-            }
-            if (!obj_js_20.isEmpty(properties)) {
-                object['attributes'] = properties;
-            }
-            else {
-                object['attributes'] = {};
-            }
-            return object;
-        }
-        writeFeaturesObject(features, opt_options) {
-            opt_options = this.adaptOptions(opt_options);
-            const objects = [];
-            for (let i = 0, ii = features.length; i < ii; ++i) {
-                objects.push(this.writeFeatureObject(features[i], opt_options));
-            }
-            return {
-                'features': objects,
-            };
-        }
-    }
-    function readGeometry(object, opt_options) {
-        if (!object) {
-            return null;
-        }
-        let type;
-        if (typeof object['x'] === 'number' && typeof object['y'] === 'number') {
-            type = GeometryType_js_24.default.POINT;
-        }
-        else if (object['points']) {
-            type = GeometryType_js_24.default.MULTI_POINT;
-        }
-        else if (object['paths']) {
-            const esriJSONPolyline = (object);
-            if (esriJSONPolyline.paths.length === 1) {
-                type = GeometryType_js_24.default.LINE_STRING;
-            }
-            else {
-                type = GeometryType_js_24.default.MULTI_LINE_STRING;
-            }
-        }
-        else if (object['rings']) {
-            const esriJSONPolygon = (object);
-            const layout = getGeometryLayout(esriJSONPolygon);
-            const rings = convertRings(esriJSONPolygon.rings, layout);
-            if (rings.length === 1) {
-                type = GeometryType_js_24.default.POLYGON;
-                object = obj_js_20.assign({}, object, { ['rings']: rings[0] });
-            }
-            else {
-                type = GeometryType_js_24.default.MULTI_POLYGON;
-                object = obj_js_20.assign({}, object, { ['rings']: rings });
-            }
-        }
-        const geometryReader = GEOMETRY_READERS[type];
-        return Feature_js_6.transformGeometryWithOptions(geometryReader(object), false, opt_options);
-    }
-    function convertRings(rings, layout) {
-        const flatRing = [];
-        const outerRings = [];
-        const holes = [];
-        let i, ii;
-        for (i = 0, ii = rings.length; i < ii; ++i) {
-            flatRing.length = 0;
-            deflate_js_9.deflateCoordinates(flatRing, 0, rings[i], layout.length);
-            const clockwise = orient_js_3.linearRingIsClockwise(flatRing, 0, flatRing.length, layout.length);
-            if (clockwise) {
-                outerRings.push([rings[i]]);
-            }
-            else {
-                holes.push(rings[i]);
-            }
-        }
-        while (holes.length) {
-            const hole = holes.shift();
-            let matched = false;
-            for (i = outerRings.length - 1; i >= 0; i--) {
-                const outerRing = outerRings[i][0];
-                const containsHole = extent_js_44.containsExtent(new LinearRing_js_2.default(outerRing).getExtent(), new LinearRing_js_2.default(hole).getExtent());
-                if (containsHole) {
-                    outerRings[i].push(hole);
-                    matched = true;
-                    break;
-                }
-            }
-            if (!matched) {
-                outerRings.push([hole.reverse()]);
-            }
-        }
-        return outerRings;
-    }
-    function readPointGeometry(object) {
-        let point;
-        if (object.m !== undefined && object.z !== undefined) {
-            point = new Point_js_6.default([object.x, object.y, object.z, object.m], GeometryLayout_js_7.default.XYZM);
-        }
-        else if (object.z !== undefined) {
-            point = new Point_js_6.default([object.x, object.y, object.z], GeometryLayout_js_7.default.XYZ);
-        }
-        else if (object.m !== undefined) {
-            point = new Point_js_6.default([object.x, object.y, object.m], GeometryLayout_js_7.default.XYM);
-        }
-        else {
-            point = new Point_js_6.default([object.x, object.y]);
-        }
-        return point;
-    }
-    function readLineStringGeometry(object) {
-        const layout = getGeometryLayout(object);
-        return new LineString_js_3.default(object.paths[0], layout);
-    }
-    function readMultiLineStringGeometry(object) {
-        const layout = getGeometryLayout(object);
-        return new MultiLineString_js_2.default(object.paths, layout);
-    }
-    function getGeometryLayout(object) {
-        let layout = GeometryLayout_js_7.default.XY;
-        if (object.hasZ === true && object.hasM === true) {
-            layout = GeometryLayout_js_7.default.XYZM;
-        }
-        else if (object.hasZ === true) {
-            layout = GeometryLayout_js_7.default.XYZ;
-        }
-        else if (object.hasM === true) {
-            layout = GeometryLayout_js_7.default.XYM;
-        }
-        return layout;
-    }
-    function readMultiPointGeometry(object) {
-        const layout = getGeometryLayout(object);
-        return new MultiPoint_js_3.default(object.points, layout);
-    }
-    function readMultiPolygonGeometry(object) {
-        const layout = getGeometryLayout(object);
-        return new MultiPolygon_js_2.default(object.rings, layout);
-    }
-    function readPolygonGeometry(object) {
-        const layout = getGeometryLayout(object);
-        return new Polygon_js_10.default(object.rings, layout);
-    }
-    function writePointGeometry(geometry, opt_options) {
-        const coordinates = geometry.getCoordinates();
-        let esriJSON;
-        const layout = geometry.getLayout();
-        if (layout === GeometryLayout_js_7.default.XYZ) {
-            esriJSON = {
-                x: coordinates[0],
-                y: coordinates[1],
-                z: coordinates[2],
-            };
-        }
-        else if (layout === GeometryLayout_js_7.default.XYM) {
-            esriJSON = {
-                x: coordinates[0],
-                y: coordinates[1],
-                m: coordinates[2],
-            };
-        }
-        else if (layout === GeometryLayout_js_7.default.XYZM) {
-            esriJSON = {
-                x: coordinates[0],
-                y: coordinates[1],
-                z: coordinates[2],
-                m: coordinates[3],
-            };
-        }
-        else if (layout === GeometryLayout_js_7.default.XY) {
-            esriJSON = {
-                x: coordinates[0],
-                y: coordinates[1],
-            };
-        }
-        else {
-            asserts_js_19.assert(false, 34);
-        }
-        return esriJSON;
-    }
-    function getHasZM(geometry) {
-        const layout = geometry.getLayout();
-        return {
-            hasZ: layout === GeometryLayout_js_7.default.XYZ || layout === GeometryLayout_js_7.default.XYZM,
-            hasM: layout === GeometryLayout_js_7.default.XYM || layout === GeometryLayout_js_7.default.XYZM,
-        };
-    }
-    function writeLineStringGeometry(lineString, opt_options) {
-        const hasZM = getHasZM(lineString);
-        return {
-            hasZ: hasZM.hasZ,
-            hasM: hasZM.hasM,
-            paths: [
-                (lineString.getCoordinates()),
-            ],
-        };
-    }
-    function writePolygonGeometry(polygon, opt_options) {
-        const hasZM = getHasZM(polygon);
-        return {
-            hasZ: hasZM.hasZ,
-            hasM: hasZM.hasM,
-            rings: (polygon.getCoordinates(false)),
-        };
-    }
-    function writeMultiLineStringGeometry(multiLineString, opt_options) {
-        const hasZM = getHasZM(multiLineString);
-        return {
-            hasZ: hasZM.hasZ,
-            hasM: hasZM.hasM,
-            paths: (multiLineString.getCoordinates()),
-        };
-    }
-    function writeMultiPointGeometry(multiPoint, opt_options) {
-        const hasZM = getHasZM(multiPoint);
-        return {
-            hasZ: hasZM.hasZ,
-            hasM: hasZM.hasM,
-            points: (multiPoint.getCoordinates()),
-        };
-    }
-    function writeMultiPolygonGeometry(geometry, opt_options) {
-        const hasZM = getHasZM(geometry);
-        const coordinates = geometry.getCoordinates(false);
-        const output = [];
-        for (let i = 0; i < coordinates.length; i++) {
-            for (let x = coordinates[i].length - 1; x >= 0; x--) {
-                output.push(coordinates[i][x]);
-            }
-        }
-        return {
-            hasZ: hasZM.hasZ,
-            hasM: hasZM.hasM,
-            rings: (output),
-        };
-    }
-    function writeGeometry(geometry, opt_options) {
-        const geometryWriter = GEOMETRY_WRITERS[geometry.getType()];
-        return geometryWriter(Feature_js_6.transformGeometryWithOptions(geometry, true, opt_options), opt_options);
-    }
-    exports.default = EsriJSON;
-});
-define("poc/fun/AgsFeatureLoader", ["require", "exports", "node_modules/ol/src/extent", "poc/TileTree", "node_modules/ol/src/source/Vector", "node_modules/ol/src/geom/Point", "node_modules/ol/src/Feature", "poc/FeatureServiceProxy", "poc/fun/removeAuthority", "node_modules/ol/src/format/EsriJSON", "node_modules/ol/src/tilegrid/common"], function (require, exports, extent_4, TileTree_1, Vector_1, Point_2, Feature_2, FeatureServiceProxy_1, removeAuthority_1, EsriJSON_1, common_1) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    exports.AgsFeatureLoader = void 0;
-    function asRequest(projection) {
-        const request = {
-            f: "json",
-            geometry: "",
-            geometryType: "esriGeometryEnvelope",
-            inSR: removeAuthority_1.removeAuthority(projection.getCode()),
-            outFields: "*",
-            outSR: removeAuthority_1.removeAuthority(projection.getCode()),
-            returnGeometry: true,
-            returnCountOnly: false,
-            spatialRel: "esriSpatialRelIntersects",
-        };
-        return request;
-    }
-    function bbox(extent) {
-        const [xmin, ymin, xmax, ymax] = extent;
-        return JSON.stringify({ xmin, ymin, xmax, ymax });
-    }
-    class AgsFeatureLoader {
-        constructor(options) {
-            this.options = options;
-            this.source = new Vector_1.default({
-                loader: (extent, resolution, projection) => this.loader(extent, resolution, projection),
-                strategy: options.strategy,
-            });
-        }
-        loader(extent, resolution, projection) {
-            return __awaiter(this, void 0, void 0, function* () {
-                const { tree, maxRecordCount, maxFetchCount, url } = this.options;
-                const helper = new TileTree_1.TileTreeExt(tree);
-                const source = this.source;
-                const tileIdentifier = tree.asXyz(tree.find(extent));
-                const tileData = tree.findByXYZ(tileIdentifier).data;
-                const proxy = new FeatureServiceProxy_1.FeatureServiceProxy({
-                    service: url,
-                });
-                {
-                    if (0 < tree.children(tileIdentifier).length) {
-                        console.log("fetching children", tileIdentifier);
-                        yield this.fetchChildren(tileIdentifier, resolution / 2, projection);
-                    }
-                    if (helper.areChildrenLoaded(tileIdentifier)) {
-                        this.recomputeCenterOfMass(tileIdentifier, helper, tileData, source);
-                        return;
-                    }
-                    {
-                        if (typeof tileData.count === "number") {
-                            console.log(`already loaded: ${extent.map(Math.round)}, count:${tileData.count}`);
-                            return;
-                        }
-                    }
-                }
-                tileData.count = 0;
-                console.log(`loading: `, tileIdentifier);
-                const request = asRequest(projection);
-                request.geometry = bbox(extent);
-                request.returnCountOnly = true;
-                try {
-                    const response = yield proxy.fetch(request);
-                    const count = response.count;
-                    tileData.count = count;
-                    console.log(`found ${count} features: `, tileIdentifier);
-                    if (count > 0) {
-                        if (count > maxRecordCount) {
-                            const children = yield this.fetchChildren(tileIdentifier, resolution, projection);
-                            console.log("children fetched:", children);
-                            if (helper.areChildrenLoaded(tileIdentifier)) {
-                                this.recomputeCenterOfMass(tileIdentifier, helper, tileData, source);
-                                return;
-                            }
-                        }
-                        if (count < maxFetchCount) {
-                            const features = yield this.loadFeatures(request, proxy, projection);
-                            features.forEach((feature) => {
-                                const geom = feature.getGeometry();
-                                const center = extent_4.getCenter(geom.getExtent());
-                                const featureTile = tree.findByPoint({
-                                    point: center,
-                                    zoom: common_1.DEFAULT_MAX_ZOOM,
-                                });
-                                feature.setProperties({ tileInfo: featureTile });
-                            });
-                        }
-                        else {
-                            const com = helper.centerOfMass(tileIdentifier);
-                            const geom = new Point_2.default(com.center);
-                            const feature = new Feature_2.default(geom);
-                            feature.setProperties({ tileInfo: tileIdentifier });
-                            source.addFeature(feature);
-                        }
-                    }
-                }
-                catch (ex) {
-                    const geom = new Point_2.default(extent_4.getCenter(extent));
-                    const feature = new Feature_2.default(geom);
-                    feature.setProperties({ text: ex, count: 0, resolution });
-                    source.addFeature(feature);
-                }
-            });
-        }
-        recomputeCenterOfMass(tileIdentifier, helper, tileData, source) {
-            console.log("computing center of mass", tileIdentifier);
-            const com = helper.centerOfMass(tileIdentifier);
-            if (tileData.count > com.mass) {
-                console.error("los mass");
-            }
-            if (!com.mass) {
-                console.log("massless");
-                return;
-            }
-            console.log("com:", com);
-            const geom = new Point_2.default(com.center);
-            const feature = new Feature_2.default(geom);
-            feature.setProperties({ tileInfo: tileIdentifier });
-            source.addFeature(feature);
-        }
-        loadFeatures(request, proxy, projection) {
-            return __awaiter(this, void 0, void 0, function* () {
-                const { source } = this;
-                const esrijsonFormat = new EsriJSON_1.default();
-                request.returnCountOnly = false;
-                const response = yield proxy.fetch(request);
-                console.log(response);
-                const features = esrijsonFormat.readFeatures(response, {
-                    featureProjection: projection,
-                });
-                features.forEach((f, i) => f.setProperties({
-                    text: `${f.getProperties()[response.objectIdFieldName]}`,
-                }));
-                source.addFeatures(features);
-                return features;
-            });
-        }
-        fetchChildren(tileIdentifier, resolution, projection) {
-            return __awaiter(this, void 0, void 0, function* () {
-                const { tree } = this.options;
-                console.log("fetchChildren:", tileIdentifier);
-                yield Promise.all(tree.ensureQuads(tree.findByXYZ(tileIdentifier)).map((q) => __awaiter(this, void 0, void 0, function* () {
-                    yield this.loader(q.extent, resolution / 2, projection);
-                    console.log("fetchedChild:", q);
-                    return q;
-                })));
-                console.log("fetchedChildren:", tileIdentifier);
-            });
-        }
-    }
-    exports.AgsFeatureLoader = AgsFeatureLoader;
-});
-define("poc/AgsClusterLayer", ["require", "exports", "poc/TileTree", "node_modules/ol/src/tilegrid", "node_modules/ol/src/loadingstrategy", "node_modules/ol/src/layer/Vector", "poc/fun/AgsFeatureLoader", "node_modules/ol/src/style", "node_modules/ol/src/style/Circle", "node_modules/ol/src/extent", "node_modules/ol/src/geom/Point"], function (require, exports, TileTree_2, tilegrid_1, loadingstrategy_1, Vector_2, AgsFeatureLoader_1, style_1, Circle_1, extent_5, Point_3) {
+define("poc/AgsClusterLayer", ["require", "exports", "poc/TileTree", "node_modules/ol/src/loadingstrategy", "node_modules/ol/src/layer/Vector", "poc/AgsClusterSource", "node_modules/ol/src/style", "node_modules/ol/src/style/Circle", "node_modules/ol/src/extent", "node_modules/ol/src/geom/Point"], function (require, exports, TileTree_4, loadingstrategy_2, Vector_2, AgsClusterSource_2, style_1, Circle_1, extent_4, Point_2) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.AgsClusterLayer = void 0;
-    class AgsClusterLayer extends Vector_2.default {
-        constructor(options) {
-            super();
-            const { url, tileSize, maxFetchCount, maxRecordCount } = options;
-            const tileGrid = tilegrid_1.createXYZ({ tileSize });
-            const strategy = loadingstrategy_1.tile(tileGrid);
-            this.tree = new TileTree_2.TileTree({
-                extent: tileGrid.getExtent(),
+    function createStyleFactory(tree) {
+        const helper = new TileTree_4.TileTreeExt(tree);
+        const circleMaker = (count, opacity) => {
+            return new Circle_1.default({
+                radius: 10 + Math.sqrt(count) / 2,
+                fill: new style_1.Fill({ color: `rgba(200,0,0,${opacity})` }),
+                stroke: new style_1.Stroke({ color: "white", width: 1 }),
             });
-            const loader = new AgsFeatureLoader_1.AgsFeatureLoader({
-                tree: this.tree,
-                url,
-                strategy,
-                maxFetchCount,
-                maxRecordCount,
-            });
-            const source = loader.source;
-            this.setStyle(this.createStyleFactory());
-            this.setSource(source);
-        }
-        render(frameState, target) {
-            if (!frameState)
-                return super.render(frameState, target);
-            const { center, zoom } = frameState.viewState;
-            const { tree } = this;
-            let tileIdentifier = tree.asXyz(tree.findByPoint({ point: center, zoom: Math.ceil(zoom) }));
-            const source = this.getSource();
-            console.log("removing parent extents:", tileIdentifier);
-            while (true) {
-                tileIdentifier = tree.parent(tileIdentifier);
-                const parentNode = tree.findByXYZ(tileIdentifier);
-                if (!parentNode)
-                    break;
-                console.log("removeLoadedExtent:", tileIdentifier);
-                source.removeLoadedExtent(parentNode.extent);
-                if (tileIdentifier.Z <= 0)
-                    break;
-            }
-            return super.render(frameState, target);
-        }
-        createStyleFactory() {
-            const helper = new TileTree_2.TileTreeExt(this.tree);
-            const circleMaker = (count) => {
-                return new Circle_1.default({
-                    radius: 10 + Math.sqrt(count) / 2,
-                    fill: new style_1.Fill({ color: "rgba(200,0,0,1)" }),
-                    stroke: new style_1.Stroke({ color: "white", width: 1 }),
-                });
-            };
-            const textMaker = (text) => new style_1.Text({
-                text: text,
-                stroke: new style_1.Stroke({ color: "black", width: 1 }),
-                fill: new style_1.Fill({ color: "white" }),
-            });
-            const style = (feature, resolution) => {
-                const { tileInfo: tileIdentifier, text } = feature.getProperties();
-                if (!tileIdentifier)
-                    return;
-                const result = [];
-                if (tileIdentifier) {
-                    if (helper.areChildrenLoaded(tileIdentifier)) {
-                        const visibleChildren = this.tree
-                            .children(tileIdentifier)
-                            .filter((c) => {
-                            const tileDensity = helper.nodeDensity(tileIdentifier);
-                            if (!tileDensity)
-                                return null;
-                            const effectiveDensity = Math.pow(resolution, 2) / tileDensity;
-                            if (effectiveDensity < 256)
-                                return false;
-                            return true;
-                        });
-                        if (4 === visibleChildren.length) {
-                            console.log("rendering children only");
-                            return null;
-                        }
-                    }
-                    const tileNode = this.tree.findByXYZ(tileIdentifier);
-                    if (!tileNode) {
-                        const vector = new style_1.Style({
-                            fill: new style_1.Fill({ color: "rgba(200,0,200,0.2)" }),
-                        });
-                        result.push(vector);
-                    }
-                    else {
-                        let { count, center } = tileNode.data;
-                        if (!center) {
-                            center = helper.centerOfMass(tileIdentifier).center;
-                        }
-                        const style = new style_1.Style({
-                            image: circleMaker(count),
-                            text: textMaker(count + ""),
-                        });
-                        if (center) {
-                            style.setGeometry(new Point_3.default(center));
-                        }
-                        else {
-                            style.setGeometry(new Point_3.default(extent_5.getCenter(feature.getGeometry().getExtent())));
-                        }
-                        result.push(style);
-                    }
-                }
-                else {
+        };
+        const textMaker = (text) => new style_1.Text({
+            text: text,
+            stroke: new style_1.Stroke({ color: "black", width: 1 }),
+            fill: new style_1.Fill({ color: "white" }),
+        });
+        const style = (feature, resolution) => {
+            const { tileInfo: tileIdentifier, text, opacity, } = feature.getProperties();
+            if (!tileIdentifier)
+                return;
+            const result = [];
+            if (tileIdentifier) {
+                const tileNode = tree.findByXYZ(tileIdentifier);
+                if (!tileNode) {
                     const vector = new style_1.Style({
                         fill: new style_1.Fill({ color: "rgba(200,0,200,0.2)" }),
                     });
                     result.push(vector);
                 }
-                if (text) {
+                else {
+                    let { count, center } = tileNode.data;
+                    if (!center) {
+                        center = helper.centerOfMass(tileIdentifier).center;
+                    }
                     const style = new style_1.Style({
-                        image: circleMaker(10),
-                        text: textMaker(text),
+                        image: circleMaker(count, opacity || 1),
+                        text: textMaker(count + ""),
                     });
+                    if (center) {
+                        style.setGeometry(new Point_2.default(center));
+                    }
+                    else {
+                        style.setGeometry(new Point_2.default(extent_4.getCenter(feature.getGeometry().getExtent())));
+                    }
                     result.push(style);
                 }
-                return result;
-            };
-            return style;
+            }
+            else {
+                const vector = new style_1.Style({
+                    fill: new style_1.Fill({ color: "rgba(200,0,200,0.2)" }),
+                });
+                result.push(vector);
+            }
+            if (text) {
+                const style = new style_1.Style({
+                    image: circleMaker(10, opacity),
+                    text: textMaker(text),
+                });
+                result.push(style);
+            }
+            return result;
+        };
+        return style;
+    }
+    class AgsClusterLayer extends Vector_2.default {
+        constructor(options) {
+            super();
+            const { url, tileGrid, maxFetchCount, maxRecordCount } = options;
+            const strategy = loadingstrategy_2.tile(tileGrid);
+            const tree = (this.tree = new TileTree_4.TileTree({
+                extent: tileGrid.getExtent(),
+            }));
+            const source = new AgsClusterSource_2.AgsClusterSource({
+                tree,
+                strategy,
+                url,
+                maxFetchCount,
+                maxRecordCount,
+            });
+            this.setStyle(createStyleFactory(this.tree));
+            this.setSource(source);
         }
     }
     exports.AgsClusterLayer = AgsClusterLayer;
 });
-define("poc/test/index", ["require", "exports", "mocha", "chai", "node_modules/ol/src/extent", "node_modules/ol/src/proj", "poc/TileTree", "node_modules/ol/src/tilegrid", "node_modules/ol/src/loadingstrategy", "node_modules/ol/src/source/VectorEventType", "poc/fun/createWeightedFeature", "node_modules/ol/src/Map", "node_modules/ol/src/View", "poc/fun/AgsFeatureLoader", "poc/asExtent", "poc/asXYZ", "poc/explode", "poc/index", "poc/AgsClusterLayer"], function (require, exports, mocha_1, chai_1, extent_6, proj_1, TileTree_3, tilegrid_2, loadingstrategy_2, VectorEventType_1, createWeightedFeature_1, Map_1, View_1, AgsFeatureLoader_2, asExtent_2, asXYZ_2, explode_4, index_3, AgsClusterLayer_1) {
+define("poc/test/map-test", ["require", "exports", "mocha", "node_modules/ol/src/extent", "node_modules/ol/src/Map", "node_modules/ol/src/View", "poc/AgsClusterLayer", "node_modules/ol/src/tilegrid"], function (require, exports, mocha_3, extent_5, Map_1, View_1, AgsClusterLayer_1, tilegrid_2) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    mocha_1.describe("Playground", () => {
-        mocha_1.it("Past Failures", () => {
-            const extent = [-180, -90, 180, 90];
-            const tree = new TileTree_3.TileTree({ extent });
-            const xyz = { X: 0, Y: 1, Z: 1 };
-            const node = tree.findByXYZ(xyz, { force: true });
-            chai_1.assert.deepEqual(tree.asXyz(node), xyz);
-        });
-    });
-    mocha_1.describe("XYZ testing", () => {
-        mocha_1.it("XYZ to extent", () => {
-            const extent = [0, 0, 16, 16];
-            let x = asExtent_2.asExtent(extent, { X: 0, Y: 0, Z: 0 });
-            chai_1.assert.deepEqual(x, [0, 0, 16, 16]);
-            x = asExtent_2.asExtent(extent, { X: 0, Y: 0, Z: 1 });
-            chai_1.assert.deepEqual(x, [0, 0, 8, 8]);
-            x = asExtent_2.asExtent(extent, { X: 1, Y: 0, Z: 1 });
-            chai_1.assert.deepEqual(x, [8, 0, 16, 8]);
-            x = asExtent_2.asExtent(extent, { X: 1, Y: 0, Z: 2 });
-            chai_1.assert.deepEqual(x, [4, 0, 8, 4]);
-            x = asExtent_2.asExtent(extent, { X: 1, Y: 0, Z: 3 });
-            chai_1.assert.deepEqual(x, [2, 0, 4, 2]);
-            x = asExtent_2.asExtent(extent, { X: 3, Y: 1020, Z: 10 });
-            console.log(x);
-            chai_1.assert.deepEqual(x, [0.046875, 15.9375, 0.0625, 15.953125]);
-        });
-        mocha_1.it("extent to XYZ", () => {
-            const extent = [0, 0, 16, 16];
-            let x = asXYZ_2.asXYZ(extent, [0, 0, 16, 16]);
-            chai_1.assert.deepEqual(x, { X: 0, Y: 0, Z: 0 });
-            x = asXYZ_2.asXYZ(extent, [0, 4, 4, 8]);
-            chai_1.assert.deepEqual(x, { X: 0, Y: 1, Z: 2 });
-            x = asXYZ_2.asXYZ(extent, [0.046875, 15.9375, 0.0625, 15.953125]);
-            chai_1.assert.deepEqual(x, { X: 3, Y: 1020, Z: 10 });
-        });
-        mocha_1.it("exhaustive XYZ", () => {
-            const extents = [
-                [0, 0, 1024, 1024],
-                proj_1.get("EPSG:3857").getExtent(),
-                proj_1.get("EPSG:4326").getExtent(),
-            ];
-            extents.forEach((extent) => {
-                console.log(extent);
-                for (let z = 0; z < 10; z++) {
-                    for (let x = 0; x < 10; x++) {
-                        for (let y = 0; y < 10; y++) {
-                            const v1 = asExtent_2.asExtent(extent, { X: x, Y: y, Z: z });
-                            const v2 = asXYZ_2.asXYZ(extent, v1);
-                            console.log(v1, v2, x, y, z);
-                            chai_1.assert.equal(v2.X, x, "x");
-                            chai_1.assert.equal(v2.Y, y, "y");
-                            chai_1.assert.equal(v2.Z, z, "z");
-                        }
-                    }
-                }
-            });
-        });
-    });
-    mocha_1.describe("TileTree Tests", () => {
-        mocha_1.it("creates a tile tree", () => {
-            const extent = [0, 0, 10, 10];
-            const tree = new TileTree_3.TileTree({ extent });
-            const root = tree.find(extent);
-            chai_1.assert.isTrue(index_3.isEq(extent[0], root.extent[0]));
-        });
-        mocha_1.it("inserts an extent outside of the bounds of the current tree", () => {
-            const extent = [0, 0, 1, 1];
-            const tree = new TileTree_3.TileTree({ extent });
-            chai_1.assert.throws(() => {
-                tree.find([1, 1, 2, 2]);
-            }, "invalid X");
-            chai_1.assert.throws(() => {
-                tree.find([0.1, 0.1, 0.9, 1.00001]);
-            }, "invalid extent");
-        });
-        mocha_1.it("inserts an extent that misaligns to the established scale", () => {
-            const extent = [0, 0, 1, 1];
-            const tree = new TileTree_3.TileTree({ extent });
-            chai_1.assert.throws(() => {
-                tree.find([0, 0, 0.4, 0.4]);
-            }, "invalid extent");
-            chai_1.assert.throws(() => {
-                tree.find([0, 0, 0.5, 0.4]);
-            }, "invalid extent");
-            chai_1.assert.throws(() => {
-                tree.find([0.1, 0, 0.6, 0.5]);
-            }, "invalid extent");
-        });
-        mocha_1.it("attaches data to the nodes", () => {
-            const extent = [0, 0, 1, 1];
-            const tree = new TileTree_3.TileTree({ extent });
-            const q0 = tree.find([0, 0, 0.25, 0.25]);
-            const q1 = tree.find([0.25, 0, 0.5, 0.25]);
-            const q2 = tree.find([0, 0.25, 0.25, 0.5]);
-            const q3 = tree.find([0.25, 0.25, 0.5, 0.5]);
-            const q33 = tree.find([0.375, 0.375, 0.5, 0.5]);
-            q0.data.count = 1;
-            q1.data.count = 2;
-            q2.data.count = 4;
-            q3.data.count = 8;
-            q33.data.count = 16;
-            const totalCount = tree.visit((a, b) => a + ((b === null || b === void 0 ? void 0 : b.data.count) || 0), 0);
-            chai_1.assert.equal(totalCount, 31);
-        });
-        mocha_1.it("uses 3857 to find a tile for a given depth and coordinate", () => {
-            const extent = proj_1.get("EPSG:3857").getExtent();
-            const tree = new TileTree_3.TileTree({ extent });
-            const q0 = tree.findByPoint({ zoom: 3, point: [-1, -1] });
-            const q1 = tree.findByPoint({ zoom: 3, point: [1, -1] });
-            const q2 = tree.findByPoint({ zoom: 3, point: [-1, 1] });
-            const q3 = tree.findByPoint({ zoom: 3, point: [1, 1] });
-            const size = -5009377.085697312;
-            chai_1.assert.isTrue(index_3.isEq(q0.extent[0], size), "q0.x");
-            chai_1.assert.equal(q1.extent[0], 0, "q1.x");
-            chai_1.assert.equal(q2.extent[0], size, "q2.x");
-            chai_1.assert.equal(q3.extent[0], 0, "q3.x");
-            chai_1.assert.equal(q0.extent[1], size, "q0.y");
-            chai_1.assert.equal(q1.extent[1], size, "q1.y");
-            chai_1.assert.equal(q2.extent[1], 0, "q2.y");
-            chai_1.assert.equal(q3.extent[1], 0, "q3.y");
-        });
-        mocha_1.it("can cache tiles from a TileGrid", () => {
-            const extent = proj_1.get("EPSG:3857").getExtent();
-            const tree = new TileTree_3.TileTree({
-                extent,
-            });
-            const tileGrid = tilegrid_2.createXYZ({ extent });
-            const addTiles = (level) => tileGrid.forEachTileCoord(extent, level, (tileCoord) => {
-                const [z, x, y] = tileCoord;
-                const extent = tileGrid.getTileCoordExtent(tileCoord);
-                tree.find(extent).data.tileCoord = tileCoord;
-            });
-            const maxX = () => tree.visit((a, b) => Math.max(a, b.data.tileCoord ? b.data.tileCoord[1] : a), 0);
-            for (let i = 0; i <= 8; i++) {
-                console.log(`adding ${i}`);
-                addTiles(i);
-                chai_1.assert.equal(Math.pow(2, i) - 1, maxX(), `addTiles(${i})`);
-            }
-        });
-        mocha_1.it("integrates with a tiling strategy", () => {
-            const extent = proj_1.get("EPSG:3857").getExtent();
-            const extentInfo = explode_4.explode(extent);
-            const tree = new TileTree_3.TileTree({ extent });
-            const tileGrid = tilegrid_2.createXYZ({ extent });
-            const strategy = loadingstrategy_2.tile(tileGrid);
-            const resolutions = tileGrid.getResolutions();
-            const r0 = extentInfo.w / 256;
-            chai_1.assert.equal(resolutions[0], r0, "meters per pixel");
-            resolutions.forEach((r, i) => {
-                chai_1.assert.equal(r, r0 * Math.pow(2, -i), `resolution[${i}]`);
-            });
-            {
-                let quad0 = extent;
-                resolutions.forEach((resolution, i) => {
-                    const extents = strategy(quad0, resolution);
-                    extents.forEach((q) => tree.find(q));
-                    quad0 = extents[0];
-                });
-            }
-        });
-        mocha_1.it("integrates with a feature source", () => {
-            const url = "http://localhost:3002/mock/sampleserver3/arcgis/rest/services/Petroleum/KSFields/FeatureServer/0/query";
-            const projection = proj_1.get("EPSG:3857");
-            const tileGrid = tilegrid_2.createXYZ({ tileSize: 512 });
-            const strategy = loadingstrategy_2.tile(tileGrid);
-            const tree = new TileTree_3.TileTree({
-                extent: tileGrid.getExtent(),
-            });
-            const source = new AgsFeatureLoader_2.AgsFeatureLoader({
-                tree,
-                strategy,
-                url,
-                maxRecordCount: 1000,
-                maxFetchCount: 100,
-            }).source;
-            source.loadFeatures(tileGrid.getExtent(), tileGrid.getResolution(0), projection);
-            source.on(VectorEventType_1.default.ADDFEATURE, (args) => {
-                const { count, resolution } = args.feature.getProperties();
-                console.log(count, resolution);
-                createWeightedFeature_1.createWeightedFeature;
-            });
-        });
-    });
-    mocha_1.describe("Cluster Rendering Rules", () => {
-        mocha_1.it("tests ensureQuads", () => {
-            const extent = [0, 0, 10, 10];
-            const tree = new TileTree_3.TileTree({
-                extent,
-            });
-            const root = tree.find(extent);
-            let quad = tree
-                .ensureQuads(tree.findByXYZ({ X: 1, Y: 1, Z: 1 }, { force: true }))
-                .map((q) => tree.asXyz(q));
-            chai_1.assert.deepEqual({ X: 2, Y: 2, Z: 2 }, quad[0], "1st quadrant");
-            chai_1.assert.deepEqual({ X: 2, Y: 3, Z: 2 }, quad[1], "2nd quadrant");
-            chai_1.assert.deepEqual({ X: 3, Y: 3, Z: 2 }, quad[2], "3rd quadrant");
-            chai_1.assert.deepEqual({ X: 3, Y: 2, Z: 2 }, quad[3], "4th quadrant");
-        });
-        mocha_1.it("computes density", () => {
-            const extent = [0, 0, 10, 10];
-            const tree = new TileTree_3.TileTree({
-                extent,
-            });
-            const helper = new TileTree_3.TileTreeExt(tree);
-            chai_1.assert.equal(40, helper.density({ Z: 1, count: 10 }));
-            const root = { X: 0, Y: 0, Z: 0 };
-            const t000 = tree.findByXYZ(root);
-            const children = tree.ensureQuads(t000);
-            children.forEach((c, i) => (c.data.count = 1 + i));
-            helper.updateCount(t000);
-            chai_1.assert.equal(10, t000.data.count, "total count");
-            chai_1.assert.equal(10, helper.nodeDensity(root), "density at Z=0");
-            chai_1.assert.equal(4, helper.nodeDensity(tree.asXyz(children[0])), "child 0");
-            chai_1.assert.equal(8, helper.nodeDensity(tree.asXyz(children[1])), "child 1");
-            chai_1.assert.equal(12, helper.nodeDensity(tree.asXyz(children[2])), "child 2");
-            chai_1.assert.equal(16, helper.nodeDensity(tree.asXyz(children[3])), "child 3");
-            chai_1.assert.equal(helper.tilesByDensity(root, 100).length, 4, "density <= 100");
-            chai_1.assert.equal(helper.tilesByDensity(root, 16).length, 4, "density <= 16");
-            chai_1.assert.equal(helper.tilesByDensity(root, 15).length, 1, "density <= 15");
-            chai_1.assert.equal(helper.tilesByDensity(root, 10).length, 1, "density <= 10");
-            chai_1.assert.equal(helper.tilesByDensity(root, 9).length, 0, "density <= 9");
-        });
-        mocha_1.it("computes center of mass", () => {
-            const extent = [0, 0, 16, 16];
-            const tree = new TileTree_3.TileTree({
-                extent,
-            });
-            const helper = new TileTree_3.TileTreeExt(tree);
-            const root = { X: 0, Y: 0, Z: 0 };
-            const t000 = tree.findByXYZ(root);
-            const [q0, q1, q2, q3] = tree.ensureQuads(t000);
-            let com = helper.centerOfMass(root);
-            chai_1.assert.deepEqual(com.mass, 0, "mass of root tile");
-            chai_1.assert.deepEqual(com.center, [8, 8], "center of mass of root tile");
-            q0.data.count = 4;
-            com = helper.centerOfMass(root);
-            chai_1.assert.deepEqual(com.mass, 4, "mass of q0");
-            chai_1.assert.deepEqual(com.center, [4, 4], "center of mass of root tile");
-            q1.data.count = 2;
-            com = helper.centerOfMass(root);
-            chai_1.assert.deepEqual(com.mass, 6, "mass of q0 + q1");
-            chai_1.assert.deepEqual(com.center, [4, 8 - 4 / 3], "center of mass of root tile");
-            q2.data.count = 1;
-            com = helper.centerOfMass(root);
-            chai_1.assert.deepEqual(com.mass, 7, "mass of q0 + q1 + q2");
-            chai_1.assert.deepEqual(com.center, [8 - 20 / 7, 8 - 4 / 7], "center of mass of root tile");
-            q3.data.count = 8;
-            com = helper.centerOfMass(root);
-            chai_1.assert.deepEqual(com.mass, 15, "mass of q0 + q1 + q2 + q3");
-            chai_1.assert.deepEqual(com.center, [8 + 12 / 15, 8 - 36 / 15], "center of mass of root tile");
-        });
-    });
-    mocha_1.describe("UI Labs", () => {
-        mocha_1.it("renders on a map", () => {
+    mocha_3.describe("UI Labs", () => {
+        mocha_3.it("renders on a map", () => {
             const view = new View_1.default({
-                center: extent_6.getCenter([-11114555, 4696291, -10958012, 4852834]),
+                center: extent_5.getCenter([-11114555, 4696291, -10958012, 4852834]),
                 minZoom: 2,
                 maxZoom: 15,
                 zoom: 7,
@@ -23687,9 +23695,10 @@ define("poc/test/index", ["require", "exports", "mocha", "chai", "node_modules/o
             document.body.appendChild(targetContainer);
             targetContainer.appendChild(target);
             const url = "http://localhost:3002/mock/sampleserver3/arcgis/rest/services/Petroleum/KSFields/FeatureServer/0/query";
+            const tileGrid = tilegrid_2.createXYZ({ tileSize: 256 });
             const vectorLayer = new AgsClusterLayer_1.AgsClusterLayer({
                 url,
-                tileSize: 256,
+                tileGrid,
                 maxRecordCount: 1024,
                 maxFetchCount: -1,
             });
@@ -23701,6 +23710,10 @@ define("poc/test/index", ["require", "exports", "mocha", "chai", "node_modules/o
             }, 60 * 1000);
         });
     });
+});
+define("poc/test/index", ["require", "exports", "poc/test/ags-feature-loader-test", "poc/test/xyz-test", "poc/test/map-test"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
 });
 define("index", ["require", "exports", "poc/test/index"], function (require, exports) {
     "use strict";
