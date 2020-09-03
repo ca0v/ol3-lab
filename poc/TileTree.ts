@@ -9,10 +9,30 @@ import { isEq } from "./fun/tiny";
 import { XYZ } from "./XYZ";
 
 export class TileTree<T> {
+  destringify(stringified: string) {
+    const descendants = JSON.parse(stringified) as Array<
+      [number, number, number, T]
+    >;
+    descendants.forEach(([X, Y, Z, data]) => {
+      Object.assign(this.findByXYZ({ X, Y, Z }, { force: true }).data, data);
+    });
+  }
+
+  stringify(): string {
+    // something much tighter than this...
+    const result = this.descendants({ X: 0, Y: 0, Z: 0 }).map((v) => [
+      v.X,
+      v.Y,
+      v.Z,
+      this.findByXYZ(v).data,
+    ]);
+    return JSON.stringify(result);
+  }
   asXyz(tile: TileNode<T>): import("poc/XYZ").XYZ {
     return asXYZ(this.root.extent, tile.extent);
   }
   private readonly root: TileNode<T>;
+  // convert into something that serializes nicely (no null fillers, maybe Set?)
   private readonly tileCache: Array<Array<Array<TileNode<T>>>>;
 
   constructor(options: { extent: Extent }) {
@@ -92,17 +112,17 @@ export class TileTree<T> {
       .filter((v) => !!v);
   }
 
-  public descendants({ X, Y, Z }: XYZ) {
+  public descendants(input: XYZ) {
     const result = [] as XYZ[];
     const Zs = Object.keys(this.tileCache)
       .map((n) => parseInt(n))
-      .filter((z) => z > Z);
-    Zs.forEach((Z, power) => {
-      const pow = Math.pow(2, power + 1);
-      const xmin = X * pow;
-      const xmax = (X + 1) * pow;
-      const ymin = Y * pow;
-      const ymax = (Y + 1) * pow;
+      .filter((z) => z > input.Z);
+    Zs.forEach((Z) => {
+      const pow = Math.pow(2, Z - input.Z);
+      const xmin = input.X * pow;
+      const xmax = (input.X + 1) * pow;
+      const ymin = input.Y * pow;
+      const ymax = (input.Y + 1) * pow;
 
       const Xs = Object.keys(this.tileCache[Z])
         .map((n) => parseInt(n))
