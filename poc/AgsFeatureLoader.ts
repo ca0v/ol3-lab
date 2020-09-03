@@ -79,7 +79,7 @@ export class AgsFeatureLoader<
       const count = response.count;
       tileData.count = count;
       console.log(`found ${count} features: `, tileIdentifier);
-      if (count === 0) return tileNode;
+      //if (count === 0) return tileNode;
 
       // drill down until we understand the layout, recompute the center of mass
       if (count > maxRecordCount) {

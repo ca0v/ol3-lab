@@ -105,24 +105,26 @@ function createStyleFactory(
   return style;
 }
 
-export class AgsClusterLayer extends VectorLayer {
-  private readonly tree: TileTree<{ count: number; center: [number, number] }>;
+export class AgsClusterLayer<
+  T extends { count: number; center: [number, number] }
+> extends VectorLayer {
+  private readonly tree: TileTree<T>;
 
   constructor(options: {
     url: string;
     tileGrid: TileGrid;
     maxFetchCount: number;
     maxRecordCount: number;
+    hack: string; //[number, number, number, T]
   }) {
     super();
     const { url, tileGrid, maxFetchCount, maxRecordCount } = options;
     const strategy = tileStrategy(tileGrid);
-    const tree = (this.tree = new TileTree<{
-      count: number;
-      center: [number, number];
-    }>({
+    const tree = (this.tree = new TileTree<T>({
       extent: tileGrid.getExtent(),
     }));
+
+    tree.destringify(options.hack);
 
     const source = new AgsClusterSource({
       tree,

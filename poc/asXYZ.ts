@@ -18,7 +18,6 @@ export function asXYZ(rootExtent: Extent, extent: Extent): XYZ {
   const TINY = Math.pow(2, -10);
 
   if (!isEq(Z - z, 0, TINY)) {
-    debugger;
     throw "invalid extent: zoom";
   }
 

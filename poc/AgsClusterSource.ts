@@ -36,6 +36,8 @@ export class AgsClusterSource<
     });
   }
 
+  private isNotFirstDraw: true | undefined;
+
   async loadFeatures(
     extent: Extent,
     resolution: number,
@@ -46,7 +48,7 @@ export class AgsClusterSource<
     const render = (node: TileNode<T>) => {
       const nodeIdentifier = tree.asXyz(node);
       // do not render if no weight
-      if (0 === node.data.count) return;
+      //if (0 === node.data.count) return;
 
       const dz = Z - nodeIdentifier.Z;
 
@@ -66,8 +68,8 @@ export class AgsClusterSource<
         const parentIdentifier = tree.parent(nodeIdentifier);
         const parentNode = tree.findByXYZ(parentIdentifier);
         if (parentNode?.data?.center) {
-          console.log(nodeIdentifier, "yields to", parentIdentifier);
-          return;
+          //console.log(nodeIdentifier, "yields to", parentIdentifier);
+          //return;
         }
       }
 
@@ -76,7 +78,7 @@ export class AgsClusterSource<
       feature.setGeometry(point);
       feature.setProperties({
         tileInfo: nodeIdentifier,
-        opacity: 1 / (1 + Math.abs(dz)),
+        opacity: Math.pow(4, -Math.abs(dz)),
       });
       this.addFeature(feature);
     };
@@ -92,7 +94,8 @@ export class AgsClusterSource<
       (tileIdentifier) => !tree.findByXYZ(tileIdentifier).data.center
     );
 
-    if (!unloadedExtents.length) return;
+    if (!unloadedExtents.length && this.isNotFirstDraw) return;
+    this.isNotFirstDraw = true;
 
     const results = unloadedExtents.map((tileIdentifier) =>
       this.loadTile(tileIdentifier, projection)
@@ -107,6 +110,8 @@ export class AgsClusterSource<
       render(b);
       return a + 1;
     }, 0);
+
+    console.log("tree", tree.stringify());
   }
 
   public async loadTile(tileIdentifier: XYZ, projection: Projection) {
