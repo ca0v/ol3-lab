@@ -78,13 +78,18 @@ Once this happens it is not a given that the features will render.  We now need 
 ### Rule 4
 Alternatively we can do a client-side spatial query to cluster neighboring features to allow reaching across grid boundaries.  I think that without this last step things will snap to grid lines, but I will leave this as a future rule.
 
-### Notes of Interest
-I had a terrible time figuring out how to compute the tile identifiers given an extent due to floating point issues.  This solution finally got all my tests to pass, I won't get into why but the code below was a less-obvious solution for computing x and y but increased precision to acceptable levels:
+## Notes of Interest
 
-    z = log2(rootInfo.w / nodeInfo.w)
-    Z = round(z)
-    x = (pow(2, Z) * (nodeInfo.xmin - rootInfo.xmin)) / rootInfo.w
-    y = (pow(2, Z) * (nodeInfo.ymin - rootInfo.ymin)) / rootInfo.h
-    X = round(x)
-    Y = round(y)
+### Computing Tile Identifier from an Extent
+It was challenging to compute the tile identifiers given an extent due to floating point issues.  This solution got my tests to pass. The code below was a less-obvious solution for computing x and y but increased precision to acceptable levels:
 
+    Z = pow(2, round(log2(root.w / node.w)))
+    X = round(Z * (node.xmin - root.xmin)) / root.w)
+    Y = round(Z * (node.ymin - root.ymin)) / root.h)
+
+### Client-Side Caching of Aggregation Data
+There are `stringify` and `unstringify` methods on the TileTree that could conceivable be used to cache the tree on the browser between sessions.  Since this tree is relatively expensive to build due to all the "count" or "hit" queries it will improve performance at the cost of a modest amount of client-side storage. 
+
+There is little risk in exposing meaningful data as it is just an aggregate count.  
+
+Stale data is not so big of an issue when dealing with clusters and since the data grows more accurate as the user exercises the map (only leaf tiles need "count" data so zooming beyond current leaves will auto-refresh the data) it should be self-correcting without explicitly expiring the cache.
