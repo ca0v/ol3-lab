@@ -8,26 +8,32 @@ import { TileNode } from "./TileNode";
 import { isEq } from "./fun/tiny";
 import { XYZ } from "./XYZ";
 
+const noop = (a: any) => a;
+
 export class TileTree<T> {
-  destringify(stringified: string) {
+  destringify<Q>(stringified: string, map?: (d: Q) => T) {
     const descendants = JSON.parse(stringified) as Array<
-      [number, number, number, T]
+      [number, number, number, Q]
     >;
     descendants.forEach(([X, Y, Z, data]) => {
-      Object.assign(this.findByXYZ({ X, Y, Z }, { force: true }).data, data);
+      Object.assign(
+        this.findByXYZ({ X, Y, Z }, { force: true }).data,
+        (map || noop)(data)
+      );
     });
   }
 
-  stringify(): string {
+  stringify<Q>(map?: (d: T, id: XYZ) => Q): string {
     // something much tighter than this...
     const result = this.descendants({ X: 0, Y: 0, Z: 0 }).map((v) => [
       v.X,
       v.Y,
       v.Z,
-      this.findByXYZ(v).data,
+      (map || noop)(this.findByXYZ(v).data, v),
     ]);
     return JSON.stringify(result);
   }
+
   asXyz(tile: TileNode<T>): import("poc/XYZ").XYZ {
     return asXYZ(this.root.extent, tile.extent);
   }
@@ -51,7 +57,7 @@ export class TileTree<T> {
     return { X, Y, Z };
   }
 
-  private asExtent(tileName: { X: number; Y: number; Z: number }) {
+  public asExtent(tileName: { X: number; Y: number; Z: number }) {
     return asExtent(this.root.extent, tileName);
   }
 
