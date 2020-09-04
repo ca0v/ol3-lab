@@ -49,7 +49,6 @@ export class AgsFeatureLoader<
     projection: Projection
   ): Promise<TileNode<T>> {
     const { tree, maxRecordCount, maxFetchCount, url } = this.options;
-    const helper = new TileTreeExt(tree);
 
     const tileNode = tree.findByXYZ(tileIdentifier, { force: true });
     const tileData = tileNode.data;
@@ -59,11 +58,6 @@ export class AgsFeatureLoader<
     });
 
     if (typeof tileData.count === "number" && !!tileData.center) {
-      console.log(
-        `already loaded: ${tileNode.extent.map(Math.round)}, count:${
-          tileData.count
-        }`
-      );
       return tileNode;
     }
     tileData.count = 0;
@@ -80,25 +74,6 @@ export class AgsFeatureLoader<
       tileData.count = count;
       console.log(`found ${count} features: `, tileIdentifier);
       //if (count === 0) return tileNode;
-
-      // drill down until we understand the layout, recompute the center of mass
-      if (count > maxRecordCount) {
-        const children = await this.fetchChildren(tileIdentifier, projection);
-        console.log("children fetched:", children);
-
-        const com = this.recomputeCenterOfMass(
-          tileIdentifier,
-          helper,
-          tileData
-        );
-        tileData.center = com.center;
-        // can gain mass due to duplicate features in siblings
-        // because of the query strategy to receive anything (esriSpatialRelIntersects)
-        // that intersects the extent but would prefer a query that returns
-        // count based on centroid to ensure uniqueness
-        console.assert(tileData.count <= com.mass);
-        return tileNode;
-      }
 
       if (count < maxFetchCount) {
         // load the actual features
@@ -117,30 +92,12 @@ export class AgsFeatureLoader<
           // maybe tileNode.data.features[fid]=feature
           feature.setProperties({ tileInfo: featureTile });
         });
-      } else {
-        const com = helper.centerOfMass(tileIdentifier);
-        tileData.center = com.center;
-        tileData.count = com.mass;
       }
     } catch (ex) {
       console.error("network error", ex, tileIdentifier);
-      tileData.count = -1;
+      tileData.count = 1;
     }
     return tileNode;
-  }
-
-  private recomputeCenterOfMass(
-    tileIdentifier: XYZ,
-    helper: TileTreeExt,
-    tileData: { count: number; center: [number, number] }
-  ) {
-    console.log("computing center of mass", tileIdentifier);
-    const com = helper.centerOfMass(tileIdentifier);
-    if (tileData.count > com.mass) {
-      console.error("loss of mass:", tileIdentifier, tileData.count, com.mass);
-      debugger;
-    }
-    return com;
   }
 
   private async loadFeatures(

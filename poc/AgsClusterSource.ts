@@ -1,6 +1,6 @@
 import { Extent } from "@ol/extent";
 import { Projection } from "@ol/proj";
-import { TileTree } from "./TileTree";
+import { TileTree, TileTreeExt } from "./TileTree";
 import VectorSource, { LoadingStrategy } from "@ol/source/Vector";
 import Geometry from "@ol/geom/Geometry";
 import { AgsFeatureLoader } from "./AgsFeatureLoader";
@@ -8,25 +8,51 @@ import { XYZ } from "./XYZ";
 import Feature from "@ol/Feature";
 import Point from "@ol/geom/Point";
 import { TileNode } from "./TileNode";
+import { createXYZ } from "@ol/tilegrid";
+import { tile as tileStrategy } from "@ol/loadingstrategy";
+
+const LOOKAHEAD_THRESHOLD = 3; // a zoom offset for cluster data
+const MINIMAL_PARENTAL_MASS = 100; // do not fetch children if parent below this mass threshold
+
+function split<T>(list: Array<T>, splitter: (item: T) => boolean) {
+  const yesno = [[], []] as Array<Array<T>>;
+  list.forEach((item) => yesno[splitter(item) ? 0 : 1].push(item));
+  return yesno;
+}
 
 export class AgsClusterSource<
   T extends { count: number; center: [number, number] }
 > extends VectorSource<Geometry> {
+  private tileSize: number;
   private featureLoader: AgsFeatureLoader<T>;
   private loadingStrategy: LoadingStrategy;
   private tree: TileTree<T>;
+  private isFirstDraw: boolean;
+  private priorResolution: number;
+  private maxRecordCount: number;
 
   constructor(options: {
-    strategy: LoadingStrategy;
+    tileSize: number;
     url: string;
     maxRecordCount: number;
     maxFetchCount: number;
-    tree: TileTree<any>;
+    treeTileState: Array<[number, number, number, T]>;
   }) {
-    const { strategy, url, maxRecordCount, maxFetchCount, tree } = options;
+    const tileGrid = createXYZ({ tileSize: 512 });
+    const strategy = tileStrategy(tileGrid);
+
+    const tree = new TileTree<T>({
+      extent: tileGrid.getExtent(),
+    });
+
+    const { url, maxRecordCount, maxFetchCount, tileSize } = options;
     super({ strategy });
     this.tree = tree;
+    this.tileSize = tileSize;
     this.loadingStrategy = strategy;
+    this.isFirstDraw = true;
+    this.priorResolution = 0;
+    this.maxRecordCount = maxRecordCount;
 
     this.featureLoader = new AgsFeatureLoader({
       tree,
@@ -34,9 +60,9 @@ export class AgsClusterSource<
       maxRecordCount,
       maxFetchCount,
     });
-  }
 
-  private isNotFirstDraw: true | undefined;
+    tree.load(options.treeTileState);
+  }
 
   async loadFeatures(
     extent: Extent,
@@ -44,77 +70,189 @@ export class AgsClusterSource<
     projection: Projection
   ) {
     const { tree } = this;
-
-    const render = (node: TileNode<T>) => {
-      const nodeIdentifier = tree.asXyz(node);
-      // do not render if no weight
-      //if (0 === node.data.count) return;
-
-      const dz = Z - nodeIdentifier.Z;
-
-      // is this tile a parent?
-      if (dz < 1) {
-        // do not render if any children
-        if (
-          !!tree.children(nodeIdentifier).filter((n) => n.data.center).length
-        ) {
-          //return;
-        }
-      }
-
-      // is this a child?
-      if (dz == 0) {
-        // do not render if parent available
-        const parentIdentifier = tree.parent(nodeIdentifier);
-        const parentNode = tree.findByXYZ(parentIdentifier);
-        if (parentNode?.data?.center) {
-          //console.log(nodeIdentifier, "yields to", parentIdentifier);
-          //return;
-        }
-      }
-
-      const point = new Point(node.data.center);
-      const feature = new Feature();
-      feature.setGeometry(point);
-      feature.setProperties({
-        tileInfo: nodeIdentifier,
-        opacity: Math.pow(4, -Math.abs(dz)),
-      });
-      this.addFeature(feature);
-    };
-
+    console.log("request to load features in ", extent, resolution);
     const extentsToLoad = this.loadingStrategy(
       extent,
       resolution
-    ).map((extent) => tree.asXyz(this.tree.find(extent)));
-    if (!extentsToLoad.length) return;
+    ).map((extent) => tree.asXyz(extent));
+
+    if (!extentsToLoad.length) {
+      console.log("no extents need to be loaded");
+      return;
+    }
+    console.log(extentsToLoad);
     const Z = extentsToLoad[0].Z;
 
-    const unloadedExtents = extentsToLoad.filter(
-      (tileIdentifier) => !tree.findByXYZ(tileIdentifier).data.center
+    if (this.isFirstDraw || resolution !== this.priorResolution) {
+      console.log("rendering 1st tree");
+      this.priorResolution = resolution;
+      this.isFirstDraw = false;
+      this.renderTree(tree, Z, projection);
+    }
+
+    extentsToLoad.forEach(async (tileIdentifier) => {
+      if (!tree.findByXYZ(tileIdentifier)) {
+        console.log("loading", tileIdentifier);
+        await this.loadTile(tileIdentifier, projection);
+      }
+
+      const nodes = await this.loadDescendantsUntil(
+        tileIdentifier,
+        projection,
+        (nodeId) => {
+          const node = tree.findByXYZ(nodeId);
+
+          const smallEnoughTest = node.data.count < this.maxRecordCount;
+
+          if (!smallEnoughTest) {
+            console.log("fetching for more resolution");
+          }
+
+          const tooSmallTest = node.data.count < MINIMAL_PARENTAL_MASS;
+
+          if (!tooSmallTest) {
+            console.log("lookahead fetching allowed");
+          }
+
+          const lookaheadTest = nodeId.Z > Z + LOOKAHEAD_THRESHOLD;
+
+          if (!lookaheadTest) {
+            console.log("lookahead fetching", Z, nodeId);
+          }
+
+          return smallEnoughTest && (lookaheadTest || tooSmallTest);
+        }
+      );
+
+      if (nodes.length) {
+        console.log("new nodes", nodes);
+        this.renderTree(this.tree, Z, projection);
+      }
+    });
+  }
+
+  private async loadDescendantsUntil(
+    tileIdentifier: XYZ,
+    projection: Projection,
+    stop: (tileIdentifier: XYZ) => boolean
+  ): Promise<XYZ[]> {
+    if (stop(tileIdentifier)) return [] as XYZ[];
+
+    const allChildren = this.tree.quads(tileIdentifier);
+
+    const unloadedCildren = allChildren.filter(
+      (c) => typeof this.tree.findByXYZ(c)?.data.count !== "number"
     );
 
-    if (!unloadedExtents.length && this.isNotFirstDraw) return;
-    this.isNotFirstDraw = true;
+    await this.loadAllChildren(this.tree, tileIdentifier, projection);
 
-    const results = unloadedExtents.map((tileIdentifier) =>
-      this.loadTile(tileIdentifier, projection)
+    const grandChildren = await Promise.all(
+      allChildren.map((c) => this.loadDescendantsUntil(c, projection, stop))
     );
+    return unloadedCildren.concat(...grandChildren);
+  }
 
-    await Promise.all(results);
-    this.clear(true);
-
+  private renderTree(tree: TileTree<T>, Z: number, projection: Projection) {
+    const leafNodes = [] as Array<XYZ>;
     tree.visit((a, b) => {
-      if (!b.data) return 0;
-      if (!b.data.center) return 0;
-      render(b);
-      return a + 1;
-    }, 0);
+      const nodeIdentifier = tree.asXyz(b);
+      if (0 === tree.children(nodeIdentifier).length) {
+        leafNodes.push(nodeIdentifier);
+      }
+    }, {} as any);
 
-    console.log("tree", tree.stringify());
+    this.getFeatures().forEach((f) => f.setProperties({ visible: false }));
+
+    const [keep, remove] = split(leafNodes, (nodeIdentifier) => {
+      const node = tree.findByXYZ(nodeIdentifier);
+      if (!node.data) return false;
+      const mass = node.data.count;
+      if (0 >= mass) return false;
+      if (!node.data.center) return false;
+      return true;
+    });
+
+    console.log(keep, remove);
+    keep.forEach((nodeIdentifier) => this.render(tree, nodeIdentifier, Z));
+    remove.forEach((nodeIdentifier) => this.unrender(tree, nodeIdentifier, Z));
+  }
+
+  private async createSyntheticParent(
+    tree: TileTree<T>,
+    parentIdentifier: { X: number; Y: number; Z: number },
+    projection: Projection
+  ) {
+    let siblings = tree.children(parentIdentifier);
+    if (4 === siblings.length) {
+      console.log(parentIdentifier, "can be created from", siblings);
+      const parentNode = tree.findByXYZ(parentIdentifier, {
+        force: true,
+      });
+      const helper = new TileTreeExt(tree);
+      const com = helper.centerOfMass(parentIdentifier);
+      parentNode.data.count = com.mass;
+      parentNode.data.center = com.center;
+      return true;
+    }
+
+    await this.loadAllChildren(tree, parentIdentifier, projection);
+    siblings = tree.children(parentIdentifier);
+    if (4 === siblings.length) {
+      return this.createSyntheticParent(tree, parentIdentifier, projection);
+    }
+    console.warn(parentIdentifier, "cannot have children", siblings);
+    return false;
+  }
+
+  private async loadAllChildren(
+    tree: TileTree<T>,
+    nodeIdentifier: XYZ,
+    projection: Projection
+  ) {
+    return Promise.all(
+      tree.quads(nodeIdentifier).map((id) => this.loadTile(id, projection))
+    );
   }
 
   public async loadTile(tileIdentifier: XYZ, projection: Projection) {
     return this.featureLoader.loader(tileIdentifier, projection);
+  }
+
+  private tileDensity(currentZoomLevel: number, tileIdentifier: XYZ) {
+    const { Z } = tileIdentifier;
+    return Math.pow(4, currentZoomLevel - Z);
+  }
+
+  private unrender(tree: TileTree<T>, nodeIdentifier: XYZ, Z: number) {
+    const node = tree.findByXYZ(nodeIdentifier);
+    const feature = node.data["feature"] as Feature<Geometry>;
+    if (!feature) return;
+    feature.setProperties({ visible: false });
+  }
+
+  private render(tree: TileTree<T>, nodeIdentifier: XYZ, Z: number) {
+    const node = tree.findByXYZ(nodeIdentifier);
+    let feature = node.data["feature"] as Feature<Geometry>;
+    if (feature) {
+      feature.setProperties({ visible: true });
+      return;
+    }
+    if (0 === node.data.count) return;
+
+    const point = new Point(node.data.center);
+    feature = new Feature();
+    const mass = node.data.count;
+
+    feature.setGeometry(point);
+    feature.setProperties({
+      visible: true,
+      tileInfo: nodeIdentifier,
+      text: `${mass}`,
+      mass,
+      density: this.tileDensity(Z, nodeIdentifier),
+    });
+    this.addFeature(feature);
+    node.data["feature"] = feature;
+    console.log("created feature");
   }
 }

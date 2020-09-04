@@ -2,7 +2,7 @@
 Rendering a large number of feature is impractical.  A a system is needed for determining when to fetch "count" and when to fetch the actual features.  A clustering strategy for determining when to render an approximation of the features and when to render the actual features is needed.
 
 ## Cient Side Solutions
-Existing client-side clustering strategies rely on having the underlying geometry and testing for proximity, basically buffering around a feature, testing for any unclustered neighbors and putting them all in the same cluster.  This strategy only works when all the feature are loaded in the current viewport.
+Existing client-side clustering strategies rely on having the underlying geometry and testing for proximity, basically buffering around a feature, testing for any unclustered neighbors and putting them all in the same cluster.  This strategy only works when all the features are loaded in the current viewport.
 
 From the Openlayers cluster source:
 
@@ -35,7 +35,7 @@ These would have access to the features and send approximations to the client.  
 * https://github.com/cjstehno/coffeaelectronica/wiki/Mapping-Large-Data-Sets
 
 ## Expectation
-We do not want to retrieve too many features too soon.  A solution should optimize server communication and screen real-estate to present the user with as much detail as possible without overwhelming the UI.  Although a server-side solution might be optimal and Vector Tiles are ideal, I think with a "count" query I can get similar functionality, if not performance, with a client-side only solution that works with older ArcGIS and OGC systems that can return a "count" of "hits" result.
+We do not want to retrieve too many features too soon.  A solution should optimize server communication and screen real-estate to present the user with as much detail as possible without overwhelming the UI.  Although a server-side solution might be optimal and Vector Tiles are ideal, I think with a "count" query I can get similar functionality, if not performance, with a client-side only solution that works with older ArcGIS and OGC systems that can return a "count" or "hits" result.
 
 ## Meeting the Expectation
 Here I will outline a "density" strategy that give "mass" and "volume" to "tiles" and individual "features".  Tile density is really just a way of ensuring we do not consume too few pixels when representing the data associate with a tile.  Put the features aside for the time being and consider only "count" data, or the number of features with centroid within the bounds of a tile.  Since we have the "count" of a tile, We can now consider a tiles mass to be the count and the tiles volume to be the area (with thickness 1).  With that we have a way to compute tile density.
@@ -50,7 +50,7 @@ Here I will outline a "density" strategy that give "mass" and "volume" to "tiles
 |tile density|tile mass divided by tile volume|
 |feature|data represented by a point, line or polygon marker|
 |cluster marker|a point representing one or more features|
-|threshold|a scalar value that, once exceeded, indicates clustering is required|
+|density threshold|a scalar value that, once exceeded, indicates clustering is required|
 
 ## Computing Cluster Threshold
 There needs to be a criteria for deciding if a feature should render.  We need some threshold value that, when crossed, renders the features as a cluster marker.
@@ -63,7 +63,7 @@ Likely defaults are `A=5` and `B = ⅜TileSize/√1000`, or simply `B=3` when `T
 
     radius(node) => A + B * Math.sqrt(node.data.count)
 
-Now if the radius is small enough we can probably render the children instead to give the user more markers with more counts in more precise locations.  Keep in mind that the radius of a child will appear in a tile ¼ the area and ½ the width of the parent and therefore the radius of the child must be less than or equal to ½ the max allowed radius of the parent.  That is to say, the child threshold must be ¼ the parent theshold since the child area is ¼ the parent area.  This will always be true in the aggregate that the child radius will ½ the parent because the average count of az child is ¼ the parent count, but it is the extremes that we care about.  
+Now if the radius is small enough we can probably render the children instead to give the user more markers with more counts in more precise locations.  Keep in mind that the radius of a child will appear in a tile ¼ the area and ½ the width of the parent and therefore the radius of the child must be less than or equal to ½ the max allowed radius of the parent.  That is to say, the child threshold must be ¼ the parent theshold since the child area is ¼ the parent area.  This will always be true in the aggregate that the child radius will ½ the parent because the average count of a child is ¼ the parent count, but it is the extremes that we care about.  
 
 ### Rule 1
 If *any* child exceeds the threshold then use all the children of the parent to compute the parents center-of-mass and render the parent as a cluster marker.  
@@ -72,11 +72,19 @@ If *any* child exceeds the threshold then use all the children of the parent to 
 If no child exceeds this threshold then repeat the process for the grand-children of the parent, repeating recursively until all leaf nodes have at least one sibling that exceeds threshold, or itself exceeds the threshold.  At that point, rule 1 comes back into play.
 
 ### Rule 3
-Now it may be that we reach a child tile that has such a small count as to justify querying for the features within that tile.  This introduces a new configuration option...how many features should we render in a single tile?  Call this `maxFeaturesPerTile`.
+Now it may be that we reach a child tile that has such a small count as to justify querying for the features within that tile.  This introduces a new configuration option...how many features should we render in a single tile?  Call this `MaxFeaturesPerTile`.
 Once this happens it is not a given that the features will render.  We now need to compute the density of each feature.  As before with tiles, any features that are too dense will result in the parent tile rendering as a cluster, so either all the features will render or none of them will.  
 
 ### Rule 4
 Alternatively we can do a client-side spatial query to cluster neighboring features to allow reaching across grid boundaries.  I think that without this last step things will snap to grid lines, but I will leave this as a future rule.
+
+### Threshold
+The Threshold should be externally configurable via `ClusterDensityThreshold` but should default to a value that ensures a reasonably styled cluster marker will remain within the tile it represents.  Assuming a square tile, `T` if size `w²` pixels at zoom level `Z`, it will have an area of `w²4<sup>(z-Z)</sup>`, where `z` represent the current zoom level.  As the user zooms out from `Z` the tile `T` gets smaller because z-Z gets smaller.  The smaller `T` gets the more dense it becomes.  At some point it should disappear, yielding to its parent to render instead.  This threshold value should default to about 2πr², which is `2π(A+B√count)²`.  
+
+If the `w²4<sup>(z-Z)</sup>` exceeds `2π(A+B√count)²` then the tile is too dense to render.
+
+## Areas of Concern
+My solution for computing `cluster density` seems like it would be simpler if each cluster marker had a physical geometry (e.g. circle or polygon) associated with it.  In that case zooming in/out would have a visual effect on the markers.  When they get too large we render the children instead.  I feel that is a better option and may lend itself to using a built-in client-side clustering strategy.  Keep in mind current `count` results can count the same feature multiple times so it is still benificial to maintain the parent count data, complicating a built-in solution.
 
 ## Notes of Interest
 
@@ -88,8 +96,8 @@ It was challenging to compute the tile identifiers given an extent due to floati
     Y = round(Z * (node.ymin - root.ymin)) / root.h)
 
 ### Client-Side Caching of Aggregation Data
-There are `stringify` and `unstringify` methods on the TileTree that could conceivable be used to cache the tree on the browser between sessions.  Since this tree is relatively expensive to build due to all the "count" or "hit" queries it will improve performance at the cost of a modest amount of client-side storage. 
+There are `stringify` and `unstringify` methods on the TileTree that may be used to cache the tree on the browser between sessions.  Since this tree is relatively expensive to build due to all the "count" or "hit" queries it will improve performance at the cost of a modest amount of client-side storage. 
 
-There is little risk in exposing meaningful data as it is just an aggregate count.  
+There is a security risk in exposing aggregate feature counts, but defaulting to cache seems reasonable.  Use `DisableClusterCaching` to turn this feature off. 
 
-Stale data is not so big of an issue when dealing with clusters and since the data grows more accurate as the user exercises the map (only leaf tiles need "count" data so zooming beyond current leaves will auto-refresh the data) it should be self-correcting without explicitly expiring the cache.
+There is risk of stale data but since the data grows more accurate as the user exercises the map (only leaf tiles need "count" data so zooming beyond current leaves will auto-refresh the data) it should be self-correcting without explicitly expiring the cache. The trick here is to only cache the leaf nodes and work backwards to rebuild the tree.  To that end, custom encoder/decoders should be used for processing the tree serializer, some for readability, some for terseness.  By default, use `TerseClusterEncoding`.

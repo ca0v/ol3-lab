@@ -223,26 +223,17 @@ describe("TileTree Tests", () => {
     const url =
       "http://localhost:3002/mock/sampleserver3/arcgis/rest/services/Petroleum/KSFields/FeatureServer/0/query";
     const projection = getProjection("EPSG:3857");
-    const tileGrid = createXYZ({ tileSize: 512 });
-    const strategy = tileStrategy(tileGrid);
-
-    const tree = new TileTree<{ count: number; center: [number, number] }>({
-      extent: tileGrid.getExtent(),
-    });
+    const tileSize = 256;
 
     const source = new AgsClusterSource({
-      tree,
+      tileSize,
       url,
-      strategy,
       maxRecordCount: 1000,
       maxFetchCount: 100,
+      treeTileState: [],
     });
 
-    source.loadFeatures(
-      tileGrid.getExtent(),
-      tileGrid.getResolution(0),
-      projection
-    );
+    source.loadTile({ X: 0, Y: 0, Z: 0 }, projection);
 
     source.on(
       VectorEventType.ADDFEATURE,

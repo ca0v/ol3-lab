@@ -11,16 +11,20 @@ import { XYZ } from "./XYZ";
 const noop = (a: any) => a;
 
 export class TileTree<T> {
-  destringify<Q>(stringified: string, map?: (d: Q) => T) {
-    const descendants = JSON.parse(stringified) as Array<
-      [number, number, number, Q]
-    >;
+  public load(descendants: Array<[number, number, number, T]>) {
     descendants.forEach(([X, Y, Z, data]) => {
-      Object.assign(
-        this.findByXYZ({ X, Y, Z }, { force: true }).data,
-        (map || noop)(data)
-      );
+      Object.assign(this.findByXYZ({ X, Y, Z }, { force: true }).data, data);
     });
+  }
+
+  public destringify<Q>(stringified: string, map?: (d: Q) => T) {
+    const descendants = JSON.parse(stringified).map(([X, Y, Z, data]) => [
+      X,
+      Y,
+      Z,
+      <T>(map || noop)(data),
+    ]);
+    this.load(descendants);
   }
 
   stringify<Q>(map?: (d: T, id: XYZ) => Q): string {
@@ -34,8 +38,12 @@ export class TileTree<T> {
     return JSON.stringify(result);
   }
 
-  asXyz(tile: TileNode<T>): import("poc/XYZ").XYZ {
-    return asXYZ(this.root.extent, tile.extent);
+  asXyz(tile: TileNode<T> | Extent): XYZ {
+    if (Array.isArray(tile)) {
+      return asXYZ(this.root.extent, tile);
+    } else {
+      return asXYZ(this.root.extent, tile.extent);
+    }
   }
   private readonly root: TileNode<T>;
   // convert into something that serializes nicely (no null fillers, maybe Set?)
@@ -101,7 +109,7 @@ export class TileTree<T> {
     return this.findByXYZ({ X, Y, Z }, { force: true });
   }
 
-  private quads({ X, Y, Z }: XYZ) {
+  public quads({ X, Y, Z }: XYZ) {
     const x = X * 2;
     const y = Y * 2;
     const z = Z + 1;

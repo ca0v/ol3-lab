@@ -14,8 +14,10 @@
     "clean": "rm built/** -rf",
     "live": "live-server --port=5000 --wait=200 --watch=./built/index.js --open=./index.html",
     "build:index": "tsc -p tsconfig.json --outFile ./built/index.js",
-    "server": "cd ../reverse-proxy-server && npm run server",
-    "postinstall": "npm-run-all cp build:index live"
+    "watch:index": "npm run build:index -- -w",
+    "server": "cd ../reverse-proxy-cache && npm run server",
+    "postinstall": "npm-run-all cp build:index live",
+    "go": "npm-run-all -p server live watch:index"
   },
   "dependencies": {},
   "devDependencies": {
