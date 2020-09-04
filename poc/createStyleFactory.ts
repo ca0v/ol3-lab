@@ -1,14 +1,23 @@
-import { TileTree, TileTreeExt } from "./TileTree";
 import Feature from "@ol/Feature";
 import Geometry from "@ol/geom/Geometry";
 import { Style, Fill, Stroke, Text } from "@ol/style";
 import Circle from "@ol/style/Circle";
-import { getCenter } from "@ol/extent";
-import Point from "@ol/geom/Point";
 import { XYZ } from "./XYZ";
 
-const A = 5;
-const B = 3 * 0.1;
+const noop = (a: any) => a;
+
+const STYLE_CONFIG = {
+  clusterFillColor: "rgba(0, 48, 109, 0.5)",
+  clusterStrokeColor: "rgba(232, 230, 227, 0.3)",
+  clusterStrokeWidth: 2,
+  clusterTextFillColor: "rgba(232, 230, 227, 1)",
+  clusterTextStrokeColor: "rgba(0, 0, 0, 1)",
+  clusterTextStrokeWidth: 1,
+  clusterTextScale: 0.75,
+  clusterMinimumRadius: 5,
+  clusterRadiusScale: 1,
+  clusterScaleOp: (v: number) => Math.pow(2, Math.ceil(Math.log10(v))),
+};
 
 /**
  * Although using styles to control which features render is possible it is
@@ -22,17 +31,27 @@ export function createStyleFactory() {
   // rules to be specified in configuration
   const circleMaker = (count: number, opacity: number) => {
     return new Circle({
-      radius: A + B * Math.sqrt(count),
-      fill: new Fill({ color: `rgba(200,0,0,${opacity})` }),
-      stroke: new Stroke({ color: `rgba(100,0,0,${opacity})`, width: 1 }),
+      radius:
+        STYLE_CONFIG.clusterMinimumRadius +
+        STYLE_CONFIG.clusterRadiusScale *
+          (STYLE_CONFIG.clusterScaleOp || noop)(count),
+      fill: new Fill({ color: STYLE_CONFIG.clusterFillColor }),
+      stroke: new Stroke({
+        color: STYLE_CONFIG.clusterStrokeColor,
+        width: STYLE_CONFIG.clusterStrokeWidth,
+      }),
     });
   };
 
   const textMaker = (text: string) =>
     new Text({
       text: text,
-      stroke: new Stroke({ color: "black", width: 1 }),
-      fill: new Fill({ color: "white" }),
+      stroke: new Stroke({
+        color: STYLE_CONFIG.clusterTextStrokeColor,
+        width: STYLE_CONFIG.clusterTextStrokeWidth,
+      }),
+      scale: STYLE_CONFIG.clusterTextScale,
+      fill: new Fill({ color: STYLE_CONFIG.clusterTextFillColor }),
     });
 
   // can control rendering from here by returning null styles
