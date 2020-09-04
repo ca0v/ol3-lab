@@ -4675,11 +4675,24 @@ define("poc/TileTree", ["require", "exports", "node_modules/ol/src/extent", "nod
             this.root = this.asTileNode(options.extent);
             this.tileCache = [[[this.root]]];
         }
-        destringify(stringified, map) {
-            const descendants = JSON.parse(stringified);
+        decorate(nodeId, values) {
+            const result = this.findByXYZ(nodeId, { force: true }).data;
+            values && Object.assign(result, values);
+            return result;
+        }
+        load(descendants) {
             descendants.forEach(([X, Y, Z, data]) => {
-                Object.assign(this.findByXYZ({ X, Y, Z }, { force: true }).data, (map || noop)(data));
+                Object.assign(this.findByXYZ({ X, Y, Z }, { force: true }).data, data);
             });
+        }
+        destringify(stringified, map) {
+            const descendants = JSON.parse(stringified).map(([X, Y, Z, data]) => [
+                X,
+                Y,
+                Z,
+                (map || noop)(data),
+            ]);
+            this.load(descendants);
         }
         stringify(map) {
             const result = this.descendants({ X: 0, Y: 0, Z: 0 }).map((v) => [
@@ -4691,7 +4704,12 @@ define("poc/TileTree", ["require", "exports", "node_modules/ol/src/extent", "nod
             return JSON.stringify(result);
         }
         asXyz(tile) {
-            return asXYZ_1.asXYZ(this.root.extent, tile.extent);
+            if (Array.isArray(tile)) {
+                return asXYZ_1.asXYZ(this.root.extent, tile);
+            }
+            else {
+                return asXYZ_1.asXYZ(this.root.extent, tile.extent);
+            }
         }
         asTileNode(extent) {
             return { extent, data: {} };
@@ -4823,8 +4841,6 @@ define("poc/TileTree", ["require", "exports", "node_modules/ol/src/extent", "nod
             const tree = this.tree;
             const rootNode = tree.findByXYZ(root, { force: false });
             const data = rootNode === null || rootNode === void 0 ? void 0 : rootNode.data;
-            if ((data === null || data === void 0 ? void 0 : data.center) && (data === null || data === void 0 ? void 0 : data.count))
-                return { center: data.center, mass: data.count };
             const center = [0, 0];
             const centerOfParentTile = extent_1.getCenter(rootNode.extent);
             let weight = 0;
@@ -4845,11 +4861,11 @@ define("poc/TileTree", ["require", "exports", "node_modules/ol/src/extent", "nod
                 if (!rootNode)
                     throw "cannot compute center";
                 const centerOfExtent = extent_1.getCenter(rootNode.extent);
-                return { center: centerOfExtent, mass: weight };
+                return { center: centerOfExtent, mass: data.count || weight };
             }
             const result = {
                 center: center.map((v, i) => centerOfParentTile[i] + v / weight),
-                mass: weight,
+                mass: data.count || weight,
             };
             return result;
         }
@@ -14231,7 +14247,7 @@ define("node_modules/ol/src/format/EsriJSON", ["require", "exports", "node_modul
     }
     exports.default = EsriJSON;
 });
-define("poc/AgsFeatureLoader", ["require", "exports", "node_modules/ol/src/extent", "poc/TileTree", "poc/FeatureServiceProxy", "poc/fun/removeAuthority", "node_modules/ol/src/format/EsriJSON", "node_modules/ol/src/tilegrid/common"], function (require, exports, extent_3, TileTree_1, FeatureServiceProxy_1, removeAuthority_1, EsriJSON_1, common_1) {
+define("poc/AgsFeatureLoader", ["require", "exports", "node_modules/ol/src/extent", "poc/FeatureServiceProxy", "poc/fun/removeAuthority", "node_modules/ol/src/format/EsriJSON", "node_modules/ol/src/tilegrid/common"], function (require, exports, extent_3, FeatureServiceProxy_1, removeAuthority_1, EsriJSON_1, common_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.AgsFeatureLoader = void 0;
@@ -14260,14 +14276,12 @@ define("poc/AgsFeatureLoader", ["require", "exports", "node_modules/ol/src/exten
         loader(tileIdentifier, projection) {
             return __awaiter(this, void 0, void 0, function* () {
                 const { tree, maxRecordCount, maxFetchCount, url } = this.options;
-                const helper = new TileTree_1.TileTreeExt(tree);
                 const tileNode = tree.findByXYZ(tileIdentifier, { force: true });
                 const tileData = tileNode.data;
                 const proxy = new FeatureServiceProxy_1.FeatureServiceProxy({
                     service: url,
                 });
-                if (typeof tileData.count === "number" && !!tileData.center) {
-                    console.log(`already loaded: ${tileNode.extent.map(Math.round)}, count:${tileData.count}`);
+                if (typeof tileData.count === "number") {
                     return tileNode;
                 }
                 tileData.count = 0;
@@ -14281,14 +14295,6 @@ define("poc/AgsFeatureLoader", ["require", "exports", "node_modules/ol/src/exten
                     const count = response.count;
                     tileData.count = count;
                     console.log(`found ${count} features: `, tileIdentifier);
-                    if (count > maxRecordCount) {
-                        const children = yield this.fetchChildren(tileIdentifier, projection);
-                        console.log("children fetched:", children);
-                        const com = this.recomputeCenterOfMass(tileIdentifier, helper, tileData);
-                        tileData.center = com.center;
-                        console.assert(tileData.count <= com.mass);
-                        return tileNode;
-                    }
                     if (count < maxFetchCount) {
                         const features = yield this.loadFeatures(request, proxy, projection);
                         features.forEach((feature) => {
@@ -14301,27 +14307,13 @@ define("poc/AgsFeatureLoader", ["require", "exports", "node_modules/ol/src/exten
                             feature.setProperties({ tileInfo: featureTile });
                         });
                     }
-                    else {
-                        const com = helper.centerOfMass(tileIdentifier);
-                        tileData.center = com.center;
-                        tileData.count = com.mass;
-                    }
                 }
                 catch (ex) {
                     console.error("network error", ex, tileIdentifier);
-                    tileData.count = -1;
+                    tileData.count = 1;
                 }
                 return tileNode;
             });
-        }
-        recomputeCenterOfMass(tileIdentifier, helper, tileData) {
-            console.log("computing center of mass", tileIdentifier);
-            const com = helper.centerOfMass(tileIdentifier);
-            if (tileData.count > com.mass) {
-                console.error("loss of mass:", tileIdentifier, tileData.count, com.mass);
-                debugger;
-            }
-            return com;
         }
         loadFeatures(request, proxy, projection) {
             return __awaiter(this, void 0, void 0, function* () {
@@ -14350,7 +14342,7 @@ define("poc/AgsFeatureLoader", ["require", "exports", "node_modules/ol/src/exten
     }
     exports.AgsFeatureLoader = AgsFeatureLoader;
 });
-define("poc/test/ags-feature-loader-test", ["require", "exports", "mocha", "chai", "poc/AgsFeatureLoader", "poc/TileTree", "node_modules/ol/src/proj"], function (require, exports, mocha_1, chai_1, AgsFeatureLoader_1, TileTree_2, proj_1) {
+define("poc/test/ags-feature-loader-test", ["require", "exports", "mocha", "chai", "poc/AgsFeatureLoader", "poc/TileTree", "node_modules/ol/src/proj"], function (require, exports, mocha_1, chai_1, AgsFeatureLoader_1, TileTree_1, proj_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     mocha_1.describe("AgsFeatureLoader tests", () => {
@@ -14359,7 +14351,7 @@ define("poc/test/ags-feature-loader-test", ["require", "exports", "mocha", "chai
             const maxFetchCount = -1;
             const maxRecordCount = 1000;
             const projection = proj_1.get("EPSG:3857");
-            const tree = new TileTree_2.TileTree({
+            const tree = new TileTree_1.TileTree({
                 extent: projection.getExtent(),
             });
             const rootNode = tree.find(projection.getExtent());
@@ -15550,69 +15542,186 @@ define("node_modules/ol/src/source/Vector", ["require", "exports", "node_modules
     }
     exports.default = VectorSource;
 });
-define("poc/AgsClusterSource", ["require", "exports", "node_modules/ol/src/source/Vector", "poc/AgsFeatureLoader", "node_modules/ol/src/Feature", "node_modules/ol/src/geom/Point"], function (require, exports, Vector_1, AgsFeatureLoader_2, Feature_1, Point_1) {
+define("poc/AgsClusterSource", ["require", "exports", "poc/TileTree", "node_modules/ol/src/source/Vector", "poc/AgsFeatureLoader", "node_modules/ol/src/Feature", "node_modules/ol/src/geom/Point", "node_modules/ol/src/tilegrid", "node_modules/ol/src/loadingstrategy"], function (require, exports, TileTree_2, Vector_1, AgsFeatureLoader_2, Feature_1, Point_1, tilegrid_1, loadingstrategy_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.AgsClusterSource = void 0;
+    const LOOKAHEAD_THRESHOLD = 3;
+    const MINIMAL_PARENTAL_MASS = 100;
+    function onlyUnique(value, index, self) {
+        return self.indexOf(value) === index;
+    }
+    function split(list, splitter) {
+        const yesno = [[], []];
+        list.forEach((item) => yesno[splitter(item) ? 0 : 1].push(item));
+        return yesno;
+    }
     class AgsClusterSource extends Vector_1.default {
         constructor(options) {
-            const { strategy, url, maxRecordCount, maxFetchCount, tree } = options;
+            const tileGrid = tilegrid_1.createXYZ({ tileSize: 512 });
+            const strategy = loadingstrategy_1.tile(tileGrid);
+            const tree = new TileTree_2.TileTree({
+                extent: tileGrid.getExtent(),
+            });
+            const { url, maxRecordCount, maxFetchCount, tileSize } = options;
             super({ strategy });
             this.tree = tree;
+            this.tileSize = tileSize;
             this.loadingStrategy = strategy;
+            this.isFirstDraw = true;
+            this.priorResolution = 0;
+            this.maxRecordCount = maxRecordCount;
             this.featureLoader = new AgsFeatureLoader_2.AgsFeatureLoader({
                 tree,
                 url,
                 maxRecordCount,
                 maxFetchCount,
             });
+            tree.load(options.treeTileState);
         }
         loadFeatures(extent, resolution, projection) {
             return __awaiter(this, void 0, void 0, function* () {
                 const { tree } = this;
-                const render = (node) => {
-                    var _a;
-                    const nodeIdentifier = tree.asXyz(node);
-                    const dz = Z - nodeIdentifier.Z;
-                    if (dz < 1) {
-                        if (!!tree.children(nodeIdentifier).filter((n) => n.data.center).length) {
-                        }
-                    }
-                    if (dz == 0) {
-                        const parentIdentifier = tree.parent(nodeIdentifier);
-                        const parentNode = tree.findByXYZ(parentIdentifier);
-                        if ((_a = parentNode === null || parentNode === void 0 ? void 0 : parentNode.data) === null || _a === void 0 ? void 0 : _a.center) {
-                        }
-                    }
-                    const point = new Point_1.default(node.data.center);
-                    const feature = new Feature_1.default();
-                    feature.setGeometry(point);
-                    feature.setProperties({
-                        tileInfo: nodeIdentifier,
-                        opacity: Math.pow(4, -Math.abs(dz)),
-                    });
-                    this.addFeature(feature);
-                };
-                const extentsToLoad = this.loadingStrategy(extent, resolution).map((extent) => tree.asXyz(this.tree.find(extent)));
-                if (!extentsToLoad.length)
+                console.log("request to load features in ", extent, resolution);
+                const extentsToLoad = this.loadingStrategy(extent, resolution).map((extent) => tree.asXyz(extent));
+                if (!extentsToLoad.length) {
+                    console.log("no extents need to be loaded");
                     return;
+                }
+                console.log(extentsToLoad);
                 const Z = extentsToLoad[0].Z;
-                const unloadedExtents = extentsToLoad.filter((tileIdentifier) => !tree.findByXYZ(tileIdentifier).data.center);
-                if (!unloadedExtents.length && this.isNotFirstDraw)
-                    return;
-                this.isNotFirstDraw = true;
-                const results = unloadedExtents.map((tileIdentifier) => this.loadTile(tileIdentifier, projection));
-                yield Promise.all(results);
-                this.clear(true);
-                tree.visit((a, b) => {
-                    if (!b.data)
-                        return 0;
-                    if (!b.data.center)
-                        return 0;
-                    render(b);
-                    return a + 1;
-                }, 0);
-                console.log("tree", tree.stringify());
+                if (this.isFirstDraw || resolution !== this.priorResolution) {
+                    console.log("rendering 1st tree");
+                    this.priorResolution = resolution;
+                    this.isFirstDraw = false;
+                    this.renderTree(tree, Z, projection);
+                }
+                extentsToLoad.forEach((tileIdentifier) => __awaiter(this, void 0, void 0, function* () {
+                    if (!tree.findByXYZ(tileIdentifier)) {
+                        console.log("loading", tileIdentifier);
+                        yield this.loadTile(tileIdentifier, projection);
+                    }
+                    const nodes = yield this.loadDescendantsUntil(tileIdentifier, projection, (nodeId) => {
+                        const node = tree.findByXYZ(nodeId);
+                        const smallEnoughTest = node.data.count < this.maxRecordCount;
+                        if (!smallEnoughTest) {
+                            console.log("fetching for more resolution");
+                        }
+                        const tooSmallTest = node.data.count < MINIMAL_PARENTAL_MASS;
+                        if (!tooSmallTest) {
+                            console.log("lookahead fetching allowed");
+                        }
+                        const lookaheadTest = nodeId.Z > Z + LOOKAHEAD_THRESHOLD;
+                        if (!lookaheadTest) {
+                            console.log("lookahead fetching", Z, nodeId);
+                        }
+                        return smallEnoughTest && (lookaheadTest || tooSmallTest);
+                    });
+                    if (nodes.length) {
+                        console.log("new nodes", nodes);
+                        this.renderTree(this.tree, Z, projection);
+                    }
+                }));
+            });
+        }
+        loadDescendantsUntil(tileIdentifier, projection, stop) {
+            return __awaiter(this, void 0, void 0, function* () {
+                if (stop(tileIdentifier))
+                    return [];
+                const allChildren = this.tree.quads(tileIdentifier);
+                const unloadedChildren = allChildren.filter((c) => { var _a; return typeof ((_a = this.tree.findByXYZ(c)) === null || _a === void 0 ? void 0 : _a.data.count) !== "number"; });
+                yield this.loadAllChildren(this.tree, tileIdentifier, projection);
+                const grandChildren = yield Promise.all(allChildren.map((c) => this.loadDescendantsUntil(c, projection, stop)));
+                return unloadedChildren.concat(...grandChildren);
+            });
+        }
+        renderTree(tree, Z, projection) {
+            const leafNodes = [];
+            tree.visit((a, b) => {
+                const nodeIdentifier = tree.asXyz(b);
+                if (0 === tree.children(nodeIdentifier).length) {
+                    leafNodes.push(nodeIdentifier);
+                }
+            }, {});
+            this.getFeatures().forEach((f) => f.setProperties({ visible: false }));
+            let [keep, remove] = split(leafNodes, (nodeIdentifier) => {
+                const node = tree.findByXYZ(nodeIdentifier);
+                if (!node.data)
+                    return false;
+                const mass = node.data.count;
+                if (0 >= mass)
+                    return false;
+                if (!node.data.center)
+                    return false;
+                return true;
+            });
+            keep = this.reduce(keep, Z);
+            keep.forEach((nodeIdentifier) => this.render(tree, nodeIdentifier, Z));
+            remove.forEach((nodeIdentifier) => this.unrender(tree, nodeIdentifier, Z));
+        }
+        reduce(keep, Z) {
+            const { tree } = this;
+            keep.forEach((nodeId) => {
+                tree.decorate(nodeId, { yieldToParent: false });
+            });
+            keep.forEach((nodeId) => {
+                if (nodeId.Z > Z + LOOKAHEAD_THRESHOLD) {
+                    if (!tree.decorate(nodeId).yieldToParent) {
+                        const parentIdentifier = tree.parent(nodeId);
+                        tree
+                            .children(parentIdentifier)
+                            .forEach((id) => tree.decorate(tree.asXyz(id), { yieldToParent: true }));
+                    }
+                }
+            });
+            let [leaf, parent] = split(keep, (nodeId) => {
+                const { yieldToParent } = tree.decorate(nodeId);
+                if (yieldToParent) {
+                    console.log(nodeId, "yields to parent");
+                }
+                return !yieldToParent;
+            });
+            parent = parent.filter(onlyUnique).map((id) => tree.parent(id));
+            parent.forEach((parentIdentifier) => {
+                const parentNode = tree.findByXYZ(parentIdentifier, {
+                    force: true,
+                });
+                const helper = new TileTree_2.TileTreeExt(tree);
+                const com = helper.centerOfMass(parentIdentifier);
+                parentNode.data.count = parentNode.data.count || com.mass;
+                parentNode.data.center = com.center;
+            });
+            if (parent.length) {
+                parent = this.reduce(parent, Z);
+            }
+            return parent.concat(leaf);
+        }
+        createSyntheticParent(tree, parentIdentifier, projection) {
+            return __awaiter(this, void 0, void 0, function* () {
+                let siblings = tree.children(parentIdentifier);
+                if (4 === siblings.length) {
+                    console.log(parentIdentifier, "can be created from", siblings);
+                    const parentNode = tree.findByXYZ(parentIdentifier, {
+                        force: true,
+                    });
+                    const helper = new TileTree_2.TileTreeExt(tree);
+                    const com = helper.centerOfMass(parentIdentifier);
+                    parentNode.data.count = parentNode.data.count || com.mass;
+                    parentNode.data.center = com.center;
+                    return true;
+                }
+                yield this.loadAllChildren(tree, parentIdentifier, projection);
+                siblings = tree.children(parentIdentifier);
+                if (4 === siblings.length) {
+                    return this.createSyntheticParent(tree, parentIdentifier, projection);
+                }
+                console.warn(parentIdentifier, "cannot have children", siblings);
+                return false;
+            });
+        }
+        loadAllChildren(tree, nodeIdentifier, projection) {
+            return __awaiter(this, void 0, void 0, function* () {
+                return Promise.all(tree.quads(nodeIdentifier).map((id) => this.loadTile(id, projection)));
             });
         }
         loadTile(tileIdentifier, projection) {
@@ -15620,10 +15729,45 @@ define("poc/AgsClusterSource", ["require", "exports", "node_modules/ol/src/sourc
                 return this.featureLoader.loader(tileIdentifier, projection);
             });
         }
+        tileDensity(currentZoomLevel, tileIdentifier) {
+            const { Z } = tileIdentifier;
+            return Math.pow(4, currentZoomLevel - Z);
+        }
+        unrender(tree, nodeIdentifier, Z) {
+            const node = tree.findByXYZ(nodeIdentifier);
+            const feature = node.data["feature"];
+            if (!feature)
+                return;
+            feature.setProperties({ visible: false });
+        }
+        render(tree, nodeIdentifier, Z) {
+            const node = tree.findByXYZ(nodeIdentifier);
+            let feature = node.data["feature"];
+            if (feature) {
+                feature.setProperties({ visible: true });
+                return;
+            }
+            if (0 === node.data.count)
+                return;
+            const point = new Point_1.default(node.data.center);
+            feature = new Feature_1.default();
+            const mass = node.data.count;
+            feature.setGeometry(point);
+            feature.setProperties({
+                visible: true,
+                tileInfo: nodeIdentifier,
+                text: `${mass}`,
+                mass,
+                density: this.tileDensity(Z, nodeIdentifier),
+            });
+            this.addFeature(feature);
+            node.data["feature"] = feature;
+            console.log("created feature");
+        }
     }
     exports.AgsClusterSource = AgsClusterSource;
 });
-define("poc/test/xyz-test", ["require", "exports", "mocha", "chai", "node_modules/ol/src/extent", "node_modules/ol/src/proj", "poc/TileTree", "node_modules/ol/src/tilegrid", "node_modules/ol/src/loadingstrategy", "node_modules/ol/src/source/VectorEventType", "poc/AgsClusterSource", "poc/asExtent", "poc/asXYZ", "poc/explode", "poc/fun/tiny"], function (require, exports, mocha_2, chai_2, extent_4, proj_2, TileTree_3, tilegrid_1, loadingstrategy_1, VectorEventType_1, AgsClusterSource_1, asExtent_2, asXYZ_2, explode_4, tiny_3) {
+define("poc/test/xyz-test", ["require", "exports", "mocha", "chai", "node_modules/ol/src/extent", "node_modules/ol/src/proj", "poc/TileTree", "node_modules/ol/src/tilegrid", "node_modules/ol/src/loadingstrategy", "node_modules/ol/src/source/VectorEventType", "poc/AgsClusterSource", "poc/asExtent", "poc/asXYZ", "poc/explode", "poc/fun/tiny"], function (require, exports, mocha_2, chai_2, extent_4, proj_2, TileTree_3, tilegrid_2, loadingstrategy_2, VectorEventType_1, AgsClusterSource_1, asExtent_2, asXYZ_2, explode_4, tiny_3) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     mocha_2.describe("Playground", () => {
@@ -15752,7 +15896,7 @@ define("poc/test/xyz-test", ["require", "exports", "mocha", "chai", "node_module
             const tree = new TileTree_3.TileTree({
                 extent,
             });
-            const tileGrid = tilegrid_1.createXYZ({ extent });
+            const tileGrid = tilegrid_2.createXYZ({ extent });
             const addTiles = (level) => tileGrid.forEachTileCoord(extent, level, (tileCoord) => {
                 const [z, x, y] = tileCoord;
                 const extent = tileGrid.getTileCoordExtent(tileCoord);
@@ -15769,8 +15913,8 @@ define("poc/test/xyz-test", ["require", "exports", "mocha", "chai", "node_module
             const extent = proj_2.get("EPSG:3857").getExtent();
             const extentInfo = explode_4.explode(extent);
             const tree = new TileTree_3.TileTree({ extent });
-            const tileGrid = tilegrid_1.createXYZ({ extent });
-            const strategy = loadingstrategy_1.tile(tileGrid);
+            const tileGrid = tilegrid_2.createXYZ({ extent });
+            const strategy = loadingstrategy_2.tile(tileGrid);
             const resolutions = tileGrid.getResolutions();
             const r0 = extentInfo.w / 256;
             chai_2.assert.equal(resolutions[0], r0, "meters per pixel");
@@ -15789,19 +15933,15 @@ define("poc/test/xyz-test", ["require", "exports", "mocha", "chai", "node_module
         mocha_2.it("integrates with a feature source", () => {
             const url = "http://localhost:3002/mock/sampleserver3/arcgis/rest/services/Petroleum/KSFields/FeatureServer/0/query";
             const projection = proj_2.get("EPSG:3857");
-            const tileGrid = tilegrid_1.createXYZ({ tileSize: 512 });
-            const strategy = loadingstrategy_1.tile(tileGrid);
-            const tree = new TileTree_3.TileTree({
-                extent: tileGrid.getExtent(),
-            });
+            const tileSize = 256;
             const source = new AgsClusterSource_1.AgsClusterSource({
-                tree,
+                tileSize,
                 url,
-                strategy,
                 maxRecordCount: 1000,
                 maxFetchCount: 100,
+                treeTileState: [],
             });
-            source.loadFeatures(tileGrid.getExtent(), tileGrid.getResolution(0), projection);
+            source.loadTile({ X: 0, Y: 0, Z: 0 }, projection);
             source.on(VectorEventType_1.default.ADDFEATURE, (args) => {
                 const { count, resolution } = args.feature.getProperties();
                 console.log(count, resolution);
@@ -15918,6 +16058,18 @@ define("poc/test/xyz-test", ["require", "exports", "mocha", "chai", "node_module
             });
             console.log(terser);
             chai_2.assert.equal(terser, terserfied, "terserfied");
+        });
+    });
+    mocha_2.describe("annotate tiles", () => {
+        mocha_2.it("adds properties to a tile", () => {
+            const extent = [0, 0, 10, 10];
+            const tree = new TileTree_3.TileTree({
+                extent,
+            });
+            let tileId = { X: 10, Y: 10, Z: 10 };
+            const data = { foo: "bar" };
+            chai_2.assert.equal(tree.decorate(tileId, data).foo, "bar");
+            chai_2.assert.equal(tree.decorate(tileId).foo, "bar");
         });
     });
 });
@@ -23644,17 +23796,18 @@ define("node_modules/ol/src/Map", ["require", "exports", "node_modules/ol/src/re
     }
     exports.default = Map;
 });
-define("poc/AgsClusterLayer", ["require", "exports", "poc/TileTree", "node_modules/ol/src/loadingstrategy", "node_modules/ol/src/layer/Vector", "poc/AgsClusterSource", "node_modules/ol/src/style", "node_modules/ol/src/style/Circle", "node_modules/ol/src/extent", "node_modules/ol/src/geom/Point"], function (require, exports, TileTree_4, loadingstrategy_2, Vector_2, AgsClusterSource_2, style_1, Circle_1, extent_5, Point_2) {
+define("poc/createStyleFactory", ["require", "exports", "node_modules/ol/src/style", "node_modules/ol/src/style/Circle"], function (require, exports, style_1, Circle_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    exports.AgsClusterLayer = void 0;
-    function createStyleFactory(tree) {
-        const helper = new TileTree_4.TileTreeExt(tree);
+    exports.createStyleFactory = void 0;
+    const A = 5;
+    const B = 3 * 0.1;
+    function createStyleFactory() {
         const circleMaker = (count, opacity) => {
             return new Circle_1.default({
-                radius: 10 + Math.sqrt(count) / 2,
+                radius: A + B * Math.sqrt(count),
                 fill: new style_1.Fill({ color: `rgba(200,0,0,${opacity})` }),
-                stroke: new style_1.Stroke({ color: "white", width: 1 }),
+                stroke: new style_1.Stroke({ color: `rgba(100,0,0,${opacity})`, width: 1 }),
             });
         };
         const textMaker = (text) => new style_1.Text({
@@ -23663,35 +23816,18 @@ define("poc/AgsClusterLayer", ["require", "exports", "poc/TileTree", "node_modul
             fill: new style_1.Fill({ color: "white" }),
         });
         const style = (feature, resolution) => {
-            const { tileInfo: tileIdentifier, text, opacity, } = feature.getProperties();
+            const { tileInfo: tileIdentifier, text, mass, density, visible, } = feature.getProperties();
             if (!tileIdentifier)
+                return;
+            if (!visible)
                 return;
             const result = [];
             if (tileIdentifier) {
-                const tileNode = tree.findByXYZ(tileIdentifier);
-                if (!tileNode) {
-                    const vector = new style_1.Style({
-                        fill: new style_1.Fill({ color: "rgba(200,0,200,0.2)" }),
-                    });
-                    result.push(vector);
-                }
-                else {
-                    let { count, center } = tileNode.data;
-                    if (!center) {
-                        center = helper.centerOfMass(tileIdentifier).center;
-                    }
-                    const style = new style_1.Style({
-                        image: circleMaker(count, opacity || 1),
-                        text: textMaker(count + ""),
-                    });
-                    if (center) {
-                        style.setGeometry(new Point_2.default(center));
-                    }
-                    else {
-                        style.setGeometry(new Point_2.default(extent_5.getCenter(feature.getGeometry().getExtent())));
-                    }
-                    result.push(style);
-                }
+                const style = new style_1.Style({
+                    image: circleMaker(mass, 1),
+                    text: textMaker(text),
+                });
+                result.push(style);
             }
             else {
                 const vector = new style_1.Style({
@@ -23699,50 +23835,58 @@ define("poc/AgsClusterLayer", ["require", "exports", "poc/TileTree", "node_modul
                 });
                 result.push(vector);
             }
-            if (text) {
-                const style = new style_1.Style({
-                    image: circleMaker(10, opacity),
-                    text: textMaker(text),
-                });
-                result.push(style);
-            }
             return result;
         };
         return style;
     }
+    exports.createStyleFactory = createStyleFactory;
+});
+define("poc/AgsClusterLayer", ["require", "exports", "node_modules/ol/src/layer/Vector", "poc/AgsClusterSource", "poc/createStyleFactory"], function (require, exports, Vector_2, AgsClusterSource_2, createStyleFactory_1) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.AgsClusterLayer = void 0;
     class AgsClusterLayer extends Vector_2.default {
         constructor(options) {
             super();
-            const { url, tileGrid, maxFetchCount, maxRecordCount } = options;
-            const strategy = loadingstrategy_2.tile(tileGrid);
-            const tree = (this.tree = new TileTree_4.TileTree({
-                extent: tileGrid.getExtent(),
-            }));
-            tree.destringify(options.hack);
+            const { url, tileSize, maxFetchCount, maxRecordCount, treeTileState, } = options;
             const source = new AgsClusterSource_2.AgsClusterSource({
-                tree,
-                strategy,
+                tileSize,
                 url,
                 maxFetchCount,
                 maxRecordCount,
+                treeTileState,
             });
-            this.setStyle(createStyleFactory(this.tree));
+            this.setStyle(createStyleFactory_1.createStyleFactory());
             this.setSource(source);
         }
     }
     exports.AgsClusterLayer = AgsClusterLayer;
 });
-define("poc/test/map-test", ["require", "exports", "mocha", "node_modules/ol/src/extent", "node_modules/ol/src/Map", "node_modules/ol/src/View", "poc/AgsClusterLayer", "node_modules/ol/src/tilegrid"], function (require, exports, mocha_3, extent_6, Map_1, View_1, AgsClusterLayer_1, tilegrid_2) {
+define("poc/fun/debounce", ["require", "exports"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.debounce = void 0;
+    function debounce(cb, wait = 20) {
+        let h = 0;
+        let callable = (...args) => {
+            clearTimeout(h);
+            h = setTimeout(() => cb(...args), wait);
+        };
+        return callable;
+    }
+    exports.debounce = debounce;
+});
+define("poc/test/map-test", ["require", "exports", "mocha", "node_modules/ol/src/extent", "node_modules/ol/src/Map", "node_modules/ol/src/View", "poc/AgsClusterLayer", "poc/fun/debounce"], function (require, exports, mocha_3, extent_5, Map_1, View_1, AgsClusterLayer_1, debounce_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     const treestate = `[[2,9,4,{"count":10490,"center":[-11897270.578531114,3162020.054618182]}],[2,10,4,{"count":-3,"center":[-11897270.578531114,5635549.221409475]}],[3,9,4,{"count":6918,"center":[-11271098.44281895,3757032.814272982]}],[3,10,4,{"count":-8,"center":[-11329802.080541965,5498574.06672244]}],[4,9,4,{"count":0,"center":[-8766409.899970293,3757032.814272982]}],[4,10,4,{"count":0,"center":[-8766409.899970293,6261721.35712164]}],[6,18,5,{"count":10226,"center":[-11180350.63281255,4070118.8821290666]}],[6,19,5,{"count":267,"center":[-11897270.578531114,4383204.949985148]}],[6,20,5,{"count":-3,"center":[-11218917.431509601,5270282.142244047]}],[7,18,5,{"count":6595,"center":[-10958012.374962866,4070118.8821290666]}],[7,19,5,{"count":6658,"center":[-10644926.307106785,4383204.949985148]}],[7,20,5,{"count":-2,"center":[-11036283.891926887,5244191.6365893725]}],[8,18,5,{"count":0,"center":[-9392582.035682458,3130860.678560818]}],[8,19,5,{"count":0,"center":[-9392582.035682458,4383204.949985148]}],[8,20,5,{"count":0,"center":[-9392582.035682458,5635549.221409475]}],[13,38,6,{"count":3631,"center":[-11138763.31678146,4532957.698084582]}],[13,39,6,{"count":267,"center":[-11584184.510675032,4696291.017841228]}],[13,40,6,{"count":-1,"center":[-11114555.408890907,5165920.119625352]}],[14,38,6,{"count":6595,"center":[-10989593.952922117,4518040.841452657]}],[14,39,6,{"count":6364,"center":[-10958012.374962866,4696291.017841228]}],[14,40,6,{"count":-1,"center":[-11114555.408890907,5165920.119625352]}],[15,38,6,{"count":0,"center":[-10331840.239250705,4070118.8821290666]}],[15,39,6,{"count":306,"center":[-10331840.239250705,4696291.017841228]}],[15,40,6,{"count":0,"center":[-10331840.239250705,5322463.153553394]}],[27,77,7,{"count":315,"center":[-11192826.925854929,4461476.466949167]}],[27,78,7,{"count":202,"center":[-11427641.476746991,4539747.983913187]}],[27,79,7,{"count":66,"center":[-11427641.476746991,4852834.051769268]}],[27,80,7,{"count":0,"center":[-11427641.476746991,5165920.119625352]}],[28,77,7,{"count":1406,"center":[-11014016.035038121,4461476.466949167]}],[28,78,7,{"count":3114,"center":[-11114555.408890907,4539747.983913187]}],[28,79,7,{"count":1608,"center":[-11114555.408890907,4852834.051769268]}],[28,80,7,{"count":-1,"center":[-11114555.408890907,5165920.119625352]}],[29,77,7,{"count":938,"center":[-10809146.291525967,4461476.466949167]}],[29,78,7,{"count":1652,"center":[-10801469.341034826,4539747.983913187]}],[29,79,7,{"count":51,"center":[-10801469.341034826,4852834.051769268]}],[29,80,7,{"count":0,"center":[-10801469.341034826,5165920.119625352]}],[30,77,7,{"count":0,"center":[-10488383.273178745,4226661.916057106]}],[30,78,7,{"count":213,"center":[-10488383.273178745,4539747.983913187]}],[30,79,7,{"count":101,"center":[-10488383.273178745,4852834.051769268]}],[30,80,7,{"count":0,"center":[-10488383.273178745,5165920.119625352]}],[56,156,8,{"count":315,"center":[-11192826.925854929,4461476.466949167]}],[56,157,8,{"count":812,"center":[-11192826.925854929,4618019.500877207]}],[56,158,8,{"count":590,"center":[-11192826.925854929,4774562.534805248]}],[56,159,8,{"count":49,"center":[-11192826.925854929,4931105.568733292]}],[57,156,8,{"count":576,"center":[-11036283.891926888,4461476.466949167]}],[57,157,8,{"count":1447,"center":[-11036283.891926888,4618019.500877207]}],[57,158,8,{"count":982,"center":[-11036283.891926888,4774562.534805248]}],[57,159,8,{"count":8,"center":[-11036283.891926888,4931105.568733292]}],[58,156,8,{"count":515,"center":[-10879740.857998848,4461476.466949167]}],[58,157,8,{"count":472,"center":[-10879740.857998848,4618019.500877207]}],[59,156,8,{"count":423,"center":[-10723197.824070806,4461476.466949167]}],[59,157,8,{"count":292,"center":[-10723197.824070806,4618019.500877207]}],[114,314,9,{"count":185,"center":[-11075419.650408898,4578883.742395197]}],[114,315,9,{"count":384,"center":[-11075419.650408898,4657155.259359219]}],[115,314,9,{"count":468,"center":[-10997148.13344488,4578883.742395197]}],[115,315,9,{"count":442,"center":[-10997148.13344488,4657155.259359219]}]]`;
     mocha_3.describe("UI Labs", () => {
         mocha_3.it("renders on a map", () => {
             const view = new View_1.default({
-                center: extent_6.getCenter([-11114555, 4696291, -10958012, 4852834]),
-                minZoom: 2,
-                maxZoom: 15,
-                zoom: 7,
+                center: extent_5.getCenter([-11114555, 4696291, -10958012, 4852834]),
+                minZoom: 1,
+                maxZoom: 10,
+                zoom: 4,
             });
             const targetContainer = document.createElement("div");
             targetContainer.className = "testmapcontainer";
@@ -23751,20 +23895,23 @@ define("poc/test/map-test", ["require", "exports", "mocha", "node_modules/ol/src
             document.body.appendChild(targetContainer);
             targetContainer.appendChild(target);
             const url = "http://localhost:3002/mock/sampleserver3/arcgis/rest/services/Petroleum/KSFields/FeatureServer/0/query";
-            const tileGrid = tilegrid_2.createXYZ({ tileSize: 256 });
             const vectorLayer = new AgsClusterLayer_1.AgsClusterLayer({
                 url,
-                tileGrid,
+                tileSize: 256,
                 maxRecordCount: 1024,
                 maxFetchCount: -1,
-                hack: treestate,
+                treeTileState: [],
             });
             const layers = [vectorLayer];
             const map = new Map_1.default({ view, target, layers });
-            setTimeout(() => {
+            const closer = debounce_1.debounce(() => {
                 targetContainer.remove();
                 map.dispose();
-            }, 60 * 1000);
+            }, 10 * 1000);
+            view.on("change:resolution", closer);
+            view.on("change:center", closer);
+            view.on("change:rotation", closer);
+            closer();
         });
     });
 });

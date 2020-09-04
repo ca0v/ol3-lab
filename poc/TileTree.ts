@@ -11,6 +11,12 @@ import { XYZ } from "./XYZ";
 const noop = (a: any) => a;
 
 export class TileTree<T> {
+  decorate<Q>(nodeId: XYZ, values?: Q) {
+    const result = this.findByXYZ(nodeId, { force: true }).data as T & Q;
+    values && Object.assign(result, values);
+    return result;
+  }
+
   public load(descendants: Array<[number, number, number, T]>) {
     descendants.forEach(([X, Y, Z, data]) => {
       Object.assign(this.findByXYZ({ X, Y, Z }, { force: true }).data, data);
@@ -193,8 +199,7 @@ export class TileTreeExt {
     const tree = this.tree;
     const rootNode = tree.findByXYZ(root, { force: false });
     const data = rootNode?.data;
-    if (data?.center && data?.count)
-      return { center: data.center, mass: data.count };
+
     // need to loop through all nodes under this root backward, updating parent
     const center = [0, 0];
     const centerOfParentTile = getCenter(rootNode.extent);
@@ -219,14 +224,14 @@ export class TileTreeExt {
     if (weight == 0) {
       if (!rootNode) throw "cannot compute center";
       const centerOfExtent = getCenter(rootNode.extent) as [number, number];
-      return { center: centerOfExtent, mass: weight };
+      return { center: centerOfExtent, mass: data.count || weight };
     }
     const result = {
       center: center.map((v, i) => centerOfParentTile[i] + v / weight) as [
         number,
         number
       ],
-      mass: weight,
+      mass: data.count || weight,
     };
     return result;
   }

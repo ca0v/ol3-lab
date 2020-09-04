@@ -12,9 +12,9 @@ describe("UI Labs", () => {
   it("renders on a map", () => {
     const view = new View({
       center: getCenter([-11114555, 4696291, -10958012, 4852834]),
-      minZoom: 2,
-      maxZoom: 15,
-      zoom: 6,
+      minZoom: 1,
+      maxZoom: 10,
+      zoom: 4,
     });
     const targetContainer = document.createElement("div");
     targetContainer.className = "testmapcontainer";

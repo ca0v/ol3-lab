@@ -14,6 +14,10 @@ import { tile as tileStrategy } from "@ol/loadingstrategy";
 const LOOKAHEAD_THRESHOLD = 3; // a zoom offset for cluster data
 const MINIMAL_PARENTAL_MASS = 100; // do not fetch children if parent below this mass threshold
 
+function onlyUnique(value, index, self) {
+  return self.indexOf(value) === index;
+}
+
 function split<T>(list: Array<T>, splitter: (item: T) => boolean) {
   const yesno = [[], []] as Array<Array<T>>;
   list.forEach((item) => yesno[splitter(item) ? 0 : 1].push(item));
@@ -140,7 +144,7 @@ export class AgsClusterSource<
 
     const allChildren = this.tree.quads(tileIdentifier);
 
-    const unloadedCildren = allChildren.filter(
+    const unloadedChildren = allChildren.filter(
       (c) => typeof this.tree.findByXYZ(c)?.data.count !== "number"
     );
 
@@ -149,7 +153,7 @@ export class AgsClusterSource<
     const grandChildren = await Promise.all(
       allChildren.map((c) => this.loadDescendantsUntil(c, projection, stop))
     );
-    return unloadedCildren.concat(...grandChildren);
+    return unloadedChildren.concat(...grandChildren);
   }
 
   private renderTree(tree: TileTree<T>, Z: number, projection: Projection) {
@@ -163,7 +167,7 @@ export class AgsClusterSource<
 
     this.getFeatures().forEach((f) => f.setProperties({ visible: false }));
 
-    const [keep, remove] = split(leafNodes, (nodeIdentifier) => {
+    let [keep, remove] = split(leafNodes, (nodeIdentifier) => {
       const node = tree.findByXYZ(nodeIdentifier);
       if (!node.data) return false;
       const mass = node.data.count;
@@ -172,9 +176,59 @@ export class AgsClusterSource<
       return true;
     });
 
-    console.log(keep, remove);
+    // anything to render needs to be checked for density issues
+    // and pushed into parent as needed
+    keep = this.reduce(keep, Z);
     keep.forEach((nodeIdentifier) => this.render(tree, nodeIdentifier, Z));
     remove.forEach((nodeIdentifier) => this.unrender(tree, nodeIdentifier, Z));
+  }
+
+  private reduce(keep: Array<XYZ>, Z: number) {
+    const { tree } = this;
+
+    keep.forEach((nodeId) => {
+      tree.decorate(nodeId, { yieldToParent: false });
+    });
+
+    keep.forEach((nodeId) => {
+      if (nodeId.Z > Z + LOOKAHEAD_THRESHOLD) {
+        if (!tree.decorate<{ yieldToParent: boolean }>(nodeId).yieldToParent) {
+          const parentIdentifier = tree.parent(nodeId);
+          tree
+            .children(parentIdentifier)
+            .forEach((id) =>
+              tree.decorate(tree.asXyz(id), { yieldToParent: true })
+            );
+        }
+      }
+    });
+
+    let [leaf, parent] = split(keep, (nodeId) => {
+      const { yieldToParent } = tree.decorate<{ yieldToParent: boolean }>(
+        nodeId
+      );
+      if (yieldToParent) {
+        console.log(nodeId, "yields to parent");
+      }
+      return !yieldToParent;
+    });
+
+    parent = parent.filter(onlyUnique).map((id) => tree.parent(id));
+
+    parent.forEach((parentIdentifier) => {
+      const parentNode = tree.findByXYZ(parentIdentifier, {
+        force: true,
+      });
+      const helper = new TileTreeExt(tree);
+      const com = helper.centerOfMass(parentIdentifier);
+      parentNode.data.count = parentNode.data.count || com.mass;
+      parentNode.data.center = com.center;
+    });
+
+    if (parent.length) {
+      parent = this.reduce(parent, Z);
+    }
+    return parent.concat(leaf);
   }
 
   private async createSyntheticParent(
@@ -190,7 +244,7 @@ export class AgsClusterSource<
       });
       const helper = new TileTreeExt(tree);
       const com = helper.centerOfMass(parentIdentifier);
-      parentNode.data.count = com.mass;
+      parentNode.data.count = parentNode.data.count || com.mass;
       parentNode.data.center = com.center;
       return true;
     }

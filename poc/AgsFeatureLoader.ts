@@ -57,7 +57,7 @@ export class AgsFeatureLoader<
       service: url,
     });
 
-    if (typeof tileData.count === "number" && !!tileData.center) {
+    if (typeof tileData.count === "number") {
       return tileNode;
     }
     tileData.count = 0;

@@ -391,3 +391,17 @@ describe("Descendants", () => {
     assert.equal(terser, terserfied, "terserfied");
   });
 });
+
+describe("annotate tiles", () => {
+  it("adds properties to a tile", () => {
+    const extent = [0, 0, 10, 10] as Extent;
+    const tree = new TileTree<{ count: number; center: [number, number] }>({
+      extent,
+    });
+
+    let tileId = { X: 10, Y: 10, Z: 10 };
+    const data = { foo: "bar" };
+    assert.equal(tree.decorate(tileId, data).foo, "bar");
+    assert.equal(tree.decorate<typeof data>(tileId).foo, "bar");
+  });
+});

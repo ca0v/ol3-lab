@@ -12,8 +12,8 @@ body,
 .testmapcontainer {
   background-color: rgb(56, 55, 55);
   position: relative;
-  width: 15em;
-  height: 15em;
+  width: 25em;
+  height: 25em;
   margin: 0;
   padding: 0;
   border: 1px solid rgb(56, 55, 55);
