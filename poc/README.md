@@ -29,6 +29,8 @@ From the Openlayers cluster source:
         }}
     }
 
+The [AnimatedCluster](https://github.com/Viglino/ol-ext/blob/master/src/layer/AnimatedCluster.js) and [SelectCluster](https://github.com/Viglino/ol-ext/blob/master/src/interaction/SelectCluster.js) work ingeniously together to provide a responsive animation in this [animated cluster demo](http://viglino.github.io/ol-ext/examples/animation/map.animatedcluster.html) from Jean-Marc Viglino.
+
 ## Server Side Solutions
 These would have access to the features and send approximations to the client.  Some examples:
 * Vector Tiles, geometries are styled and simplified bases on zoom level
@@ -101,3 +103,10 @@ There are `stringify` and `unstringify` methods on the TileTree that may be used
 There is a security risk in exposing aggregate feature counts, but defaulting to cache seems reasonable.  Use `DisableClusterCaching` to turn this feature off. 
 
 There is risk of stale data but since the data grows more accurate as the user exercises the map (only leaf tiles need "count" data so zooming beyond current leaves will auto-refresh the data) it should be self-correcting without explicitly expiring the cache. The trick here is to only cache the leaf nodes and work backwards to rebuild the tree.  To that end, custom encoder/decoders should be used for processing the tree serializer, some for readability, some for terseness.  By default, use `TerseClusterEncoding`.
+
+
+PRELIMINARY RESULTS
+* Missing animation 
+* Missing proper styling
+* Center-of-mass calculations are wrong
+![Rough Draft](./assets/draft.gif)
