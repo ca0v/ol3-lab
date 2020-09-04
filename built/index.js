@@ -4665,6 +4665,10 @@ define("poc/TileNode", ["require", "exports"], function (require, exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
 });
+define("poc/TileTreeState", ["require", "exports"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+});
 define("poc/TileTree", ["require", "exports", "node_modules/ol/src/extent", "node_modules/ol/src/extent", "poc/explode", "poc/asXYZ", "poc/asExtent", "poc/fun/tiny"], function (require, exports, extent_1, extent_2, explode_3, asXYZ_1, asExtent_1, tiny_2) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
@@ -4680,28 +4684,24 @@ define("poc/TileTree", ["require", "exports", "node_modules/ol/src/extent", "nod
             values && Object.assign(result, values);
             return result;
         }
-        load(descendants) {
-            descendants.forEach(([X, Y, Z, data]) => {
+        static create({ extent, data }) {
+            const result = new TileTree({ extent });
+            result.load({ extent, data });
+            return result;
+        }
+        load({ extent, data }) {
+            const treeExtent = this.asExtent({ X: 0, Y: 0, Z: 0 });
+            if (extent.some((v, i) => v != treeExtent[i])) {
+                throw `extent mismatch: ${extent}, ${treeExtent}`;
+            }
+            data.forEach(([X, Y, Z, data]) => {
                 Object.assign(this.findByXYZ({ X, Y, Z }, { force: true }).data, data);
             });
         }
-        destringify(stringified, map) {
-            const descendants = JSON.parse(stringified).map(([X, Y, Z, data]) => [
-                X,
-                Y,
-                Z,
-                (map || noop)(data),
-            ]);
-            this.load(descendants);
-        }
-        stringify(map) {
-            const result = this.descendants({ X: 0, Y: 0, Z: 0 }).map((v) => [
-                v.X,
-                v.Y,
-                v.Z,
-                (map || noop)(this.findByXYZ(v).data, v),
-            ]);
-            return JSON.stringify(result);
+        save() {
+            const extent = this.asExtent({ X: 0, Y: 0, Z: 0 });
+            const data = this.descendants({ X: 0, Y: 0, Z: 0 }).map((v) => [v.X, v.Y, v.Z, this.findByXYZ(v).data]);
+            return { extent, data };
         }
         asXyz(tile) {
             if (Array.isArray(tile)) {
@@ -14286,7 +14286,6 @@ define("poc/AgsFeatureLoader", ["require", "exports", "node_modules/ol/src/exten
                 }
                 tileData.count = 0;
                 tileData.center = extent_3.getCenter(tileNode.extent);
-                console.log(`loading: `, tileIdentifier);
                 const request = asRequest(projection);
                 request.geometry = bbox(tileNode.extent);
                 request.returnCountOnly = true;
@@ -14294,7 +14293,6 @@ define("poc/AgsFeatureLoader", ["require", "exports", "node_modules/ol/src/exten
                     const response = yield proxy.fetch(request);
                     const count = response.count;
                     tileData.count = count;
-                    console.log(`found ${count} features: `, tileIdentifier);
                     if (count < maxFetchCount) {
                         const features = yield this.loadFeatures(request, proxy, projection);
                         features.forEach((feature) => {
@@ -14320,7 +14318,6 @@ define("poc/AgsFeatureLoader", ["require", "exports", "node_modules/ol/src/exten
                 const esrijsonFormat = new EsriJSON_1.default();
                 request.returnCountOnly = false;
                 const response = yield proxy.fetch(request);
-                console.log(response);
                 const features = esrijsonFormat.readFeatures(response, {
                     featureProjection: projection,
                 });
@@ -14330,11 +14327,9 @@ define("poc/AgsFeatureLoader", ["require", "exports", "node_modules/ol/src/exten
         fetchChildren(tileIdentifier, projection) {
             return __awaiter(this, void 0, void 0, function* () {
                 const { tree } = this.options;
-                console.log("fetching all children:", tileIdentifier);
                 return yield Promise.all(tree.ensureQuads(tree.findByXYZ(tileIdentifier)).map((q) => __awaiter(this, void 0, void 0, function* () {
                     const childNodeIdentifier = tree.asXyz(q);
                     yield this.loader(childNodeIdentifier, projection);
-                    console.log("fetched child:", childNodeIdentifier, "with mass:", q.data.count, "for parent:", tileIdentifier);
                     return childNodeIdentifier;
                 })));
             });
@@ -15558,12 +15553,13 @@ define("poc/AgsClusterSource", ["require", "exports", "poc/TileTree", "node_modu
     }
     class AgsClusterSource extends Vector_1.default {
         constructor(options) {
-            const tileGrid = tilegrid_1.createXYZ({ tileSize: 512 });
+            const { url, maxRecordCount, maxFetchCount, tileSize } = options;
+            const tileGrid = tilegrid_1.createXYZ({ tileSize });
             const strategy = loadingstrategy_1.tile(tileGrid);
             const tree = new TileTree_2.TileTree({
                 extent: tileGrid.getExtent(),
             });
-            const { url, maxRecordCount, maxFetchCount, tileSize } = options;
+            options.treeTileState && tree.load(options.treeTileState);
             super({ strategy });
             this.tree = tree;
             this.tileSize = tileSize;
@@ -15577,23 +15573,19 @@ define("poc/AgsClusterSource", ["require", "exports", "poc/TileTree", "node_modu
                 maxRecordCount,
                 maxFetchCount,
             });
-            tree.load(options.treeTileState);
         }
         loadFeatures(extent, resolution, projection) {
             return __awaiter(this, void 0, void 0, function* () {
                 const { tree } = this;
-                console.log("request to load features in ", extent, resolution);
                 const extentsToLoad = this.loadingStrategy(extent, resolution).map((extent) => tree.asXyz(extent));
                 if (!extentsToLoad.length) {
-                    console.log("no extents need to be loaded");
                     return;
                 }
-                console.log(extentsToLoad);
                 const Z = extentsToLoad[0].Z;
                 if (this.isFirstDraw || resolution !== this.priorResolution) {
-                    console.log("rendering 1st tree");
-                    this.priorResolution = resolution;
+                    this.isFirstDraw && console.log("rendering 1st tree");
                     this.isFirstDraw = false;
+                    this.priorResolution = resolution;
                     this.renderTree(tree, Z, projection);
                 }
                 extentsToLoad.forEach((tileIdentifier) => __awaiter(this, void 0, void 0, function* () {
@@ -15604,21 +15596,11 @@ define("poc/AgsClusterSource", ["require", "exports", "poc/TileTree", "node_modu
                     const nodes = yield this.loadDescendantsUntil(tileIdentifier, projection, (nodeId) => {
                         const node = tree.findByXYZ(nodeId);
                         const smallEnoughTest = node.data.count < this.maxRecordCount;
-                        if (!smallEnoughTest) {
-                            console.log("fetching for more resolution");
-                        }
                         const tooSmallTest = node.data.count < MINIMAL_PARENTAL_MASS;
-                        if (!tooSmallTest) {
-                            console.log("lookahead fetching allowed");
-                        }
                         const lookaheadTest = nodeId.Z > Z + LOOKAHEAD_THRESHOLD;
-                        if (!lookaheadTest) {
-                            console.log("lookahead fetching", Z, nodeId);
-                        }
                         return smallEnoughTest && (lookaheadTest || tooSmallTest);
                     });
                     if (nodes.length) {
-                        console.log("new nodes", nodes);
                         this.renderTree(this.tree, Z, projection);
                     }
                 }));
@@ -15676,9 +15658,6 @@ define("poc/AgsClusterSource", ["require", "exports", "poc/TileTree", "node_modu
             });
             let [leaf, parent] = split(keep, (nodeId) => {
                 const { yieldToParent } = tree.decorate(nodeId);
-                if (yieldToParent) {
-                    console.log(nodeId, "yields to parent");
-                }
                 return !yieldToParent;
             });
             parent = parent.filter(onlyUnique).map((id) => tree.parent(id));
@@ -15700,7 +15679,6 @@ define("poc/AgsClusterSource", ["require", "exports", "poc/TileTree", "node_modu
             return __awaiter(this, void 0, void 0, function* () {
                 let siblings = tree.children(parentIdentifier);
                 if (4 === siblings.length) {
-                    console.log(parentIdentifier, "can be created from", siblings);
                     const parentNode = tree.findByXYZ(parentIdentifier, {
                         force: true,
                     });
@@ -15762,18 +15740,55 @@ define("poc/AgsClusterSource", ["require", "exports", "poc/TileTree", "node_modu
             });
             this.addFeature(feature);
             node.data["feature"] = feature;
-            console.log("created feature");
         }
     }
     exports.AgsClusterSource = AgsClusterSource;
 });
-define("poc/test/xyz-test", ["require", "exports", "mocha", "chai", "node_modules/ol/src/extent", "node_modules/ol/src/proj", "poc/TileTree", "node_modules/ol/src/tilegrid", "node_modules/ol/src/loadingstrategy", "node_modules/ol/src/source/VectorEventType", "poc/AgsClusterSource", "poc/asExtent", "poc/asXYZ", "poc/explode", "poc/fun/tiny"], function (require, exports, mocha_2, chai_2, extent_4, proj_2, TileTree_3, tilegrid_2, loadingstrategy_2, VectorEventType_1, AgsClusterSource_1, asExtent_2, asXYZ_2, explode_4, tiny_3) {
+define("poc/TileTreeEncoder", ["require", "exports"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+});
+define("poc/TileTreeTersifier", ["require", "exports", "poc/TileTree", "node_modules/ol/src/extent"], function (require, exports, TileTree_3, extent_4) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.TileTreeTersifier = void 0;
+    class TileTreeTersifier {
+        unstringify(treestate) {
+            const { extent, data } = JSON.parse(treestate);
+            const tree = new TileTree_3.TileTree({ extent });
+            const outputData = data.map((d) => {
+                const [X, Y, Z, count, dx, dy] = d;
+                const extent = tree.asExtent({ X, Y, Z });
+                const [cx, cy] = extent_4.getCenter(extent);
+                return [X, Y, Z, { count, center: [cx + dx / 10, cy + dy / 10] }];
+            });
+            return { extent, data: outputData };
+        }
+        stringify(treestate) {
+            const { extent, data } = treestate;
+            const tree = new TileTree_3.TileTree({ extent });
+            const outData = data.map(([X, Y, Z, d]) => {
+                const center = extent_4.getCenter(tree.asExtent({ X, Y, Z }));
+                return [
+                    X,
+                    Y,
+                    Z,
+                    d.count,
+                    ...d.center.map((v, i) => Math.round((v - center[i]) * 10)),
+                ];
+            });
+            return JSON.stringify({ extent, data: outData });
+        }
+    }
+    exports.TileTreeTersifier = TileTreeTersifier;
+});
+define("poc/test/xyz-test", ["require", "exports", "mocha", "chai", "node_modules/ol/src/proj", "poc/TileTree", "node_modules/ol/src/tilegrid", "node_modules/ol/src/loadingstrategy", "node_modules/ol/src/source/VectorEventType", "poc/AgsClusterSource", "poc/asExtent", "poc/asXYZ", "poc/explode", "poc/fun/tiny", "poc/TileTreeTersifier"], function (require, exports, mocha_2, chai_2, proj_2, TileTree_4, tilegrid_2, loadingstrategy_2, VectorEventType_1, AgsClusterSource_1, asExtent_2, asXYZ_2, explode_4, tiny_3, TileTreeTersifier_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     mocha_2.describe("Playground", () => {
         mocha_2.it("Past Failures", () => {
             const extent = [-180, -90, 180, 90];
-            const tree = new TileTree_3.TileTree({ extent });
+            const tree = new TileTree_4.TileTree({ extent });
             const xyz = { X: 0, Y: 1, Z: 1 };
             const node = tree.findByXYZ(xyz, { force: true });
             chai_2.assert.deepEqual(tree.asXyz(node), xyz);
@@ -15831,13 +15846,13 @@ define("poc/test/xyz-test", ["require", "exports", "mocha", "chai", "node_module
     mocha_2.describe("TileTree Tests", () => {
         mocha_2.it("creates a tile tree", () => {
             const extent = [0, 0, 10, 10];
-            const tree = new TileTree_3.TileTree({ extent });
+            const tree = new TileTree_4.TileTree({ extent });
             const root = tree.find(extent);
             chai_2.assert.isTrue(tiny_3.isEq(extent[0], root.extent[0]));
         });
         mocha_2.it("inserts an extent outside of the bounds of the current tree", () => {
             const extent = [0, 0, 1, 1];
-            const tree = new TileTree_3.TileTree({ extent });
+            const tree = new TileTree_4.TileTree({ extent });
             chai_2.assert.throws(() => {
                 tree.find([1, 1, 2, 2]);
             }, "invalid X");
@@ -15847,7 +15862,7 @@ define("poc/test/xyz-test", ["require", "exports", "mocha", "chai", "node_module
         });
         mocha_2.it("inserts an extent that misaligns to the established scale", () => {
             const extent = [0, 0, 1, 1];
-            const tree = new TileTree_3.TileTree({ extent });
+            const tree = new TileTree_4.TileTree({ extent });
             chai_2.assert.throws(() => {
                 tree.find([0, 0, 0.4, 0.4]);
             }, "invalid extent");
@@ -15860,7 +15875,7 @@ define("poc/test/xyz-test", ["require", "exports", "mocha", "chai", "node_module
         });
         mocha_2.it("attaches data to the nodes", () => {
             const extent = [0, 0, 1, 1];
-            const tree = new TileTree_3.TileTree({ extent });
+            const tree = new TileTree_4.TileTree({ extent });
             const q0 = tree.find([0, 0, 0.25, 0.25]);
             const q1 = tree.find([0.25, 0, 0.5, 0.25]);
             const q2 = tree.find([0, 0.25, 0.25, 0.5]);
@@ -15876,7 +15891,7 @@ define("poc/test/xyz-test", ["require", "exports", "mocha", "chai", "node_module
         });
         mocha_2.it("uses 3857 to find a tile for a given depth and coordinate", () => {
             const extent = proj_2.get("EPSG:3857").getExtent();
-            const tree = new TileTree_3.TileTree({ extent });
+            const tree = new TileTree_4.TileTree({ extent });
             const q0 = tree.findByPoint({ zoom: 3, point: [-1, -1] });
             const q1 = tree.findByPoint({ zoom: 3, point: [1, -1] });
             const q2 = tree.findByPoint({ zoom: 3, point: [-1, 1] });
@@ -15893,7 +15908,7 @@ define("poc/test/xyz-test", ["require", "exports", "mocha", "chai", "node_module
         });
         mocha_2.it("can cache tiles from a TileGrid", () => {
             const extent = proj_2.get("EPSG:3857").getExtent();
-            const tree = new TileTree_3.TileTree({
+            const tree = new TileTree_4.TileTree({
                 extent,
             });
             const tileGrid = tilegrid_2.createXYZ({ extent });
@@ -15912,7 +15927,7 @@ define("poc/test/xyz-test", ["require", "exports", "mocha", "chai", "node_module
         mocha_2.it("integrates with a tiling strategy", () => {
             const extent = proj_2.get("EPSG:3857").getExtent();
             const extentInfo = explode_4.explode(extent);
-            const tree = new TileTree_3.TileTree({ extent });
+            const tree = new TileTree_4.TileTree({ extent });
             const tileGrid = tilegrid_2.createXYZ({ extent });
             const strategy = loadingstrategy_2.tile(tileGrid);
             const resolutions = tileGrid.getResolutions();
@@ -15939,7 +15954,6 @@ define("poc/test/xyz-test", ["require", "exports", "mocha", "chai", "node_module
                 url,
                 maxRecordCount: 1000,
                 maxFetchCount: 100,
-                treeTileState: [],
             });
             source.loadTile({ X: 0, Y: 0, Z: 0 }, projection);
             source.on(VectorEventType_1.default.ADDFEATURE, (args) => {
@@ -15951,7 +15965,7 @@ define("poc/test/xyz-test", ["require", "exports", "mocha", "chai", "node_module
     mocha_2.describe("Cluster Rendering Rules", () => {
         mocha_2.it("tests ensureQuads", () => {
             const extent = [0, 0, 10, 10];
-            const tree = new TileTree_3.TileTree({
+            const tree = new TileTree_4.TileTree({
                 extent,
             });
             const root = tree.find(extent);
@@ -15965,10 +15979,10 @@ define("poc/test/xyz-test", ["require", "exports", "mocha", "chai", "node_module
         });
         mocha_2.it("computes density", () => {
             const extent = [0, 0, 10, 10];
-            const tree = new TileTree_3.TileTree({
+            const tree = new TileTree_4.TileTree({
                 extent,
             });
-            const helper = new TileTree_3.TileTreeExt(tree);
+            const helper = new TileTree_4.TileTreeExt(tree);
             chai_2.assert.equal(40, helper.density({ Z: 1, count: 10 }));
             const root = { X: 0, Y: 0, Z: 0 };
             const t000 = tree.findByXYZ(root);
@@ -15989,10 +16003,10 @@ define("poc/test/xyz-test", ["require", "exports", "mocha", "chai", "node_module
         });
         mocha_2.it("computes center of mass", () => {
             const extent = [0, 0, 16, 16];
-            const tree = new TileTree_3.TileTree({
+            const tree = new TileTree_4.TileTree({
                 extent,
             });
-            const helper = new TileTree_3.TileTreeExt(tree);
+            const helper = new TileTree_4.TileTreeExt(tree);
             const root = { X: 0, Y: 0, Z: 0 };
             const t000 = tree.findByXYZ(root);
             const [q0, q1, q2, q3] = tree.ensureQuads(t000);
@@ -16017,53 +16031,62 @@ define("poc/test/xyz-test", ["require", "exports", "mocha", "chai", "node_module
             chai_2.assert.deepEqual(com.center, [8 + 12 / 15, 8 - 36 / 15], "center of mass of root tile");
         });
     });
-    mocha_2.describe("Descendants", () => {
+    mocha_2.describe("Preserve TileTree State", () => {
         mocha_2.it("stringify a tree", () => {
             const extent = [0, 0, 10, 10];
-            const tree = new TileTree_3.TileTree({
+            const tree = new TileTree_4.TileTree({
                 extent,
             });
-            chai_2.assert.equal("[]", tree.stringify(), "empty");
+            chai_2.assert.equal('{"extent":[0,0,10,10],"data":[]}', JSON.stringify(tree.save()), "empty");
             let X = 0;
             let Y = 0;
             let Z = 0;
             tree.findByXYZ({ X, Y, Z }, { force: true });
-            chai_2.assert.equal("[]", tree.stringify(), "root node only");
+            chai_2.assert.equal('{"extent":[0,0,10,10],"data":[]}', JSON.stringify(tree.save()), "root node only");
             X = 3;
             Y = 20;
             Z = 5;
             tree.findByXYZ({ X, Y, Z }, { force: true }).data.center = [1, 2];
-            chai_2.assert.equal('[[3,20,5,{"center":[1,2]}]]', tree.stringify(), "deep child");
+            chai_2.assert.equal('{"extent":[0,0,10,10],"data":[[3,20,5,{"center":[1,2]}]]}', JSON.stringify(tree.save()), "deep child");
             for (X = 10; X < 20; X += 3) {
                 const data = tree.findByXYZ({ X, Y, Z }, { force: true }).data;
                 data.count = X;
             }
-            chai_2.assert.equal("[[3,20,5,[[1,2],null]],[10,20,5,[null,10]],[13,20,5,[null,13]],[16,20,5,[null,16]],[19,20,5,[null,19]]]", tree.stringify((data) => [data.center, data.count]), "deep child");
+            chai_2.assert.equal("[[3,20,5,[[1,2],null]],[10,20,5,[null,10]],[13,20,5,[null,13]],[16,20,5,[null,16]],[19,20,5,[null,19]]]", JSON.stringify(tree
+                .save()
+                .data.map(([X, Y, Z, data]) => [X, Y, Z, [data.center, data.count]])), "deep child");
         });
         mocha_2.it("destringify into a tree", () => {
+            const encoder = new TileTreeTersifier_1.TileTreeTersifier();
             const extent = proj_2.get("EPSG:3857").getExtent();
-            const terserfied = `[[6,19,5,[267,0,0]],[6,20,5,[-1,7827152,-4696291]],[7,19,5,[6658,0,0]],[7,20,5,[-1,-4696291,-4696291]],[14,38,6,[6595,-315816,4479220]],[14,39,6,[6364,0,0]],[15,38,6,[0,0,0]],[15,39,6,[306,0,0]],[27,78,7,[202,0,0]],[27,79,7,[66,0,0]],[27,80,7,[0,0,0]],[28,78,7,[3114,0,0]],[28,79,7,[1608,0,0]],[28,80,7,[-1,0,0]],[29,78,7,[1652,0,0]],[29,79,7,[51,0,0]],[29,80,7,[0,0,0]],[56,156,8,[315,0,0]],[56,157,8,[812,0,0]],[56,158,8,[590,0,0]],[56,159,8,[49,0,0]],[57,156,8,[576,0,0]],[57,157,8,[1447,0,0]],[57,158,8,[982,0,0]],[57,159,8,[8,0,0]],[58,156,8,[515,0,0]],[58,157,8,[472,0,0]],[59,156,8,[423,0,0]],[59,157,8,[292,0,0]],[114,314,9,[185,0,0]],[114,315,9,[384,0,0]],[115,314,9,[468,0,0]],[115,315,9,[442,0,0]]]`;
-            const stringified = '[[6,19,5,{"count":267,"center":[-11897270.578531114,4383204.949985148]}],[6,20,5,{"count":-1,"center":[-11114555.408890907,5165920.119625352]}],[7,19,5,{"count":6658,"center":[-10644926.307106785,4383204.949985148]}],[7,20,5,{"count":-1,"center":[-11114555.408890907,5165920.119625352]}],[14,38,6,{"count":6595,"center":[-10989593.952922117,4518040.841452657]}],[14,39,6,{"count":6364,"center":[-10958012.374962866,4696291.017841228]}],[15,38,6,{"count":0,"center":[-10331840.239250705,4070118.8821290666]}],[15,39,6,{"count":306,"center":[-10331840.239250705,4696291.017841228]}],[27,78,7,{"count":202,"center":[-11427641.476746991,4539747.983913187]}],[27,79,7,{"count":66,"center":[-11427641.476746991,4852834.051769268]}],[27,80,7,{"count":0,"center":[-11427641.476746991,5165920.119625352]}],[28,78,7,{"count":3114,"center":[-11114555.408890907,4539747.983913187]}],[28,79,7,{"count":1608,"center":[-11114555.408890907,4852834.051769268]}],[28,80,7,{"count":-1,"center":[-11114555.408890907,5165920.119625352]}],[29,78,7,{"count":1652,"center":[-10801469.341034826,4539747.983913187]}],[29,79,7,{"count":51,"center":[-10801469.341034826,4852834.051769268]}],[29,80,7,{"count":0,"center":[-10801469.341034826,5165920.119625352]}],[56,156,8,{"count":315,"center":[-11192826.925854929,4461476.466949167]}],[56,157,8,{"count":812,"center":[-11192826.925854929,4618019.500877207]}],[56,158,8,{"count":590,"center":[-11192826.925854929,4774562.534805248]}],[56,159,8,{"count":49,"center":[-11192826.925854929,4931105.568733292]}],[57,156,8,{"count":576,"center":[-11036283.891926888,4461476.466949167]}],[57,157,8,{"count":1447,"center":[-11036283.891926888,4618019.500877207]}],[57,158,8,{"count":982,"center":[-11036283.891926888,4774562.534805248]}],[57,159,8,{"count":8,"center":[-11036283.891926888,4931105.568733292]}],[58,156,8,{"count":515,"center":[-10879740.857998848,4461476.466949167]}],[58,157,8,{"count":472,"center":[-10879740.857998848,4618019.500877207]}],[59,156,8,{"count":423,"center":[-10723197.824070806,4461476.466949167]}],[59,157,8,{"count":292,"center":[-10723197.824070806,4618019.500877207]}],[114,314,9,{"count":185,"center":[-11075419.650408898,4578883.742395197]}],[114,315,9,{"count":384,"center":[-11075419.650408898,4657155.259359219]}],[115,314,9,{"count":468,"center":[-10997148.13344488,4578883.742395197]}],[115,315,9,{"count":442,"center":[-10997148.13344488,4657155.259359219]}]]';
+            const terserfied = `{"extent":[-20037508.342789244,-20037508.342789244,20037508.342789244,20037508.342789244],"data":[[6,19,5,267,0,0],[6,20,5,-1,7827152,-4696291],[7,19,5,6658,0,0],[7,20,5,-1,-4696291,-4696291],[14,38,6,6595,-315816,4479220],[14,39,6,6364,0,0],[15,38,6,0,0,0],[15,39,6,306,0,0],[27,78,7,202,0,0],[27,79,7,66,0,0],[27,80,7,0,0,0],[28,78,7,3114,0,0],[28,79,7,1608,0,0],[28,80,7,-1,0,0],[29,78,7,1652,0,0],[29,79,7,51,0,0],[29,80,7,0,0,0],[56,156,8,315,0,0],[56,157,8,812,0,0],[56,158,8,590,0,0],[56,159,8,49,0,0],[57,156,8,576,0,0],[57,157,8,1447,0,0],[57,158,8,982,0,0],[57,159,8,8,0,0],[58,156,8,515,0,0],[58,157,8,472,0,0],[59,156,8,423,0,0],[59,157,8,292,0,0],[114,314,9,185,0,0],[114,315,9,384,0,0],[115,314,9,468,0,0],[115,315,9,442,0,0]]}`;
+            const stringified = `{"extent":[${extent}],"data":[[6,19,5,{"count":267,"center":[-11897270.578531114,4383204.949985148]}],[6,20,5,{"count":-1,"center":[-11114555.408890907,5165920.119625352]}],[7,19,5,{"count":6658,"center":[-10644926.307106785,4383204.949985148]}],[7,20,5,{"count":-1,"center":[-11114555.408890907,5165920.119625352]}],[14,38,6,{"count":6595,"center":[-10989593.952922117,4518040.841452657]}],[14,39,6,{"count":6364,"center":[-10958012.374962866,4696291.017841228]}],[15,38,6,{"count":0,"center":[-10331840.239250705,4070118.8821290666]}],[15,39,6,{"count":306,"center":[-10331840.239250705,4696291.017841228]}],[27,78,7,{"count":202,"center":[-11427641.476746991,4539747.983913187]}],[27,79,7,{"count":66,"center":[-11427641.476746991,4852834.051769268]}],[27,80,7,{"count":0,"center":[-11427641.476746991,5165920.119625352]}],[28,78,7,{"count":3114,"center":[-11114555.408890907,4539747.983913187]}],[28,79,7,{"count":1608,"center":[-11114555.408890907,4852834.051769268]}],[28,80,7,{"count":-1,"center":[-11114555.408890907,5165920.119625352]}],[29,78,7,{"count":1652,"center":[-10801469.341034826,4539747.983913187]}],[29,79,7,{"count":51,"center":[-10801469.341034826,4852834.051769268]}],[29,80,7,{"count":0,"center":[-10801469.341034826,5165920.119625352]}],[56,156,8,{"count":315,"center":[-11192826.925854929,4461476.466949167]}],[56,157,8,{"count":812,"center":[-11192826.925854929,4618019.500877207]}],[56,158,8,{"count":590,"center":[-11192826.925854929,4774562.534805248]}],[56,159,8,{"count":49,"center":[-11192826.925854929,4931105.568733292]}],[57,156,8,{"count":576,"center":[-11036283.891926888,4461476.466949167]}],[57,157,8,{"count":1447,"center":[-11036283.891926888,4618019.500877207]}],[57,158,8,{"count":982,"center":[-11036283.891926888,4774562.534805248]}],[57,159,8,{"count":8,"center":[-11036283.891926888,4931105.568733292]}],[58,156,8,{"count":515,"center":[-10879740.857998848,4461476.466949167]}],[58,157,8,{"count":472,"center":[-10879740.857998848,4618019.500877207]}],[59,156,8,{"count":423,"center":[-10723197.824070806,4461476.466949167]}],[59,157,8,{"count":292,"center":[-10723197.824070806,4618019.500877207]}],[114,314,9,{"count":185,"center":[-11075419.650408898,4578883.742395197]}],[114,315,9,{"count":384,"center":[-11075419.650408898,4657155.259359219]}],[115,314,9,{"count":468,"center":[-10997148.13344488,4578883.742395197]}],[115,315,9,{"count":442,"center":[-10997148.13344488,4657155.259359219]}]]}`;
             chai_2.assert.equal(Math.round(100 - (100 * terserfied.length) / stringified.length), 71);
-            const tree = new TileTree_3.TileTree({ extent });
-            tree.destringify(stringified);
-            chai_2.assert.equal(tree.stringify(), stringified);
-            let terser = tree.stringify((d, tileId) => {
-                const center = extent_4.getCenter(tree.asExtent(tileId));
-                const result = [
-                    d.count,
-                    ...d.center.map((v, i) => Math.round((v - center[i]) * 10)),
-                ];
-                return result;
+            const tree = new TileTree_4.TileTree({
+                extent,
             });
-            console.log(terser);
+            tree.load(JSON.parse(stringified));
+            chai_2.assert.equal(JSON.stringify(tree.save()), stringified, "save=load");
+            const terser = encoder.stringify(tree.save());
             chai_2.assert.equal(terser, terserfied, "terserfied");
+            const tree2 = TileTree_4.TileTree.create(encoder.unstringify(terser));
+            const expected = tree.save().data;
+            const actual = tree2.save().data;
+            chai_2.assert.equal(actual.length, expected.length, "tree from tersified");
+            actual.forEach((d, i) => {
+                chai_2.assert.equal(d[0], expected[i][0], "X");
+                chai_2.assert.equal(d[1], expected[i][1], "Y");
+                chai_2.assert.equal(d[2], expected[i][2], "Z");
+                chai_2.assert.equal(d[3].count, expected[i][3].count, "count");
+                chai_2.assert.isTrue(tiny_3.isEq(d[3].center[0], expected[i][3].center[0], 0.1), "cx");
+                chai_2.assert.isTrue(tiny_3.isEq(d[3].center[1], expected[i][3].center[1], 0.1), "cy");
+            });
         });
     });
     mocha_2.describe("annotate tiles", () => {
         mocha_2.it("adds properties to a tile", () => {
             const extent = [0, 0, 10, 10];
-            const tree = new TileTree_3.TileTree({
+            const tree = new TileTree_4.TileTree({
                 extent,
             });
             let tileId = { X: 10, Y: 10, Z: 10 };
@@ -23800,20 +23823,40 @@ define("poc/createStyleFactory", ["require", "exports", "node_modules/ol/src/sty
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.createStyleFactory = void 0;
-    const A = 5;
-    const B = 3 * 0.1;
+    const noop = (a) => a;
+    const STYLE_CONFIG = {
+        clusterFillColor: "rgba(0, 48, 109, 0.5)",
+        clusterStrokeColor: "rgba(232, 230, 227, 0.3)",
+        clusterStrokeWidth: 2,
+        clusterTextFillColor: "rgba(232, 230, 227, 1)",
+        clusterTextStrokeColor: "rgba(0, 0, 0, 1)",
+        clusterTextStrokeWidth: 1,
+        clusterTextScale: 0.75,
+        clusterMinimumRadius: 5,
+        clusterRadiusScale: 1,
+        clusterScaleOp: (v) => Math.pow(2, Math.ceil(Math.log10(v))),
+    };
     function createStyleFactory() {
         const circleMaker = (count, opacity) => {
             return new Circle_1.default({
-                radius: A + B * Math.sqrt(count),
-                fill: new style_1.Fill({ color: `rgba(200,0,0,${opacity})` }),
-                stroke: new style_1.Stroke({ color: `rgba(100,0,0,${opacity})`, width: 1 }),
+                radius: STYLE_CONFIG.clusterMinimumRadius +
+                    STYLE_CONFIG.clusterRadiusScale *
+                        (STYLE_CONFIG.clusterScaleOp || noop)(count),
+                fill: new style_1.Fill({ color: STYLE_CONFIG.clusterFillColor }),
+                stroke: new style_1.Stroke({
+                    color: STYLE_CONFIG.clusterStrokeColor,
+                    width: STYLE_CONFIG.clusterStrokeWidth,
+                }),
             });
         };
         const textMaker = (text) => new style_1.Text({
             text: text,
-            stroke: new style_1.Stroke({ color: "black", width: 1 }),
-            fill: new style_1.Fill({ color: "white" }),
+            stroke: new style_1.Stroke({
+                color: STYLE_CONFIG.clusterTextStrokeColor,
+                width: STYLE_CONFIG.clusterTextStrokeWidth,
+            }),
+            scale: STYLE_CONFIG.clusterTextScale,
+            fill: new style_1.Fill({ color: STYLE_CONFIG.clusterTextFillColor }),
         });
         const style = (feature, resolution) => {
             const { tileInfo: tileIdentifier, text, mass, density, visible, } = feature.getProperties();
@@ -23858,6 +23901,9 @@ define("poc/AgsClusterLayer", ["require", "exports", "node_modules/ol/src/layer/
             });
             this.setStyle(createStyleFactory_1.createStyleFactory());
             this.setSource(source);
+            source.on("changed:state", () => {
+                this.dispatchEvent("changed:state");
+            });
         }
     }
     exports.AgsClusterLayer = AgsClusterLayer;
@@ -23876,17 +23922,287 @@ define("poc/fun/debounce", ["require", "exports"], function (require, exports) {
     }
     exports.debounce = debounce;
 });
-define("poc/test/map-test", ["require", "exports", "mocha", "node_modules/ol/src/extent", "node_modules/ol/src/Map", "node_modules/ol/src/View", "poc/AgsClusterLayer", "poc/fun/debounce"], function (require, exports, mocha_3, extent_5, Map_1, View_1, AgsClusterLayer_1, debounce_1) {
+define("poc/test/data", ["require", "exports"], function (require, exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    const treestate = `[[2,9,4,{"count":10490,"center":[-11897270.578531114,3162020.054618182]}],[2,10,4,{"count":-3,"center":[-11897270.578531114,5635549.221409475]}],[3,9,4,{"count":6918,"center":[-11271098.44281895,3757032.814272982]}],[3,10,4,{"count":-8,"center":[-11329802.080541965,5498574.06672244]}],[4,9,4,{"count":0,"center":[-8766409.899970293,3757032.814272982]}],[4,10,4,{"count":0,"center":[-8766409.899970293,6261721.35712164]}],[6,18,5,{"count":10226,"center":[-11180350.63281255,4070118.8821290666]}],[6,19,5,{"count":267,"center":[-11897270.578531114,4383204.949985148]}],[6,20,5,{"count":-3,"center":[-11218917.431509601,5270282.142244047]}],[7,18,5,{"count":6595,"center":[-10958012.374962866,4070118.8821290666]}],[7,19,5,{"count":6658,"center":[-10644926.307106785,4383204.949985148]}],[7,20,5,{"count":-2,"center":[-11036283.891926887,5244191.6365893725]}],[8,18,5,{"count":0,"center":[-9392582.035682458,3130860.678560818]}],[8,19,5,{"count":0,"center":[-9392582.035682458,4383204.949985148]}],[8,20,5,{"count":0,"center":[-9392582.035682458,5635549.221409475]}],[13,38,6,{"count":3631,"center":[-11138763.31678146,4532957.698084582]}],[13,39,6,{"count":267,"center":[-11584184.510675032,4696291.017841228]}],[13,40,6,{"count":-1,"center":[-11114555.408890907,5165920.119625352]}],[14,38,6,{"count":6595,"center":[-10989593.952922117,4518040.841452657]}],[14,39,6,{"count":6364,"center":[-10958012.374962866,4696291.017841228]}],[14,40,6,{"count":-1,"center":[-11114555.408890907,5165920.119625352]}],[15,38,6,{"count":0,"center":[-10331840.239250705,4070118.8821290666]}],[15,39,6,{"count":306,"center":[-10331840.239250705,4696291.017841228]}],[15,40,6,{"count":0,"center":[-10331840.239250705,5322463.153553394]}],[27,77,7,{"count":315,"center":[-11192826.925854929,4461476.466949167]}],[27,78,7,{"count":202,"center":[-11427641.476746991,4539747.983913187]}],[27,79,7,{"count":66,"center":[-11427641.476746991,4852834.051769268]}],[27,80,7,{"count":0,"center":[-11427641.476746991,5165920.119625352]}],[28,77,7,{"count":1406,"center":[-11014016.035038121,4461476.466949167]}],[28,78,7,{"count":3114,"center":[-11114555.408890907,4539747.983913187]}],[28,79,7,{"count":1608,"center":[-11114555.408890907,4852834.051769268]}],[28,80,7,{"count":-1,"center":[-11114555.408890907,5165920.119625352]}],[29,77,7,{"count":938,"center":[-10809146.291525967,4461476.466949167]}],[29,78,7,{"count":1652,"center":[-10801469.341034826,4539747.983913187]}],[29,79,7,{"count":51,"center":[-10801469.341034826,4852834.051769268]}],[29,80,7,{"count":0,"center":[-10801469.341034826,5165920.119625352]}],[30,77,7,{"count":0,"center":[-10488383.273178745,4226661.916057106]}],[30,78,7,{"count":213,"center":[-10488383.273178745,4539747.983913187]}],[30,79,7,{"count":101,"center":[-10488383.273178745,4852834.051769268]}],[30,80,7,{"count":0,"center":[-10488383.273178745,5165920.119625352]}],[56,156,8,{"count":315,"center":[-11192826.925854929,4461476.466949167]}],[56,157,8,{"count":812,"center":[-11192826.925854929,4618019.500877207]}],[56,158,8,{"count":590,"center":[-11192826.925854929,4774562.534805248]}],[56,159,8,{"count":49,"center":[-11192826.925854929,4931105.568733292]}],[57,156,8,{"count":576,"center":[-11036283.891926888,4461476.466949167]}],[57,157,8,{"count":1447,"center":[-11036283.891926888,4618019.500877207]}],[57,158,8,{"count":982,"center":[-11036283.891926888,4774562.534805248]}],[57,159,8,{"count":8,"center":[-11036283.891926888,4931105.568733292]}],[58,156,8,{"count":515,"center":[-10879740.857998848,4461476.466949167]}],[58,157,8,{"count":472,"center":[-10879740.857998848,4618019.500877207]}],[59,156,8,{"count":423,"center":[-10723197.824070806,4461476.466949167]}],[59,157,8,{"count":292,"center":[-10723197.824070806,4618019.500877207]}],[114,314,9,{"count":185,"center":[-11075419.650408898,4578883.742395197]}],[114,315,9,{"count":384,"center":[-11075419.650408898,4657155.259359219]}],[115,314,9,{"count":468,"center":[-10997148.13344488,4578883.742395197]}],[115,315,9,{"count":442,"center":[-10997148.13344488,4657155.259359219]}]]`;
+    exports.treeTileState = void 0;
+    exports.treeTileState = {
+        extent: [
+            -20037508.342789244,
+            -20037508.342789244,
+            20037508.342789244,
+            20037508.342789244,
+        ],
+        data: [
+            [13, 38, 6, 0, 0, 0],
+            [13, 39, 6, 267, 0, 0],
+            [13, 40, 6, 0, 0, 0],
+            [14, 38, 6, 0, 0, 0],
+            [14, 39, 6, 6364, 0, 0],
+            [14, 40, 6, 0, 0, 0],
+            [15, 38, 6, 0, 0, 0],
+            [15, 39, 6, 306, 0, 0],
+            [15, 40, 6, 0, 0, 0],
+            [26, 78, 7, 0, 0, 0],
+            [26, 79, 7, 0, 0, 0],
+            [27, 78, 7, 202, 0, 0],
+            [27, 79, 7, 66, 0, 0],
+            [27, 80, 7, 0, 0, 0],
+            [28, 78, 7, 3114, 0, 0],
+            [28, 79, 7, 1608, 0, 0],
+            [28, 80, 7, 1, 0, 0],
+            [29, 78, 7, 1652, 0, 0],
+            [29, 79, 7, 51, 0, 0],
+            [29, 80, 7, 0, 0, 0],
+            [30, 78, 7, 213, 0, 0],
+            [30, 79, 7, 101, 0, 0],
+            [31, 78, 7, 1, 0, 0],
+            [31, 79, 7, 0, 0, 0],
+            [54, 156, 8, 0, 0, 0],
+            [54, 157, 8, 0, 0, 0],
+            [55, 156, 8, 155, 0, 0],
+            [55, 157, 8, 49, 0, 0],
+            [56, 156, 8, 315, 0, 0],
+            [56, 157, 8, 812, 0, 0],
+            [56, 158, 8, 590, 0, 0],
+            [56, 159, 8, 49, 0, 0],
+            [57, 156, 8, 576, 0, 0],
+            [57, 157, 8, 1447, 0, 0],
+            [57, 158, 8, 982, 0, 0],
+            [57, 159, 8, 8, 0, 0],
+            [58, 156, 8, 515, 0, 0],
+            [58, 157, 8, 472, 0, 0],
+            [59, 156, 8, 423, 0, 0],
+            [59, 157, 8, 292, 0, 0],
+            [60, 156, 8, 92, 0, 0],
+            [60, 157, 8, 126, 0, 0],
+            [60, 158, 8, 101, 0, 0],
+            [60, 159, 8, 1, 0, 0],
+            [61, 156, 8, 0, 0, 0],
+            [61, 157, 8, 0, 0, 0],
+            [61, 158, 8, 0, 0, 0],
+            [61, 159, 8, 0, 0, 0],
+            [110, 312, 9, 8, 0, 0],
+            [110, 313, 9, 13, 0, 0],
+            [111, 312, 9, 51, 0, 0],
+            [111, 313, 9, 1, 0, 0],
+            [112, 312, 9, 56, 0, 0],
+            [112, 313, 9, 164, -14676, 91317],
+            [112, 314, 9, 102, 172335, 364580],
+            [112, 315, 9, 176, 344099, 122576],
+            [112, 316, 9, 160, 77456, 79495],
+            [112, 317, 9, 63, 0, 0],
+            [113, 312, 9, 39, 0, 0],
+            [113, 313, 9, 79, 0, 0],
+            [113, 314, 9, 86, 0, 0],
+            [113, 315, 9, 471, 207175, 134701],
+            [113, 316, 9, 1, 0, 0],
+            [113, 317, 9, 131, 335950, -117127],
+            [114, 312, 9, 43, 0, 0],
+            [114, 313, 9, 198, 309609, 180883],
+            [114, 314, 9, 185, 288943, 261200],
+            [114, 315, 9, 384, 222394, 276294],
+            [114, 316, 9, 595, 46925, 76958],
+            [114, 317, 9, 219, -75525, -130453],
+            [115, 312, 9, 48, 0, 0],
+            [115, 313, 9, 312, 44529, 273449],
+            [115, 314, 9, 468, 0, 0],
+            [115, 315, 9, 442, 7492, 117168],
+            [115, 316, 9, 189, -120947, -77682],
+            [115, 317, 9, 2, 0, 0],
+            [116, 312, 9, 49, 0, 0],
+            [116, 313, 9, 1, 0, 0],
+            [116, 314, 9, 144, 70080, 86463],
+            [116, 315, 9, 124, -15530, 40378],
+            [117, 312, 9, 87, 0, 0],
+            [117, 313, 9, 197, 256198, 127897],
+            [117, 314, 9, 126, 257676, -48435],
+            [117, 315, 9, 93, 0, 0],
+            [118, 312, 9, 77, 0, 0],
+            [118, 313, 9, 240, 161466, 125585],
+            [118, 314, 9, 103, 229111, -42282],
+            [118, 315, 9, 45, 0, 0],
+            [119, 312, 9, 16, 0, 0],
+            [119, 313, 9, 119, -49550, 222553],
+            [119, 314, 9, 141, -11932, -31022],
+            [119, 315, 9, 22, 0, 0],
+            [120, 314, 9, 59, 0, 0],
+            [120, 315, 9, 41, 0, 0],
+            [120, 316, 9, 72, 0, 0],
+            [120, 317, 9, 12, 0, 0],
+            [121, 314, 9, 27, 0, 0],
+            [121, 315, 9, 16, 0, 0],
+            [121, 316, 9, 27, 0, 0],
+            [121, 317, 9, 1, 0, 0],
+            [224, 626, 10, 60, 0, 0],
+            [224, 627, 10, 37, 0, 0],
+            [224, 628, 10, 32, 0, 0],
+            [224, 629, 10, 44, 0, 0],
+            [224, 630, 10, 28, 0, 0],
+            [224, 631, 10, 5, 0, 0],
+            [224, 632, 10, 34, 0, 0],
+            [224, 633, 10, 44, 0, 0],
+            [225, 626, 10, 57, 0, 0],
+            [225, 627, 10, 33, 0, 0],
+            [225, 628, 10, 21, 0, 0],
+            [225, 629, 10, 12, 0, 0],
+            [225, 630, 10, 61, 0, 0],
+            [225, 631, 10, 91, 0, 0],
+            [225, 632, 10, 43, 0, 0],
+            [225, 633, 10, 51, 0, 0],
+            [226, 630, 10, 87, 0, 0],
+            [226, 631, 10, 181, 72284, -15333],
+            [226, 634, 10, 20, 0, 0],
+            [226, 635, 10, 38, 0, 0],
+            [227, 630, 10, 123, 55491, 82506],
+            [227, 631, 10, 101, 62491, 53654],
+            [227, 634, 10, 62, 0, 0],
+            [227, 635, 10, 1, 0, 0],
+            [228, 626, 10, 48, 0, 0],
+            [228, 627, 10, 41, 0, 0],
+            [228, 628, 10, 39, 0, 0],
+            [228, 629, 10, 70, 0, 0],
+            [228, 630, 10, 101, 14925, -23216],
+            [228, 631, 10, 1, 0, 0],
+            [228, 632, 10, 189, 72024, 61182],
+            [228, 633, 10, 148, -9101, 110733],
+            [228, 634, 10, 141, 7624, -26683],
+            [228, 635, 10, 17, 0, 0],
+            [229, 626, 10, 61, 0, 0],
+            [229, 627, 10, 57, 0, 0],
+            [229, 628, 10, 1, 0, 0],
+            [229, 629, 10, 34, 0, 0],
+            [229, 630, 10, 50, 0, 0],
+            [229, 631, 10, 1, 0, 0],
+            [229, 632, 10, 145, 85660, -12585],
+            [229, 633, 10, 1, 0, 0],
+            [229, 634, 10, 49, 0, 0],
+            [229, 635, 10, 21, 0, 0],
+            [230, 626, 10, 71, 0, 0],
+            [230, 627, 10, 91, 0, 0],
+            [230, 628, 10, 120, 142777, 106372],
+            [230, 629, 10, 128, 139850, 103367],
+            [230, 630, 10, 120, 120418, 70871],
+            [230, 631, 10, 119, -2434, 80316],
+            [230, 632, 10, 109, -21133, -783],
+            [230, 633, 10, 52, 0, 0],
+            [231, 626, 10, 90, 0, 0],
+            [231, 627, 10, 87, 0, 0],
+            [231, 628, 10, 124, -36507, 99786],
+            [231, 629, 10, 133, -24243, 106498],
+            [231, 630, 10, 149, -13652, 12514],
+            [231, 631, 10, 92, 0, 0],
+            [231, 632, 10, 30, 0, 0],
+            [231, 633, 10, 8, 0, 0],
+            [232, 628, 10, 41, 0, 0],
+            [232, 629, 10, 65, 0, 0],
+            [232, 630, 10, 1, 0, 0],
+            [232, 631, 10, 33, 0, 0],
+            [233, 628, 10, 32, 0, 0],
+            [233, 629, 10, 14, 0, 0],
+            [233, 630, 10, 24, 0, 0],
+            [233, 631, 10, 5, 0, 0],
+            [234, 626, 10, 63, 0, 0],
+            [234, 627, 10, 37, 0, 0],
+            [234, 628, 10, 12, 0, 0],
+            [234, 629, 10, 26, 0, 0],
+            [235, 626, 10, 61, 0, 0],
+            [235, 627, 10, 53, 0, 0],
+            [235, 628, 10, 72, 0, 0],
+            [235, 629, 10, 22, 0, 0],
+            [236, 626, 10, 86, 0, 0],
+            [236, 627, 10, 59, 0, 0],
+            [236, 628, 10, 42, 0, 0],
+            [236, 629, 10, 28, 0, 0],
+            [237, 626, 10, 64, 0, 0],
+            [237, 627, 10, 45, 0, 0],
+            [237, 628, 10, 27, 0, 0],
+            [237, 629, 10, 15, 0, 0],
+            [238, 626, 10, 55, 0, 0],
+            [238, 627, 10, 39, 0, 0],
+            [238, 628, 10, 52, 0, 0],
+            [238, 629, 10, 35, 0, 0],
+            [239, 626, 10, 24, 0, 0],
+            [239, 627, 10, 20, 0, 0],
+            [239, 628, 10, 43, 0, 0],
+            [239, 629, 10, 34, 0, 0],
+            [452, 1262, 11, 58, 0, 0],
+            [452, 1263, 11, 47, 0, 0],
+            [453, 1262, 11, 51, 0, 0],
+            [453, 1263, 11, 42, 0, 0],
+            [454, 1260, 11, 27, 0, 0],
+            [454, 1261, 11, 35, 0, 0],
+            [454, 1262, 11, 46, 0, 0],
+            [454, 1263, 11, 24, 0, 0],
+            [455, 1260, 11, 40, 0, 0],
+            [455, 1261, 11, 39, 0, 0],
+            [455, 1262, 11, 31, 0, 0],
+            [455, 1263, 11, 12, 0, 0],
+            [456, 1260, 11, 31, 0, 0],
+            [456, 1261, 11, 19, 0, 0],
+            [456, 1264, 11, 42, 0, 0],
+            [456, 1265, 11, 44, 0, 0],
+            [456, 1266, 11, 55, 0, 0],
+            [456, 1267, 11, 45, 0, 0],
+            [456, 1268, 11, 41, 0, 0],
+            [456, 1269, 11, 30, 0, 0],
+            [457, 1260, 11, 42, 0, 0],
+            [457, 1261, 11, 26, 0, 0],
+            [457, 1264, 11, 68, 0, 0],
+            [457, 1265, 11, 53, 0, 0],
+            [457, 1266, 11, 26, 0, 0],
+            [457, 1267, 11, 34, 0, 0],
+            [457, 1268, 11, 57, 0, 0],
+            [457, 1269, 11, 26, 0, 0],
+            [458, 1264, 11, 42, 0, 0],
+            [458, 1265, 11, 49, 0, 0],
+            [459, 1264, 11, 50, 0, 0],
+            [459, 1265, 11, 24, 0, 0],
+            [460, 1256, 11, 20, 0, 0],
+            [460, 1257, 11, 17, 0, 0],
+            [460, 1258, 11, 22, 0, 0],
+            [460, 1259, 11, 18, 0, 0],
+            [460, 1260, 11, 25, 0, 0],
+            [460, 1261, 11, 14, 0, 0],
+            [460, 1262, 11, 23, 0, 0],
+            [460, 1263, 11, 36, 0, 0],
+            [460, 1264, 11, 44, 0, 0],
+            [460, 1265, 11, 32, 0, 0],
+            [461, 1256, 11, 44, 0, 0],
+            [461, 1257, 11, 56, 0, 0],
+            [461, 1258, 11, 47, 0, 0],
+            [461, 1259, 11, 53, 0, 0],
+            [461, 1260, 11, 48, 0, 0],
+            [461, 1261, 11, 46, 0, 0],
+            [461, 1262, 11, 58, 0, 0],
+            [461, 1263, 11, 21, 0, 0],
+            [461, 1264, 11, 19, 0, 0],
+            [461, 1265, 11, 30, 0, 0],
+            [462, 1256, 11, 35, 0, 0],
+            [462, 1257, 11, 58, 0, 0],
+            [462, 1258, 11, 45, 0, 0],
+            [462, 1259, 11, 45, 0, 0],
+            [462, 1260, 11, 51, 0, 0],
+            [462, 1261, 11, 47, 0, 0],
+            [463, 1256, 11, 28, 0, 0],
+            [463, 1257, 11, 15, 0, 0],
+            [463, 1258, 11, 20, 0, 0],
+            [463, 1259, 11, 41, 0, 0],
+            [463, 1260, 11, 24, 0, 0],
+            [463, 1261, 11, 50, 0, 0],
+        ],
+    };
+});
+define("poc/test/map-test", ["require", "exports", "mocha", "node_modules/ol/src/extent", "node_modules/ol/src/Map", "node_modules/ol/src/View", "poc/AgsClusterLayer", "poc/fun/debounce", "poc/TileTreeTersifier", "poc/test/data"], function (require, exports, mocha_3, extent_5, Map_1, View_1, AgsClusterLayer_1, debounce_1, TileTreeTersifier_2, data_1) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
     mocha_3.describe("UI Labs", () => {
         mocha_3.it("renders on a map", () => {
             const view = new View_1.default({
                 center: extent_5.getCenter([-11114555, 4696291, -10958012, 4852834]),
-                minZoom: 1,
-                maxZoom: 10,
-                zoom: 4,
+                minZoom: 3,
+                maxZoom: 9,
+                zoom: 6,
             });
             const targetContainer = document.createElement("div");
             targetContainer.className = "testmapcontainer";
@@ -23900,18 +24216,57 @@ define("poc/test/map-test", ["require", "exports", "mocha", "node_modules/ol/src
                 tileSize: 256,
                 maxRecordCount: 1024,
                 maxFetchCount: -1,
-                treeTileState: [],
             });
             const layers = [vectorLayer];
             const map = new Map_1.default({ view, target, layers });
+            let automatedScaleDirection = 1;
+            const h = setInterval(() => {
+                const z = view.getZoom() || 0;
+                view.setZoom(z + automatedScaleDirection);
+                if (z === view.getMaxZoom()) {
+                    automatedScaleDirection = -1;
+                }
+                if (z === view.getMinZoom()) {
+                    automatedScaleDirection = 1;
+                }
+            }, 2000);
             const closer = debounce_1.debounce(() => {
+                clearInterval(h);
                 targetContainer.remove();
                 map.dispose();
-            }, 10 * 1000);
+            }, 30 * 1000);
             view.on("change:resolution", closer);
-            view.on("change:center", closer);
+            view.on("change:center", () => {
+                closer();
+                clearInterval(h);
+            });
             view.on("change:rotation", closer);
             closer();
+        });
+        mocha_3.it("sets map state into local storage", () => {
+            const view = new View_1.default({
+                center: extent_5.getCenter([-11114555, 4696291, -10958012, 4852834]),
+                minZoom: 3,
+                maxZoom: 9,
+                zoom: 6,
+            });
+            const targetContainer = document.createElement("div");
+            targetContainer.className = "testmapcontainer";
+            const target = document.createElement("div");
+            target.className = "map";
+            document.body.appendChild(targetContainer);
+            targetContainer.appendChild(target);
+            const url = "http://localhost:3002/bogus/sampleserver3/arcgis/rest/services/Petroleum/KSFields/FeatureServer/0/query";
+            const decoder = new TileTreeTersifier_2.TileTreeTersifier();
+            const vectorLayer = new AgsClusterLayer_1.AgsClusterLayer({
+                url,
+                tileSize: 256,
+                maxRecordCount: 1024,
+                maxFetchCount: -1,
+                treeTileState: decoder.unstringify(JSON.stringify(data_1.treeTileState)),
+            });
+            const layers = [vectorLayer];
+            const map = new Map_1.default({ view, target, layers });
         });
     });
 });
