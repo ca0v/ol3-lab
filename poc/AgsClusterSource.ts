@@ -4,12 +4,12 @@ import { TileTree, TileTreeExt } from "./TileTree";
 import VectorSource, { LoadingStrategy } from "@ol/source/Vector";
 import Geometry from "@ol/geom/Geometry";
 import { AgsFeatureLoader } from "./AgsFeatureLoader";
-import { XYZ } from "./XYZ";
+import type { XYZ } from "./XYZ";
 import Feature from "@ol/Feature";
 import Point from "@ol/geom/Point";
-import { TileNode } from "./TileNode";
 import { createXYZ } from "@ol/tilegrid";
 import { tile as tileStrategy } from "@ol/loadingstrategy";
+import type { TileTreeState } from "./TileTreeState";
 
 const LOOKAHEAD_THRESHOLD = 3; // a zoom offset for cluster data
 const MINIMAL_PARENTAL_MASS = 100; // do not fetch children if parent below this mass threshold
@@ -40,16 +40,18 @@ export class AgsClusterSource<
     url: string;
     maxRecordCount: number;
     maxFetchCount: number;
-    treeTileState: Array<[number, number, number, T]>;
+    treeTileState?: TileTreeState<T>;
   }) {
-    const tileGrid = createXYZ({ tileSize: 512 });
+    const { url, maxRecordCount, maxFetchCount, tileSize } = options;
+    const tileGrid = createXYZ({ tileSize });
     const strategy = tileStrategy(tileGrid);
 
     const tree = new TileTree<T>({
       extent: tileGrid.getExtent(),
     });
 
-    const { url, maxRecordCount, maxFetchCount, tileSize } = options;
+    options.treeTileState && tree.load(options.treeTileState);
+
     super({ strategy });
     this.tree = tree;
     this.tileSize = tileSize;
@@ -64,8 +66,6 @@ export class AgsClusterSource<
       maxRecordCount,
       maxFetchCount,
     });
-
-    tree.load(options.treeTileState);
   }
 
   async loadFeatures(
@@ -74,23 +74,20 @@ export class AgsClusterSource<
     projection: Projection
   ) {
     const { tree } = this;
-    console.log("request to load features in ", extent, resolution);
     const extentsToLoad = this.loadingStrategy(
       extent,
       resolution
     ).map((extent) => tree.asXyz(extent));
 
     if (!extentsToLoad.length) {
-      console.log("no extents need to be loaded");
       return;
     }
-    console.log(extentsToLoad);
     const Z = extentsToLoad[0].Z;
 
     if (this.isFirstDraw || resolution !== this.priorResolution) {
-      console.log("rendering 1st tree");
-      this.priorResolution = resolution;
+      this.isFirstDraw && console.log("rendering 1st tree");
       this.isFirstDraw = false;
+      this.priorResolution = resolution;
       this.renderTree(tree, Z, projection);
     }
 
@@ -108,29 +105,17 @@ export class AgsClusterSource<
 
           const smallEnoughTest = node.data.count < this.maxRecordCount;
 
-          if (!smallEnoughTest) {
-            console.log("fetching for more resolution");
-          }
-
           const tooSmallTest = node.data.count < MINIMAL_PARENTAL_MASS;
 
-          if (!tooSmallTest) {
-            console.log("lookahead fetching allowed");
-          }
-
           const lookaheadTest = nodeId.Z > Z + LOOKAHEAD_THRESHOLD;
-
-          if (!lookaheadTest) {
-            console.log("lookahead fetching", Z, nodeId);
-          }
 
           return smallEnoughTest && (lookaheadTest || tooSmallTest);
         }
       );
 
       if (nodes.length) {
-        console.log("new nodes", nodes);
         this.renderTree(this.tree, Z, projection);
+        //console.log(JSON.stringify(this.tree.save()));
       }
     });
   }
@@ -207,9 +192,6 @@ export class AgsClusterSource<
       const { yieldToParent } = tree.decorate<{ yieldToParent: boolean }>(
         nodeId
       );
-      if (yieldToParent) {
-        console.log(nodeId, "yields to parent");
-      }
       return !yieldToParent;
     });
 
@@ -238,7 +220,6 @@ export class AgsClusterSource<
   ) {
     let siblings = tree.children(parentIdentifier);
     if (4 === siblings.length) {
-      console.log(parentIdentifier, "can be created from", siblings);
       const parentNode = tree.findByXYZ(parentIdentifier, {
         force: true,
       });
@@ -307,6 +288,5 @@ export class AgsClusterSource<
     });
     this.addFeature(feature);
     node.data["feature"] = feature;
-    console.log("created feature");
   }
 }

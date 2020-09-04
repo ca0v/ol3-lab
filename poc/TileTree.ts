@@ -1,4 +1,4 @@
-import { Extent, applyTransform, getCenter } from "@ol/extent";
+import { Extent, getCenter } from "@ol/extent";
 import { containsXY } from "@ol/extent";
 import { Coordinate } from "@ol/coordinate";
 import { explode } from "./explode";
@@ -6,7 +6,8 @@ import { asXYZ } from "./asXYZ";
 import { asExtent } from "./asExtent";
 import { TileNode } from "./TileNode";
 import { isEq } from "./fun/tiny";
-import { XYZ } from "./XYZ";
+import type { XYZ } from "./XYZ";
+import type { TileTreeState } from "./TileTreeState";
 
 const noop = (a: any) => a;
 
@@ -17,31 +18,29 @@ export class TileTree<T> {
     return result;
   }
 
-  public load(descendants: Array<[number, number, number, T]>) {
-    descendants.forEach(([X, Y, Z, data]) => {
+  public static create<T>({ extent, data }: TileTreeState<T>) {
+    const result = new TileTree<T>({ extent });
+    result.load({ extent, data });
+    return result;
+  }
+
+  public load<T>({ extent, data }: TileTreeState<T>) {
+    const treeExtent = this.asExtent({ X: 0, Y: 0, Z: 0 });
+    if (extent.some((v, i) => v != treeExtent[i])) {
+      throw `extent mismatch: ${extent}, ${treeExtent}`;
+    }
+    data.forEach(([X, Y, Z, data]) => {
       Object.assign(this.findByXYZ({ X, Y, Z }, { force: true }).data, data);
     });
   }
 
-  public destringify<Q>(stringified: string, map?: (d: Q) => T) {
-    const descendants = JSON.parse(stringified).map(([X, Y, Z, data]) => [
-      X,
-      Y,
-      Z,
-      <T>(map || noop)(data),
-    ]);
-    this.load(descendants);
-  }
-
-  stringify<Q>(map?: (d: T, id: XYZ) => Q): string {
-    // something much tighter than this...
-    const result = this.descendants({ X: 0, Y: 0, Z: 0 }).map((v) => [
-      v.X,
-      v.Y,
-      v.Z,
-      (map || noop)(this.findByXYZ(v).data, v),
-    ]);
-    return JSON.stringify(result);
+  public save(): TileTreeState<T> {
+    const extent = this.asExtent({ X: 0, Y: 0, Z: 0 });
+    const data = this.descendants({ X: 0, Y: 0, Z: 0 }).map(
+      (v) =>
+        [v.X, v.Y, v.Z, this.findByXYZ(v).data] as [number, number, number, T]
+    );
+    return { extent, data };
   }
 
   asXyz(tile: TileNode<T> | Extent): XYZ {

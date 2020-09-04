@@ -1,12 +1,12 @@
-import { Extent, getCenter, getWidth } from "@ol/extent";
+import { Extent, getCenter } from "@ol/extent";
 import { Projection } from "@ol/proj";
-import { TileTree, TileTreeExt } from "./TileTree";
+import { TileTree } from "./TileTree";
 import Geometry from "@ol/geom/Geometry";
 import { FeatureServiceProxy } from "./FeatureServiceProxy";
 import { removeAuthority } from "./fun/removeAuthority";
 import { FeatureServiceRequest } from "./FeatureServiceRequest";
 import EsriJSON from "@ol/format/EsriJSON";
-import { XYZ } from "poc/XYZ";
+import type { XYZ } from "poc/XYZ";
 import { DEFAULT_MAX_ZOOM } from "@ol/tilegrid/common";
 import { TileNode } from "./TileNode";
 
@@ -63,8 +63,6 @@ export class AgsFeatureLoader<
     tileData.count = 0;
     tileData.center = getCenter(tileNode.extent) as [number, number];
 
-    console.log(`loading: `, tileIdentifier);
-
     const request = asRequest(projection);
     request.geometry = bbox(tileNode.extent);
     request.returnCountOnly = true;
@@ -72,9 +70,6 @@ export class AgsFeatureLoader<
       const response = await proxy.fetch<{ count: number }>(request);
       const count = response.count;
       tileData.count = count;
-      console.log(`found ${count} features: `, tileIdentifier);
-      //if (count === 0) return tileNode;
-
       if (count < maxFetchCount) {
         // load the actual features
         const features = await this.loadFeatures(request, proxy, projection);
@@ -111,7 +106,6 @@ export class AgsFeatureLoader<
       objectIdFieldName: string;
       features: { attributes: any; geometry: any }[];
     }>(request);
-    console.log(response);
     const features = esrijsonFormat.readFeatures(response, {
       featureProjection: projection,
     });
@@ -120,19 +114,10 @@ export class AgsFeatureLoader<
 
   private async fetchChildren(tileIdentifier: XYZ, projection: Projection) {
     const { tree } = this.options;
-    console.log("fetching all children:", tileIdentifier);
     return await Promise.all(
       tree.ensureQuads(tree.findByXYZ(tileIdentifier)).map(async (q) => {
         const childNodeIdentifier = tree.asXyz(q);
         await this.loader(childNodeIdentifier, projection);
-        console.log(
-          "fetched child:",
-          childNodeIdentifier,
-          "with mass:",
-          q.data.count,
-          "for parent:",
-          tileIdentifier
-        );
         return childNodeIdentifier;
       })
     );
