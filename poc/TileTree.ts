@@ -1,13 +1,13 @@
 import { Extent, getCenter } from "@ol/extent";
 import { containsXY } from "@ol/extent";
 import { Coordinate } from "@ol/coordinate";
-import { explode } from "./explode";
-import { asXYZ } from "./asXYZ";
-import { asExtent } from "./asExtent";
-import { TileNode } from "./TileNode";
-import type { XYZ } from "./XYZ";
+import { explode } from "./fun/explode";
+import { asXYZ } from "./fun/asXYZ";
+import { asExtent } from "./fun/asExtent";
+import type { TileNode } from "./types/TileNode";
+import type { XYZ } from "./types/XYZ";
 import type { TileTreeState } from "./TileTreeState";
-import type { XY } from "./XY";
+import type { XY } from "./types/XY";
 
 export class TileTree<T> {
   asCenter(nodeIdentifier: XYZ): XY {

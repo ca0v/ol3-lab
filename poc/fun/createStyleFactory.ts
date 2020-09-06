@@ -2,7 +2,7 @@ import Feature from "@ol/Feature";
 import Geometry from "@ol/geom/Geometry";
 import { Style, Fill, Stroke, Text } from "@ol/style";
 import Circle from "@ol/style/Circle";
-import { XYZ } from "./XYZ";
+import { XYZ } from "../types/XYZ";
 
 const noop = (a: any) => a;
 

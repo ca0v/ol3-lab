@@ -5,7 +5,7 @@ import { Extent } from "@ol/extent";
 import { TileTree } from "../TileTree";
 import { TileTreeExt } from "../TileTreeExt";
 import { isEq } from "poc/fun/tiny";
-import { XY } from "../XY";
+import type { XY } from "../types/XY";
 
 describe("TileTree Extension Tests", () => {
   it("adds properties to a tile", () => {

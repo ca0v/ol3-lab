@@ -4580,7 +4580,7 @@ define("node_modules/ol/src/extent", ["require", "exports", "node_modules/ol/src
     }
     exports.wrapX = wrapX;
 });
-define("poc/explode", ["require", "exports"], function (require, exports) {
+define("poc/fun/explode", ["require", "exports"], function (require, exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.explode = void 0;
@@ -4592,7 +4592,7 @@ define("poc/explode", ["require", "exports"], function (require, exports) {
     }
     exports.explode = explode;
 });
-define("poc/XYZ", ["require", "exports"], function (require, exports) {
+define("poc/types/XYZ", ["require", "exports"], function (require, exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
 });
@@ -4618,7 +4618,7 @@ define("poc/fun/tiny", ["require", "exports"], function (require, exports) {
     }
     exports.isGt = isGt;
 });
-define("poc/asXYZ", ["require", "exports", "poc/explode", "poc/fun/tiny"], function (require, exports, explode_1, tiny_1) {
+define("poc/fun/asXYZ", ["require", "exports", "poc/fun/explode", "poc/fun/tiny"], function (require, exports, explode_1, tiny_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.asXYZ = void 0;
@@ -4648,7 +4648,7 @@ define("poc/asXYZ", ["require", "exports", "poc/explode", "poc/fun/tiny"], funct
     }
     exports.asXYZ = asXYZ;
 });
-define("poc/asExtent", ["require", "exports", "poc/explode"], function (require, exports, explode_2) {
+define("poc/fun/asExtent", ["require", "exports", "poc/fun/explode"], function (require, exports, explode_2) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.asExtent = void 0;
@@ -4663,7 +4663,7 @@ define("poc/asExtent", ["require", "exports", "poc/explode"], function (require,
     }
     exports.asExtent = asExtent;
 });
-define("poc/TileNode", ["require", "exports"], function (require, exports) {
+define("poc/types/TileNode", ["require", "exports"], function (require, exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
 });
@@ -4671,11 +4671,11 @@ define("poc/TileTreeState", ["require", "exports"], function (require, exports) 
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
 });
-define("poc/XY", ["require", "exports"], function (require, exports) {
+define("poc/types/XY", ["require", "exports"], function (require, exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
 });
-define("poc/TileTree", ["require", "exports", "node_modules/ol/src/extent", "node_modules/ol/src/extent", "poc/explode", "poc/asXYZ", "poc/asExtent"], function (require, exports, extent_1, extent_2, explode_3, asXYZ_1, asExtent_1) {
+define("poc/TileTree", ["require", "exports", "node_modules/ol/src/extent", "node_modules/ol/src/extent", "poc/fun/explode", "poc/fun/asXYZ", "poc/fun/asExtent"], function (require, exports, extent_1, extent_2, explode_3, asXYZ_1, asExtent_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.TileTree = void 0;
@@ -15718,7 +15718,7 @@ define("poc/AgsClusterSource", ["require", "exports", "poc/TileTree", "poc/TileT
     }
     exports.AgsClusterSource = AgsClusterSource;
 });
-define("poc/TileTreeEncoder", ["require", "exports"], function (require, exports) {
+define("poc/types/TileTreeEncoder", ["require", "exports"], function (require, exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
 });
@@ -15756,7 +15756,7 @@ define("poc/TileTreeTersifier", ["require", "exports", "poc/TileTree", "node_mod
     }
     exports.TileTreeTersifier = TileTreeTersifier;
 });
-define("poc/test/xyz-test", ["require", "exports", "mocha", "chai", "node_modules/ol/src/proj", "poc/TileTree", "poc/TileTreeExt", "node_modules/ol/src/tilegrid", "node_modules/ol/src/loadingstrategy", "node_modules/ol/src/source/VectorEventType", "poc/AgsClusterSource", "poc/asExtent", "poc/asXYZ", "poc/explode", "poc/fun/tiny", "poc/TileTreeTersifier"], function (require, exports, mocha_2, chai_2, proj_2, TileTree_4, TileTreeExt_2, tilegrid_2, loadingstrategy_2, VectorEventType_1, AgsClusterSource_1, asExtent_2, asXYZ_2, explode_4, tiny_2, TileTreeTersifier_1) {
+define("poc/test/xyz-test", ["require", "exports", "mocha", "chai", "node_modules/ol/src/proj", "poc/TileTree", "poc/TileTreeExt", "node_modules/ol/src/tilegrid", "node_modules/ol/src/loadingstrategy", "node_modules/ol/src/source/VectorEventType", "poc/AgsClusterSource", "poc/fun/asExtent", "poc/fun/asXYZ", "poc/fun/explode", "poc/fun/tiny", "poc/TileTreeTersifier"], function (require, exports, mocha_2, chai_2, proj_2, TileTree_4, TileTreeExt_2, tilegrid_2, loadingstrategy_2, VectorEventType_1, AgsClusterSource_1, asExtent_2, asXYZ_2, explode_4, tiny_2, TileTreeTersifier_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     mocha_2.describe("XYZ testing", () => {
@@ -23802,7 +23802,7 @@ define("node_modules/ol/src/Map", ["require", "exports", "node_modules/ol/src/re
     }
     exports.default = Map;
 });
-define("poc/createStyleFactory", ["require", "exports", "node_modules/ol/src/style", "node_modules/ol/src/style/Circle"], function (require, exports, style_1, Circle_1) {
+define("poc/fun/createStyleFactory", ["require", "exports", "node_modules/ol/src/style", "node_modules/ol/src/style/Circle"], function (require, exports, style_1, Circle_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.createStyleFactory = void 0;
@@ -23917,7 +23917,7 @@ define("poc/createStyleFactory", ["require", "exports", "node_modules/ol/src/sty
     }
     exports.createStyleFactory = createStyleFactory;
 });
-define("poc/AgsClusterLayer", ["require", "exports", "node_modules/ol/src/layer/Vector", "poc/AgsClusterSource", "poc/createStyleFactory"], function (require, exports, Vector_2, AgsClusterSource_2, createStyleFactory_1) {
+define("poc/AgsClusterLayer", ["require", "exports", "node_modules/ol/src/layer/Vector", "poc/AgsClusterSource", "poc/fun/createStyleFactory"], function (require, exports, Vector_2, AgsClusterSource_2, createStyleFactory_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.AgsClusterLayer = void 0;

@@ -1,8 +1,8 @@
 import VectorLayer from "@ol/layer/Vector";
 import { AgsClusterSource } from "./AgsClusterSource";
-import { createStyleFactory } from "./createStyleFactory";
+import { createStyleFactory } from "./fun/createStyleFactory";
 import { TileTreeState } from "./TileTreeState";
-import { XY } from "./XY";
+import type { XY } from "./types/XY";
 
 export class AgsClusterLayer<
   T extends { count: number; center: XY }

@@ -1,9 +1,9 @@
 import { TileTree } from "./TileTree";
 import { getCenter } from "@ol/extent";
-import { TileTreeEncoder } from "./TileTreeEncoder";
+import type { TileTreeEncoder } from "./types/TileTreeEncoder";
 import { TileTreeState } from "./TileTreeState";
 import { Extent } from "@ol/extent";
-import { XY } from "./XY";
+import type { XY } from "./types/XY";
 
 type InternalTileTreeState = {
   extent: Extent;

@@ -1,4 +1,4 @@
-import type { TileTreeState } from "./TileTreeState";
+import type { TileTreeState } from "../TileTreeState";
 
 export interface TileTreeEncoder<T> {
   unstringify(state: string): TileTreeState<T>;

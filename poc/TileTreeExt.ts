@@ -1,7 +1,7 @@
 import { getCenter } from "@ol/extent";
-import { XYZ } from "./XYZ";
+import type { XYZ } from "./types/XYZ";
 import { TileTree } from "./TileTree";
-import { XY } from "./XY";
+import type { XY } from "./types/XY";
 
 export class TileTreeExt {
   getCenter(tileIdentifier: XYZ) {

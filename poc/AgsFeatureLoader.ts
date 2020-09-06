@@ -1,15 +1,13 @@
-import { Extent, getCenter } from "@ol/extent";
+import { Extent } from "@ol/extent";
 import { Projection } from "@ol/proj";
 import { TileTree } from "./TileTree";
-import Geometry from "@ol/geom/Geometry";
 import { FeatureServiceProxy } from "./FeatureServiceProxy";
 import { removeAuthority } from "./fun/removeAuthority";
 import { FeatureServiceRequest } from "./FeatureServiceRequest";
 import EsriJSON from "@ol/format/EsriJSON";
-import type { XYZ } from "poc/XYZ";
-import { DEFAULT_MAX_ZOOM } from "@ol/tilegrid/common";
-import { TileNode } from "./TileNode";
-import { XY } from "./XY";
+import type { XYZ } from "poc/types/XYZ";
+import type { TileNode } from "./types/TileNode";
+import type { XY } from "./types/XY";
 
 function asRequest(projection: Projection) {
   const request: FeatureServiceRequest = {

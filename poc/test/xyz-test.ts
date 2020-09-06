@@ -5,19 +5,19 @@ import { Extent } from "@ol/extent";
 import { get as getProjection } from "@ol/proj";
 import { TileTree } from "../TileTree";
 import { TileTreeExt } from "../TileTreeExt";
-import { TileNode } from "../TileNode";
+import type { TileNode } from "../types/TileNode";
 import { createXYZ } from "@ol/tilegrid";
 import { tile as tileStrategy } from "@ol/loadingstrategy";
 import Point from "@ol/geom/Point";
 import Feature from "@ol/Feature";
 import VectorEventType from "@ol/source/VectorEventType";
 import { AgsClusterSource } from "../AgsClusterSource";
-import { asExtent } from "poc/asExtent";
-import { asXYZ } from "poc/asXYZ";
-import { explode } from "poc/explode";
+import { asExtent } from "poc/fun/asExtent";
+import { asXYZ } from "poc/fun/asXYZ";
+import { explode } from "poc/fun/explode";
 import { isEq } from "poc/fun/tiny";
 import { TileTreeTersifier } from "poc/TileTreeTersifier";
-import { XY } from "poc/XY";
+import type { XY } from "poc/types/XY";
 
 describe("XYZ testing", () => {
   it("XYZ to extent", () => {

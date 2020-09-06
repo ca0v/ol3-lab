@@ -4,7 +4,7 @@ import { assert } from "chai";
 import { AgsFeatureLoader } from "poc/AgsFeatureLoader";
 import { TileTree } from "poc/TileTree";
 import { get as getProjection } from "@ol/proj";
-import { XY } from "poc/XY";
+import type { XY } from "poc/types/XY";
 
 describe("AgsFeatureLoader tests", () => {
   it("loads features", async () => {

@@ -1,7 +1,7 @@
-import { Extent } from "@ol/extent";
+import type { Extent } from "@ol/extent";
 import { explode } from "./explode";
-import { XYZ } from "./XYZ";
-import { isEq } from "./fun/tiny";
+import type { XYZ } from "../types/XYZ";
+import { isEq } from "./tiny";
 
 export function asXYZ(rootExtent: Extent, extent: Extent): XYZ {
   const rootInfo = explode(rootExtent);

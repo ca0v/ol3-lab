@@ -5,14 +5,14 @@ import { TileTreeExt } from "./TileTreeExt";
 import VectorSource, { LoadingStrategy } from "@ol/source/Vector";
 import Geometry from "@ol/geom/Geometry";
 import { AgsFeatureLoader } from "./AgsFeatureLoader";
-import type { XYZ } from "./XYZ";
+import type { XYZ } from "./types/XYZ";
 import Feature from "@ol/Feature";
 import Point from "@ol/geom/Point";
 import { createXYZ } from "@ol/tilegrid";
 import { tile as tileStrategy } from "@ol/loadingstrategy";
 import type { TileTreeState } from "./TileTreeState";
 import { split } from "./fun/split";
-import { XY } from "./XY";
+import type { XY } from "./types/XY";
 
 const LOOKAHEAD_THRESHOLD = 3; // a zoom offset for cluster data
 
