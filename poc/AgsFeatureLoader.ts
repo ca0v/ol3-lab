@@ -59,10 +59,10 @@ export class AgsFeatureLoader<T extends { count: number; center: XY }> {
     if (typeof tileData.count === "number") {
       return tileNode;
     }
-    tileData.center = getCenter(tileNode.extent) as XY;
+    tileData.center = tree.asCenter(tileIdentifier);
 
     const request = asRequest(projection);
-    request.geometry = bbox(tileNode.extent);
+    request.geometry = bbox(tree.asExtent(tileIdentifier));
     request.returnCountOnly = true;
     try {
       const response = await proxy.fetch<{ count: number }>(request);

@@ -139,8 +139,7 @@ export class AgsClusterSource<
 
   private renderTree(tree: TileTree<T>, Z: number, projection: Projection) {
     const leafNodes = [] as Array<XYZ>;
-    tree.visit((a, b) => {
-      const tileIdentifier = tree.asXyz(b);
+    tree.visit((a, tileIdentifier) => {
       if (0 === tree.children(tileIdentifier).length) {
         leafNodes.push(tileIdentifier);
       }

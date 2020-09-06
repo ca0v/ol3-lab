@@ -5,7 +5,6 @@ import { explode } from "./explode";
 import { asXYZ } from "./asXYZ";
 import { asExtent } from "./asExtent";
 import { TileNode } from "./TileNode";
-import { isEq } from "./fun/tiny";
 import type { XYZ } from "./XYZ";
 import type { TileTreeState } from "./TileTreeState";
 import type { XY } from "./XY";
@@ -46,35 +45,26 @@ export class TileTree<T> {
     return { extent, data };
   }
 
-  asXyz(tile: TileNode<T> | Extent): XYZ {
-    if (Array.isArray(tile)) {
-      return asXYZ(this.root.extent, tile);
-    } else {
-      return asXYZ(this.root.extent, tile.extent);
-    }
+  asXyz(extent: Extent): XYZ {
+    return asXYZ(this.asExtent({ X: 0, Y: 0, Z: 0 }), extent);
   }
-  private readonly root: TileNode<T>;
+  private readonly extent: Extent;
+  private readonly root: XYZ;
   // convert into something that serializes nicely (no null fillers, maybe Set?)
   private readonly tileCache: Array<Array<Array<TileNode<T>>>>;
 
   constructor(options: { extent: Extent }) {
-    this.root = this.asTileNode(options.extent);
-    this.tileCache = [[[this.root]]];
+    this.extent = options.extent;
+    this.root = { X: 0, Y: 0, Z: 0 };
+    this.tileCache = [[[this.asTileNode()]]];
   }
 
-  private asTileNode(extent: Extent): TileNode<T> {
-    return { extent, data: {} } as TileNode<T>;
-  }
-
-  private asXYZ(node: TileNode<T>) {
-    const { X, Y, Z } = asXYZ(this.root.extent, node.extent);
-    const check = asExtent(this.root.extent, { X, Y, Z });
-    if (!check.every((v, i) => isEq(v, node.extent[i]))) throw "invalid extent";
-    return { X, Y, Z };
+  private asTileNode(): TileNode<T> {
+    return { data: {} } as TileNode<T>;
   }
 
   public asExtent(tileName: { X: number; Y: number; Z: number }) {
-    return asExtent(this.root.extent, tileName);
+    return asExtent(this.extent, tileName);
   }
 
   public parent({ X, Y, Z }: XYZ) {
@@ -96,25 +86,24 @@ export class TileTree<T> {
     this.tileCache[Z] = this.tileCache[Z] || [];
     this.tileCache[Z][X] = this.tileCache[Z][X] || [];
     if (!this.tileCache[Z][X][Y] && options?.force) {
-      const extent = this.asExtent(point);
-      this.tileCache[Z][X][Y] = this.asTileNode(extent);
+      this.tileCache[Z][X][Y] = this.asTileNode();
     }
     return this.tileCache[Z][X][Y];
   }
 
-  public findByPoint(args: { point: Coordinate; zoom: number }): TileNode<T> {
+  public findByPoint(args: { point: Coordinate; zoom: number }): XYZ {
     const { point, zoom: depth } = args;
     const [x, y] = point;
     if (depth < 0) throw "invalid depth";
-    if (!containsXY(this.root.extent, x, y)) {
+    if (!containsXY(this.extent, x, y)) {
       throw "point is outside of extent";
     }
     if (0 === depth) return this.root;
-    const rootInfo = explode(this.root.extent);
+    const rootInfo = explode(this.extent);
     const Z = depth;
     const X = Math.floor((Math.pow(2, Z) * (x - rootInfo.xmin)) / rootInfo.w);
     const Y = Math.floor((Math.pow(2, Z) * (y - rootInfo.ymin)) / rootInfo.h);
-    return this.findByXYZ({ X, Y, Z }, { force: true });
+    return { X, Y, Z };
   }
 
   public quads({ X, Y, Z }: XYZ) {
@@ -164,12 +153,11 @@ export class TileTree<T> {
     return result;
   }
 
-  public ensureQuads(root: TileNode<T>) {
-    const xyz = this.asXYZ(root);
+  public ensureQuads(xyz: XYZ) {
     return this.quads(xyz).map((c) => this.findByXYZ(c, { force: true }));
   }
 
-  public visit<Q>(cb: (a: Q, b: TileNode<T>) => Q, init: Q): Q {
+  public visit<Q>(cb: (a: Q, b: XYZ) => Q, init: Q): Q {
     let result = init;
     const Zs = Object.keys(this.tileCache);
     Zs.forEach((Z: any) => {
@@ -177,16 +165,16 @@ export class TileTree<T> {
       Xs.forEach((X: any) => {
         const Ys = Object.keys(this.tileCache[Z][X]);
         Ys.forEach((Y: any) => {
-          const node = this.tileCache[Z][X][Y];
-          result = cb(result, node);
+          result = cb(result, { X, Y, Z });
         });
       });
     });
     return result;
   }
 
-  public find(extent: Extent): TileNode<T> {
-    const tile = this.asXYZ({ extent } as TileNode<T>);
-    return this.findByXYZ(tile, { force: true });
+  public find(extent: Extent): XYZ {
+    const tile = this.asXyz(extent);
+    this.findByXYZ(tile, { force: true });
+    return tile;
   }
 }

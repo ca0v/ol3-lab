@@ -29,5 +29,9 @@ export function asXYZ(rootExtent: Extent, extent: Extent): XYZ {
     throw "invalid extent: ymin";
   }
 
+  if (!isEq(nodeInfo.h / nodeInfo.w, rootInfo.h / rootInfo.w, TINY)) {
+    throw "invalid extent: width::height";
+  }
+
   return { X, Y, Z };
 }

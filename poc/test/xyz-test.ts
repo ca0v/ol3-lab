@@ -82,7 +82,7 @@ describe("TileTree Tests", () => {
     const extent = [0, 0, 10, 10] as Extent;
     const tree = new TileTree({ extent });
     const root = tree.find(extent);
-    assert.isTrue(isEq(extent[0], root.extent[0]));
+    assert.isTrue(isEq(extent[0], tree.asExtent(root)[0]));
   });
 
   it("inserts an extent outside of the bounds of the current tree", () => {
@@ -99,6 +99,7 @@ describe("TileTree Tests", () => {
   it("inserts an extent that misaligns to the established scale", () => {
     const extent = [0, 0, 1, 1] as Extent;
     const tree = new TileTree({ extent });
+
     assert.throws(() => {
       tree.find([0, 0, 0.4, 0.4]);
     }, "invalid extent");
@@ -114,7 +115,8 @@ describe("TileTree Tests", () => {
 
   it("attaches data to the nodes", () => {
     const extent = [0, 0, 1, 1] as Extent;
-    const tree = new TileTree<{ count: number }>({ extent });
+    const tree = new TileTree<{ count: number; center: XY }>({ extent });
+    const helper = new TileTreeExt(tree);
 
     const q0 = tree.find([0, 0, 0.25, 0.25]);
     const q1 = tree.find([0.25, 0, 0.5, 0.25]);
@@ -122,13 +124,13 @@ describe("TileTree Tests", () => {
     const q3 = tree.find([0.25, 0.25, 0.5, 0.5]);
     const q33 = tree.find([0.375, 0.375, 0.5, 0.5]);
 
-    q0.data.count = 1;
-    q1.data.count = 2;
-    q2.data.count = 4;
-    q3.data.count = 8;
-    q33.data.count = 16;
+    helper.setMass(q0, 1);
+    helper.setMass(q1, 2);
+    helper.setMass(q2, 4);
+    helper.setMass(q3, 8);
+    helper.setMass(q33, 16);
 
-    const totalCount = tree.visit((a, b) => a + (b?.data.count || 0), 0);
+    const totalCount = tree.visit((a, b) => a + helper.getMass(b) || 0, 0);
     assert.equal(totalCount, 31);
   });
 
@@ -143,16 +145,17 @@ describe("TileTree Tests", () => {
     const size = -5009377.085697312;
 
     // x
-    assert.isTrue(isEq(q0.extent[0], size), "q0.x");
-    assert.equal(q1.extent[0], 0, "q1.x");
-    assert.equal(q2.extent[0], size, "q2.x");
-    assert.equal(q3.extent[0], 0, "q3.x");
+    const extents = [q0, q1, q2, q3].map((q) => tree.asExtent(q));
+    assert.isTrue(isEq(extents[0][0], size), "q0.x");
+    assert.equal(extents[1][0], 0, "q1.x");
+    assert.equal(extents[2][0], size, "q2.x");
+    assert.equal(extents[3][0], 0, "q3.x");
 
     // y
-    assert.equal(q0.extent[1], size, "q0.y");
-    assert.equal(q1.extent[1], size, "q1.y");
-    assert.equal(q2.extent[1], 0, "q2.y");
-    assert.equal(q3.extent[1], 0, "q3.y");
+    assert.equal(extents[0][1], size, "q0.y");
+    assert.equal(extents[1][1], size, "q1.y");
+    assert.equal(extents[2][1], 0, "q2.y");
+    assert.equal(extents[3][1], 0, "q3.y");
   });
 
   it("can cache tiles from a TileGrid", () => {
@@ -167,14 +170,14 @@ describe("TileTree Tests", () => {
       tileGrid.forEachTileCoord(extent, level, (tileCoord) => {
         const [z, x, y] = tileCoord;
         const extent = tileGrid.getTileCoordExtent(tileCoord) as Extent;
-        tree.find(extent).data.tileCoord = tileCoord;
+        tree.decorate(tree.find(extent), { tileCoord });
       });
 
     const maxX = () =>
-      tree.visit(
-        (a, b) => Math.max(a, b.data.tileCoord ? b.data.tileCoord[1] : a),
-        0
-      );
+      tree.visit((a, b) => {
+        const { tileCoord } = tree.decorate(b);
+        return Math.max(a, tileCoord ? tileCoord[1] : a);
+      }, 0);
 
     for (let i = 0; i <= 8; i++) {
       console.log(`adding ${i}`);
@@ -239,10 +242,7 @@ describe("Cluster Rendering Rules", () => {
     const tree = new TileTree<{ count: number; center: XY }>({
       extent,
     });
-    const root = tree.find(extent);
-    let quad = tree
-      .ensureQuads(tree.findByXYZ({ X: 1, Y: 1, Z: 1 }, { force: true }))
-      .map((q) => tree.asXyz(q));
+    let quad = tree.quads({ X: 1, Y: 1, Z: 1 });
     assert.deepEqual({ X: 2, Y: 2, Z: 2 }, quad[0], "1st quadrant");
     assert.deepEqual({ X: 2, Y: 3, Z: 2 }, quad[1], "2nd quadrant");
     assert.deepEqual({ X: 3, Y: 3, Z: 2 }, quad[2], "3rd quadrant");
