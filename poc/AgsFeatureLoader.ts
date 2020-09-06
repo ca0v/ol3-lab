@@ -9,6 +9,7 @@ import EsriJSON from "@ol/format/EsriJSON";
 import type { XYZ } from "poc/XYZ";
 import { DEFAULT_MAX_ZOOM } from "@ol/tilegrid/common";
 import { TileNode } from "./TileNode";
+import { XY } from "./XY";
 
 function asRequest(projection: Projection) {
   const request: FeatureServiceRequest = {
@@ -30,15 +31,13 @@ function bbox(extent: Extent) {
   return JSON.stringify({ xmin, ymin, xmax, ymax });
 }
 
-export class AgsFeatureLoader<
-  T extends { count: number; center: [number, number] }
-> {
+export class AgsFeatureLoader<T extends { count: number; center: XY }> {
   public constructor(
     private options: {
       tree: TileTree<T>;
       url: string;
       maxRecordCount: number;
-      maxFetchCount: number;
+      minRecordCount: number;
     }
   ) {}
 
@@ -48,7 +47,7 @@ export class AgsFeatureLoader<
     tileIdentifier: XYZ,
     projection: Projection
   ): Promise<TileNode<T>> {
-    const { tree, maxRecordCount, maxFetchCount, url } = this.options;
+    const { tree, maxRecordCount, minRecordCount, url } = this.options;
 
     const tileNode = tree.findByXYZ(tileIdentifier, { force: true });
     const tileData = tileNode.data;
@@ -60,8 +59,7 @@ export class AgsFeatureLoader<
     if (typeof tileData.count === "number") {
       return tileNode;
     }
-    tileData.count = 0;
-    tileData.center = getCenter(tileNode.extent) as [number, number];
+    tileData.center = getCenter(tileNode.extent) as XY;
 
     const request = asRequest(projection);
     request.geometry = bbox(tileNode.extent);
@@ -70,27 +68,17 @@ export class AgsFeatureLoader<
       const response = await proxy.fetch<{ count: number }>(request);
       const count = response.count;
       tileData.count = count;
-      if (count < maxFetchCount) {
+      if (0 < count && count < minRecordCount) {
         // load the actual features
         const features = await this.loadFeatures(request, proxy, projection);
-        // no tile is guaranteed to fully contain a feature but we can
-        // identify a tile at a given zoom level that contains the centroid
-        // put the features there.
-        features.forEach((feature) => {
-          const geom = feature.getGeometry() as Geometry;
-          const center = getCenter(geom.getExtent());
-          const featureTile = tree.findByPoint({
-            point: center,
-            zoom: DEFAULT_MAX_ZOOM,
-          });
-          // TODO: need to eliminate dups via fid field name
-          // maybe tileNode.data.features[fid]=feature
-          feature.setProperties({ tileInfo: featureTile });
+        // features are not in the source, just on this tile
+        tree.decorate(tileIdentifier, {
+          features,
         });
       }
     } catch (ex) {
       console.error("network error", ex, tileIdentifier);
-      tileData.count = 1;
+      tree.decorate(tileIdentifier, { text: ex, type: "err" });
     }
     return tileNode;
   }
@@ -110,16 +98,5 @@ export class AgsFeatureLoader<
       featureProjection: projection,
     });
     return features;
-  }
-
-  private async fetchChildren(tileIdentifier: XYZ, projection: Projection) {
-    const { tree } = this.options;
-    return await Promise.all(
-      tree.ensureQuads(tree.findByXYZ(tileIdentifier)).map(async (q) => {
-        const childNodeIdentifier = tree.asXyz(q);
-        await this.loader(childNodeIdentifier, projection);
-        return childNodeIdentifier;
-      })
-    );
   }
 }

@@ -4,15 +4,16 @@ import { assert } from "chai";
 import { AgsFeatureLoader } from "poc/AgsFeatureLoader";
 import { TileTree } from "poc/TileTree";
 import { get as getProjection } from "@ol/proj";
+import { XY } from "poc/XY";
 
 describe("AgsFeatureLoader tests", () => {
   it("loads features", async () => {
     const url =
       "http://localhost:3002/mock/sampleserver3/arcgis/rest/services/Petroleum/KSFields/FeatureServer/0/query";
-    const maxFetchCount = -1;
+    const minRecordCount = -1;
     const maxRecordCount = 1000;
     const projection = getProjection("EPSG:3857");
-    const tree = new TileTree<{ count: number; center: [number, number] }>({
+    const tree = new TileTree<{ count: number; center: XY }>({
       extent: projection.getExtent(),
     });
 
@@ -20,7 +21,7 @@ describe("AgsFeatureLoader tests", () => {
 
     const loader = new AgsFeatureLoader({
       url,
-      maxFetchCount,
+      minRecordCount,
       maxRecordCount,
       tree,
     });

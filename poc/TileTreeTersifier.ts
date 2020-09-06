@@ -3,15 +3,15 @@ import { getCenter } from "@ol/extent";
 import { TileTreeEncoder } from "./TileTreeEncoder";
 import { TileTreeState } from "./TileTreeState";
 import { Extent } from "@ol/extent";
+import { XY } from "./XY";
 
 type InternalTileTreeState = {
   extent: Extent;
   data: Array<[number, number, number, number, number, number]>;
 };
 
-export class TileTreeTersifier<
-  T extends { count: number; center: [number, number] }
-> implements TileTreeEncoder<T> {
+export class TileTreeTersifier<T extends { count: number; center: XY }>
+  implements TileTreeEncoder<T> {
   // convert a stringified tile tree into a tile tree state
   unstringify(treestate: string): TileTreeState<T> {
     const { extent, data } = JSON.parse(treestate) as InternalTileTreeState;

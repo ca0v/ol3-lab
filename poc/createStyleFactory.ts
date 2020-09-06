@@ -17,7 +17,60 @@ const STYLE_CONFIG = {
   clusterMinimumRadius: 5,
   clusterRadiusScale: 1,
   clusterScaleOp: (v: number) => Math.pow(2, Math.ceil(Math.log10(v))),
+  warningRadius: 24,
+  warningFillColor: "rgba(255, 0, 0, 0)",
+  warningStrokeColor: "rgba(255, 0, 0, 1)",
+  warningStrokeWidth: 0.4,
+  warningTextFillColor: "rgba(255, 255, 255, 1)",
+  warningTextStrokeColor: "rgba(255, 0, 0, 1)",
+  warningTextStrokeWidth: 1,
+  defaultMarkerRadius: 1,
+  defaultMarkerFillColor: "rgba(255, 0, 0, 1)",
+  defaultMarkerStrokeColor: "rgba(0, 0, 0, 1)",
+  defaultMarkerStrokeWidth: 0.4,
+  defaultMarkerTextFillColor: "rgba(255, 255, 255, 1)",
+  defaultMarkerTextStrokeColor: "rgba(255, 0, 0, 1)",
+  defaultMarkerTextStrokeWidth: 1,
 };
+
+// rules to be specified in configuration
+function makeClusterImage(count: number, opacity: number) {
+  return new Circle({
+    radius:
+      STYLE_CONFIG.clusterMinimumRadius +
+      STYLE_CONFIG.clusterRadiusScale *
+        (STYLE_CONFIG.clusterScaleOp || noop)(count),
+    fill: new Fill({ color: STYLE_CONFIG.clusterFillColor }),
+    stroke: new Stroke({
+      color: STYLE_CONFIG.clusterStrokeColor,
+      width: STYLE_CONFIG.clusterStrokeWidth,
+    }),
+  });
+}
+
+// rules to be specified in configuration
+function makeWarningImage() {
+  return new Circle({
+    radius: STYLE_CONFIG.warningRadius,
+    fill: new Fill({ color: STYLE_CONFIG.warningFillColor }),
+    stroke: new Stroke({
+      color: STYLE_CONFIG.warningStrokeColor,
+      width: STYLE_CONFIG.warningStrokeWidth,
+    }),
+  });
+}
+
+// rules to be specified in configuration
+function makeMarkerImage() {
+  return new Circle({
+    radius: STYLE_CONFIG.defaultMarkerRadius,
+    fill: new Fill({ color: STYLE_CONFIG.defaultMarkerFillColor }),
+    stroke: new Stroke({
+      color: STYLE_CONFIG.defaultMarkerStrokeColor,
+      width: STYLE_CONFIG.defaultMarkerStrokeWidth,
+    }),
+  });
+}
 
 /**
  * Although using styles to control which features render is possible it is
@@ -28,21 +81,6 @@ const STYLE_CONFIG = {
  * I want to use the same technique to cluster cluster markers.
  */
 export function createStyleFactory() {
-  // rules to be specified in configuration
-  const circleMaker = (count: number, opacity: number) => {
-    return new Circle({
-      radius:
-        STYLE_CONFIG.clusterMinimumRadius +
-        STYLE_CONFIG.clusterRadiusScale *
-          (STYLE_CONFIG.clusterScaleOp || noop)(count),
-      fill: new Fill({ color: STYLE_CONFIG.clusterFillColor }),
-      stroke: new Stroke({
-        color: STYLE_CONFIG.clusterStrokeColor,
-        width: STYLE_CONFIG.clusterStrokeWidth,
-      }),
-    });
-  };
-
   const textMaker = (text: string) =>
     new Text({
       text: text,
@@ -57,38 +95,58 @@ export function createStyleFactory() {
   // can control rendering from here by returning null styles
   const style = (feature: Feature<Geometry>, resolution: number) => {
     const {
-      tileInfo: tileIdentifier,
+      tileIdentifier,
       text,
       mass,
       density,
       visible,
+      type,
     } = feature.getProperties() as {
-      tileInfo: XYZ;
+      tileIdentifier: XYZ;
       text: string;
       density: number;
       mass: number;
       visible: boolean;
+      type: "err" | "cluster" | "feature";
     };
+
     if (!tileIdentifier) return;
     if (!visible) return;
 
     const result = [] as Style[];
 
-    if (tileIdentifier) {
-      const style = new Style({
-        image: circleMaker(mass, 1),
-        text: textMaker(text),
-      });
+    switch (type) {
+      case "cluster": {
+        const style = new Style({
+          image: makeClusterImage(mass, 1),
+          text: textMaker(text),
+        });
+        result.push(style);
+        break;
+      }
+      case "err": {
+        const style = new Style({
+          image: makeWarningImage(),
+          text: textMaker(text),
+        });
+        result.push(style);
+        break;
+      }
 
-      result.push(style);
-    } else {
-      // rules specified in featureserver resonse
-      const vector = new Style({
-        fill: new Fill({ color: "rgba(200,0,200,0.2)" }),
-      });
-      result.push(vector);
+      case "feature":
+      default: {
+        const style = new Style({
+          fill: new Fill({ color: "white" }),
+          stroke: new Stroke({ color: "black" }),
+        });
+        result.push(
+          new Style({
+            image: makeMarkerImage(),
+          })
+        );
+        result.push(style);
+      }
     }
-
     return result;
   };
 

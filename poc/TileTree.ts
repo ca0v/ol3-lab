@@ -8,17 +8,20 @@ import { TileNode } from "./TileNode";
 import { isEq } from "./fun/tiny";
 import type { XYZ } from "./XYZ";
 import type { TileTreeState } from "./TileTreeState";
-
-const noop = (a: any) => a;
+import type { XY } from "./XY";
 
 export class TileTree<T> {
+  asCenter(nodeIdentifier: XYZ): XY {
+    return getCenter(this.asExtent(nodeIdentifier)) as XY;
+  }
+
   decorate<Q>(nodeId: XYZ, values?: Q) {
     const result = this.findByXYZ(nodeId, { force: true }).data as T & Q;
     values && Object.assign(result, values);
     return result;
   }
 
-  public static create<T>({ extent, data }: TileTreeState<T>) {
+  public static create<T extends any>({ extent, data }: TileTreeState<T>) {
     const result = new TileTree<T>({ extent });
     result.load({ extent, data });
     return result;
@@ -126,9 +129,9 @@ export class TileTree<T> {
   }
 
   public children(root: XYZ) {
-    return this.quads(root)
-      .map((c) => this.findByXYZ(c, { force: false }))
-      .filter((v) => !!v);
+    return this.quads(root).filter(
+      (c) => !!this.findByXYZ(c, { force: false })
+    );
   }
 
   public descendants(input: XYZ) {
@@ -169,11 +172,11 @@ export class TileTree<T> {
   public visit<Q>(cb: (a: Q, b: TileNode<T>) => Q, init: Q): Q {
     let result = init;
     const Zs = Object.keys(this.tileCache);
-    Zs.forEach((Z) => {
+    Zs.forEach((Z: any) => {
       const Xs = Object.keys(this.tileCache[Z]);
-      Xs.forEach((X) => {
+      Xs.forEach((X: any) => {
         const Ys = Object.keys(this.tileCache[Z][X]);
-        Ys.forEach((Y) => {
+        Ys.forEach((Y: any) => {
           const node = this.tileCache[Z][X][Y];
           result = cb(result, node);
         });
@@ -185,104 +188,5 @@ export class TileTree<T> {
   public find(extent: Extent): TileNode<T> {
     const tile = this.asXYZ({ extent } as TileNode<T>);
     return this.findByXYZ(tile, { force: true });
-  }
-}
-
-export class TileTreeExt {
-  areChildrenLoaded(node: XYZ) {
-    const { tree } = this;
-    return 4 === tree.children(node).length;
-  }
-
-  centerOfMass(root: XYZ): { center: [number, number]; mass: number } {
-    const tree = this.tree;
-    const rootNode = tree.findByXYZ(root, { force: false });
-    const data = rootNode?.data;
-
-    // need to loop through all nodes under this root backward, updating parent
-    const center = [0, 0];
-    const centerOfParentTile = getCenter(rootNode.extent);
-
-    let weight = 0;
-    const descendants = tree.descendants(root).reverse();
-    descendants.forEach((d) => {
-      const node = tree.findByXYZ(d);
-      const { count } = node.data;
-      if (!count) return;
-      weight += count;
-      //throw `cannot compute center: X:${d.X},Y:${d.Y},Z${d.Z}`;
-      const centerOfChildTile = getCenter(node.extent);
-      const relativeCenterOfChildTile = centerOfChildTile.map(
-        (v, i) => v - centerOfParentTile[i]
-      );
-      center.forEach(
-        (v, i) => (center[i] = v + relativeCenterOfChildTile[i] * count)
-      );
-    });
-    if (!descendants.length) weight = data.count;
-    if (weight == 0) {
-      if (!rootNode) throw "cannot compute center";
-      const centerOfExtent = getCenter(rootNode.extent) as [number, number];
-      return { center: centerOfExtent, mass: data.count || weight };
-    }
-    const result = {
-      center: center.map((v, i) => centerOfParentTile[i] + v / weight) as [
-        number,
-        number
-      ],
-      mass: data.count || weight,
-    };
-    return result;
-  }
-
-  constructor(
-    public tree: TileTree<{ count: number; center: [number, number] }>
-  ) {}
-
-  public density(tileInfo: { Z: number; count: number }) {
-    return tileInfo.count * Math.pow(2, 2 * tileInfo.Z);
-  }
-
-  updateCount(tile: TileNode<{ count: number; center: [number, number] }>) {
-    const tree = this.tree;
-    if (typeof tile.data.count === "number") return tile.data.count;
-    const result = tree
-      .children(tree.asXyz(tile))
-      .reduce((total, childTile) => total + this.updateCount(childTile), 0);
-    return (tile.data.count = result);
-  }
-
-  nodeDensity(xyz: XYZ) {
-    const tree = this.tree;
-    const node = tree.findByXYZ(xyz);
-    if (!node) return 0;
-    const count = this.updateCount(node);
-    return this.density({ Z: xyz.Z, count });
-  }
-
-  tilesByDensity(tile: XYZ, maxDensity: number): XYZ[] {
-    const tree = this.tree;
-    if (maxDensity <= 0) return [];
-
-    const tileData = tree.findByXYZ(tile).data;
-    const density = this.density({ Z: tile.Z, count: tileData.count });
-
-    const children = tree
-      .children(tile)
-      .map((c) => this.tilesByDensity(tree.asXyz(c), maxDensity))
-      .filter((v) => v.length);
-
-    // if any child has too much density then ignore all of them
-    if (4 === children.length) {
-      // flatten the result
-      return ([] as XYZ[]).concat(...children);
-    }
-
-    // if tile has too much density then ignore it
-    if (density <= maxDensity) {
-      return [tile];
-    }
-
-    return [];
   }
 }

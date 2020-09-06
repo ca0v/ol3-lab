@@ -5,7 +5,7 @@ import View from "@ol/View";
 import { AgsClusterLayer } from "../AgsClusterLayer";
 import { debounce } from "poc/fun/debounce";
 import { TileTreeTersifier } from "../TileTreeTersifier";
-import { treeTileState } from "./data";
+import { treeTileState } from "./data/treetilestate";
 
 describe("UI Labs", () => {
   it("renders on a map", () => {
@@ -29,7 +29,7 @@ describe("UI Labs", () => {
       url,
       tileSize: 256,
       maxRecordCount: 1024,
-      maxFetchCount: -1,
+      minRecordCount: 100,
     });
     const layers = [vectorLayer];
     const map = new Map({ view, target, layers });
@@ -78,7 +78,7 @@ describe("UI Labs", () => {
     targetContainer.appendChild(target);
 
     const url =
-      "http://localhost:3002/bogus/sampleserver3/arcgis/rest/services/Petroleum/KSFields/FeatureServer/0/query";
+      "http://localhost:3002/mock/sampleserver3/arcgis/rest/services/Petroleum/KSFields/FeatureServer/0/query";
 
     const decoder = new TileTreeTersifier();
 
@@ -86,7 +86,7 @@ describe("UI Labs", () => {
       url,
       tileSize: 256,
       maxRecordCount: 1024,
-      maxFetchCount: -1,
+      minRecordCount: 100,
       treeTileState: decoder.unstringify(JSON.stringify(treeTileState)),
     });
 

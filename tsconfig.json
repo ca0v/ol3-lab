@@ -16,7 +16,7 @@
 		"incremental": true,
 		"skipDefaultLibCheck": true,
 		"removeComments": true,
-		"noImplicitAny": false,
+		"noImplicitAny": true,
 		"sourceMap": true,
 		"inlineSourceMap": false,
 		"inlineSources": false,

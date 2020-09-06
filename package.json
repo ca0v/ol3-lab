@@ -17,7 +17,8 @@
     "watch:index": "npm run build:index -- -w",
     "server": "cd ../reverse-proxy-cache && npm run server",
     "postinstall": "npm-run-all cp build:index live",
-    "go": "npm-run-all -p server live watch:index"
+    "go": "npm-run-all -p server live watch:index",
+    "504": "npm run server -- --delete '\"statusCode\": 504'"
   },
   "dependencies": {},
   "devDependencies": {

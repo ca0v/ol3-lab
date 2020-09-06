@@ -2,14 +2,15 @@ import VectorLayer from "@ol/layer/Vector";
 import { AgsClusterSource } from "./AgsClusterSource";
 import { createStyleFactory } from "./createStyleFactory";
 import { TileTreeState } from "./TileTreeState";
+import { XY } from "./XY";
 
 export class AgsClusterLayer<
-  T extends { count: number; center: [number, number] }
+  T extends { count: number; center: XY }
 > extends VectorLayer {
   constructor(options: {
     url: string;
     tileSize: number;
-    maxFetchCount: number;
+    minRecordCount: number;
     maxRecordCount: number;
     treeTileState?: TileTreeState<T>;
   }) {
@@ -17,7 +18,7 @@ export class AgsClusterLayer<
     const {
       url,
       tileSize,
-      maxFetchCount,
+      minRecordCount,
       maxRecordCount,
       treeTileState,
     } = options;
@@ -25,16 +26,12 @@ export class AgsClusterLayer<
     const source = new AgsClusterSource({
       tileSize,
       url,
-      maxFetchCount,
+      minRecordCount,
       maxRecordCount,
       treeTileState,
     });
 
     this.setStyle(<any>createStyleFactory());
     this.setSource(source);
-
-    source.on("changed:state", () => {
-      this.dispatchEvent("changed:state");
-    });
   }
 }

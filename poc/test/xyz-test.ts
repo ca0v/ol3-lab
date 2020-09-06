@@ -1,9 +1,10 @@
 import { describe, it } from "mocha";
 import { assert } from "chai";
 
-import { Extent, getCenter } from "@ol/extent";
+import { Extent } from "@ol/extent";
 import { get as getProjection } from "@ol/proj";
-import { TileTree, TileTreeExt } from "../TileTree";
+import { TileTree } from "../TileTree";
+import { TileTreeExt } from "../TileTreeExt";
 import { TileNode } from "../TileNode";
 import { createXYZ } from "@ol/tilegrid";
 import { tile as tileStrategy } from "@ol/loadingstrategy";
@@ -16,16 +17,7 @@ import { asXYZ } from "poc/asXYZ";
 import { explode } from "poc/explode";
 import { isEq } from "poc/fun/tiny";
 import { TileTreeTersifier } from "poc/TileTreeTersifier";
-
-describe("Playground", () => {
-  it("Past Failures", () => {
-    const extent = [-180, -90, 180, 90];
-    const tree = new TileTree({ extent });
-    const xyz = { X: 0, Y: 1, Z: 1 };
-    const node = tree.findByXYZ(xyz, { force: true });
-    assert.deepEqual(tree.asXyz(node), xyz);
-  });
-});
+import { XY } from "poc/XY";
 
 describe("XYZ testing", () => {
   it("XYZ to extent", () => {
@@ -47,7 +39,6 @@ describe("XYZ testing", () => {
     assert.deepEqual(x, [2, 0, 4, 2]);
 
     x = asExtent(extent, { X: 3, Y: 1020, Z: 10 });
-    console.log(x);
     assert.deepEqual(x, [0.046875, 15.9375, 0.0625, 15.953125]);
   });
 
@@ -71,13 +62,11 @@ describe("XYZ testing", () => {
       getProjection("EPSG:4326").getExtent(),
     ];
     extents.forEach((extent) => {
-      console.log(extent);
       for (let z = 0; z < 10; z++) {
         for (let x = 0; x < 10; x++) {
           for (let y = 0; y < 10; y++) {
             const v1 = asExtent(extent, { X: x, Y: y, Z: z });
             const v2 = asXYZ(extent, v1);
-            console.log(v1, v2, x, y, z);
             assert.equal(v2.X, x, "x");
             assert.equal(v2.Y, y, "y");
             assert.equal(v2.Z, z, "z");
@@ -230,7 +219,7 @@ describe("TileTree Tests", () => {
       tileSize,
       url,
       maxRecordCount: 1000,
-      maxFetchCount: 100,
+      minRecordCount: 100,
     });
 
     source.loadTile({ X: 0, Y: 0, Z: 0 }, projection);
@@ -239,7 +228,6 @@ describe("TileTree Tests", () => {
       VectorEventType.ADDFEATURE,
       (args: { feature: Feature<Point> }) => {
         const { count, resolution } = args.feature.getProperties();
-        console.log(count, resolution);
       }
     );
   });
@@ -248,7 +236,7 @@ describe("TileTree Tests", () => {
 describe("Cluster Rendering Rules", () => {
   it("tests ensureQuads", () => {
     const extent = [0, 0, 10, 10] as Extent;
-    const tree = new TileTree<{ count: number; center: [number, number] }>({
+    const tree = new TileTree<{ count: number; center: XY }>({
       extent,
     });
     const root = tree.find(extent);
@@ -260,86 +248,12 @@ describe("Cluster Rendering Rules", () => {
     assert.deepEqual({ X: 3, Y: 3, Z: 2 }, quad[2], "3rd quadrant");
     assert.deepEqual({ X: 3, Y: 2, Z: 2 }, quad[3], "4th quadrant");
   });
-
-  it("computes density", () => {
-    const extent = [0, 0, 10, 10] as Extent;
-    const tree = new TileTree<{ count: number; center: [number, number] }>({
-      extent,
-    });
-    const helper = new TileTreeExt(tree);
-    // if the density exceeds a threshold the clustered version of the tile is rendered
-    // otherwise the features on that tile are rendered.  If the tile has not features
-    // then the child tiles are rendered at a higher density
-    assert.equal(40, helper.density({ Z: 1, count: 10 }));
-    const root = { X: 0, Y: 0, Z: 0 };
-    const t000 = tree.findByXYZ(root);
-    const children = tree.ensureQuads(t000);
-    children.forEach((c, i) => (c.data.count = 1 + i));
-    helper.updateCount(t000);
-    assert.equal(10, t000.data.count, "total count");
-    assert.equal(10, helper.nodeDensity(root), "density at Z=0");
-    assert.equal(4, helper.nodeDensity(tree.asXyz(children[0])), "child 0");
-    assert.equal(8, helper.nodeDensity(tree.asXyz(children[1])), "child 1");
-    assert.equal(12, helper.nodeDensity(tree.asXyz(children[2])), "child 2");
-    assert.equal(16, helper.nodeDensity(tree.asXyz(children[3])), "child 3");
-
-    assert.equal(helper.tilesByDensity(root, 100).length, 4, "density <= 100");
-    assert.equal(helper.tilesByDensity(root, 16).length, 4, "density <= 16");
-    assert.equal(helper.tilesByDensity(root, 15).length, 1, "density <= 15");
-    assert.equal(helper.tilesByDensity(root, 10).length, 1, "density <= 10");
-    assert.equal(helper.tilesByDensity(root, 9).length, 0, "density <= 9");
-  });
-
-  it("computes center of mass", () => {
-    const extent = [0, 0, 16, 16] as Extent;
-    const tree = new TileTree<{ count: number; center: [number, number] }>({
-      extent,
-    });
-    const helper = new TileTreeExt(tree);
-
-    const root = { X: 0, Y: 0, Z: 0 };
-    const t000 = tree.findByXYZ(root);
-    const [q0, q1, q2, q3] = tree.ensureQuads(t000);
-
-    // no mass
-    let com = helper.centerOfMass(root);
-    assert.deepEqual(com.mass, 0, "mass of root tile");
-    assert.deepEqual(com.center, [8, 8], "center of mass of root tile");
-
-    q0.data.count = 4;
-    com = helper.centerOfMass(root);
-    assert.deepEqual(com.mass, 4, "mass of q0");
-    assert.deepEqual(com.center, [4, 4], "center of mass of root tile");
-
-    q1.data.count = 2;
-    com = helper.centerOfMass(root);
-    assert.deepEqual(com.mass, 6, "mass of q0 + q1");
-    assert.deepEqual(com.center, [4, 8 - 4 / 3], "center of mass of root tile");
-
-    q2.data.count = 1;
-    com = helper.centerOfMass(root);
-    assert.deepEqual(com.mass, 7, "mass of q0 + q1 + q2");
-    assert.deepEqual(
-      com.center,
-      [8 - 20 / 7, 8 - 4 / 7],
-      "center of mass of root tile"
-    );
-
-    q3.data.count = 8;
-    com = helper.centerOfMass(root);
-    assert.deepEqual(com.mass, 15, "mass of q0 + q1 + q2 + q3");
-    assert.deepEqual(
-      com.center,
-      [8 + 12 / 15, 8 - 36 / 15],
-      "center of mass of root tile"
-    );
-  });
 });
 
 describe("Preserve TileTree State", () => {
   it("stringify a tree", () => {
     const extent = [0, 0, 10, 10] as Extent;
-    const tree = new TileTree<{ count: number; center: [number, number] }>({
+    const tree = new TileTree<{ count: number; center: XY }>({
       extent,
     });
     assert.equal(
@@ -392,7 +306,7 @@ describe("Preserve TileTree State", () => {
       Math.round(100 - (100 * terserfied.length) / stringified.length),
       71 // percent size reduction (not fair, this sample has centers at 0,0 relative to the tile center but 60% is still good)
     );
-    const tree = new TileTree<{ center: [number, number]; count: number }>({
+    const tree = new TileTree<{ center: XY; count: number }>({
       extent,
     });
     tree.load(JSON.parse(stringified));
@@ -411,19 +325,5 @@ describe("Preserve TileTree State", () => {
       assert.isTrue(isEq(d[3].center[0], expected[i][3].center[0], 0.1), "cx");
       assert.isTrue(isEq(d[3].center[1], expected[i][3].center[1], 0.1), "cy");
     });
-  });
-});
-
-describe("annotate tiles", () => {
-  it("adds properties to a tile", () => {
-    const extent = [0, 0, 10, 10] as Extent;
-    const tree = new TileTree<{ count: number; center: [number, number] }>({
-      extent,
-    });
-
-    let tileId = { X: 10, Y: 10, Z: 10 };
-    const data = { foo: "bar" };
-    assert.equal(tree.decorate(tileId, data).foo, "bar");
-    assert.equal(tree.decorate<typeof data>(tileId).foo, "bar");
   });
 });
