@@ -19,7 +19,7 @@ function asRequest(projection: Projection) {
     outSR: removeAuthority(projection.getCode()),
     returnGeometry: true,
     returnCountOnly: false,
-    spatialRel: "esriSpatialRelEnvelopeIntersects", // will find duplicates
+    spatialRel: "esriSpatialRelContains", // will find duplicates
   };
   return request;
 }
