@@ -4685,17 +4685,17 @@ define("poc/TileTree", ["require", "exports", "node_modules/ol/src/extent", "nod
             this.root = { X: 0, Y: 0, Z: 0 };
             this.tileCache = [[[this.asTileNode()]]];
         }
+        static create({ extent, data }) {
+            const result = new TileTree({ extent });
+            result.load({ extent, data });
+            return result;
+        }
         asCenter(nodeIdentifier) {
             return extent_1.getCenter(this.asExtent(nodeIdentifier));
         }
         decorate(nodeId, values) {
             const result = this.findByXYZ(nodeId, { force: true }).data;
             values && Object.assign(result, values);
-            return result;
-        }
-        static create({ extent, data }) {
-            const result = new TileTree({ extent });
-            result.load({ extent, data });
             return result;
         }
         load({ extent, data }) {
@@ -14238,16 +14238,38 @@ define("poc/TileTreeExt", ["require", "exports", "node_modules/ol/src/extent", "
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.TileTreeExt = void 0;
     class TileTreeExt {
-        constructor(tree) {
+        constructor(tree, options) {
             this.tree = tree;
+            this.minZoom = (options === null || options === void 0 ? void 0 : options.minZoom) || 0;
+            this.maxZoom = (options === null || options === void 0 ? void 0 : options.maxZoom) || 10;
         }
-        addFeature(tileIdentifier, f) {
+        setVisible(feature, visible = true) {
+            const { tileIdentifier, visible: wasVisible } = feature.getProperties();
+            if (!tileIdentifier)
+                throw "feature has no tile identifier, register using addFeature";
+            if (wasVisible === visible)
+                return;
+            feature.setProperties({ visible }, true);
+            this.setStale(tileIdentifier, true);
+        }
+        addFeature(feature) {
+            var _a;
+            const extent = (_a = feature.getGeometry()) === null || _a === void 0 ? void 0 : _a.getExtent();
+            if (!extent)
+                throw "unable to compute extent of feature";
+            const tileIdentifier = this.findByExtent(extent);
             let { features } = this.tree.decorate(tileIdentifier);
             if (!features) {
                 features = [];
                 this.tree.decorate(tileIdentifier, { features });
             }
-            features.push(f);
+            feature.setProperties({
+                tileIdentifier,
+                Z: this.findZByExtent(extent),
+                type: "feature",
+            });
+            features.push(feature);
+            this.setStale(tileIdentifier);
         }
         getFeatures(tileIdentifier) {
             return this.tree.decorate(tileIdentifier)
@@ -14258,7 +14280,7 @@ define("poc/TileTreeExt", ["require", "exports", "node_modules/ol/src/extent", "
             const root = explode_4.explode(this.tree.asExtent());
             const Zw = Math.floor(Math.log2(root.w / find.w));
             const Zh = Math.floor(Math.log2(root.h / find.h));
-            return Math.min(Zw, Zh);
+            return Math.max(this.minZoom, Math.min(this.maxZoom, Math.min(Zw, Zh)));
         }
         findByExtent(extent) {
             const find = explode_4.explode(extent);
@@ -14296,7 +14318,7 @@ define("poc/TileTreeExt", ["require", "exports", "node_modules/ol/src/extent", "
         }
         centerOfMass(tileIdentifier) {
             const tree = this.tree;
-            const rootNode = tree.findByXYZ(tileIdentifier, { force: false });
+            const rootNode = tree.findByXYZ(tileIdentifier, { force: true });
             if (!rootNode) {
                 const center = extent_3.getCenter(tree.asExtent(tileIdentifier));
                 const mass = 0;
@@ -14351,7 +14373,7 @@ define("poc/TileTreeExt", ["require", "exports", "node_modules/ol/src/extent", "
             if (!stale)
                 return;
             const parent = this.tree.parent(nodeIdentifier);
-            if (parent.Z < 0)
+            if (parent.Z < this.minZoom)
                 return;
             this.setStale(parent, true);
         }
@@ -23255,6 +23277,8 @@ define("poc/test/showOnMap", ["require", "exports", "poc/TileTree", "node_module
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.showOnMap = void 0;
+    const MIN_ZOOM_OFFSET = -3;
+    const MAX_ZOOM_OFFSET = 4;
     function showOnMap(options) {
         const { features } = options;
         if (!features.length)
@@ -23264,14 +23288,21 @@ define("poc/test/showOnMap", ["require", "exports", "poc/TileTree", "node_module
         features.forEach((f) => extent_4.extend(extent, f.getGeometry().getExtent()));
         const projection = proj_1.get("EPSG:3857");
         const tree = new TileTree_1.TileTree({ extent: projection.getExtent() });
-        const helper = new TileTreeExt_1.TileTreeExt(tree);
-        const rootTileIdentifier = helper.findByExtent(extent);
-        const view = new View_1.default({
-            center: extent_4.getCenter(extent),
-            zoom: rootTileIdentifier.Z,
+        const rootTileIdentifier = new TileTreeExt_1.TileTreeExt(tree, {
+            minZoom: 0,
+            maxZoom: 31,
+        }).findByExtent(extent);
+        const helper = new TileTreeExt_1.TileTreeExt(tree, {
             minZoom: rootTileIdentifier.Z - 3,
             maxZoom: rootTileIdentifier.Z + 6,
         });
+        const view = new View_1.default({
+            center: extent_4.getCenter(extent),
+            zoom: rootTileIdentifier.Z,
+            minZoom: helper.minZoom,
+            maxZoom: helper.maxZoom,
+        });
+        features.forEach((f) => helper.addFeature(f));
         const targetContainer = document.createElement("div");
         targetContainer.className = "testmapcontainer";
         const target = document.createElement("div");
@@ -23285,14 +23316,15 @@ define("poc/test/showOnMap", ["require", "exports", "poc/TileTree", "node_module
         const styleCache = {};
         const tileFeatures = new Map();
         const styleMaker = ({ type, zoffset, mass, }) => {
-            const styleKey = `${type}${zoffset}`;
+            const massLevel = Math.floor(Math.pow(2, Math.ceil(Math.log10(mass))));
+            const styleKey = `${type}.${zoffset}.${massLevel}`;
             let style = styleCache[styleKey];
             if (!style) {
                 switch (type) {
                     case "cluster": {
                         style = new style_1.Style({
                             image: new Circle_1.default({
-                                radius: 5 + 3 * Math.sqrt(mass),
+                                radius: 5 + massLevel,
                                 fill: new style_1.Fill({ color: "rgba(0,0,0,0.5)" }),
                                 stroke: new style_1.Stroke({ color: "rgba(255,255,255,0.5)", width: 1 }),
                             }),
@@ -23331,33 +23363,44 @@ define("poc/test/showOnMap", ["require", "exports", "poc/TileTree", "node_module
             const currentZoom = view.getZoomForResolution(resolution) || 0;
             const zoffset = featureZoom - currentZoom;
             const style = styleMaker({ type: type || "feature", zoffset, mass });
-            feature.setProperties({ visible: !!style }, true);
             return style;
         }));
+        let touched = true;
+        view.on("change:resolution", () => (touched = true));
         layer.on("postrender", () => {
+            if (!touched)
+                return;
+            touched = false;
             const currentZoom = view.getZoom() || 0;
-            tileFeatures.forEach((value, key) => value.setProperties({ visible: false }, true));
+            tileFeatures.forEach((value) => value.setProperties({ visible: false }, true));
             features.forEach((f) => {
                 const featureZoom = f.getProperties().Z;
                 const zoffset = featureZoom - currentZoom;
-                const visible = -3 < zoffset && zoffset < 4;
-                f.setProperties({ visible }, true);
+                const visible = MIN_ZOOM_OFFSET <= zoffset && zoffset <= MAX_ZOOM_OFFSET;
+                helper.setVisible(f, visible);
             });
             const hiddenFeatures = features.filter((f) => false === f.getProperties().visible);
             hiddenFeatures.forEach((f) => {
-                const { XYZ } = f.getProperties();
-                const mass = helper.centerOfMass(XYZ).mass;
-                let feature = tileFeatures.get(XYZ);
+                const { tileIdentifier } = f.getProperties();
+                let targetIdentifier = tileIdentifier;
+                while (targetIdentifier.Z > currentZoom + MAX_ZOOM_OFFSET - 2) {
+                    targetIdentifier = tree.parent(targetIdentifier);
+                }
+                const mass = helper.centerOfMass(targetIdentifier).mass;
+                let feature = tileFeatures.get(targetIdentifier);
                 if (!feature) {
                     feature = new Feature_1.default();
-                    feature.setProperties({ type: "cluster" });
-                    tileFeatures.set(XYZ, feature);
+                    feature.setProperties({
+                        type: "cluster",
+                        tileIdentifier: targetIdentifier,
+                    });
+                    tileFeatures.set(targetIdentifier, feature);
                     source.addFeature(feature);
-                    const center = tree.asCenter(XYZ);
+                    const center = tree.asCenter(targetIdentifier);
                     feature.setGeometry(new Point_1.default(center));
                 }
-                const visible = !helper.centerOfMass(tree.parent(XYZ)).mass;
-                feature.setProperties({ visible, mass, XYZ }, true);
+                const visible = !!mass;
+                feature.setProperties({ visible, mass }, true);
             });
         });
         const map = new Map_1.default({ view, target, layers: [layer] });
@@ -23365,7 +23408,7 @@ define("poc/test/showOnMap", ["require", "exports", "poc/TileTree", "node_module
     }
     exports.showOnMap = showOnMap;
 });
-define("poc/test/ags-feature-loader-test", ["require", "exports", "mocha", "chai", "poc/AgsFeatureLoader", "poc/TileTree", "node_modules/ol/src/proj", "poc/TileTreeExt", "poc/test/showOnMap"], function (require, exports, mocha_1, chai_1, AgsFeatureLoader_1, TileTree_2, proj_2, TileTreeExt_2, showOnMap_1) {
+define("poc/test/ags-feature-loader-test", ["require", "exports", "mocha", "chai", "poc/AgsFeatureLoader", "poc/TileTree", "node_modules/ol/src/proj", "poc/test/showOnMap"], function (require, exports, mocha_1, chai_1, AgsFeatureLoader_1, TileTree_2, proj_2, showOnMap_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     mocha_1.describe("AgsFeatureLoader tests", () => {
@@ -23405,7 +23448,6 @@ define("poc/test/ags-feature-loader-test", ["require", "exports", "mocha", "chai
             const tree = new TileTree_2.TileTree({
                 extent: projection.getExtent(),
             });
-            const helper = new TileTreeExt_2.TileTreeExt(tree);
             const loader = new AgsFeatureLoader_1.AgsFeatureLoader({
                 url,
                 minRecordCount,
@@ -23416,13 +23458,6 @@ define("poc/test/ags-feature-loader-test", ["require", "exports", "mocha", "chai
             yield loader.loader(tileIdentifier, projection);
             const { features } = tree.decorate(tileIdentifier);
             chai_1.assert.equal(481, features.length, "features");
-            features.forEach((f) => {
-                const extent = f.getGeometry().getExtent();
-                const Z = helper.findZByExtent(extent);
-                const XYZ = helper.findByExtent(extent);
-                helper.addFeature(XYZ, f);
-                f.setProperties({ Z, XYZ });
-            });
             showOnMap_1.showOnMap({ features });
         }));
     });
@@ -23438,7 +23473,7 @@ define("poc/fun/split", ["require", "exports"], function (require, exports) {
     }
     exports.split = split;
 });
-define("poc/AgsClusterSource", ["require", "exports", "poc/TileTree", "poc/TileTreeExt", "node_modules/ol/src/source/Vector", "poc/AgsFeatureLoader", "node_modules/ol/src/Feature", "node_modules/ol/src/geom/Point", "node_modules/ol/src/tilegrid", "node_modules/ol/src/loadingstrategy", "poc/fun/split"], function (require, exports, TileTree_3, TileTreeExt_3, Vector_3, AgsFeatureLoader_2, Feature_2, Point_2, tilegrid_1, loadingstrategy_1, split_1) {
+define("poc/AgsClusterSource", ["require", "exports", "poc/TileTree", "poc/TileTreeExt", "node_modules/ol/src/source/Vector", "poc/AgsFeatureLoader", "node_modules/ol/src/Feature", "node_modules/ol/src/geom/Point", "node_modules/ol/src/tilegrid", "node_modules/ol/src/loadingstrategy", "poc/fun/split"], function (require, exports, TileTree_3, TileTreeExt_2, Vector_3, AgsFeatureLoader_2, Feature_2, Point_2, tilegrid_1, loadingstrategy_1, split_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.AgsClusterSource = void 0;
@@ -23566,7 +23601,7 @@ define("poc/AgsClusterSource", ["require", "exports", "poc/TileTree", "poc/TileT
                 const parentNode = tree.findByXYZ(parentIdentifier, {
                     force: true,
                 });
-                const helper = new TileTreeExt_3.TileTreeExt(tree);
+                const helper = new TileTreeExt_2.TileTreeExt(tree);
                 const com = helper.centerOfMass(parentIdentifier);
                 parentNode.data.count = parentNode.data.count || com.mass;
                 parentNode.data.center = com.center;
@@ -23668,7 +23703,7 @@ define("poc/TileTreeTersifier", ["require", "exports", "poc/TileTree", "node_mod
     }
     exports.TileTreeTersifier = TileTreeTersifier;
 });
-define("poc/test/xyz-test", ["require", "exports", "mocha", "chai", "node_modules/ol/src/proj", "poc/TileTree", "poc/TileTreeExt", "node_modules/ol/src/tilegrid", "node_modules/ol/src/loadingstrategy", "node_modules/ol/src/source/VectorEventType", "poc/AgsClusterSource", "poc/fun/asExtent", "poc/fun/asXYZ", "poc/fun/explode", "poc/fun/tiny", "poc/TileTreeTersifier"], function (require, exports, mocha_2, chai_2, proj_3, TileTree_5, TileTreeExt_4, tilegrid_2, loadingstrategy_2, VectorEventType_1, AgsClusterSource_1, asExtent_2, asXYZ_2, explode_5, tiny_2, TileTreeTersifier_1) {
+define("poc/test/xyz-test", ["require", "exports", "mocha", "chai", "node_modules/ol/src/proj", "poc/TileTree", "poc/TileTreeExt", "node_modules/ol/src/tilegrid", "node_modules/ol/src/loadingstrategy", "node_modules/ol/src/source/VectorEventType", "poc/AgsClusterSource", "poc/fun/asExtent", "poc/fun/asXYZ", "poc/fun/explode", "poc/fun/tiny", "poc/TileTreeTersifier"], function (require, exports, mocha_2, chai_2, proj_3, TileTree_5, TileTreeExt_3, tilegrid_2, loadingstrategy_2, VectorEventType_1, AgsClusterSource_1, asExtent_2, asXYZ_2, explode_5, tiny_2, TileTreeTersifier_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     mocha_2.describe("XYZ testing", () => {
@@ -23750,7 +23785,7 @@ define("poc/test/xyz-test", ["require", "exports", "mocha", "chai", "node_module
         mocha_2.it("attaches data to the nodes", () => {
             const extent = [0, 0, 1, 1];
             const tree = new TileTree_5.TileTree({ extent });
-            const helper = new TileTreeExt_4.TileTreeExt(tree);
+            const helper = new TileTreeExt_3.TileTreeExt(tree);
             const q0 = tree.find([0, 0, 0.25, 0.25]);
             const q1 = tree.find([0.25, 0, 0.5, 0.25]);
             const q2 = tree.find([0, 0.25, 0.25, 0.5]);
@@ -23906,7 +23941,17 @@ define("poc/test/xyz-test", ["require", "exports", "mocha", "chai", "node_module
         });
     });
 });
-define("poc/test/treetile-test", ["require", "exports", "mocha", "chai", "poc/TileTree", "poc/TileTreeExt", "poc/fun/tiny"], function (require, exports, mocha_3, chai_3, TileTree_6, TileTreeExt_5, tiny_3) {
+define("poc/fun/flatten", ["require", "exports"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.flatten = void 0;
+    function flatten(values) {
+        const result = [];
+        return result.concat(...values);
+    }
+    exports.flatten = flatten;
+});
+define("poc/test/treetile-test", ["require", "exports", "mocha", "chai", "poc/TileTree", "poc/TileTreeExt", "poc/fun/tiny", "poc/fun/flatten", "node_modules/ol/src/geom/Point", "node_modules/ol/src/Feature"], function (require, exports, mocha_3, chai_3, TileTree_6, TileTreeExt_4, tiny_3, flatten_1, Point_3, Feature_3) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     function de(a, b, expectation) {
@@ -23928,10 +23973,9 @@ define("poc/test/treetile-test", ["require", "exports", "mocha", "chai", "poc/Ti
             const tree = new TileTree_6.TileTree({
                 extent,
             });
-            const helper = new TileTreeExt_5.TileTreeExt(tree);
+            const helper = new TileTreeExt_4.TileTreeExt(tree);
             const rootIdentifier = { X: 0, Y: 0, Z: 0 };
             chai_3.assert.equal(0, helper.density(rootIdentifier), "root density is 0");
-            const t000 = tree.findByXYZ(rootIdentifier);
             const children = tree.quads(rootIdentifier);
             children.forEach((c, i) => helper.setMass(c, 1 + i));
             chai_3.assert.equal(10, helper.centerOfMass(rootIdentifier).mass, "total count");
@@ -23946,7 +23990,7 @@ define("poc/test/treetile-test", ["require", "exports", "mocha", "chai", "poc/Ti
             const tree = new TileTree_6.TileTree({
                 extent,
             });
-            const helper = new TileTreeExt_5.TileTreeExt(tree);
+            const helper = new TileTreeExt_4.TileTreeExt(tree);
             const root = { X: 0, Y: 0, Z: 0 };
             const t000 = tree.findByXYZ(root);
             const [q0, q1, q2, q3] = tree.quads(root);
@@ -23977,7 +24021,7 @@ define("poc/test/treetile-test", ["require", "exports", "mocha", "chai", "poc/Ti
                 extent,
                 data: [[0, 0, 0, { count: 0, center: [0, 0] }]],
             });
-            const ext = new TileTreeExt_5.TileTreeExt(tree);
+            const ext = new TileTreeExt_4.TileTreeExt(tree);
             const tileIdentfier = { X: 0, Y: 0, Z: 0 };
             chai_3.assert.equal(ext.density(tileIdentfier), 0);
             ext.setMass(tileIdentfier, 10);
@@ -23992,12 +24036,37 @@ define("poc/test/treetile-test", ["require", "exports", "mocha", "chai", "poc/Ti
                 center: [5, 5],
             }, "manually override center marks as dirty, recomputes, reverts so prior center");
         });
+        mocha_3.it("TileTreeExt centerOfMass with features", () => {
+            const extent = [0, 0, 1, 1];
+            const tree = new TileTree_6.TileTree({
+                extent,
+            });
+            const ext = new TileTreeExt_4.TileTreeExt(tree, { minZoom: 0, maxZoom: 19 });
+            const tileIdentifier = { X: 0, Y: 0, Z: 1 };
+            let com = ext.centerOfMass(tileIdentifier);
+            chai_3.assert.equal(com.mass, 0);
+            const x = [2.01, 4, 8, 16, 32];
+            const y = [2.01, 4, 8, 16, 32];
+            let mass = 0;
+            x.forEach((x) => {
+                y.forEach((y) => {
+                    const feature = new Feature_3.default(new Point_3.default([1 / x, 1 / y]));
+                    ext.addFeature(feature);
+                    ext.setVisible(feature, false);
+                    com = ext.centerOfMass(tileIdentifier);
+                    chai_3.assert.equal(com.mass, ++mass);
+                });
+            });
+            de(tree.children(tileIdentifier).map((id) => ext.centerOfMass(id).mass), [9, 6, 4, 6], "child messes");
+            const grandChildren = flatten_1.flatten(tree.children(tileIdentifier).map((id) => tree.children(id)));
+            de(grandChildren.map((id) => ext.centerOfMass(id).mass), [4, 2, 1, 2, 2, 2, 1, 1, 1, 1, 1, 1, 2, 1, 1, 2], "grandchild masses");
+        });
         mocha_3.it("finds bounding tile", () => {
             const tree = TileTree_6.TileTree.create({
                 extent: [0, 0, 16, 16],
                 data: [[0, 0, 0, { count: 0, center: [0, 0] }]],
             });
-            const ext = new TileTreeExt_5.TileTreeExt(tree);
+            const ext = new TileTreeExt_4.TileTreeExt(tree);
             de(ext.findByExtent([0, 0, 1, 1]), { X: 0, Y: 0, Z: 3 }, "bottom-left most tile 1/16 total width");
             de(ext.findByExtent([0.25, 0, 1, 1]), { X: 0, Y: 0, Z: 3 }, "not as wide but same tile as before");
             de(ext.findByExtent([0.25, 0.25, 0.5, 0.5]), { X: 0, Y: 0, Z: 4 }, "shifted right and up and deeper");
