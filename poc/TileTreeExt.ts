@@ -95,15 +95,14 @@ export class TileTreeExt {
     // compute all children
     const childIdentifiers = tree.children(tileIdentifier);
     const comValues = childIdentifiers.map((c) => this.centerOfMass(c));
+    // get mass of non-visible features
+    const comFeatures = this.getFeatureCenterOfMass(tileIdentifier);
 
     // need to loop through all nodes under this root backward, updating parent
     let center = [0, 0] as XY;
     let mass = 0;
 
-    // get mass of non-visible features
-    const comFeatures = this.getFeatureCenterOfMass(tileIdentifier);
-
-    [comFeatures, ...comValues].forEach((com) => {
+    [...comFeatures, ...comValues].forEach((com) => {
       center.forEach((v, i) => (center[i] = v + com.center[i] * com.mass));
       mass += com.mass;
     });
@@ -120,27 +119,22 @@ export class TileTreeExt {
     return { mass, center };
   }
 
-  getFeatureCenterOfMass(tileIdentifier: XYZ) {
-    const hiddenFeatures = this.getFeatures(tileIdentifier)?.filter(
+  getFeatureCenterOfMass(
+    tileIdentifier: XYZ
+  ): Array<{ mass: number; center: XY }> {
+    const features = this.getFeatures(tileIdentifier);
+    if (!features) return [];
+
+    // only want mass of hidden features
+    const hiddenFeatures = features.filter(
       (f) => false === f.getProperties().visible
     );
 
-    // set mass of each tile to equal mass of non-visible features
-    let totalMass = 0;
-    const center = [0, 0];
-    hiddenFeatures?.forEach((f) => {
-      const mass =
-        (f.getProperties() as {
-          mass: number;
-        }).mass || 0;
-
-      totalMass += mass;
-      const featureCenter = getCenter(f.getGeometry()!.getExtent());
-      center.forEach((c, i, r) => (r[i] = c + featureCenter[i] * mass));
+    return hiddenFeatures.map((f) => {
+      const center = getCenter(f.getGeometry()!.getExtent()) as XY;
+      const mass = 1;
+      return { center, mass };
     });
-    center.forEach((c, i, r) => (r[i] = c / totalMass));
-    this.setMass(tileIdentifier, totalMass);
-    return { center, mass: totalMass };
   }
 
   isStale(nodeIdentifier: XYZ) {
