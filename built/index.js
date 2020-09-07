@@ -4815,7 +4815,7 @@ define("poc/TileTree", ["require", "exports", "node_modules/ol/src/extent", "nod
             });
             return result;
         }
-        find(extent) {
+        findByExtent(extent) {
             const tile = this.asXyz(extent);
             this.findByXYZ(tile, { force: true });
             return tile;
@@ -14270,6 +14270,7 @@ define("poc/TileTreeExt", ["require", "exports", "node_modules/ol/src/extent", "
             });
             features.push(feature);
             this.setStale(tileIdentifier, true);
+            return tileIdentifier;
         }
         getFeatures(tileIdentifier) {
             return this.tree.decorate(tileIdentifier)
@@ -14305,12 +14306,12 @@ define("poc/TileTreeExt", ["require", "exports", "node_modules/ol/src/extent", "
             this.tree.decorate(tileIdentifier, { center: [cx, cy] });
             this.setStale(tileIdentifier, true);
         }
-        setDarkMass(tileIdentifier, darkMass) {
-            this.tree.decorate(tileIdentifier, { darkMass });
+        setCenterOfMass(tileIdentifier, com) {
+            this.tree.decorate(tileIdentifier, { com });
         }
-        getDarkMass(tileIdentifier) {
+        getCenterOfMass(tileIdentifier) {
             var _a;
-            return (((_a = this.tree.decorate(tileIdentifier)) === null || _a === void 0 ? void 0 : _a.darkMass) || null);
+            return (((_a = this.tree.decorate(tileIdentifier)) === null || _a === void 0 ? void 0 : _a.com) || null);
         }
         getMass(tileIdentifier) {
             var _a;
@@ -14337,18 +14338,15 @@ define("poc/TileTreeExt", ["require", "exports", "node_modules/ol/src/extent", "
                 return { center, mass: 0, featureMass: 0 };
             }
             if (rootNode && !this.isStale(tileIdentifier)) {
-                const center = this.getCenter(tileIdentifier);
-                const mass = this.getMass(tileIdentifier) || 0;
-                const darkMass = this.getDarkMass(tileIdentifier) || 0;
+                const com = this.getCenterOfMass(tileIdentifier);
                 return {
-                    center,
-                    mass: darkMass,
-                    featureMass: darkMass - mass,
+                    center: com.center,
+                    mass: com.darkMass,
+                    featureMass: -com.lightMass,
                 };
             }
-            const comChildren = tree
-                .children(tileIdentifier)
-                .map((c) => this.centerOfMass(c));
+            const childern = tree.children(tileIdentifier);
+            const comChildren = childern.map((c) => this.centerOfMass(c));
             const massOfVisibleChildFeatures = comChildren.reduce((a, b) => a + b.featureMass, 0);
             const massOfVisibleFeatures = this.getLightMatter(tileIdentifier).reduce((a, b) => a + b.mass, 0);
             const comHiddenFeatures = this.getDarkMatter(tileIdentifier);
@@ -14359,22 +14357,25 @@ define("poc/TileTreeExt", ["require", "exports", "node_modules/ol/src/extent", "
                 mass += com.mass;
             });
             if (mass === 0) {
-                mass = this.getMass(tileIdentifier) || 0;
                 center = tree.asCenter(tileIdentifier);
             }
             else {
                 center.forEach((v, i) => (center[i] = v / mass));
             }
-            const tileMass = this.getMass(tileIdentifier) || mass + massOfVisibleFeatures;
-            const visibleMass = massOfVisibleFeatures + massOfVisibleChildFeatures;
-            const darkMass = tileMass - visibleMass;
-            this.setCenter(tileIdentifier, center);
-            this.setDarkMass(tileIdentifier, darkMass);
+            const lightMass = massOfVisibleFeatures + massOfVisibleChildFeatures;
+            const hardMass = this.getMass(tileIdentifier);
+            const darkMass = null === hardMass ? mass : hardMass - lightMass;
+            this.setCenterOfMass(tileIdentifier, {
+                darkMass,
+                lightMass,
+                center: center,
+            });
             this.setStale(tileIdentifier, false);
+            const com = this.getCenterOfMass(tileIdentifier);
             return {
-                mass: darkMass,
-                featureMass: -visibleMass,
-                center,
+                mass: com.darkMass,
+                featureMass: -com.lightMass,
+                center: com.center,
             };
         }
         getFeatureMatter(tileIdentifier, visible = false) {
@@ -23464,7 +23465,7 @@ define("poc/test/ags-feature-loader-test", ["require", "exports", "mocha", "chai
             const tree = new TileTree_2.TileTree({
                 extent: projection.getExtent(),
             });
-            const rootNode = tree.find(projection.getExtent());
+            const rootNode = tree.findByExtent(projection.getExtent());
             const loader = new AgsFeatureLoader_1.AgsFeatureLoader({
                 url,
                 minRecordCount,
@@ -23816,30 +23817,30 @@ define("poc/test/treetile-test", ["require", "exports", "mocha", "chai", "poc/Ti
         mocha_3.it("creates a tile tree", () => {
             const extent = [0, 0, 10, 10];
             const tree = new TileTree_5.TileTree({ extent });
-            const root = tree.find(extent);
+            const root = tree.findByExtent(extent);
             chai_3.assert.isTrue(tiny_2.isEq(extent[0], tree.asExtent(root)[0]));
         });
         mocha_3.it("inserts an extent outside of the bounds of the current tree", () => {
             const extent = [0, 0, 1, 1];
             const tree = new TileTree_5.TileTree({ extent });
             chai_3.assert.throws(() => {
-                tree.find([1, 1, 2, 2]);
+                tree.findByExtent([1, 1, 2, 2]);
             }, "invalid X");
             chai_3.assert.throws(() => {
-                tree.find([0.1, 0.1, 0.9, 1.00001]);
+                tree.findByExtent([0.1, 0.1, 0.9, 1.00001]);
             }, "invalid extent");
         });
         mocha_3.it("inserts an extent that misaligns to the established scale", () => {
             const extent = [0, 0, 1, 1];
             const tree = new TileTree_5.TileTree({ extent });
             chai_3.assert.throws(() => {
-                tree.find([0, 0, 0.4, 0.4]);
+                tree.findByExtent([0, 0, 0.4, 0.4]);
             }, "invalid extent");
             chai_3.assert.throws(() => {
-                tree.find([0, 0, 0.5, 0.4]);
+                tree.findByExtent([0, 0, 0.5, 0.4]);
             }, "invalid extent");
             chai_3.assert.throws(() => {
-                tree.find([0.1, 0, 0.6, 0.5]);
+                tree.findByExtent([0.1, 0, 0.6, 0.5]);
             }, "invalid extent");
         });
         mocha_3.it("uses 3857 to find a tile for a given depth and coordinate", () => {
@@ -23869,7 +23870,7 @@ define("poc/test/treetile-test", ["require", "exports", "mocha", "chai", "poc/Ti
             const addTiles = (level) => tileGrid.forEachTileCoord(extent, level, (tileCoord) => {
                 const [z, x, y] = tileCoord;
                 const extent = tileGrid.getTileCoordExtent(tileCoord);
-                tree.decorate(tree.find(extent), { tileCoord });
+                tree.decorate(tree.findByExtent(extent), { tileCoord });
             });
             const maxX = () => tree.visit((a, b) => {
                 const { tileCoord } = tree.decorate(b);
@@ -23897,7 +23898,7 @@ define("poc/test/treetile-test", ["require", "exports", "mocha", "chai", "poc/Ti
                 let quad0 = extent;
                 resolutions.forEach((resolution, i) => {
                     const extents = strategy(quad0, resolution);
-                    extents.forEach((q) => tree.find(q));
+                    extents.forEach((q) => tree.findByExtent(q));
                     quad0 = extents[0];
                 });
             }
@@ -23997,6 +23998,18 @@ define("poc/fun/flatten", ["require", "exports"], function (require, exports) {
 define("poc/test/tiletreeext-test", ["require", "exports", "mocha", "chai", "poc/TileTree", "poc/TileTreeExt", "poc/fun/tiny", "poc/fun/flatten", "node_modules/ol/src/geom/Point", "node_modules/ol/src/Feature"], function (require, exports, mocha_4, chai_4, TileTree_6, TileTreeExt_3, tiny_3, flatten_1, Point_3, Feature_3) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
+    function createTree() {
+        const extent = [0, 0, 1, 1];
+        const tree = new TileTree_6.TileTree({
+            extent,
+        });
+        return tree;
+    }
+    function createPoint(point) {
+        const feature = new Feature_3.default();
+        feature.setGeometry(new Point_3.default(point));
+        return feature;
+    }
     function de(a, b, expectation) {
         console.log(a);
         chai_4.assert.deepEqual(a, b, expectation);
@@ -24005,7 +24018,73 @@ define("poc/test/tiletreeext-test", ["require", "exports", "mocha", "chai", "poc
         console.log(a);
         a.forEach((v, i) => chai_4.assert.isTrue(tiny_3.isEq(v, b[i]), `${i}:${message}`));
     }
-    mocha_4.describe("TileTree Extension Tests", () => {
+    function isSameCenterOfMass(a, b, message) {
+        chai_4.assert.equal(a.mass, b.mass, `mass: ${message}`);
+        chai_4.assert.equal(a.featureMass, b.featureMass, `featureMass: ${message}`);
+        isSamePoint(a.center, b.center, `mass: ${message}`);
+    }
+    mocha_4.describe("TileTreeExt Tests", () => {
+        mocha_4.it("findByExtent and findZByExtent test", () => {
+            const tree = TileTree_6.TileTree.create({
+                extent: [0, 0, 16, 16],
+                data: [[0, 0, 0, { count: 0, center: [0, 0] }]],
+            });
+            const ext = new TileTreeExt_3.TileTreeExt(tree);
+            de(ext.findByExtent([0, 0, 1, 1]), { X: 0, Y: 0, Z: 3 }, "bottom-left most tile 1/16 total width");
+            de(ext.findByExtent([0.25, 0, 1, 1]), { X: 0, Y: 0, Z: 3 }, "not as wide but same tile as before");
+            de(ext.findByExtent([0.25, 0.25, 0.5, 0.5]), { X: 0, Y: 0, Z: 4 }, "shifted right and up and deeper");
+            {
+                const extent = [7.9, 7.9, 8.1, 8.1];
+                de(ext.findByExtent(extent), { X: 0, Y: 0, Z: 0 }, "worst case scenario, cannot find a child");
+                de(ext.findZByExtent(extent), 6, "can still get accurate Z");
+            }
+            de(ext.findByExtent([10.1, 10.1, 10.11, 10.11]), { X: 323, Y: 323, Z: 9 }, "trusting this is correct.");
+            chai_4.assert.throws(() => ext.findByExtent([0, 0, 16.01, 16]), "out of bounds");
+        });
+        mocha_4.it("findByExtent and setMass test", () => {
+            const extent = [0, 0, 1, 1];
+            const tree = new TileTree_6.TileTree({ extent });
+            const helper = new TileTreeExt_3.TileTreeExt(tree);
+            const q0 = tree.findByExtent([0, 0, 0.25, 0.25]);
+            const q1 = tree.findByExtent([0.25, 0, 0.5, 0.25]);
+            const q2 = tree.findByExtent([0, 0.25, 0.25, 0.5]);
+            const q3 = tree.findByExtent([0.25, 0.25, 0.5, 0.5]);
+            const q33 = tree.findByExtent([0.375, 0.375, 0.5, 0.5]);
+            helper.setMass(q0, 1);
+            helper.setMass(q1, 2);
+            helper.setMass(q2, 4);
+            helper.setMass(q3, 8);
+            helper.setMass(q33, 16);
+            const totalCount = tree.visit((a, b) => a + (helper.getMass(b) || 0), 0);
+            chai_4.assert.equal(totalCount, 31);
+            chai_4.assert.throws(() => helper.setMass(q0, 0), "mass cannot be destroyed");
+        });
+        mocha_4.it("findByExtent and setMass test", () => {
+            const extent = [0, 0, 1, 1];
+            const tree = new TileTree_6.TileTree({ extent });
+            const helper = new TileTreeExt_3.TileTreeExt(tree);
+            const q0 = tree.findByExtent([0, 0, 0.25, 0.25]);
+            const q1 = tree.findByExtent([0.25, 0, 0.5, 0.25]);
+            const q2 = tree.findByExtent([0, 0.25, 0.25, 0.5]);
+            const q3 = tree.findByExtent([0.25, 0.25, 0.5, 0.5]);
+            const q33 = tree.findByExtent([0.375, 0.375, 0.5, 0.5]);
+            helper.setMass(q0, 1);
+            helper.setMass(q1, 2);
+            helper.setMass(q2, 4);
+            helper.setMass(q3, 8);
+            helper.setMass(q33, 16);
+            const totalCount = tree.visit((a, b) => a + (helper.getMass(b) || 0), 0);
+            chai_4.assert.equal(totalCount, 31);
+            chai_4.assert.throws(() => helper.setMass(q0, 0), "mass cannot be destroyed");
+            const { center, mass, featureMass } = helper.centerOfMass({
+                X: 0,
+                Y: 0,
+                Z: 0,
+            });
+            chai_4.assert.equal(mass, 15, "the mass of the root is the sum of the mass of its children");
+            chai_4.assert.equal(featureMass, 0, "no visible features therefore no visible mass");
+            isSamePoint(center, [0.325, 0.35833333333333334], "center test");
+        });
         mocha_4.it("computes density", () => {
             const extent = [0, 0, 10, 10];
             const tree = new TileTree_6.TileTree({
@@ -24023,7 +24102,7 @@ define("poc/test/tiletreeext-test", ["require", "exports", "mocha", "chai", "poc
             chai_4.assert.equal(12, helper.density(children[2]), "child 2");
             chai_4.assert.equal(16, helper.density(children[3]), "child 3");
         });
-        mocha_4.it("computes center of mass", () => {
+        mocha_4.it("computes center of mass of parent with undeclared mass", () => {
             const extent = [0, 0, 16, 16];
             const tree = new TileTree_6.TileTree({
                 extent,
@@ -24033,8 +24112,8 @@ define("poc/test/tiletreeext-test", ["require", "exports", "mocha", "chai", "poc
             const t000 = tree.findByXYZ(root);
             const [q0, q1, q2, q3] = tree.quads(root);
             let com = helper.centerOfMass(root);
-            chai_4.assert.deepEqual(com.mass, 0, "mass of root tile");
-            chai_4.assert.deepEqual(com.center, [8, 8], "no mass, no center but center of tile seems reasonable");
+            chai_4.assert.deepEqual(com.mass, 0, "assumed to be massless");
+            chai_4.assert.deepEqual(com.center, [8, 8], "no mass => no center but center of tile seems reasonable");
             helper.setMass(q0, 4);
             com = helper.centerOfMass(root);
             chai_4.assert.deepEqual(com.mass, 4, "mass of q0");
@@ -24053,33 +24132,30 @@ define("poc/test/tiletreeext-test", ["require", "exports", "mocha", "chai", "poc
             chai_4.assert.deepEqual(com.mass, 15, "mass of q0 + q1 + q2 + q3");
             chai_4.assert.deepEqual(com.center, [8 + 12 / 15, 8 - 36 / 15], "center of mass of q0 + q1 + q2 + q3");
         });
-        mocha_4.it("TileTreeExt centerOfMass", () => {
+        mocha_4.it("calculate center of mass of tile with assigned mass of 10", () => {
             const extent = [0, 0, 10, 10];
             const tree = TileTree_6.TileTree.create({
                 extent,
-                data: [[0, 0, 0, { count: 0, center: [0, 0] }]],
+                data: [],
             });
             const ext = new TileTreeExt_3.TileTreeExt(tree);
-            const tileIdentfier = { X: 0, Y: 0, Z: 0 };
-            chai_4.assert.equal(ext.density(tileIdentfier), 0);
-            ext.setMass(tileIdentfier, 10);
-            chai_4.assert.equal(ext.density(tileIdentfier), 10);
-            chai_4.assert.deepEqual(ext.centerOfMass(tileIdentfier), {
+            const tileIdentifier = { X: 0, Y: 0, Z: 0 };
+            chai_4.assert.equal(ext.density(tileIdentifier), 0);
+            ext.setMass(tileIdentifier, 10);
+            chai_4.assert.equal(ext.density(tileIdentifier), 10);
+            isSameCenterOfMass(ext.centerOfMass(tileIdentifier), {
                 mass: 10,
                 center: [5, 5],
                 featureMass: 0,
-            });
-            ext.setCenter(tileIdentfier, [1, 1]);
-            const com = ext.centerOfMass(tileIdentfier);
+            }, "root tile com");
+            ext.setCenter(tileIdentifier, [1, 1]);
+            const com = ext.centerOfMass(tileIdentifier);
             chai_4.assert.equal(com.mass, 10, "mass");
             chai_4.assert.equal(com.featureMass, 0, "featureMass");
             isSamePoint(com.center, [5, 5], "center");
         });
-        mocha_4.it("TileTreeExt centerOfMass with features", () => {
-            const extent = [0, 0, 1, 1];
-            const tree = new TileTree_6.TileTree({
-                extent,
-            });
+        mocha_4.it("calculate center of mass of tile of mass 100 with features", () => {
+            const tree = createTree();
             const ext = new TileTreeExt_3.TileTreeExt(tree, { minZoom: 0, maxZoom: 19 });
             const tileIdentifier = { X: 0, Y: 0, Z: 1 };
             {
@@ -24093,7 +24169,8 @@ define("poc/test/tiletreeext-test", ["require", "exports", "mocha", "chai", "poc
                 const [x, y] = [3, 3];
                 const feature = new Feature_3.default(new Point_3.default([1 / x, 1 / y]));
                 features.push(feature);
-                ext.addFeature(feature);
+                const targetIdentifier = ext.addFeature(feature);
+                chai_4.assert.deepEqual(targetIdentifier, { X: 174762, Y: 174762, Z: 19 });
                 ext.setVisible(feature, false);
                 const { mass, center } = ext.centerOfMass(tileIdentifier);
                 chai_4.assert.equal(mass, 100, "tile mass is unaffected by dark matter in child tiles");
@@ -24108,7 +24185,7 @@ define("poc/test/tiletreeext-test", ["require", "exports", "mocha", "chai", "poc
                 const { mass, center, featureMass } = ext.centerOfMass(tileIdentifier);
                 chai_4.assert.equal(mass, 99, "mass reduced");
                 chai_4.assert.equal(featureMass, -1, "because of one visible feature");
-                isSamePoint(center, [0.375, 0.375], "center shifted");
+                isSamePoint(center, [1 / 4, 1 / 4], "center shifted");
             }
             {
                 const feature = new Feature_3.default(new Point_3.default([0.9, 0]));
@@ -24117,7 +24194,7 @@ define("poc/test/tiletreeext-test", ["require", "exports", "mocha", "chai", "poc
                 const { center, mass, featureMass } = ext.centerOfMass(tileIdentifier);
                 chai_4.assert.equal(mass, 99, "mass unaffected by hidden features");
                 chai_4.assert.equal(featureMass, -1, "feature mass also uneffected");
-                isSamePoint(center, [0.6375, 0.1875], "hidden features affect center");
+                isSamePoint(center, [0.9, 0], "hidden features affect center");
             }
             {
                 const newChildId = { X: 0, Y: 0, Z: 7 };
@@ -24127,42 +24204,45 @@ define("poc/test/tiletreeext-test", ["require", "exports", "mocha", "chai", "poc
                 const { center, mass, featureMass } = ext.centerOfMass(tileIdentifier);
                 chai_4.assert.equal(mass, 99, "mass unaffected by children without features");
                 chai_4.assert.equal(featureMass, -1, "feature mass unaffected by children without features");
-                isSamePoint(center, [0.4263020833333333, 0.12630208333333334], "center shifts when adding a child with mass");
+                isSamePoint(center, [0.451953125, 0.001953125], "center shifts when adding a child with mass");
             }
         });
-        mocha_4.it("finds bounding tile", () => {
-            const tree = TileTree_6.TileTree.create({
-                extent: [0, 0, 16, 16],
-                data: [[0, 0, 0, { count: 0, center: [0, 0] }]],
-            });
-            const ext = new TileTreeExt_3.TileTreeExt(tree);
-            de(ext.findByExtent([0, 0, 1, 1]), { X: 0, Y: 0, Z: 3 }, "bottom-left most tile 1/16 total width");
-            de(ext.findByExtent([0.25, 0, 1, 1]), { X: 0, Y: 0, Z: 3 }, "not as wide but same tile as before");
-            de(ext.findByExtent([0.25, 0.25, 0.5, 0.5]), { X: 0, Y: 0, Z: 4 }, "shifted right and up and deeper");
+        mocha_4.it("progressive center of mass calculations", () => {
+            const helper = new TileTreeExt_3.TileTreeExt(createTree());
+            const rootId = { X: 0, Y: 0, Z: 0 };
+            const p1 = createPoint([0.5 + 1 / 2048, 0.5 + 1 / 2048]);
+            const targetId = helper.addFeature(p1);
+            chai_4.assert.deepEqual(targetId, { X: 512, Y: 512, Z: 10 });
+            helper.setVisible(p1, false);
             {
-                const extent = [7.9, 7.9, 8.1, 8.1];
-                de(ext.findByExtent(extent), { X: 0, Y: 0, Z: 0 }, "worst case scenario, cannot find a child");
-                de(ext.findZByExtent(extent), 6, "can still get accurate Z");
+                const { center, mass, featureMass } = helper.centerOfMass(targetId);
+                const com = helper.centerOfMass(targetId);
+                chai_4.assert.deepEqual(com, { center, mass, featureMass }, "centerOfMass is repeatable");
+                chai_4.assert.equal(mass, 1, "tile mass represents one hidden feature");
+                chai_4.assert.equal(featureMass, 0, "tile has 0 visible features");
+                isSamePoint(center, [0.5 + 1 / 2048, 0.5 + 1 / 2048], "p1 is hidden but just right of center");
             }
-            de(ext.findByExtent([10.1, 10.1, 10.11, 10.11]), { X: 323, Y: 323, Z: 9 }, "trusting this is correct.");
-            chai_4.assert.throws(() => ext.findByExtent([0, 0, 16.01, 16]), "out of bounds");
-        });
-        mocha_4.it("attaches data to the nodes", () => {
-            const extent = [0, 0, 1, 1];
-            const tree = new TileTree_6.TileTree({ extent });
-            const helper = new TileTreeExt_3.TileTreeExt(tree);
-            const q0 = tree.find([0, 0, 0.25, 0.25]);
-            const q1 = tree.find([0.25, 0, 0.5, 0.25]);
-            const q2 = tree.find([0, 0.25, 0.25, 0.5]);
-            const q3 = tree.find([0.25, 0.25, 0.5, 0.5]);
-            const q33 = tree.find([0.375, 0.375, 0.5, 0.5]);
-            helper.setMass(q0, 1);
-            helper.setMass(q1, 2);
-            helper.setMass(q2, 4);
-            helper.setMass(q3, 8);
-            helper.setMass(q33, 16);
-            const totalCount = tree.visit((a, b) => a + (helper.getMass(b) || 0), 0);
-            chai_4.assert.equal(totalCount, 31);
+            {
+                const { center, mass, featureMass } = helper.centerOfMass(rootId);
+                chai_4.assert.equal(mass, 1, "one child tile has mass since one feature is hidden");
+                chai_4.assert.equal(featureMass, 0, "no visible features");
+                isSamePoint(center, [0.5 + 1 / 2048, 0.5 + 1 / 2048], "should have same center of mass as the only child tile");
+            }
+            helper.setVisible(p1, true);
+            {
+                const { center, mass, featureMass } = helper.centerOfMass(targetId);
+                const com = helper.centerOfMass(targetId);
+                chai_4.assert.deepEqual(com, { center, mass, featureMass }, "centerOfMass is repeatable");
+                chai_4.assert.equal(mass, 0, "tile has no effective mass, all features are visible");
+                chai_4.assert.equal(featureMass, -1, "tile has 1 visible feature");
+                isSamePoint(center, [1 / 2 + 1 / 2048, 1 / 2 + 1 / 2048], "no mass so default to tile center");
+            }
+            {
+                const { center, mass, featureMass } = helper.centerOfMass(rootId);
+                chai_4.assert.equal(mass, 0, "no child tile has mass since all features are visible");
+                chai_4.assert.equal(featureMass, -1, "one visible feature in child tile");
+                isSamePoint(center, [1 / 2, 1 / 2], "no mass so default to center of tile");
+            }
         });
     });
 });

@@ -48,6 +48,7 @@ export class TileTreeExt {
     });
     features.push(feature);
     this.setStale(tileIdentifier, true);
+    return tileIdentifier;
   }
 
   getFeatures(tileIdentifier: XYZ) {
@@ -90,13 +91,18 @@ export class TileTreeExt {
     this.setStale(tileIdentifier, true);
   }
 
-  setDarkMass(tileIdentifier: XYZ, darkMass: number) {
-    this.tree.decorate(tileIdentifier, { darkMass });
+  private setCenterOfMass(
+    tileIdentifier: XYZ,
+    com: { darkMass: number; lightMass: number; center: XY }
+  ) {
+    this.tree.decorate(tileIdentifier, { com });
   }
 
-  getDarkMass(tileIdentifier: XYZ) {
+  private getCenterOfMass(tileIdentifier: XYZ) {
     return (
-      this.tree.decorate<{ darkMass: number }>(tileIdentifier)?.darkMass || null
+      this.tree.decorate<{
+        com: { darkMass: number; lightMass: number; center: XY };
+      }>(tileIdentifier)?.com || null
     );
   }
 
@@ -134,20 +140,18 @@ export class TileTreeExt {
 
     if (rootNode && !this.isStale(tileIdentifier)) {
       // this tile is up-to-date
-      const center = this.getCenter(tileIdentifier);
-      const mass = this.getMass(tileIdentifier) || 0;
-      const darkMass = this.getDarkMass(tileIdentifier) || 0;
+      const com = this.getCenterOfMass(tileIdentifier);
       return {
-        center,
-        mass: darkMass,
-        featureMass: darkMass - mass,
+        center: com.center,
+        mass: com.darkMass,
+        featureMass: -com.lightMass,
       };
     }
 
+    const childern = tree.children(tileIdentifier);
+
     // get center-of-mass of all children
-    const comChildren = tree
-      .children(tileIdentifier)
-      .map((c) => this.centerOfMass(c));
+    const comChildren = childern.map((c) => this.centerOfMass(c));
 
     // get mass of child features
     const massOfVisibleChildFeatures = comChildren.reduce(
@@ -173,25 +177,27 @@ export class TileTreeExt {
     });
 
     if (mass === 0) {
-      // no sub-matter so use existing center-of-mass
-      mass = this.getMass(tileIdentifier) || 0;
+      // no sub-matter so use tile center
       center = tree.asCenter(tileIdentifier);
     } else {
       // sub-matter found, use it to define the center-of-mass
       center.forEach((v, i) => (center[i] = v / mass));
     }
 
-    const tileMass =
-      this.getMass(tileIdentifier) || mass + massOfVisibleFeatures;
-    const visibleMass = massOfVisibleFeatures + massOfVisibleChildFeatures;
-    const darkMass = tileMass - visibleMass;
-    this.setCenter(tileIdentifier, center);
-    this.setDarkMass(tileIdentifier, darkMass);
+    const lightMass = massOfVisibleFeatures + massOfVisibleChildFeatures;
+    const hardMass = this.getMass(tileIdentifier);
+    const darkMass = null === hardMass ? mass : hardMass - lightMass;
+    this.setCenterOfMass(tileIdentifier, {
+      darkMass,
+      lightMass,
+      center: center,
+    });
     this.setStale(tileIdentifier, false);
+    const com = this.getCenterOfMass(tileIdentifier);
     return {
-      mass: darkMass,
-      featureMass: -visibleMass,
-      center,
+      mass: com.darkMass,
+      featureMass: -com.lightMass,
+      center: com.center,
     };
   }
 

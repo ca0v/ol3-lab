@@ -34,7 +34,7 @@ describe("TileTree Tests", () => {
   it("creates a tile tree", () => {
     const extent = [0, 0, 10, 10] as Extent;
     const tree = new TileTree({ extent });
-    const root = tree.find(extent);
+    const root = tree.findByExtent(extent);
     assert.isTrue(isEq(extent[0], tree.asExtent(root)[0]));
   });
 
@@ -42,10 +42,10 @@ describe("TileTree Tests", () => {
     const extent = [0, 0, 1, 1] as Extent;
     const tree = new TileTree({ extent });
     assert.throws(() => {
-      tree.find([1, 1, 2, 2]);
+      tree.findByExtent([1, 1, 2, 2]);
     }, "invalid X");
     assert.throws(() => {
-      tree.find([0.1, 0.1, 0.9, 1.00001]);
+      tree.findByExtent([0.1, 0.1, 0.9, 1.00001]);
     }, "invalid extent");
   });
 
@@ -54,15 +54,15 @@ describe("TileTree Tests", () => {
     const tree = new TileTree({ extent });
 
     assert.throws(() => {
-      tree.find([0, 0, 0.4, 0.4]);
+      tree.findByExtent([0, 0, 0.4, 0.4]);
     }, "invalid extent");
 
     assert.throws(() => {
-      tree.find([0, 0, 0.5, 0.4]);
+      tree.findByExtent([0, 0, 0.5, 0.4]);
     }, "invalid extent");
 
     assert.throws(() => {
-      tree.find([0.1, 0, 0.6, 0.5]);
+      tree.findByExtent([0.1, 0, 0.6, 0.5]);
     }, "invalid extent");
   });
 
@@ -102,7 +102,7 @@ describe("TileTree Tests", () => {
       tileGrid.forEachTileCoord(extent, level, (tileCoord) => {
         const [z, x, y] = tileCoord;
         const extent = tileGrid.getTileCoordExtent(tileCoord) as Extent;
-        tree.decorate(tree.find(extent), { tileCoord });
+        tree.decorate(tree.findByExtent(extent), { tileCoord });
       });
 
     const maxX = () =>
@@ -138,7 +138,7 @@ describe("TileTree Tests", () => {
       let quad0 = extent;
       resolutions.forEach((resolution, i) => {
         const extents = strategy(quad0, resolution) as Extent[];
-        extents.forEach((q) => tree.find(q));
+        extents.forEach((q) => tree.findByExtent(q));
         quad0 = extents[0];
       });
     }

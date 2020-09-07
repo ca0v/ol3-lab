@@ -172,7 +172,7 @@ export class TileTree<T> {
     return result;
   }
 
-  public find(extent: Extent): XYZ {
+  public findByExtent(extent: Extent): XYZ {
     const tile = this.asXyz(extent);
     this.findByXYZ(tile, { force: true });
     return tile;
