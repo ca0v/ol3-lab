@@ -23366,8 +23366,11 @@ define("poc/test/fun/showOnMap", ["require", "exports", "poc/TileTree", "node_mo
                         style = new style_1.Style({
                             image: new Circle_1.default({
                                 radius: 5 + massLevel,
-                                fill: new style_1.Fill({ color: "rgba(0,0,0,0.5)" }),
-                                stroke: new style_1.Stroke({ color: "rgba(255,255,255,0.5)", width: 1 }),
+                                fill: new style_1.Fill({ color: `rgba(0,0,0,${0.5 / massLevel})` }),
+                                stroke: new style_1.Stroke({
+                                    color: `rgba(255,255,255,${0.5 / massLevel})`,
+                                    width: massLevel,
+                                }),
                             }),
                             text: new Text_1.default({
                                 text: (mass ? mass : "") + "",
@@ -23405,7 +23408,7 @@ define("poc/test/fun/showOnMap", ["require", "exports", "poc/TileTree", "node_mo
             const { Z: featureZoom, type, visible, mass } = feature.getProperties();
             if (false === visible)
                 return null;
-            const currentZoom = view.getZoomForResolution(resolution) || 0;
+            const currentZoom = Math.round(view.getZoomForResolution(resolution) || 0);
             const zoffset = featureZoom - currentZoom;
             const style = styleMaker({ type: type || "feature", zoffset, mass });
             return style;
@@ -23428,6 +23431,8 @@ define("poc/test/fun/showOnMap", ["require", "exports", "poc/TileTree", "node_mo
             hiddenFeatures.forEach((f) => {
                 const { tileIdentifier } = f.getProperties();
                 let targetIdentifier = tileIdentifier;
+                if (targetIdentifier.Z < currentZoom + MAX_ZOOM_OFFSET - 2)
+                    return;
                 while (targetIdentifier.Z > currentZoom + MAX_ZOOM_OFFSET - 2) {
                     targetIdentifier = tree.parent(targetIdentifier);
                 }
@@ -23438,6 +23443,7 @@ define("poc/test/fun/showOnMap", ["require", "exports", "poc/TileTree", "node_mo
                     feature.setProperties({
                         type: "cluster",
                         tileIdentifier: targetIdentifier,
+                        Z: targetIdentifier.Z,
                     });
                     setTileFeature(tileFeatures, targetIdentifier, feature);
                     source.addFeature(feature);
@@ -23465,7 +23471,6 @@ define("poc/test/ags-feature-loader-test", ["require", "exports", "mocha", "chai
             const tree = new TileTree_2.TileTree({
                 extent: projection.getExtent(),
             });
-            const rootNode = tree.findByExtent(projection.getExtent());
             const loader = new AgsFeatureLoader_1.AgsFeatureLoader({
                 url,
                 minRecordCount,

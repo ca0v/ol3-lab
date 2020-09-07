@@ -97,8 +97,11 @@ export function showOnMap(options: { features: Feature<Geometry>[] }) {
           style = new Style({
             image: new Circle({
               radius: 5 + massLevel,
-              fill: new Fill({ color: "rgba(0,0,0,0.5)" }),
-              stroke: new Stroke({ color: "rgba(255,255,255,0.5)", width: 1 }),
+              fill: new Fill({ color: `rgba(0,0,0,${0.5 / massLevel})` }),
+              stroke: new Stroke({
+                color: `rgba(255,255,255,${0.5 / massLevel})`,
+                width: massLevel,
+              }),
             }),
             text: new Text({
               text: (mass ? mass : "") + "",
@@ -141,7 +144,7 @@ export function showOnMap(options: { features: Feature<Geometry>[] }) {
       visible: boolean;
     };
     if (false === visible) return null;
-    const currentZoom = view.getZoomForResolution(resolution) || 0;
+    const currentZoom = Math.round(view.getZoomForResolution(resolution) || 0);
     const zoffset = featureZoom - currentZoom;
     const style = styleMaker({ type: type || "feature", zoffset, mass });
     return style;
@@ -178,6 +181,7 @@ export function showOnMap(options: { features: Feature<Geometry>[] }) {
       };
 
       let targetIdentifier = tileIdentifier;
+      if (targetIdentifier.Z < currentZoom + MAX_ZOOM_OFFSET - 2) return;
       while (targetIdentifier.Z > currentZoom + MAX_ZOOM_OFFSET - 2) {
         targetIdentifier = tree.parent(targetIdentifier);
       }
@@ -189,6 +193,7 @@ export function showOnMap(options: { features: Feature<Geometry>[] }) {
         feature.setProperties({
           type: "cluster",
           tileIdentifier: targetIdentifier,
+          Z: targetIdentifier.Z,
         });
         setTileFeature(tileFeatures, targetIdentifier, feature);
         source.addFeature(feature);

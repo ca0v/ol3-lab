@@ -20,8 +20,6 @@ describe("AgsFeatureLoader tests", () => {
       extent: projection.getExtent(),
     });
 
-    const rootNode = tree.findByExtent(projection.getExtent());
-
     const loader = new AgsFeatureLoader({
       url,
       minRecordCount,
