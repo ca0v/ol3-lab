@@ -7,7 +7,7 @@ import { get as getProjection } from "@ol/proj";
 import type { XY } from "poc/types/XY";
 import Feature from "@ol/Feature";
 import Geometry from "@ol/geom/Geometry";
-import { showOnMap } from "./showOnMap";
+import { showOnMap } from "./fun/showOnMap";
 
 describe("AgsFeatureLoader tests", () => {
   it("loads features", async () => {

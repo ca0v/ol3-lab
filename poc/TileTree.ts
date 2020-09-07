@@ -88,7 +88,7 @@ export class TileTree<T> {
     if (!this.tileCache[Z][X][Y] && options?.force) {
       this.tileCache[Z][X][Y] = this.asTileNode();
     }
-    return this.tileCache[Z][X][Y];
+    return this.tileCache[Z][X][Y] || null;
   }
 
   public findByPoint(args: { point: Coordinate; zoom: number }): XYZ {

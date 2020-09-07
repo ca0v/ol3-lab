@@ -17,6 +17,24 @@ import Text from "@ol/style/Text";
 
 const MIN_ZOOM_OFFSET = -3;
 const MAX_ZOOM_OFFSET = 4;
+
+function setTileFeature(
+  tileFeatures: Map<string, Feature<Geometry>>,
+  { X, Y, Z }: XYZ,
+  feature: Feature<Geometry>
+) {
+  const key = `${X}.${Y}.${Z}`;
+  tileFeatures.set(key, feature);
+}
+
+function getTileFeature(
+  tileFeatures: Map<string, Feature<Geometry>>,
+  { X, Y, Z }: XYZ
+) {
+  const key = `${X}.${Y}.${Z}`;
+  return tileFeatures.get(key);
+}
+
 export function showOnMap(options: { features: Feature<Geometry>[] }) {
   const { features } = options;
   if (!features.length) throw "cannot get extent";
@@ -58,7 +76,7 @@ export function showOnMap(options: { features: Feature<Geometry>[] }) {
   source.addFeatures(features);
 
   const styleCache = {} as any;
-  const tileFeatures = new Map<XYZ, Feature<Geometry>>();
+  const tileFeatures = new Map<string, Feature<Geometry>>();
 
   const styleMaker = ({
     type,
@@ -82,7 +100,11 @@ export function showOnMap(options: { features: Feature<Geometry>[] }) {
               fill: new Fill({ color: "rgba(0,0,0,0.5)" }),
               stroke: new Stroke({ color: "rgba(255,255,255,0.5)", width: 1 }),
             }),
-            text: new Text({ text: (mass ? mass : "") + "" }),
+            text: new Text({
+              text: (mass ? mass : "") + "",
+              scale: 0.5,
+              fill: new Fill({ color: "white" }),
+            }),
           });
           break;
         }
@@ -161,14 +183,14 @@ export function showOnMap(options: { features: Feature<Geometry>[] }) {
       }
 
       const mass = helper.centerOfMass(targetIdentifier).mass;
-      let feature = tileFeatures.get(targetIdentifier);
+      let feature = getTileFeature(tileFeatures, targetIdentifier);
       if (!feature) {
         feature = new Feature<Geometry>();
         feature.setProperties({
           type: "cluster",
           tileIdentifier: targetIdentifier,
         });
-        tileFeatures.set(targetIdentifier, feature);
+        setTileFeature(tileFeatures, targetIdentifier, feature);
         source.addFeature(feature);
         const center = tree.asCenter(targetIdentifier);
         feature.setGeometry(new Point(center));

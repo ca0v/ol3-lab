@@ -29,11 +29,11 @@ export class TileTreeExt {
     this.setStale(tileIdentifier, true);
   }
 
-  addFeature(feature: Feature<Geometry>) {
+  addFeature(feature: Feature<Geometry>, tileIdentifier?: XYZ) {
     const extent = feature.getGeometry()?.getExtent();
     if (!extent) throw "unable to compute extent of feature";
 
-    const tileIdentifier = this.findByExtent(extent);
+    tileIdentifier = tileIdentifier || this.findByExtent(extent);
     let { features } = this.tree.decorate<{ features: Feature<Geometry>[] }>(
       tileIdentifier
     );
@@ -47,7 +47,7 @@ export class TileTreeExt {
       type: "feature",
     });
     features.push(feature);
-    this.setStale(tileIdentifier);
+    this.setStale(tileIdentifier, true);
   }
 
   getFeatures(tileIdentifier: XYZ) {
@@ -90,11 +90,24 @@ export class TileTreeExt {
     this.setStale(tileIdentifier, true);
   }
 
+  setDarkMass(tileIdentifier: XYZ, darkMass: number) {
+    this.tree.decorate(tileIdentifier, { darkMass });
+  }
+
+  getDarkMass(tileIdentifier: XYZ) {
+    return (
+      this.tree.decorate<{ darkMass: number }>(tileIdentifier)?.darkMass || null
+    );
+  }
+
   getMass(tileIdentifier: XYZ) {
-    return this.tree.decorate<{ mass: number }>(tileIdentifier).mass;
+    return this.tree.decorate<{ mass: number }>(tileIdentifier)?.mass || null;
   }
 
   setMass(tileIdentifier: XYZ, mass: number) {
+    const currentMass = this.getMass(tileIdentifier);
+    if (currentMass === mass) return;
+    if (!!currentMass) throw "mass cannot be destroyed";
     this.tree.decorate(tileIdentifier, { mass });
     this.setStale(tileIdentifier, true);
   }
@@ -104,62 +117,94 @@ export class TileTreeExt {
     return 4 === tree.children(node).length;
   }
 
-  centerOfMass(tileIdentifier: XYZ): { center: XY; mass: number } {
+  centerOfMass(
+    tileIdentifier: XYZ
+  ): { center: XY; mass: number; featureMass: number } {
     const tree = this.tree;
 
     const rootNode = tree.findByXYZ(tileIdentifier, { force: true });
     if (!rootNode) {
+      // this tile does not exist, return nothing
       const center = getCenter(tree.asExtent(tileIdentifier)) as [
         number,
         number
       ];
-      const mass = 0;
-      return { center, mass };
+      return { center, mass: 0, featureMass: 0 };
     }
 
     if (rootNode && !this.isStale(tileIdentifier)) {
+      // this tile is up-to-date
+      const center = this.getCenter(tileIdentifier);
+      const mass = this.getMass(tileIdentifier) || 0;
+      const darkMass = this.getDarkMass(tileIdentifier) || 0;
       return {
-        center: this.getCenter(tileIdentifier),
-        mass: this.getMass(tileIdentifier),
+        center,
+        mass: darkMass,
+        featureMass: darkMass - mass,
       };
     }
 
-    // compute all children
-    const childIdentifiers = tree.children(tileIdentifier);
-    const comValues = childIdentifiers.map((c) => this.centerOfMass(c));
-    // get mass of non-visible features
-    const comFeatures = this.getFeatureCenterOfMass(tileIdentifier);
+    // get center-of-mass of all children
+    const comChildren = tree
+      .children(tileIdentifier)
+      .map((c) => this.centerOfMass(c));
 
-    // need to loop through all nodes under this root backward, updating parent
+    // get mass of child features
+    const massOfVisibleChildFeatures = comChildren.reduce(
+      (a, b) => a + b.featureMass,
+      0
+    );
+
+    // get mass of visible features
+    const massOfVisibleFeatures = this.getLightMatter(tileIdentifier).reduce(
+      (a, b) => a + b.mass,
+      0
+    );
+
+    // get center-of-mass of non-visible features
+    const comHiddenFeatures = this.getDarkMatter(tileIdentifier);
+
+    // compute effective center-of-mass
     let center = [0, 0] as XY;
     let mass = 0;
-
-    [...comFeatures, ...comValues].forEach((com) => {
+    [...comHiddenFeatures, ...comChildren].forEach((com) => {
       center.forEach((v, i) => (center[i] = v + com.center[i] * com.mass));
       mass += com.mass;
     });
 
     if (mass === 0) {
+      // no sub-matter so use existing center-of-mass
       mass = this.getMass(tileIdentifier) || 0;
       center = tree.asCenter(tileIdentifier);
     } else {
+      // sub-matter found, use it to define the center-of-mass
       center.forEach((v, i) => (center[i] = v / mass));
     }
+
+    const tileMass =
+      this.getMass(tileIdentifier) || mass + massOfVisibleFeatures;
+    const visibleMass = massOfVisibleFeatures + massOfVisibleChildFeatures;
+    const darkMass = tileMass - visibleMass;
     this.setCenter(tileIdentifier, center);
-    this.setMass(tileIdentifier, mass);
+    this.setDarkMass(tileIdentifier, darkMass);
     this.setStale(tileIdentifier, false);
-    return { mass, center };
+    return {
+      mass: darkMass,
+      featureMass: -visibleMass,
+      center,
+    };
   }
 
-  getFeatureCenterOfMass(
-    tileIdentifier: XYZ
+  getFeatureMatter(
+    tileIdentifier: XYZ,
+    visible = false
   ): Array<{ mass: number; center: XY }> {
     const features = this.getFeatures(tileIdentifier);
     if (!features) return [];
 
     // only want mass of hidden features
     const hiddenFeatures = features.filter(
-      (f) => false === f.getProperties().visible
+      (f) => visible === f.getProperties().visible
     );
 
     return hiddenFeatures.map((f) => {
@@ -167,6 +212,14 @@ export class TileTreeExt {
       const mass = 1;
       return { center, mass };
     });
+  }
+
+  getDarkMatter(tileIdentifier: XYZ) {
+    return this.getFeatureMatter(tileIdentifier, false);
+  }
+
+  getLightMatter(tileIdentifier: XYZ) {
+    return this.getFeatureMatter(tileIdentifier, true);
   }
 
   isStale(nodeIdentifier: XYZ) {

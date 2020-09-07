@@ -110,3 +110,6 @@ PRELIMINARY RESULTS
 * Missing proper styling
 * Center-of-mass calculations are wrong
 ![Rough Draft](./assets/draft.gif)
+
+LINKS
+* [this document](https://github.com/ca0v/ol3-lab/blob/v6.4.3/poc/README.md)
