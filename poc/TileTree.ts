@@ -63,7 +63,7 @@ export class TileTree<T> {
     return { data: {} } as TileNode<T>;
   }
 
-  public asExtent(tileName: { X: number; Y: number; Z: number }) {
+  public asExtent(tileName = { X: 0, Y: 0, Z: 0 }): Extent {
     return asExtent(this.extent, tileName);
   }
 

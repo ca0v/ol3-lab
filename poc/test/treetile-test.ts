@@ -7,6 +7,10 @@ import { TileTreeExt } from "../TileTreeExt";
 import { isEq } from "poc/fun/tiny";
 import type { XY } from "../types/XY";
 
+function de<T>(a: T, b: T, expectation: string) {
+  assert.deepEqual(a, b, expectation);
+}
+
 describe("TileTree Extension Tests", () => {
   it("adds properties to a tile", () => {
     const extent = [0, 0, 10, 10] as Extent;
@@ -95,7 +99,7 @@ describe("TileTree Extension Tests", () => {
     );
   });
 
-  it("TileTreeExt setCount", () => {
+  it("TileTreeExt centerOfMass", () => {
     const extent = [0, 0, 10, 10] as Extent;
     const tree = TileTree.create<{ count: number; center: XY }>({
       extent,
@@ -121,5 +125,53 @@ describe("TileTree Extension Tests", () => {
       },
       "manually override center marks as dirty, recomputes, reverts so prior center"
     );
+  });
+
+  it("finds bounding tile", () => {
+    const tree = TileTree.create<{ count: number; center: XY }>({
+      extent: [0, 0, 16, 16],
+      data: [[0, 0, 0, { count: 0, center: [0, 0] }]],
+    });
+    const ext = new TileTreeExt(tree);
+
+    de(
+      ext.findByExtent([0, 0, 1, 1]),
+      { X: 0, Y: 0, Z: 3 },
+      "bottom-left most tile 1/16 total width"
+    );
+
+    de(
+      ext.findByExtent([0.25, 0, 1, 1]),
+      { X: 0, Y: 0, Z: 3 },
+      "not as wide but same tile as before"
+    );
+
+    de(
+      ext.findByExtent([0.25, 0.25, 0.5, 0.5]),
+      { X: 0, Y: 0, Z: 4 },
+      "shifted right and up and deeper"
+    );
+
+    {
+      // features on unlucky boundaries end up far too high in the tile stack...
+      // compute a Z value for the feature instead of trusting the tile.
+      const extent = [7.9, 7.9, 8.1, 8.1];
+      de(
+        ext.findByExtent(extent),
+        { X: 0, Y: 0, Z: 0 },
+        "worst case scenario, cannot find a child"
+      );
+      // associate this Z value to the feature to hide when out of scope
+      // any benefit to associate feature with a bounding tile?
+      de(ext.findZByExtent(extent), 6, "can still get accurate Z");
+    }
+
+    de(
+      ext.findByExtent([10.1, 10.1, 10.11, 10.11]),
+      { X: 323, Y: 323, Z: 9 },
+      "trusting this is correct."
+    );
+
+    assert.throws(() => ext.findByExtent([0, 0, 16.01, 16]), "out of bounds");
   });
 });
