@@ -7,7 +7,33 @@ import Feature from "@ol/Feature";
 import Geometry from "@ol/geom/Geometry";
 
 export class TileTreeExt {
-  addFeature(tileIdentifier: XYZ, f: Feature<Geometry>) {
+  public readonly minZoom: Z;
+  public readonly maxZoom: Z;
+
+  constructor(
+    public tree: TileTree<{}>,
+    options?: { minZoom: number; maxZoom: number }
+  ) {
+    this.minZoom = options?.minZoom || 0;
+    this.maxZoom = options?.maxZoom || 10;
+  }
+
+  setVisible(feature: Feature<Geometry>, visible = true) {
+    const { tileIdentifier, visible: wasVisible } = <
+      { tileIdentifier: XYZ; visible: boolean }
+    >feature.getProperties();
+    if (!tileIdentifier)
+      throw "feature has no tile identifier, register using addFeature";
+    if (wasVisible === visible) return;
+    feature.setProperties({ visible }, true);
+    this.setStale(tileIdentifier, true);
+  }
+
+  addFeature(feature: Feature<Geometry>) {
+    const extent = feature.getGeometry()?.getExtent();
+    if (!extent) throw "unable to compute extent of feature";
+
+    const tileIdentifier = this.findByExtent(extent);
     let { features } = this.tree.decorate<{ features: Feature<Geometry>[] }>(
       tileIdentifier
     );
@@ -15,7 +41,13 @@ export class TileTreeExt {
       features = [];
       this.tree.decorate(tileIdentifier, { features });
     }
-    features.push(f);
+    feature.setProperties({
+      tileIdentifier,
+      Z: this.findZByExtent(extent),
+      type: "feature",
+    });
+    features.push(feature);
+    this.setStale(tileIdentifier);
   }
 
   getFeatures(tileIdentifier: XYZ) {
@@ -28,7 +60,7 @@ export class TileTreeExt {
     const root = explode(this.tree.asExtent());
     const Zw = Math.floor(Math.log2(root.w / find.w));
     const Zh = Math.floor(Math.log2(root.h / find.h));
-    return Math.min(Zw, Zh);
+    return Math.max(this.minZoom, Math.min(this.maxZoom, Math.min(Zw, Zh)));
   }
 
   findByExtent(extent: Extent): XYZ {
@@ -75,7 +107,7 @@ export class TileTreeExt {
   centerOfMass(tileIdentifier: XYZ): { center: XY; mass: number } {
     const tree = this.tree;
 
-    const rootNode = tree.findByXYZ(tileIdentifier, { force: false });
+    const rootNode = tree.findByXYZ(tileIdentifier, { force: true });
     if (!rootNode) {
       const center = getCenter(tree.asExtent(tileIdentifier)) as [
         number,
@@ -149,11 +181,9 @@ export class TileTreeExt {
     this.tree.decorate(nodeIdentifier, { stale });
     if (!stale) return;
     const parent = this.tree.parent(nodeIdentifier);
-    if (parent.Z < 0) return;
+    if (parent.Z < this.minZoom) return;
     this.setStale(parent, true);
   }
-
-  constructor(public tree: TileTree<{ count: number; center: XY }>) {}
 
   public density(tileIdentifier: XYZ, currentZoomLevel = 0) {
     const { mass } = this.centerOfMass(tileIdentifier);

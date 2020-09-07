@@ -6,7 +6,6 @@ import { TileTree } from "poc/TileTree";
 import { get as getProjection } from "@ol/proj";
 import type { XY } from "poc/types/XY";
 import Feature from "@ol/Feature";
-import { TileTreeExt } from "poc/TileTreeExt";
 import Geometry from "@ol/geom/Geometry";
 import { showOnMap } from "./showOnMap";
 
@@ -72,7 +71,6 @@ describe("AgsFeatureLoader tests", () => {
     const tree = new TileTree<{ count: number; center: XY }>({
       extent: projection.getExtent(),
     });
-    const helper = new TileTreeExt(tree);
 
     const loader = new AgsFeatureLoader({
       url,
@@ -87,14 +85,6 @@ describe("AgsFeatureLoader tests", () => {
       tileIdentifier
     );
     assert.equal(481, features.length, "features");
-    features.forEach((f) => {
-      const extent = f.getGeometry()!.getExtent();
-      const Z = helper.findZByExtent(extent);
-      const XYZ = helper.findByExtent(extent);
-      helper.addFeature(XYZ, f);
-      f.setProperties({ Z, XYZ });
-    });
-
     showOnMap({ features });
   });
 });

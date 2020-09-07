@@ -10,6 +10,22 @@ import type { TileTreeState } from "./TileTreeState";
 import type { XY } from "./types/XY";
 
 export class TileTree<T> {
+  private readonly extent: Extent;
+  private readonly root: XYZ;
+  private readonly tileCache: Array<Array<Array<TileNode<T>>>>;
+
+  public static create<T extends any>({ extent, data }: TileTreeState<T>) {
+    const result = new TileTree<T>({ extent });
+    result.load({ extent, data });
+    return result;
+  }
+
+  constructor(options: { extent: Extent }) {
+    this.extent = options.extent;
+    this.root = { X: 0, Y: 0, Z: 0 };
+    this.tileCache = [[[this.asTileNode()]]];
+  }
+
   asCenter(nodeIdentifier: XYZ): XY {
     return getCenter(this.asExtent(nodeIdentifier)) as XY;
   }
@@ -17,12 +33,6 @@ export class TileTree<T> {
   decorate<Q>(nodeId: XYZ, values?: Q) {
     const result = this.findByXYZ(nodeId, { force: true }).data as T & Q;
     values && Object.assign(result, values);
-    return result;
-  }
-
-  public static create<T extends any>({ extent, data }: TileTreeState<T>) {
-    const result = new TileTree<T>({ extent });
-    result.load({ extent, data });
     return result;
   }
 
@@ -47,16 +57,6 @@ export class TileTree<T> {
 
   asXyz(extent: Extent): XYZ {
     return asXYZ(this.asExtent({ X: 0, Y: 0, Z: 0 }), extent);
-  }
-  private readonly extent: Extent;
-  private readonly root: XYZ;
-  // convert into something that serializes nicely (no null fillers, maybe Set?)
-  private readonly tileCache: Array<Array<Array<TileNode<T>>>>;
-
-  constructor(options: { extent: Extent }) {
-    this.extent = options.extent;
-    this.root = { X: 0, Y: 0, Z: 0 };
-    this.tileCache = [[[this.asTileNode()]]];
   }
 
   private asTileNode(): TileNode<T> {

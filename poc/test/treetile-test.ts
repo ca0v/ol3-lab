@@ -5,7 +5,11 @@ import { Extent } from "@ol/extent";
 import { TileTree } from "../TileTree";
 import { TileTreeExt } from "../TileTreeExt";
 import { isEq } from "poc/fun/tiny";
+import { flatten } from "poc/fun/flatten";
 import type { XY } from "../types/XY";
+import Geometry from "@ol/geom/Geometry";
+import Point from "@ol/geom/Point";
+import Feature from "@ol/Feature";
 
 function de<T>(a: T, b: T, expectation: string) {
   assert.deepEqual(a, b, expectation);
@@ -35,7 +39,6 @@ describe("TileTree Extension Tests", () => {
     // then the child tiles are rendered at a higher density
     const rootIdentifier = { X: 0, Y: 0, Z: 0 };
     assert.equal(0, helper.density(rootIdentifier), "root density is 0");
-    const t000 = tree.findByXYZ(rootIdentifier);
     const children = tree.quads(rootIdentifier);
     children.forEach((c, i) => helper.setMass(c, 1 + i));
     assert.equal(10, helper.centerOfMass(rootIdentifier).mass, "total count");
@@ -124,6 +127,45 @@ describe("TileTree Extension Tests", () => {
         center: [5, 5],
       },
       "manually override center marks as dirty, recomputes, reverts so prior center"
+    );
+  });
+
+  it("TileTreeExt centerOfMass with features", () => {
+    const extent = [0, 0, 1, 1] as Extent;
+    const tree = new TileTree<{}>({
+      extent,
+    });
+
+    const ext = new TileTreeExt(tree, { minZoom: 0, maxZoom: 19 });
+    const tileIdentifier = { X: 0, Y: 0, Z: 1 };
+    let com = ext.centerOfMass(tileIdentifier);
+    assert.equal(com.mass, 0);
+    const x = [2.01, 4, 8, 16, 32];
+    const y = [2.01, 4, 8, 16, 32];
+    let mass = 0;
+    x.forEach((x) => {
+      y.forEach((y) => {
+        const feature = new Feature<Geometry>(new Point([1 / x, 1 / y]));
+        ext.addFeature(feature);
+        ext.setVisible(feature, false);
+        com = ext.centerOfMass(tileIdentifier);
+        assert.equal(com.mass, ++mass);
+      });
+    });
+
+    de(
+      tree.children(tileIdentifier).map((id) => ext.centerOfMass(id).mass),
+      [9, 6, 4, 6],
+      "child messes"
+    );
+
+    const grandChildren = flatten(
+      tree.children(tileIdentifier).map((id) => tree.children(id))
+    );
+    de(
+      grandChildren.map((id) => ext.centerOfMass(id).mass),
+      [4, 2, 1, 2, 2, 2, 1, 1, 1, 1, 1, 1, 2, 1, 1, 2],
+      "grandchild masses"
     );
   });
 
