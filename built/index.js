@@ -7,6 +7,79 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+define("poc/fun/tiny", ["require", "exports"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.isGt = exports.isLt = exports.isEq = exports.isInt = void 0;
+    const TINY = Math.pow(2, -24);
+    function isInt(value) {
+        return TINY > Math.abs(value - Math.round(value));
+    }
+    exports.isInt = isInt;
+    function isEq(v1, v2, tiny = TINY) {
+        return tiny > Math.abs(v1 - v2);
+    }
+    exports.isEq = isEq;
+    function isLt(v1, v2) {
+        return TINY < v2 - v1;
+    }
+    exports.isLt = isLt;
+    function isGt(v1, v2) {
+        return TINY < v1 - v2;
+    }
+    exports.isGt = isGt;
+});
+define("poc/test/fun/isSamePoint", ["require", "exports", "chai", "poc/fun/tiny"], function (require, exports, chai_1, tiny_1) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.isSamePoint = void 0;
+    function isSamePoint(a, b, message) {
+        console.log(a);
+        a.forEach((v, i) => chai_1.assert.isTrue(tiny_1.isEq(v, b[i]), `${i}:${message}`));
+    }
+    exports.isSamePoint = isSamePoint;
+});
+define("poc/types/XY", ["require", "exports"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+});
+define("poc/MomentCalculator", ["require", "exports"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.MomentCalculator = void 0;
+    class MomentCalculator {
+        sum(...moment) {
+            const result = [0, 0, 0];
+            moment.forEach((m) => m.forEach((v, i) => (result[i] += v)));
+            return result;
+        }
+        mass(...moment) {
+            return moment.reduce((a, b) => a + b[2], 0);
+        }
+        center(...moment) {
+            const [mx, my, m] = this.sum(...moment);
+            return [mx / m, my / m];
+        }
+    }
+    exports.MomentCalculator = MomentCalculator;
+});
+define("poc/test/moment-test", ["require", "exports", "mocha", "chai", "poc/test/fun/isSamePoint", "poc/MomentCalculator"], function (require, exports, mocha_1, chai_2, isSamePoint_1, MomentCalculator_1) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    mocha_1.describe("moment tests", () => {
+        mocha_1.it("moment of two points test", () => {
+            const calc = new MomentCalculator_1.MomentCalculator();
+            const m1 = [10, 10, 10];
+            const m2 = [20, 20, 10];
+            const m = calc.sum(m1, m2);
+            chai_2.assert.equal(m[0], 30);
+            chai_2.assert.equal(m[1], 30);
+            chai_2.assert.equal(m[2], 20);
+            isSamePoint_1.isSamePoint(calc.center(m1, m2), [1.5, 1.5], "center");
+            chai_2.assert.equal(calc.mass(m1, m2), 20);
+        });
+    });
+});
 define("node_modules/ol/src/extent/Corner", ["require", "exports"], function (require, exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
@@ -4596,29 +4669,7 @@ define("poc/types/XYZ", ["require", "exports"], function (require, exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
 });
-define("poc/fun/tiny", ["require", "exports"], function (require, exports) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    exports.isGt = exports.isLt = exports.isEq = exports.isInt = void 0;
-    const TINY = Math.pow(2, -24);
-    function isInt(value) {
-        return TINY > Math.abs(value - Math.round(value));
-    }
-    exports.isInt = isInt;
-    function isEq(v1, v2, tiny = TINY) {
-        return tiny > Math.abs(v1 - v2);
-    }
-    exports.isEq = isEq;
-    function isLt(v1, v2) {
-        return TINY < v2 - v1;
-    }
-    exports.isLt = isLt;
-    function isGt(v1, v2) {
-        return TINY < v1 - v2;
-    }
-    exports.isGt = isGt;
-});
-define("poc/fun/asXYZ", ["require", "exports", "poc/fun/explode", "poc/fun/tiny"], function (require, exports, explode_1, tiny_1) {
+define("poc/fun/asXYZ", ["require", "exports", "poc/fun/explode", "poc/fun/tiny"], function (require, exports, explode_1, tiny_2) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.asXYZ = void 0;
@@ -4632,16 +4683,16 @@ define("poc/fun/asXYZ", ["require", "exports", "poc/fun/explode", "poc/fun/tiny"
         const X = Math.round(x);
         const Y = Math.round(y);
         const TINY = Math.pow(2, -10);
-        if (!tiny_1.isEq(Z - z, 0, TINY)) {
+        if (!tiny_2.isEq(Z - z, 0, TINY)) {
             throw "invalid extent: zoom";
         }
-        if (!tiny_1.isEq(X - x, 0, TINY)) {
+        if (!tiny_2.isEq(X - x, 0, TINY)) {
             throw "invalid extent: xmin";
         }
-        if (!tiny_1.isEq(Y - y, 0, TINY)) {
+        if (!tiny_2.isEq(Y - y, 0, TINY)) {
             throw "invalid extent: ymin";
         }
-        if (!tiny_1.isEq(nodeInfo.h / nodeInfo.w, rootInfo.h / rootInfo.w, TINY)) {
+        if (!tiny_2.isEq(nodeInfo.h / nodeInfo.w, rootInfo.h / rootInfo.w, TINY)) {
             throw "invalid extent: width::height";
         }
         return { X, Y, Z };
@@ -4668,10 +4719,6 @@ define("poc/types/TileNode", ["require", "exports"], function (require, exports)
     Object.defineProperty(exports, "__esModule", { value: true });
 });
 define("poc/TileTreeState", ["require", "exports"], function (require, exports) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-});
-define("poc/types/XY", ["require", "exports"], function (require, exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
 });
@@ -23464,11 +23511,11 @@ define("poc/test/fun/showOnMap", ["require", "exports", "node_modules/ol/src/Fea
     }
     exports.showOnMap = showOnMap;
 });
-define("poc/test/ags-feature-loader-test", ["require", "exports", "mocha", "chai", "poc/AgsFeatureLoader", "poc/TileTree", "node_modules/ol/src/proj", "poc/test/fun/showOnMap", "poc/TileTreeExt"], function (require, exports, mocha_1, chai_1, AgsFeatureLoader_1, TileTree_1, proj_1, showOnMap_1, TileTreeExt_2) {
+define("poc/test/ags-feature-loader-test", ["require", "exports", "mocha", "chai", "poc/AgsFeatureLoader", "poc/TileTree", "node_modules/ol/src/proj", "poc/test/fun/showOnMap", "poc/TileTreeExt"], function (require, exports, mocha_2, chai_3, AgsFeatureLoader_1, TileTree_1, proj_1, showOnMap_1, TileTreeExt_2) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    mocha_1.describe("AgsFeatureLoader tests", () => {
-        mocha_1.it("loads features", () => __awaiter(void 0, void 0, void 0, function* () {
+    mocha_2.describe("AgsFeatureLoader tests", () => {
+        mocha_2.it("loads features", () => __awaiter(void 0, void 0, void 0, function* () {
             const url = "http://localhost:3002/mock/sampleserver3/arcgis/rest/services/Petroleum/KSFields/FeatureServer/0/query";
             const minRecordCount = -1;
             const maxRecordCount = 1000;
@@ -23484,19 +23531,19 @@ define("poc/test/ags-feature-loader-test", ["require", "exports", "mocha", "chai
                 tree: ext,
             });
             const q0mass = yield loader.loader({ X: 29 * 2, Y: 78 * 2, Z: 8 }, projection);
-            chai_1.assert.equal(481, q0mass, "q0");
+            chai_3.assert.equal(481, q0mass, "q0");
             const q1mass = yield loader.loader({ X: 29 * 2, Y: 78 * 2 + 1, Z: 8 }, projection);
-            chai_1.assert.equal(433, q1mass, "q1");
+            chai_3.assert.equal(433, q1mass, "q1");
             const q2mass = yield loader.loader({ X: 29 * 2 + 1, Y: 78 * 2, Z: 8 }, projection);
-            chai_1.assert.equal(396, q2mass, "q2");
+            chai_3.assert.equal(396, q2mass, "q2");
             const q3mass = yield loader.loader({ X: 29 * 2 + 1, Y: 78 * 2 + 1, Z: 8 }, projection);
-            chai_1.assert.equal(260, q3mass, "q3");
+            chai_3.assert.equal(260, q3mass, "q3");
             const mass = yield loader.loader({ X: 29, Y: 78, Z: 7 }, projection);
-            chai_1.assert.equal(q0mass + q1mass + q2mass + q3mass + 47, mass);
+            chai_3.assert.equal(q0mass + q1mass + q2mass + q3mass + 47, mass);
             const totalMass = yield loader.loader({ X: 0, Y: 0, Z: 0 }, projection);
-            chai_1.assert.equal(6918, totalMass);
+            chai_3.assert.equal(6918, totalMass);
         }));
-        mocha_1.it("renders a fully loaded tree with clusters via showOnMap", () => __awaiter(void 0, void 0, void 0, function* () {
+        mocha_2.it("renders a fully loaded tree with clusters via showOnMap", () => __awaiter(void 0, void 0, void 0, function* () {
             const url = "http://localhost:3002/mock/sampleserver3/arcgis/rest/services/Petroleum/KSFields/FeatureServer/0/query";
             const minRecordCount = 100;
             const maxRecordCount = 100;
@@ -23513,40 +23560,40 @@ define("poc/test/ags-feature-loader-test", ["require", "exports", "mocha", "chai
             });
             const tileIdentifier = tree.parent({ X: 29 * 2, Y: 78 * 2, Z: 8 });
             const featureCount = yield loader.loader(tileIdentifier, projection);
-            chai_1.assert.equal(1617, featureCount, "features");
+            chai_3.assert.equal(1617, featureCount, "features");
             showOnMap_1.showOnMap({ tree });
         })).timeout(60 * 1000);
     });
 });
-define("poc/test/xyz-test", ["require", "exports", "mocha", "chai", "node_modules/ol/src/proj", "poc/fun/asExtent", "poc/fun/asXYZ"], function (require, exports, mocha_2, chai_2, proj_2, asExtent_2, asXYZ_2) {
+define("poc/test/xyz-test", ["require", "exports", "mocha", "chai", "node_modules/ol/src/proj", "poc/fun/asExtent", "poc/fun/asXYZ"], function (require, exports, mocha_3, chai_4, proj_2, asExtent_2, asXYZ_2) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    mocha_2.describe("XYZ testing", () => {
-        mocha_2.it("asExtent test", () => {
+    mocha_3.describe("XYZ testing", () => {
+        mocha_3.it("asExtent test", () => {
             const extent = [0, 0, 16, 16];
             let x = asExtent_2.asExtent(extent, { X: 0, Y: 0, Z: 0 });
-            chai_2.assert.deepEqual(x, [0, 0, 16, 16]);
+            chai_4.assert.deepEqual(x, [0, 0, 16, 16]);
             x = asExtent_2.asExtent(extent, { X: 0, Y: 0, Z: 1 });
-            chai_2.assert.deepEqual(x, [0, 0, 8, 8]);
+            chai_4.assert.deepEqual(x, [0, 0, 8, 8]);
             x = asExtent_2.asExtent(extent, { X: 1, Y: 0, Z: 1 });
-            chai_2.assert.deepEqual(x, [8, 0, 16, 8]);
+            chai_4.assert.deepEqual(x, [8, 0, 16, 8]);
             x = asExtent_2.asExtent(extent, { X: 1, Y: 0, Z: 2 });
-            chai_2.assert.deepEqual(x, [4, 0, 8, 4]);
+            chai_4.assert.deepEqual(x, [4, 0, 8, 4]);
             x = asExtent_2.asExtent(extent, { X: 1, Y: 0, Z: 3 });
-            chai_2.assert.deepEqual(x, [2, 0, 4, 2]);
+            chai_4.assert.deepEqual(x, [2, 0, 4, 2]);
             x = asExtent_2.asExtent(extent, { X: 3, Y: 1020, Z: 10 });
-            chai_2.assert.deepEqual(x, [0.046875, 15.9375, 0.0625, 15.953125]);
+            chai_4.assert.deepEqual(x, [0.046875, 15.9375, 0.0625, 15.953125]);
         });
-        mocha_2.it("asXYZ test", () => {
+        mocha_3.it("asXYZ test", () => {
             const extent = [0, 0, 16, 16];
             let x = asXYZ_2.asXYZ(extent, [0, 0, 16, 16]);
-            chai_2.assert.deepEqual(x, { X: 0, Y: 0, Z: 0 });
+            chai_4.assert.deepEqual(x, { X: 0, Y: 0, Z: 0 });
             x = asXYZ_2.asXYZ(extent, [0, 4, 4, 8]);
-            chai_2.assert.deepEqual(x, { X: 0, Y: 1, Z: 2 });
+            chai_4.assert.deepEqual(x, { X: 0, Y: 1, Z: 2 });
             x = asXYZ_2.asXYZ(extent, [0.046875, 15.9375, 0.0625, 15.953125]);
-            chai_2.assert.deepEqual(x, { X: 3, Y: 1020, Z: 10 });
+            chai_4.assert.deepEqual(x, { X: 3, Y: 1020, Z: 10 });
         });
-        mocha_2.it("exhaustive XYZ", () => {
+        mocha_3.it("exhaustive XYZ", () => {
             const extents = [
                 [0, 0, 1024, 1024],
                 proj_2.get("EPSG:3857").getExtent(),
@@ -23558,9 +23605,9 @@ define("poc/test/xyz-test", ["require", "exports", "mocha", "chai", "node_module
                         for (let y = 0; y < 10; y++) {
                             const v1 = asExtent_2.asExtent(extent, { X: x, Y: y, Z: z });
                             const v2 = asXYZ_2.asXYZ(extent, v1);
-                            chai_2.assert.equal(v2.X, x, "x");
-                            chai_2.assert.equal(v2.Y, y, "y");
-                            chai_2.assert.equal(v2.Z, z, "z");
+                            chai_4.assert.equal(v2.X, x, "x");
+                            chai_4.assert.equal(v2.Y, y, "y");
+                            chai_4.assert.equal(v2.Z, z, "z");
                         }
                     }
                 }
@@ -23800,52 +23847,52 @@ define("poc/TileTreeTersifier", ["require", "exports", "poc/TileTree", "node_mod
     }
     exports.TileTreeTersifier = TileTreeTersifier;
 });
-define("poc/test/treetile-test", ["require", "exports", "mocha", "chai", "poc/TileTree", "node_modules/ol/src/proj", "node_modules/ol/src/tilegrid", "node_modules/ol/src/loadingstrategy", "node_modules/ol/src/source/VectorEventType", "poc/AgsClusterSource", "poc/fun/explode", "poc/fun/tiny", "poc/TileTreeTersifier"], function (require, exports, mocha_3, chai_3, TileTree_4, proj_3, tilegrid_2, loadingstrategy_2, VectorEventType_1, AgsClusterSource_1, explode_5, tiny_2, TileTreeTersifier_1) {
+define("poc/test/treetile-test", ["require", "exports", "mocha", "chai", "poc/TileTree", "node_modules/ol/src/proj", "node_modules/ol/src/tilegrid", "node_modules/ol/src/loadingstrategy", "node_modules/ol/src/source/VectorEventType", "poc/AgsClusterSource", "poc/fun/explode", "poc/fun/tiny", "poc/TileTreeTersifier"], function (require, exports, mocha_4, chai_5, TileTree_4, proj_3, tilegrid_2, loadingstrategy_2, VectorEventType_1, AgsClusterSource_1, explode_5, tiny_3, TileTreeTersifier_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    mocha_3.describe("TileTree Tests", () => {
-        mocha_3.it("decorate test", () => {
+    mocha_4.describe("TileTree Tests", () => {
+        mocha_4.it("decorate test", () => {
             const extent = [0, 0, 10, 10];
             const tree = new TileTree_4.TileTree({
                 extent,
             });
             let tileId = { X: 10, Y: 10, Z: 10 };
             const data = { foo: "bar" };
-            chai_3.assert.equal(tree.decorate(tileId, data).foo, "bar");
-            chai_3.assert.equal(tree.decorate(tileId).foo, "bar");
+            chai_5.assert.equal(tree.decorate(tileId, data).foo, "bar");
+            chai_5.assert.equal(tree.decorate(tileId).foo, "bar");
         });
     });
-    mocha_3.describe("TileTree Tests", () => {
-        mocha_3.it("creates a tile tree", () => {
+    mocha_4.describe("TileTree Tests", () => {
+        mocha_4.it("creates a tile tree", () => {
             const extent = [0, 0, 10, 10];
             const tree = new TileTree_4.TileTree({ extent });
             const root = tree.findByExtent(extent);
-            chai_3.assert.isTrue(tiny_2.isEq(extent[0], tree.asExtent(root)[0]));
+            chai_5.assert.isTrue(tiny_3.isEq(extent[0], tree.asExtent(root)[0]));
         });
-        mocha_3.it("inserts an extent outside of the bounds of the current tree", () => {
+        mocha_4.it("inserts an extent outside of the bounds of the current tree", () => {
             const extent = [0, 0, 1, 1];
             const tree = new TileTree_4.TileTree({ extent });
-            chai_3.assert.throws(() => {
+            chai_5.assert.throws(() => {
                 tree.findByExtent([1, 1, 2, 2]);
             }, "invalid X");
-            chai_3.assert.throws(() => {
+            chai_5.assert.throws(() => {
                 tree.findByExtent([0.1, 0.1, 0.9, 1.00001]);
             }, "invalid extent");
         });
-        mocha_3.it("inserts an extent that misaligns to the established scale", () => {
+        mocha_4.it("inserts an extent that misaligns to the established scale", () => {
             const extent = [0, 0, 1, 1];
             const tree = new TileTree_4.TileTree({ extent });
-            chai_3.assert.throws(() => {
+            chai_5.assert.throws(() => {
                 tree.findByExtent([0, 0, 0.4, 0.4]);
             }, "invalid extent");
-            chai_3.assert.throws(() => {
+            chai_5.assert.throws(() => {
                 tree.findByExtent([0, 0, 0.5, 0.4]);
             }, "invalid extent");
-            chai_3.assert.throws(() => {
+            chai_5.assert.throws(() => {
                 tree.findByExtent([0.1, 0, 0.6, 0.5]);
             }, "invalid extent");
         });
-        mocha_3.it("uses 3857 to find a tile for a given depth and coordinate", () => {
+        mocha_4.it("uses 3857 to find a tile for a given depth and coordinate", () => {
             const extent = proj_3.get("EPSG:3857").getExtent();
             const tree = new TileTree_4.TileTree({ extent });
             const q0 = tree.findByPoint({ zoom: 3, point: [-1, -1] });
@@ -23854,16 +23901,16 @@ define("poc/test/treetile-test", ["require", "exports", "mocha", "chai", "poc/Ti
             const q3 = tree.findByPoint({ zoom: 3, point: [1, 1] });
             const size = -5009377.085697312;
             const extents = [q0, q1, q2, q3].map((q) => tree.asExtent(q));
-            chai_3.assert.isTrue(tiny_2.isEq(extents[0][0], size), "q0.x");
-            chai_3.assert.equal(extents[1][0], 0, "q1.x");
-            chai_3.assert.equal(extents[2][0], size, "q2.x");
-            chai_3.assert.equal(extents[3][0], 0, "q3.x");
-            chai_3.assert.equal(extents[0][1], size, "q0.y");
-            chai_3.assert.equal(extents[1][1], size, "q1.y");
-            chai_3.assert.equal(extents[2][1], 0, "q2.y");
-            chai_3.assert.equal(extents[3][1], 0, "q3.y");
+            chai_5.assert.isTrue(tiny_3.isEq(extents[0][0], size), "q0.x");
+            chai_5.assert.equal(extents[1][0], 0, "q1.x");
+            chai_5.assert.equal(extents[2][0], size, "q2.x");
+            chai_5.assert.equal(extents[3][0], 0, "q3.x");
+            chai_5.assert.equal(extents[0][1], size, "q0.y");
+            chai_5.assert.equal(extents[1][1], size, "q1.y");
+            chai_5.assert.equal(extents[2][1], 0, "q2.y");
+            chai_5.assert.equal(extents[3][1], 0, "q3.y");
         });
-        mocha_3.it("can cache tiles from a TileGrid", () => {
+        mocha_4.it("can cache tiles from a TileGrid", () => {
             const extent = proj_3.get("EPSG:3857").getExtent();
             const tree = new TileTree_4.TileTree({
                 extent,
@@ -23881,10 +23928,10 @@ define("poc/test/treetile-test", ["require", "exports", "mocha", "chai", "poc/Ti
             for (let i = 0; i <= 8; i++) {
                 console.log(`adding ${i}`);
                 addTiles(i);
-                chai_3.assert.equal(Math.pow(2, i) - 1, maxX(), `addTiles(${i})`);
+                chai_5.assert.equal(Math.pow(2, i) - 1, maxX(), `addTiles(${i})`);
             }
         });
-        mocha_3.it("integrates with a tiling strategy", () => {
+        mocha_4.it("integrates with a tiling strategy", () => {
             const extent = proj_3.get("EPSG:3857").getExtent();
             const extentInfo = explode_5.explode(extent);
             const tree = new TileTree_4.TileTree({ extent });
@@ -23892,9 +23939,9 @@ define("poc/test/treetile-test", ["require", "exports", "mocha", "chai", "poc/Ti
             const strategy = loadingstrategy_2.tile(tileGrid);
             const resolutions = tileGrid.getResolutions();
             const r0 = extentInfo.w / 256;
-            chai_3.assert.equal(resolutions[0], r0, "meters per pixel");
+            chai_5.assert.equal(resolutions[0], r0, "meters per pixel");
             resolutions.forEach((r, i) => {
-                chai_3.assert.equal(r, r0 * Math.pow(2, -i), `resolution[${i}]`);
+                chai_5.assert.equal(r, r0 * Math.pow(2, -i), `resolution[${i}]`);
             });
             {
                 let quad0 = extent;
@@ -23905,7 +23952,7 @@ define("poc/test/treetile-test", ["require", "exports", "mocha", "chai", "poc/Ti
                 });
             }
         });
-        mocha_3.it("integrates with a feature source", () => {
+        mocha_4.it("integrates with a feature source", () => {
             const url = "http://localhost:3002/mock/sampleserver3/arcgis/rest/services/Petroleum/KSFields/FeatureServer/0/query";
             const projection = proj_3.get("EPSG:3857");
             const tileSize = 256;
@@ -23921,68 +23968,68 @@ define("poc/test/treetile-test", ["require", "exports", "mocha", "chai", "poc/Ti
             });
         });
     });
-    mocha_3.describe("Cluster Rendering Rules", () => {
-        mocha_3.it("tests ensureQuads", () => {
+    mocha_4.describe("Cluster Rendering Rules", () => {
+        mocha_4.it("tests ensureQuads", () => {
             const extent = [0, 0, 10, 10];
             const tree = new TileTree_4.TileTree({
                 extent,
             });
             let quad = tree.quads({ X: 1, Y: 1, Z: 1 });
-            chai_3.assert.deepEqual({ X: 2, Y: 2, Z: 2 }, quad[0], "1st quadrant");
-            chai_3.assert.deepEqual({ X: 2, Y: 3, Z: 2 }, quad[1], "2nd quadrant");
-            chai_3.assert.deepEqual({ X: 3, Y: 3, Z: 2 }, quad[2], "3rd quadrant");
-            chai_3.assert.deepEqual({ X: 3, Y: 2, Z: 2 }, quad[3], "4th quadrant");
+            chai_5.assert.deepEqual({ X: 2, Y: 2, Z: 2 }, quad[0], "1st quadrant");
+            chai_5.assert.deepEqual({ X: 2, Y: 3, Z: 2 }, quad[1], "2nd quadrant");
+            chai_5.assert.deepEqual({ X: 3, Y: 3, Z: 2 }, quad[2], "3rd quadrant");
+            chai_5.assert.deepEqual({ X: 3, Y: 2, Z: 2 }, quad[3], "4th quadrant");
         });
     });
-    mocha_3.describe("Preserve TileTree State", () => {
-        mocha_3.it("stringify a tree", () => {
+    mocha_4.describe("Preserve TileTree State", () => {
+        mocha_4.it("stringify a tree", () => {
             const extent = [0, 0, 10, 10];
             const tree = new TileTree_4.TileTree({
                 extent,
             });
-            chai_3.assert.equal('{"extent":[0,0,10,10],"data":[]}', JSON.stringify(tree.save()), "empty");
+            chai_5.assert.equal('{"extent":[0,0,10,10],"data":[]}', JSON.stringify(tree.save()), "empty");
             let X = 0;
             let Y = 0;
             let Z = 0;
             tree.findByXYZ({ X, Y, Z }, { force: true });
-            chai_3.assert.equal('{"extent":[0,0,10,10],"data":[]}', JSON.stringify(tree.save()), "root node only");
+            chai_5.assert.equal('{"extent":[0,0,10,10],"data":[]}', JSON.stringify(tree.save()), "root node only");
             X = 3;
             Y = 20;
             Z = 5;
             tree.findByXYZ({ X, Y, Z }, { force: true }).data.center = [1, 2];
-            chai_3.assert.equal('{"extent":[0,0,10,10],"data":[[3,20,5,{"center":[1,2]}]]}', JSON.stringify(tree.save()), "deep child");
+            chai_5.assert.equal('{"extent":[0,0,10,10],"data":[[3,20,5,{"center":[1,2]}]]}', JSON.stringify(tree.save()), "deep child");
             for (X = 10; X < 20; X += 3) {
                 const data = tree.findByXYZ({ X, Y, Z }, { force: true }).data;
                 data.count = X;
             }
-            chai_3.assert.equal("[[3,20,5,[[1,2],null]],[10,20,5,[null,10]],[13,20,5,[null,13]],[16,20,5,[null,16]],[19,20,5,[null,19]]]", JSON.stringify(tree
+            chai_5.assert.equal("[[3,20,5,[[1,2],null]],[10,20,5,[null,10]],[13,20,5,[null,13]],[16,20,5,[null,16]],[19,20,5,[null,19]]]", JSON.stringify(tree
                 .save()
                 .data.map(([X, Y, Z, data]) => [X, Y, Z, [data.center, data.count]])), "deep child");
         });
-        mocha_3.it("destringify into a tree", () => {
+        mocha_4.it("destringify into a tree", () => {
             const encoder = new TileTreeTersifier_1.TileTreeTersifier();
             const extent = proj_3.get("EPSG:3857").getExtent();
             const terserfied = `{"extent":[-20037508.342789244,-20037508.342789244,20037508.342789244,20037508.342789244],"data":[[6,19,5,267,0,0],[6,20,5,-1,7827152,-4696291],[7,19,5,6658,0,0],[7,20,5,-1,-4696291,-4696291],[14,38,6,6595,-315816,4479220],[14,39,6,6364,0,0],[15,38,6,0,0,0],[15,39,6,306,0,0],[27,78,7,202,0,0],[27,79,7,66,0,0],[27,80,7,0,0,0],[28,78,7,3114,0,0],[28,79,7,1608,0,0],[28,80,7,-1,0,0],[29,78,7,1652,0,0],[29,79,7,51,0,0],[29,80,7,0,0,0],[56,156,8,315,0,0],[56,157,8,812,0,0],[56,158,8,590,0,0],[56,159,8,49,0,0],[57,156,8,576,0,0],[57,157,8,1447,0,0],[57,158,8,982,0,0],[57,159,8,8,0,0],[58,156,8,515,0,0],[58,157,8,472,0,0],[59,156,8,423,0,0],[59,157,8,292,0,0],[114,314,9,185,0,0],[114,315,9,384,0,0],[115,314,9,468,0,0],[115,315,9,442,0,0]]}`;
             const stringified = `{"extent":[${extent}],"data":[[6,19,5,{"count":267,"center":[-11897270.578531114,4383204.949985148]}],[6,20,5,{"count":-1,"center":[-11114555.408890907,5165920.119625352]}],[7,19,5,{"count":6658,"center":[-10644926.307106785,4383204.949985148]}],[7,20,5,{"count":-1,"center":[-11114555.408890907,5165920.119625352]}],[14,38,6,{"count":6595,"center":[-10989593.952922117,4518040.841452657]}],[14,39,6,{"count":6364,"center":[-10958012.374962866,4696291.017841228]}],[15,38,6,{"count":0,"center":[-10331840.239250705,4070118.8821290666]}],[15,39,6,{"count":306,"center":[-10331840.239250705,4696291.017841228]}],[27,78,7,{"count":202,"center":[-11427641.476746991,4539747.983913187]}],[27,79,7,{"count":66,"center":[-11427641.476746991,4852834.051769268]}],[27,80,7,{"count":0,"center":[-11427641.476746991,5165920.119625352]}],[28,78,7,{"count":3114,"center":[-11114555.408890907,4539747.983913187]}],[28,79,7,{"count":1608,"center":[-11114555.408890907,4852834.051769268]}],[28,80,7,{"count":-1,"center":[-11114555.408890907,5165920.119625352]}],[29,78,7,{"count":1652,"center":[-10801469.341034826,4539747.983913187]}],[29,79,7,{"count":51,"center":[-10801469.341034826,4852834.051769268]}],[29,80,7,{"count":0,"center":[-10801469.341034826,5165920.119625352]}],[56,156,8,{"count":315,"center":[-11192826.925854929,4461476.466949167]}],[56,157,8,{"count":812,"center":[-11192826.925854929,4618019.500877207]}],[56,158,8,{"count":590,"center":[-11192826.925854929,4774562.534805248]}],[56,159,8,{"count":49,"center":[-11192826.925854929,4931105.568733292]}],[57,156,8,{"count":576,"center":[-11036283.891926888,4461476.466949167]}],[57,157,8,{"count":1447,"center":[-11036283.891926888,4618019.500877207]}],[57,158,8,{"count":982,"center":[-11036283.891926888,4774562.534805248]}],[57,159,8,{"count":8,"center":[-11036283.891926888,4931105.568733292]}],[58,156,8,{"count":515,"center":[-10879740.857998848,4461476.466949167]}],[58,157,8,{"count":472,"center":[-10879740.857998848,4618019.500877207]}],[59,156,8,{"count":423,"center":[-10723197.824070806,4461476.466949167]}],[59,157,8,{"count":292,"center":[-10723197.824070806,4618019.500877207]}],[114,314,9,{"count":185,"center":[-11075419.650408898,4578883.742395197]}],[114,315,9,{"count":384,"center":[-11075419.650408898,4657155.259359219]}],[115,314,9,{"count":468,"center":[-10997148.13344488,4578883.742395197]}],[115,315,9,{"count":442,"center":[-10997148.13344488,4657155.259359219]}]]}`;
-            chai_3.assert.equal(Math.round(100 - (100 * terserfied.length) / stringified.length), 71);
+            chai_5.assert.equal(Math.round(100 - (100 * terserfied.length) / stringified.length), 71);
             const tree = new TileTree_4.TileTree({
                 extent,
             });
             tree.load(JSON.parse(stringified));
-            chai_3.assert.equal(JSON.stringify(tree.save()), stringified, "save=load");
+            chai_5.assert.equal(JSON.stringify(tree.save()), stringified, "save=load");
             const terser = encoder.stringify(tree.save());
-            chai_3.assert.equal(terser, terserfied, "terserfied");
+            chai_5.assert.equal(terser, terserfied, "terserfied");
             const tree2 = TileTree_4.TileTree.create(encoder.unstringify(terser));
             const expected = tree.save().data;
             const actual = tree2.save().data;
-            chai_3.assert.equal(actual.length, expected.length, "tree from tersified");
+            chai_5.assert.equal(actual.length, expected.length, "tree from tersified");
             actual.forEach((d, i) => {
-                chai_3.assert.equal(d[0], expected[i][0], "X");
-                chai_3.assert.equal(d[1], expected[i][1], "Y");
-                chai_3.assert.equal(d[2], expected[i][2], "Z");
-                chai_3.assert.equal(d[3].count, expected[i][3].count, "count");
-                chai_3.assert.isTrue(tiny_2.isEq(d[3].center[0], expected[i][3].center[0], 0.1), "cx");
-                chai_3.assert.isTrue(tiny_2.isEq(d[3].center[1], expected[i][3].center[1], 0.1), "cy");
+                chai_5.assert.equal(d[0], expected[i][0], "X");
+                chai_5.assert.equal(d[1], expected[i][1], "Y");
+                chai_5.assert.equal(d[2], expected[i][2], "Z");
+                chai_5.assert.equal(d[3].count, expected[i][3].count, "count");
+                chai_5.assert.isTrue(tiny_3.isEq(d[3].center[0], expected[i][3].center[0], 0.1), "cx");
+                chai_5.assert.isTrue(tiny_3.isEq(d[3].center[1], expected[i][3].center[1], 0.1), "cy");
             });
         });
     });
@@ -23997,7 +24044,7 @@ define("poc/fun/flatten", ["require", "exports"], function (require, exports) {
     }
     exports.flatten = flatten;
 });
-define("poc/test/tiletreeext-test", ["require", "exports", "mocha", "chai", "poc/TileTree", "poc/TileTreeExt", "poc/fun/tiny", "poc/fun/flatten", "node_modules/ol/src/geom/Point", "node_modules/ol/src/Feature"], function (require, exports, mocha_4, chai_4, TileTree_5, TileTreeExt_4, tiny_3, flatten_1, Point_3, Feature_3) {
+define("poc/test/tiletreeext-test", ["require", "exports", "mocha", "chai", "poc/TileTree", "poc/TileTreeExt", "poc/fun/tiny", "poc/fun/flatten", "node_modules/ol/src/geom/Point", "node_modules/ol/src/Feature", "poc/test/fun/isSamePoint"], function (require, exports, mocha_5, chai_6, TileTree_5, TileTreeExt_4, tiny_4, flatten_1, Point_3, Feature_3, isSamePoint_2) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     function createTree() {
@@ -24014,19 +24061,15 @@ define("poc/test/tiletreeext-test", ["require", "exports", "mocha", "chai", "poc
     }
     function de(a, b, expectation) {
         console.log(a);
-        chai_4.assert.deepEqual(a, b, expectation);
-    }
-    function isSamePoint(a, b, message) {
-        console.log(a);
-        a.forEach((v, i) => chai_4.assert.isTrue(tiny_3.isEq(v, b[i]), `${i}:${message}`));
+        chai_6.assert.deepEqual(a, b, expectation);
     }
     function isSameCenterOfMass(a, b, message) {
-        chai_4.assert.equal(a.mass, b.mass, `mass: ${message}`);
-        chai_4.assert.equal(a.featureMass, b.featureMass, `featureMass: ${message}`);
-        isSamePoint(a.center, b.center, `mass: ${message}`);
+        chai_6.assert.equal(a.mass, b.mass, `mass: ${message}`);
+        chai_6.assert.equal(a.featureMass, b.featureMass, `featureMass: ${message}`);
+        isSamePoint_2.isSamePoint(a.center, b.center, `mass: ${message}`);
     }
-    mocha_4.describe("TileTreeExt Tests", () => {
-        mocha_4.it("findByExtent and findZByExtent test", () => {
+    mocha_5.describe("TileTreeExt Tests", () => {
+        mocha_5.it("findByExtent and findZByExtent test", () => {
             const tree = TileTree_5.TileTree.create({
                 extent: [0, 0, 16, 16],
                 data: [[0, 0, 0, { count: 0, center: [0, 0] }]],
@@ -24041,9 +24084,9 @@ define("poc/test/tiletreeext-test", ["require", "exports", "mocha", "chai", "poc
                 de(ext.findZByExtent(extent), 6, "can still get accurate Z");
             }
             de(ext.findByExtent([10.1, 10.1, 10.11, 10.11]), { X: 323, Y: 323, Z: 9 }, "trusting this is correct.");
-            chai_4.assert.throws(() => ext.findByExtent([0, 0, 16.01, 16]), "out of bounds");
+            chai_6.assert.throws(() => ext.findByExtent([0, 0, 16.01, 16]), "out of bounds");
         });
-        mocha_4.it("findByExtent and setMass test", () => {
+        mocha_5.it("findByExtent and setMass test", () => {
             const extent = [0, 0, 1, 1];
             const tree = new TileTree_5.TileTree({ extent });
             const helper = new TileTreeExt_4.TileTreeExt(tree);
@@ -24058,10 +24101,10 @@ define("poc/test/tiletreeext-test", ["require", "exports", "mocha", "chai", "poc
             helper.setMass(q3, 8);
             helper.setMass(q33, 16);
             const totalCount = tree.visit((a, b) => a + (helper.getMass(b) || 0), 0);
-            chai_4.assert.equal(totalCount, 31);
-            chai_4.assert.throws(() => helper.setMass(q0, 0), "mass cannot be destroyed");
+            chai_6.assert.equal(totalCount, 31);
+            chai_6.assert.throws(() => helper.setMass(q0, 0), "mass cannot be destroyed");
         });
-        mocha_4.it("findByExtent and setMass test", () => {
+        mocha_5.it("findByExtent and setMass test", () => {
             const extent = [0, 0, 1, 1];
             const tree = new TileTree_5.TileTree({ extent });
             const helper = new TileTreeExt_4.TileTreeExt(tree);
@@ -24076,35 +24119,35 @@ define("poc/test/tiletreeext-test", ["require", "exports", "mocha", "chai", "poc
             helper.setMass(q3, 8);
             helper.setMass(q33, 16);
             const totalCount = tree.visit((a, b) => a + (helper.getMass(b) || 0), 0);
-            chai_4.assert.equal(totalCount, 31);
-            chai_4.assert.throws(() => helper.setMass(q0, 0), "mass cannot be destroyed");
+            chai_6.assert.equal(totalCount, 31);
+            chai_6.assert.throws(() => helper.setMass(q0, 0), "mass cannot be destroyed");
             const { center, mass, featureMass } = helper.centerOfMass({
                 X: 0,
                 Y: 0,
                 Z: 0,
             });
-            chai_4.assert.equal(mass, 15, "the mass of the root is the sum of the mass of its children");
-            chai_4.assert.equal(featureMass, 0, "no visible features therefore no visible mass");
-            isSamePoint(center, [0.325, 0.35833333333333334], "center test");
+            chai_6.assert.equal(mass, 15, "the mass of the root is the sum of the mass of its children");
+            chai_6.assert.equal(featureMass, 0, "no visible features therefore no visible mass");
+            isSamePoint_2.isSamePoint(center, [0.325, 0.35833333333333334], "center test");
         });
-        mocha_4.it("computes density", () => {
+        mocha_5.it("computes density", () => {
             const extent = [0, 0, 10, 10];
             const tree = new TileTree_5.TileTree({
                 extent,
             });
             const helper = new TileTreeExt_4.TileTreeExt(tree);
             const rootIdentifier = { X: 0, Y: 0, Z: 0 };
-            chai_4.assert.equal(0, helper.density(rootIdentifier), "root density is 0");
+            chai_6.assert.equal(0, helper.density(rootIdentifier), "root density is 0");
             const children = tree.quads(rootIdentifier);
             children.forEach((c, i) => helper.setMass(c, 1 + i));
-            chai_4.assert.equal(10, helper.centerOfMass(rootIdentifier).mass, "total count");
-            chai_4.assert.equal(10, helper.density(rootIdentifier), "density at Z=0");
-            chai_4.assert.equal(4, helper.density(children[0]), "child 0");
-            chai_4.assert.equal(8, helper.density(children[1]), "child 1");
-            chai_4.assert.equal(12, helper.density(children[2]), "child 2");
-            chai_4.assert.equal(16, helper.density(children[3]), "child 3");
+            chai_6.assert.equal(10, helper.centerOfMass(rootIdentifier).mass, "total count");
+            chai_6.assert.equal(10, helper.density(rootIdentifier), "density at Z=0");
+            chai_6.assert.equal(4, helper.density(children[0]), "child 0");
+            chai_6.assert.equal(8, helper.density(children[1]), "child 1");
+            chai_6.assert.equal(12, helper.density(children[2]), "child 2");
+            chai_6.assert.equal(16, helper.density(children[3]), "child 3");
         });
-        mocha_4.it("computes center of mass of parent with undeclared mass", () => {
+        mocha_5.it("computes center of mass of parent with undeclared mass", () => {
             const extent = [0, 0, 16, 16];
             const tree = new TileTree_5.TileTree({
                 extent,
@@ -24114,27 +24157,27 @@ define("poc/test/tiletreeext-test", ["require", "exports", "mocha", "chai", "poc
             const t000 = tree.findByXYZ(root);
             const [q0, q1, q2, q3] = tree.quads(root);
             let com = helper.centerOfMass(root);
-            chai_4.assert.deepEqual(com.mass, 0, "assumed to be massless");
-            chai_4.assert.deepEqual(com.center, [8, 8], "no mass => no center but center of tile seems reasonable");
+            chai_6.assert.deepEqual(com.mass, 0, "assumed to be massless");
+            chai_6.assert.deepEqual(com.center, [8, 8], "no mass => no center but center of tile seems reasonable");
             helper.setMass(q0, 4);
             com = helper.centerOfMass(root);
-            chai_4.assert.deepEqual(com.mass, 4, "mass of q0");
-            chai_4.assert.deepEqual(com.center, [4, 4], "center of mass of q0");
+            chai_6.assert.deepEqual(com.mass, 4, "mass of q0");
+            chai_6.assert.deepEqual(com.center, [4, 4], "center of mass of q0");
             helper.setMass(q1, 2);
             com = helper.centerOfMass(root);
-            chai_4.assert.deepEqual(com.mass, 6, "mass of q0 + q1");
-            chai_4.assert.deepEqual(com.center, [4, 8 - 4 / 3], "center of mass of q0+q1");
+            chai_6.assert.deepEqual(com.mass, 6, "mass of q0 + q1");
+            chai_6.assert.deepEqual(com.center, [4, 8 - 4 / 3], "center of mass of q0+q1");
             helper.setMass(q2, 1);
             com = helper.centerOfMass(root);
-            chai_4.assert.deepEqual(com.mass, 7, "mass of q0 + q1 + q2");
-            chai_4.assert.isTrue(tiny_3.isEq(com.center[0], 8 - 20 / 7), "cx center of mass of q0 + q1 + q2");
-            chai_4.assert.isTrue(tiny_3.isEq(com.center[1], 8 - 4 / 7), "cy center of mass of q0 + q1 + q2");
+            chai_6.assert.deepEqual(com.mass, 7, "mass of q0 + q1 + q2");
+            chai_6.assert.isTrue(tiny_4.isEq(com.center[0], 8 - 20 / 7), "cx center of mass of q0 + q1 + q2");
+            chai_6.assert.isTrue(tiny_4.isEq(com.center[1], 8 - 4 / 7), "cy center of mass of q0 + q1 + q2");
             helper.setMass(q3, 8);
             com = helper.centerOfMass(root);
-            chai_4.assert.deepEqual(com.mass, 15, "mass of q0 + q1 + q2 + q3");
-            chai_4.assert.deepEqual(com.center, [8 + 12 / 15, 8 - 36 / 15], "center of mass of q0 + q1 + q2 + q3");
+            chai_6.assert.deepEqual(com.mass, 15, "mass of q0 + q1 + q2 + q3");
+            chai_6.assert.deepEqual(com.center, [8 + 12 / 15, 8 - 36 / 15], "center of mass of q0 + q1 + q2 + q3");
         });
-        mocha_4.it("calculate center of mass of tile with assigned mass of 10", () => {
+        mocha_5.it("calculate center of mass of tile with assigned mass of 10", () => {
             const extent = [0, 0, 10, 10];
             const tree = TileTree_5.TileTree.create({
                 extent,
@@ -24142,9 +24185,9 @@ define("poc/test/tiletreeext-test", ["require", "exports", "mocha", "chai", "poc
             });
             const ext = new TileTreeExt_4.TileTreeExt(tree);
             const tileIdentifier = { X: 0, Y: 0, Z: 0 };
-            chai_4.assert.equal(ext.density(tileIdentifier), 0);
+            chai_6.assert.equal(ext.density(tileIdentifier), 0);
             ext.setMass(tileIdentifier, 10);
-            chai_4.assert.equal(ext.density(tileIdentifier), 10);
+            chai_6.assert.equal(ext.density(tileIdentifier), 10);
             isSameCenterOfMass(ext.centerOfMass(tileIdentifier), {
                 mass: 10,
                 center: [5, 5],
@@ -24152,19 +24195,19 @@ define("poc/test/tiletreeext-test", ["require", "exports", "mocha", "chai", "poc
             }, "root tile com");
             ext.setCenter(tileIdentifier, [1, 1]);
             const com = ext.centerOfMass(tileIdentifier);
-            chai_4.assert.equal(com.mass, 10, "mass");
-            chai_4.assert.equal(com.featureMass, 0, "featureMass");
-            isSamePoint(com.center, [5, 5], "center");
+            chai_6.assert.equal(com.mass, 10, "mass");
+            chai_6.assert.equal(com.featureMass, 0, "featureMass");
+            isSamePoint_2.isSamePoint(com.center, [5, 5], "center");
         });
-        mocha_4.it("calculate center of mass of tile of mass 100 with features", () => {
+        mocha_5.it("calculate center of mass of tile of mass 100 with features", () => {
             const tree = createTree();
             const ext = new TileTreeExt_4.TileTreeExt(tree, { minZoom: 0, maxZoom: 19 });
             const tileIdentifier = { X: 0, Y: 0, Z: 1 };
             {
                 ext.setMass(tileIdentifier, 100);
                 let { center, mass } = ext.centerOfMass(tileIdentifier);
-                chai_4.assert.equal(mass, 100, "mass of tile");
-                isSamePoint(center, [0.25, 0.25], "center of tile");
+                chai_6.assert.equal(mass, 100, "mass of tile");
+                isSamePoint_2.isSamePoint(center, [0.25, 0.25], "center of tile");
             }
             const features = [];
             {
@@ -24172,11 +24215,11 @@ define("poc/test/tiletreeext-test", ["require", "exports", "mocha", "chai", "poc
                 const feature = new Feature_3.default(new Point_3.default([1 / x, 1 / y]));
                 features.push(feature);
                 const targetIdentifier = ext.addFeature(feature);
-                chai_4.assert.deepEqual(targetIdentifier, { X: 174762, Y: 174762, Z: 19 });
+                chai_6.assert.deepEqual(targetIdentifier, { X: 174762, Y: 174762, Z: 19 });
                 ext.setVisible(feature, false);
                 const { mass, center } = ext.centerOfMass(tileIdentifier);
-                chai_4.assert.equal(mass, 100, "tile mass is unaffected by dark matter in child tiles");
-                isSamePoint(center, [1 / 3, 1 / 3], "new center of tile");
+                chai_6.assert.equal(mass, 100, "tile mass is unaffected by dark matter in child tiles");
+                isSamePoint_2.isSamePoint(center, [1 / 3, 1 / 3], "new center of tile");
             }
             const children = tree.children(tileIdentifier);
             const grandChildren = flatten_1.flatten(children.map((id) => tree.children(id)));
@@ -24185,65 +24228,65 @@ define("poc/test/tiletreeext-test", ["require", "exports", "mocha", "chai", "poc
             features.forEach((f) => ext.setVisible(f, true));
             {
                 const { mass, center, featureMass } = ext.centerOfMass(tileIdentifier);
-                chai_4.assert.equal(mass, 99, "mass reduced");
-                chai_4.assert.equal(featureMass, -1, "because of one visible feature");
-                isSamePoint(center, [1 / 4, 1 / 4], "center shifted");
+                chai_6.assert.equal(mass, 99, "mass reduced");
+                chai_6.assert.equal(featureMass, -1, "because of one visible feature");
+                isSamePoint_2.isSamePoint(center, [1 / 4, 1 / 4], "center shifted");
             }
             {
                 const feature = new Feature_3.default(new Point_3.default([0.9, 0]));
                 ext.addFeature(feature, tileIdentifier);
                 ext.setVisible(feature, false);
                 const { center, mass, featureMass } = ext.centerOfMass(tileIdentifier);
-                chai_4.assert.equal(mass, 99, "mass unaffected by hidden features");
-                chai_4.assert.equal(featureMass, -1, "feature mass also uneffected");
-                isSamePoint(center, [0.9, 0], "hidden features affect center");
+                chai_6.assert.equal(mass, 99, "mass unaffected by hidden features");
+                chai_6.assert.equal(featureMass, -1, "feature mass also uneffected");
+                isSamePoint_2.isSamePoint(center, [0.9, 0], "hidden features affect center");
             }
             {
                 const newChildId = { X: 0, Y: 0, Z: 7 };
-                chai_4.assert.isNull(tree.findByXYZ(newChildId), "child does not exist");
+                chai_6.assert.isNull(tree.findByXYZ(newChildId), "child does not exist");
                 ext.setMass(newChildId, 1);
-                chai_4.assert.isNotNull(tree.findByXYZ(newChildId), "child exists");
+                chai_6.assert.isNotNull(tree.findByXYZ(newChildId), "child exists");
                 const { center, mass, featureMass } = ext.centerOfMass(tileIdentifier);
-                chai_4.assert.equal(mass, 99, "mass unaffected by children without features");
-                chai_4.assert.equal(featureMass, -1, "feature mass unaffected by children without features");
-                isSamePoint(center, [0.451953125, 0.001953125], "center shifts when adding a child with mass");
+                chai_6.assert.equal(mass, 99, "mass unaffected by children without features");
+                chai_6.assert.equal(featureMass, -1, "feature mass unaffected by children without features");
+                isSamePoint_2.isSamePoint(center, [0.451953125, 0.001953125], "center shifts when adding a child with mass");
             }
         });
-        mocha_4.it("progressive center of mass calculations", () => {
+        mocha_5.it("progressive center of mass calculations", () => {
             const helper = new TileTreeExt_4.TileTreeExt(createTree());
             const rootId = { X: 0, Y: 0, Z: 0 };
             const p1 = createPoint([0.5 + 1 / 2048, 0.5 + 1 / 2048]);
             const targetId = helper.addFeature(p1);
-            chai_4.assert.deepEqual(targetId, { X: 512, Y: 512, Z: 10 });
+            chai_6.assert.deepEqual(targetId, { X: 512, Y: 512, Z: 10 });
             helper.setVisible(p1, false);
             {
                 const { center, mass, featureMass } = helper.centerOfMass(targetId);
                 const com = helper.centerOfMass(targetId);
-                chai_4.assert.deepEqual(com, { center, mass, featureMass }, "centerOfMass is repeatable");
-                chai_4.assert.equal(mass, 1, "tile mass represents one hidden feature");
-                chai_4.assert.equal(featureMass, 0, "tile has 0 visible features");
-                isSamePoint(center, [0.5 + 1 / 2048, 0.5 + 1 / 2048], "p1 is hidden but just right of center");
+                chai_6.assert.deepEqual(com, { center, mass, featureMass }, "centerOfMass is repeatable");
+                chai_6.assert.equal(mass, 1, "tile mass represents one hidden feature");
+                chai_6.assert.equal(featureMass, 0, "tile has 0 visible features");
+                isSamePoint_2.isSamePoint(center, [0.5 + 1 / 2048, 0.5 + 1 / 2048], "p1 is hidden but just right of center");
             }
             {
                 const { center, mass, featureMass } = helper.centerOfMass(rootId);
-                chai_4.assert.equal(mass, 1, "one child tile has mass since one feature is hidden");
-                chai_4.assert.equal(featureMass, 0, "no visible features");
-                isSamePoint(center, [0.5 + 1 / 2048, 0.5 + 1 / 2048], "should have same center of mass as the only child tile");
+                chai_6.assert.equal(mass, 1, "one child tile has mass since one feature is hidden");
+                chai_6.assert.equal(featureMass, 0, "no visible features");
+                isSamePoint_2.isSamePoint(center, [0.5 + 1 / 2048, 0.5 + 1 / 2048], "should have same center of mass as the only child tile");
             }
             helper.setVisible(p1, true);
             {
                 const { center, mass, featureMass } = helper.centerOfMass(targetId);
                 const com = helper.centerOfMass(targetId);
-                chai_4.assert.deepEqual(com, { center, mass, featureMass }, "centerOfMass is repeatable");
-                chai_4.assert.equal(mass, 0, "tile has no effective mass, all features are visible");
-                chai_4.assert.equal(featureMass, -1, "tile has 1 visible feature");
-                isSamePoint(center, [1 / 2 + 1 / 2048, 1 / 2 + 1 / 2048], "no mass so default to tile center");
+                chai_6.assert.deepEqual(com, { center, mass, featureMass }, "centerOfMass is repeatable");
+                chai_6.assert.equal(mass, 0, "tile has no effective mass, all features are visible");
+                chai_6.assert.equal(featureMass, -1, "tile has 1 visible feature");
+                isSamePoint_2.isSamePoint(center, [1 / 2 + 1 / 2048, 1 / 2 + 1 / 2048], "no mass so default to tile center");
             }
             {
                 const { center, mass, featureMass } = helper.centerOfMass(rootId);
-                chai_4.assert.equal(mass, 0, "no child tile has mass since all features are visible");
-                chai_4.assert.equal(featureMass, -1, "one visible feature in child tile");
-                isSamePoint(center, [1 / 2, 1 / 2], "no mass so default to center of tile");
+                chai_6.assert.equal(mass, 0, "no child tile has mass since all features are visible");
+                chai_6.assert.equal(featureMass, -1, "one visible feature in child tile");
+                isSamePoint_2.isSamePoint(center, [1 / 2, 1 / 2], "no mass so default to center of tile");
             }
         });
     });
@@ -24669,11 +24712,11 @@ define("poc/test/data/treetilestate", ["require", "exports"], function (require,
         ],
     };
 });
-define("poc/test/map-test", ["require", "exports", "mocha", "node_modules/ol/src/extent", "node_modules/ol/src/Map", "node_modules/ol/src/View", "poc/AgsClusterLayer", "poc/fun/debounce", "poc/TileTreeTersifier", "poc/test/data/treetilestate"], function (require, exports, mocha_5, extent_6, Map_2, View_2, AgsClusterLayer_1, debounce_1, TileTreeTersifier_2, treetilestate_1) {
+define("poc/test/map-test", ["require", "exports", "mocha", "node_modules/ol/src/extent", "node_modules/ol/src/Map", "node_modules/ol/src/View", "poc/AgsClusterLayer", "poc/fun/debounce", "poc/TileTreeTersifier", "poc/test/data/treetilestate"], function (require, exports, mocha_6, extent_6, Map_2, View_2, AgsClusterLayer_1, debounce_1, TileTreeTersifier_2, treetilestate_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    mocha_5.describe("UI Labs", () => {
-        mocha_5.it("renders on a map", () => {
+    mocha_6.describe("UI Labs", () => {
+        mocha_6.it("renders on a map", () => {
             const view = new View_2.default({
                 center: extent_6.getCenter([-11114555, 4696291, -10958012, 4852834]),
                 minZoom: 3,
@@ -24719,7 +24762,7 @@ define("poc/test/map-test", ["require", "exports", "mocha", "node_modules/ol/src
             view.on("change:rotation", closer);
             closer();
         });
-        mocha_5.it("sets map state into local storage", () => {
+        mocha_6.it("sets map state into local storage", () => {
             const view = new View_2.default({
                 center: extent_6.getCenter([-11114555, 4696291, -10958012, 4852834]),
                 minZoom: 3,
@@ -24746,7 +24789,7 @@ define("poc/test/map-test", ["require", "exports", "mocha", "node_modules/ol/src
         });
     });
 });
-define("poc/test/index", ["require", "exports", "poc/test/ags-feature-loader-test", "poc/test/xyz-test", "poc/test/treetile-test", "poc/test/tiletreeext-test", "poc/test/map-test"], function (require, exports) {
+define("poc/test/index", ["require", "exports", "poc/test/moment-test", "poc/test/ags-feature-loader-test", "poc/test/xyz-test", "poc/test/treetile-test", "poc/test/tiletreeext-test", "poc/test/map-test"], function (require, exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
 });

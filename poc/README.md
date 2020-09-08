@@ -81,11 +81,11 @@ Render features where -3 <= current level - Z <= 3 to ensure a single feature is
 ## Computing Cluster Position
 
 To render clusters nearest to location they represent, several values must be known:
-1. `c`: the center of the tile
-1. `m`: the total mass of the tile
-1. `vm`: the mass of the visible features within the tile
-1. `dm`: the mass of the non-visible features within the tile
-1. `pm`: the phantom mass of the tile
+* `@c`: the center of the tile
+* `m`: the total mass of the tile
+* `vm`: the mass of the visible features within the tile
+* `dm`: the mass of the non-visible features within the tile
+* `pm`: the phantom mass of the tile
 
 The center of a tile is easily computed.
 The total mass is either assigned via a count-query response or undefined.
@@ -93,29 +93,31 @@ The mass of a feature is 1.
 The phantom mass is unaccounted for mass computed as `m - vm - dm`. 
 
 It is not enough to know the mass but also the location of that mass:
-@m: the center of m
-@vm: the center of vm
-@dm: the center of dm
-@pm: the center of pm
+* `@m`: the moment of m, m@c
+* `@vm`: the moment of vm
+* `@dm`: the moment of dm
+* `@pm`: the moment of pm
 
-A cluster only represents dark mass because visual mass represents itself.
+A cluster only represents `dark mass` because visual mass represents itself.
 
-The center of mass of a cluster is the `center-of-mass(@dm+@pm)`, which is the `center-of-mass(@m-@vm)`.  The later can only be computed when `m` is defined and the former reduces to `center-of-mass(@dm)` when `m` is undefined.
+The moment of a cluster is the `@dm+@pm`, which is `@m-@vm`.  The later can only be computed when `m` is defined and the former reduces to `@dm` when `m` is undefined.
 
-### Rule 3
-The @vm of a tile is equal to the sum of the @vm of its children plus the @vm of any visible features bound by only that tile.
+### Computing Visible Moment
+The `@vm` of a tile is equal to the `∑@vm` of its sub-tiles plus the `@vm` of any visible features bound by that tile and no sub-tiles.
 
-The @dm of a tile is equal to the sum of the @dm of its children plus the @dm of any hidden features bound by only that tile.
+### Computing Dark Moment
+The `@dm` of a tile is equal to the `∑@dm` of its sub-tiles plus the `@dm` of any hidden features bound by that tile and no sub-tiles.
 
-The @pm of a tile is equal to the @m of a tile minus all @dm and @vm and represents mass of features that are bound by only that tile but still unknown to that tile.
+### Computing Phantom Moment
+The `@pm` of a tile is equal to  `@m-@dm-@vm` and represents location and mass of unknown features bound by a tile and no sub-tiles. We know they exist from the count query but we will not know where, exactly, until we query for the features.  A feature is associated with the smallest tile that fully contains that feature.  This was the one way I could consistently assign the mass of a feature to a tile to ensure its mass is only counted once per zoom level.
 
-### Threshold
-The Threshold should be externally configurable via `ClusterDensityThreshold` but should default to a value that ensures a reasonably styled cluster marker will remain within the tile it represents.  Assuming a square tile, `T` if size `w²` pixels at zoom level `Z`, it will have an area of `w²4<sup>(z-Z)</sup>`, where `z` represent the current zoom level.  As the user zooms out from `Z` the tile `T` gets smaller because z-Z gets smaller.  The smaller `T` gets the more dense it becomes.  At some point it should disappear, yielding to its parent to render instead.  This threshold value should default to about 2πr², which is `2π(A+B√count)²`.  
+### Configuration
+`clusterZOffset` is the zoom offset for cluster markers.  If this value plus the cluster Z value equals the current zoom level then the cluster is visible.
+The `clusterZoomOffset` is also used to determine how far to query ahead for tile counts.
 
-If the `w²4<sup>(z-Z)</sup>` exceeds `2π(A+B√count)²` then the tile is too dense to render.
+`featureMinZOffset` and `featureMaxZOffset` set the bounds of the visibility of a feature such that a feature is visible if `featureMinZOffset <= currentZoomLevel - Z <= featureMaxOffset`.
 
-## Areas of Concern
-My solution for computing `cluster density` seems like it would be simpler if each cluster marker had a physical geometry (e.g. circle or polygon) associated with it.  In that case zooming in/out would have a visual effect on the markers.  When they get too large we render the children instead.  I feel that is a better option and may lend itself to using a built-in client-side clustering strategy.  Keep in mind current `count` results can count the same feature multiple times so it is still benificial to maintain the parent count data, complicating a built-in solution.
+And because `Z` is associate with the feature we can style bases on this offset as well.
 
 ## Notes of Interest
 

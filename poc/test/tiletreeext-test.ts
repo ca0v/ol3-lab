@@ -10,6 +10,7 @@ import type { XY } from "../types/XY";
 import Geometry from "@ol/geom/Geometry";
 import Point from "@ol/geom/Point";
 import Feature from "@ol/Feature";
+import { isSamePoint } from "./fun/isSamePoint";
 
 function createTree() {
   const extent = [0, 0, 1, 1] as Extent;
@@ -28,11 +29,6 @@ function createPoint(point: XY) {
 function de<T>(a: T, b: T, expectation: string) {
   console.log(a);
   assert.deepEqual(a, b, expectation);
-}
-
-function isSamePoint<T extends number[]>(a: T, b: T, message: string) {
-  console.log(a);
-  a.forEach((v, i) => assert.isTrue(isEq(v, b[i]), `${i}:${message}`));
 }
 
 function isSameCenterOfMass<

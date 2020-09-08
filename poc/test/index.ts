@@ -1,3 +1,4 @@
+import "./moment-test";
 import "./ags-feature-loader-test";
 import "./xyz-test";
 import "./treetile-test";
