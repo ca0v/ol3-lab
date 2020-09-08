@@ -3,6 +3,8 @@ PRELIMINARY RESULTS
 * Missing animation 
 * Missing proper styling
 * Center-of-mass calculations are wrong
+
+
 ![Rough Draft](./assets/draft.gif)
 
 ## Problem
