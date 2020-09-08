@@ -26,7 +26,7 @@ export class AgsClusterSource<
   private tileSize: number;
   private featureLoader: AgsFeatureLoader<T>;
   private loadingStrategy: LoadingStrategy;
-  private tree: TileTree<T>;
+  private tree: TileTreeExt;
   private isFirstDraw: boolean;
   private priorResolution: number;
   private maxRecordCount: number;
@@ -50,7 +50,7 @@ export class AgsClusterSource<
     options.treeTileState && tree.load(options.treeTileState);
 
     super({ strategy });
-    this.tree = tree;
+    this.tree = new TileTreeExt(tree, { minZoom: 5, maxZoom: 16 });
     this.tileSize = tileSize;
     this.loadingStrategy = strategy;
     this.isFirstDraw = true;
@@ -60,7 +60,7 @@ export class AgsClusterSource<
     this.maxRecordCount = maxRecordCount;
 
     this.featureLoader = new AgsFeatureLoader({
-      tree,
+      tree: this.tree,
       url,
       minRecordCount,
       maxRecordCount,
@@ -76,7 +76,7 @@ export class AgsClusterSource<
     const extentsToLoad = this.loadingStrategy(
       extent,
       resolution
-    ).map((extent) => tree.asXyz(extent));
+    ).map((extent) => tree.tree.asXyz(extent));
 
     if (!extentsToLoad.length) {
       return;
@@ -101,9 +101,9 @@ export class AgsClusterSource<
         tileIdentifier,
         projection,
         (nodeId) => {
-          const node = tree.findByXYZ(nodeId);
-          const tooVagueTest = node.data.count > this.maxRecordCount;
-          const tooSmallTest = node.data.count < this.minRecordCount;
+          const mass = tree.getMass(nodeId) || 0;
+          const tooVagueTest = mass > this.maxRecordCount;
+          const tooSmallTest = mass < this.minRecordCount;
           const tooDeepTest = nodeId.Z >= Z + LOOKAHEAD_THRESHOLD;
           const allowLoad = tooVagueTest || (!tooDeepTest && !tooSmallTest);
           return !allowLoad;
@@ -123,10 +123,10 @@ export class AgsClusterSource<
   ): Promise<XYZ[]> {
     if (stop(tileIdentifier)) return [] as XYZ[];
 
-    const allChildren = this.tree.quads(tileIdentifier);
+    const allChildren = this.tree.tree.quads(tileIdentifier);
 
     const unloadedChildren = allChildren.filter(
-      (c) => typeof this.tree.findByXYZ(c)?.data.count !== "number"
+      (c) => typeof this.tree.getMass(c) !== "number"
     );
 
     await this.loadAllChildren(this.tree, tileIdentifier, projection);
@@ -137,10 +137,10 @@ export class AgsClusterSource<
     return unloadedChildren.concat(...grandChildren);
   }
 
-  private renderTree(tree: TileTree<T>, Z: number, projection: Projection) {
+  private renderTree(tree: TileTreeExt, Z: number, projection: Projection) {
     const leafNodes = [] as Array<XYZ>;
-    tree.visit((a, tileIdentifier) => {
-      if (0 === tree.children(tileIdentifier).length) {
+    tree.tree.visit((a, tileIdentifier) => {
+      if (0 === tree.tree.children(tileIdentifier).length) {
         leafNodes.push(tileIdentifier);
       }
     }, {} as any);
@@ -148,11 +148,11 @@ export class AgsClusterSource<
     this.getFeatures().forEach((f) => f.setProperties({ visible: false }));
 
     const [keep, remove] = split(leafNodes, (tileIdentifier) => {
-      const node = tree.findByXYZ(tileIdentifier);
+      const node = tree.tree.findByXYZ(tileIdentifier);
       if (!node.data) return false;
-      const mass = node.data.count;
+      const mass = tree.getMass(tileIdentifier) || 0;
       if (0 >= mass) return false;
-      if (!node.data.center) return false;
+      if (!tree.getCenter(tileIdentifier)) return false;
       return true;
     });
 
@@ -161,7 +161,7 @@ export class AgsClusterSource<
     this.reduce(keep, Z).forEach((id) => this.render(tree, id, Z));
     remove.forEach((id) => this.unrender(tree, id));
     keep
-      .filter((tileIdentifier) => !!tree.decorate<any>(tileIdentifier).features)
+      .filter((tileIdentifier) => !!tree.getFeatures(tileIdentifier))
       .forEach((id) => this.render(tree, id, Z));
 
     // turn on all "feature" features for testing
@@ -174,38 +174,30 @@ export class AgsClusterSource<
     const { tree } = this;
 
     keep.forEach((nodeId) => {
-      tree.decorate(nodeId, { yieldToParent: false });
+      tree.tree.decorate(nodeId, { yieldToParent: false });
     });
 
     keep.forEach((nodeId) => {
       if (nodeId.Z > Z + LOOKAHEAD_THRESHOLD) {
-        if (!tree.decorate<{ yieldToParent: boolean }>(nodeId).yieldToParent) {
-          const parentIdentifier = tree.parent(nodeId);
-          tree
+        if (
+          !tree.tree.decorate<{ yieldToParent: boolean }>(nodeId).yieldToParent
+        ) {
+          const parentIdentifier = tree.tree.parent(nodeId);
+          tree.tree
             .children(parentIdentifier)
-            .forEach((id) => tree.decorate(id, { yieldToParent: true }));
+            .forEach((id) => tree.tree.decorate(id, { yieldToParent: true }));
         }
       }
     });
 
     let [leaf, parent] = split(keep, (nodeId) => {
-      const { yieldToParent } = tree.decorate<{ yieldToParent: boolean }>(
+      const { yieldToParent } = tree.tree.decorate<{ yieldToParent: boolean }>(
         nodeId
       );
       return !yieldToParent;
     });
 
-    parent = parent.filter(onlyUnique).map((id) => tree.parent(id));
-
-    parent.forEach((parentIdentifier) => {
-      const parentNode = tree.findByXYZ(parentIdentifier, {
-        force: true,
-      });
-      const helper = new TileTreeExt(tree);
-      const com = helper.centerOfMass(parentIdentifier);
-      parentNode.data.count = parentNode.data.count || com.mass;
-      parentNode.data.center = com.center;
-    });
+    parent = parent.filter(onlyUnique).map((id) => tree.tree.parent(id));
 
     if (parent.length) {
       parent = this.reduce(parent, Z);
@@ -214,17 +206,18 @@ export class AgsClusterSource<
   }
 
   private async loadAllChildren(
-    tree: TileTree<T>,
+    tree: TileTreeExt,
     tileIdentifier: XYZ,
     projection: Projection
   ) {
     return Promise.all(
-      tree.quads(tileIdentifier).map((id) => this.loadTile(id, projection))
+      tree.tree.quads(tileIdentifier).map((id) => this.loadTile(id, projection))
     );
   }
 
   public async loadTile(tileIdentifier: XYZ, projection: Projection) {
-    return this.featureLoader.loader(tileIdentifier, projection);
+    const count = await this.featureLoader.loader(tileIdentifier, projection);
+    this.tree.setMass(tileIdentifier, count);
   }
 
   private tileDensity(currentZoomLevel: number, tileIdentifier: XYZ) {
@@ -232,28 +225,25 @@ export class AgsClusterSource<
     return Math.pow(4, currentZoomLevel - Z);
   }
 
-  private unrender(tree: TileTree<T>, tileIdentifier: XYZ) {
-    const { feature } = tree.decorate<{ feature: Feature<Geometry> }>(
+  private unrender(tree: TileTreeExt, tileIdentifier: XYZ) {
+    const { feature } = tree.tree.decorate<{ feature: Feature<Geometry> }>(
       tileIdentifier
     );
     if (!feature) return;
     feature.setProperties({ visible: false });
   }
 
-  private render(tree: TileTree<T>, tileIdentifier: XYZ, Z: number) {
-    const node = tree.findByXYZ(tileIdentifier);
-    let { feature } = tree.decorate<{ feature: Feature<Geometry> }>(
+  private render(tree: TileTreeExt, tileIdentifier: XYZ, Z: number) {
+    let { feature } = tree.tree.decorate<{ feature: Feature<Geometry> }>(
       tileIdentifier
     );
     if (feature) {
       feature.setProperties({ visible: true });
       return;
     }
-    if (0 === node.data.count) return;
+    if (!tree.getMass(tileIdentifier)) return;
 
-    const { features } = tree.decorate<{ features: Feature<Geometry>[] }>(
-      tileIdentifier
-    );
+    const features = tree.getFeatures(tileIdentifier);
 
     if (features) {
       features.forEach((f) =>
@@ -263,22 +253,23 @@ export class AgsClusterSource<
       return;
     }
 
-    const point = new Point(node.data.center);
+    const point = new Point(tree.getCenter(tileIdentifier));
     feature = new Feature();
-    const mass = node.data.count;
+    const mass = tree.getMass(tileIdentifier);
 
     feature.setGeometry(point);
     feature.setProperties({
       visible: true,
       tileIdentifier,
-      text: tree.decorate<{ text: string }>(tileIdentifier).text || `${mass}`,
+      text:
+        tree.tree.decorate<{ text: string }>(tileIdentifier).text || `${mass}`,
       type:
-        tree.decorate<{ type: "err" | "cluster" }>(tileIdentifier).type ||
+        tree.tree.decorate<{ type: "err" | "cluster" }>(tileIdentifier).type ||
         "cluster",
       mass,
       density: this.tileDensity(Z, tileIdentifier),
     });
     this.addFeature(feature);
-    tree.decorate(tileIdentifier, { feature });
+    tree.tree.decorate(tileIdentifier, { feature });
   }
 }

@@ -9,28 +9,38 @@ body,
   margin: 0;
   padding: 0;
 }
+.dark .testmapcontainer {
+  background-color: rgba(56, 55, 55, 128);
+  border: 1px solid rgba(56, 55, 55, 255);
+}
+
 .testmapcontainer {
-  background-color: rgb(56, 55, 55);
   position: relative;
   width: 15em;
   height: 15em;
   margin: 0;
   padding: 0;
-  border: 1px solid rgb(56, 55, 55);
   display: inline-block;
 }
-#mocha-stats canvas {
+
+.dark #mocha-stats em {
+  color: white;
+}
+
+.dark #mocha-stats canvas {
   background-color: silver;
   border-radius: 2em;
 }
-#mocha {
+
+.dark #mocha {
   color: white;
 }
-body {
+
+body.dark {
   background-color: black;
 }
 
-body a {
+body.dark a {
   color: white;
 }
 

@@ -1,12 +1,12 @@
 import { Extent } from "@ol/extent";
 import { Projection } from "@ol/proj";
 import { TileTree } from "./TileTree";
+import { TileTreeExt } from "./TileTreeExt";
 import { FeatureServiceProxy } from "./FeatureServiceProxy";
 import { removeAuthority } from "./fun/removeAuthority";
 import { FeatureServiceRequest } from "./FeatureServiceRequest";
 import EsriJSON from "@ol/format/EsriJSON";
 import type { XYZ } from "poc/types/XYZ";
-import type { TileNode } from "./types/TileNode";
 import type { XY } from "./types/XY";
 
 function asRequest(projection: Projection) {
@@ -29,56 +29,43 @@ function bbox(extent: Extent) {
   return JSON.stringify({ xmin, ymin, xmax, ymax });
 }
 
-export class AgsFeatureLoader<T extends { count: number; center: XY }> {
+export class AgsFeatureLoader<T extends {}> {
+  private helper: TileTreeExt;
   public constructor(
     private options: {
-      tree: TileTree<T>;
+      tree: TileTreeExt;
       url: string;
       maxRecordCount: number;
       minRecordCount: number;
     }
-  ) {}
+  ) {
+    this.helper = options.tree;
+  }
 
-  // vector source is preventing loader calls because it assumes all features were fetched...
-  // so where can I pull down more data at higher zoom levels?
-  public async loader(
-    tileIdentifier: XYZ,
-    projection: Projection
-  ): Promise<TileNode<T>> {
+  public async loader(tileIdentifier: XYZ, projection: Projection) {
     const { tree, maxRecordCount, minRecordCount, url } = this.options;
-
-    const tileNode = tree.findByXYZ(tileIdentifier, { force: true });
-    const tileData = tileNode.data;
 
     const proxy = new FeatureServiceProxy({
       service: url,
     });
 
-    if (typeof tileData.count === "number") {
-      return tileNode;
-    }
-    tileData.center = tree.asCenter(tileIdentifier);
-
     const request = asRequest(projection);
-    request.geometry = bbox(tree.asExtent(tileIdentifier));
+    request.geometry = bbox(tree.tree.asExtent(tileIdentifier));
     request.returnCountOnly = true;
-    try {
-      const response = await proxy.fetch<{ count: number }>(request);
-      const count = response.count;
-      tileData.count = count;
-      if (0 < count && count < minRecordCount) {
-        // load the actual features
-        const features = await this.loadFeatures(request, proxy, projection);
-        // features are not in the source, just on this tile
-        tree.decorate(tileIdentifier, {
-          features,
-        });
-      }
-    } catch (ex) {
-      console.error("network error", ex, tileIdentifier);
-      tree.decorate(tileIdentifier, { text: ex, type: "err" });
+    const response = await proxy.fetch<{ count: number }>(request);
+    const count = response.count;
+    this.helper.setMass(tileIdentifier, count);
+    if (maxRecordCount < count) {
+      await Promise.all(
+        tree.tree.quads(tileIdentifier).map((id) => this.loader(id, projection))
+      );
     }
-    return tileNode;
+    if (0 < count && count < minRecordCount) {
+      // load the actual features into the bounding tiles
+      const features = await this.loadFeatures(request, proxy, projection);
+      features.forEach((f) => this.helper.addFeature(f));
+    }
+    return count;
   }
 
   private async loadFeatures(

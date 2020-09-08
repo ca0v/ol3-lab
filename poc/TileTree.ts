@@ -123,7 +123,7 @@ export class TileTree<T> {
     );
   }
 
-  public descendants(input: XYZ) {
+  public descendants(input = this.root) {
     const result = [] as XYZ[];
     const Zs = Object.keys(this.tileCache)
       .map((n) => parseInt(n))

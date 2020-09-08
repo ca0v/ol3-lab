@@ -14,7 +14,7 @@ import { XYZ } from "poc/types/XYZ";
 import Point from "@ol/geom/Point";
 import Circle from "@ol/style/Circle";
 import Text from "@ol/style/Text";
-
+import { FullScreen, defaults as defaultControls } from "@ol/control";
 const MIN_ZOOM_OFFSET = -3;
 const MAX_ZOOM_OFFSET = 4;
 
@@ -35,33 +35,23 @@ function getTileFeature(
   return tileFeatures.get(key);
 }
 
-export function showOnMap(options: { features: Feature<Geometry>[] }) {
-  const { features } = options;
-  if (!features.length) throw "cannot get extent";
-  const feature1 = features[0];
-  const extent = feature1.getGeometry()!.getExtent();
-  features.forEach((f) => extend(extent, f.getGeometry()!.getExtent()));
+export function showOnMap(options: { tree: TileTree<{}> }) {
+  const { tree } = options;
 
-  const projection = getProjection("EPSG:3857");
-  const tree = new TileTree<any>({ extent: projection.getExtent() });
-  const rootTileIdentifier = new TileTreeExt(tree, {
-    minZoom: 0,
-    maxZoom: 31,
-  }).findByExtent(extent);
+  const hack = new TileTreeExt(tree);
+  const tiles = tree.descendants().filter((id) => null !== hack.getMass(id));
 
-  const helper = new TileTreeExt(tree, {
-    minZoom: rootTileIdentifier.Z - 3,
-    maxZoom: rootTileIdentifier.Z + 6,
-  });
+  const minZoom = Math.max(0, tiles[0].Z + MIN_ZOOM_OFFSET);
+  const maxZoom = tiles[tiles.length - 1].Z + MAX_ZOOM_OFFSET;
+  const helper = new TileTreeExt(tree, { minZoom, maxZoom });
+  const extent = tree.asExtent(tiles[0]);
 
   const view = new View({
     center: getCenter(extent),
-    zoom: rootTileIdentifier.Z,
+    zoom: Math.round((helper.minZoom + helper.maxZoom) / 2),
     minZoom: helper.minZoom,
     maxZoom: helper.maxZoom,
   });
-
-  features.forEach((f) => helper.addFeature(f));
 
   const targetContainer = document.createElement("div");
   targetContainer.className = "testmapcontainer";
@@ -73,7 +63,16 @@ export function showOnMap(options: { features: Feature<Geometry>[] }) {
   const layer = new VectorLayer();
   const source = new VectorSource<Geometry>();
   layer.setSource(source);
-  source.addFeatures(features);
+
+  const totalFeaturesAdded = tree.visit((a, b) => {
+    const features = helper.getFeatures(b);
+    if (!features) return a;
+    source.addFeatures(features);
+    console.log(features.map((f) => f.getProperties().Z).join("."));
+    return features.length + a;
+  }, 0);
+
+  console.log({ totalFeaturesAdded });
 
   const styleCache = {} as any;
   const tileFeatures = new Map<string, Feature<Geometry>>();
@@ -87,7 +86,7 @@ export function showOnMap(options: { features: Feature<Geometry>[] }) {
     zoffset: number;
     mass: number;
   }) => {
-    const massLevel = Math.floor(Math.pow(2, Math.ceil(Math.log10(mass))));
+    const massLevel = Math.floor(Math.pow(2, Math.floor(Math.log2(mass))));
     const styleKey = `${type}.${zoffset}.${massLevel}`;
     // zoffset increases as feature gets larger
     let style = styleCache[styleKey] as Style;
@@ -96,17 +95,23 @@ export function showOnMap(options: { features: Feature<Geometry>[] }) {
         case "cluster": {
           style = new Style({
             image: new Circle({
-              radius: 5 + massLevel,
-              fill: new Fill({ color: `rgba(0,0,0,${0.5 / massLevel})` }),
+              radius: 0.5 * (64 * Math.pow(2, -zoffset)),
+              fill: new Fill({
+                color: `rgba(255,255,255,${0.05})`,
+              }),
               stroke: new Stroke({
-                color: `rgba(255,255,255,${0.5 / massLevel})`,
-                width: massLevel,
+                color: `rgba(0,0,0,${0.05})`,
+                width: 0.5 * (64 * Math.pow(2, -zoffset)),
               }),
             }),
             text: new Text({
               text: (mass ? mass : "") + "",
               scale: 0.5,
-              fill: new Fill({ color: "white" }),
+              fill: new Fill({ color: `rgba(255,255,255,${0.8})` }),
+              stroke: new Stroke({
+                color: `rgba(0,0,0,${0.8})`,
+                width: 1,
+              }),
             }),
           });
           break;
@@ -146,13 +151,25 @@ export function showOnMap(options: { features: Feature<Geometry>[] }) {
     if (false === visible) return null;
     const currentZoom = Math.round(view.getZoomForResolution(resolution) || 0);
     const zoffset = featureZoom - currentZoom;
-    const style = styleMaker({ type: type || "feature", zoffset, mass });
+    const style = styleMaker({ type, zoffset, mass });
     return style;
   }));
 
   let touched = true;
-  view.on("change:resolution", () => (touched = true));
-  layer.on("postrender", () => {
+  view.on("change:resolution", () => {
+    touched = true;
+  });
+  layer.on("postrender", () => postRender());
+
+  const map = new OlMap({
+    view,
+    target,
+    layers: [layer],
+    controls: defaultControls().extend([new FullScreen()]),
+  });
+  return map;
+
+  function postRender(): any {
     if (!touched) return;
     touched = false;
     const currentZoom = view.getZoom() || 0;
@@ -161,6 +178,10 @@ export function showOnMap(options: { features: Feature<Geometry>[] }) {
     tileFeatures.forEach((value) =>
       value.setProperties({ visible: false }, true)
     );
+
+    const features = source
+      .getFeatures()
+      .filter((f) => "feature" === f.getProperties().type);
 
     // hide all features outside of current zoom
     features.forEach((f) => {
@@ -204,8 +225,5 @@ export function showOnMap(options: { features: Feature<Geometry>[] }) {
       const visible = !!mass;
       feature.setProperties({ visible, mass }, true);
     });
-  });
-
-  const map = new OlMap({ view, target, layers: [layer] });
-  return map;
+  }
 }
