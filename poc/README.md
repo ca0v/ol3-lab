@@ -1,3 +1,10 @@
+
+PRELIMINARY RESULTS
+* Missing animation 
+* Missing proper styling
+* Center-of-mass calculations are wrong
+![Rough Draft](./assets/draft.gif)
+
 ## Problem
 Rendering a large number of feature is impractical.  A a system is needed for determining when to fetch "count" and when to fetch the actual features.  A clustering strategy for determining when to render an approximation of the features and when to render the actual features is needed.
 
@@ -55,30 +62,52 @@ Here I will outline a "density" strategy that give "mass" and "volume" to "tiles
 |density threshold|a scalar value that, once exceeded, indicates clustering is required|
 
 ## Computing Cluster Threshold
-There needs to be a criteria for deciding if a feature should render.  We need some threshold value that, when crossed, renders the features as a cluster marker.
+There needs to be a criteria for deciding if a feature should render.  We need some threshold value that, when crossed, renders the features as a cluster marker. One value that is easy to compute is the Z value of a feature or tile.  For a tile the Z value is just that -- the Z in the XYZ location.  For a feature the Z value must be computed.  This is done using the features bounding box.
 
-Assume clustered results are rendered within a circle of radius proportional to the square root of the count that marker represents.  This allows the area of the circle to represent the count.  In other words if `count ∝ 2πr²` then `r ∝ √count`.
+The cluster marker representing a tile is stamped with the Z value of the tile they represent.
 
-We need the marker to be visible for small count, so assume the radius is computed by `r = A + B√count` where `A` and `B` are configuration options `ClusterMinSize` and `ClusterScale`. The fixed size ensures for small counts we will still get a reasonably sized cluster marker.
+Now it is easy to decide if a feature should be rendered by comparing its Z value to the current zoom level.  If beyond threshold do not render it.
 
-Likely defaults are `A=5` and `B = ⅜TileSize/√1000`, or simply `B=3` when `TileSize=256`.  This will ensure all markers are large enough to render a single digit inside of them (10 pixel radius, minimum) and also will grow in area to approximate the count.  Styles will dictate optimum values so they will be externally configurable.
+Cluster markers will have a tight range as there is no advantage to displaying a parent tile along side its child tiles.
 
-    radius(node) => A + B * Math.sqrt(node.data.count)
-
-Now if the radius is small enough we can probably render the children instead to give the user more markers with more counts in more precise locations.  Keep in mind that the radius of a child will appear in a tile ¼ the area and ½ the width of the parent and therefore the radius of the child must be less than or equal to ½ the max allowed radius of the parent.  That is to say, the child threshold must be ¼ the parent theshold since the child area is ¼ the parent area.  This will always be true in the aggregate that the child radius will ½ the parent because the average count of a child is ¼ the parent count, but it is the extremes that we care about.  
+Feature markers will have more leaway as it makes a lot of sense for the same feature to be visible over multiple zoom levels.
 
 ### Rule 1
-If *any* child exceeds the threshold then use all the children of the parent to compute the parents center-of-mass and render the parent as a cluster marker.  
+Render tiles where -2 <= current level - Z <= -2 to ensure an adaquately large marker can represent the cluster area.  I use 2 assuming a square tile size of 256 as this leaves 64 x 64 pixels for the marker.
 
 ### Rule 2
-If no child exceeds this threshold then repeat the process for the grand-children of the parent, repeating recursively until all leaf nodes have at least one sibling that exceeds threshold, or itself exceeds the threshold.  At that point, rule 1 comes back into play.
+Render features where -3 <= current level - Z <= 3 to ensure a single feature is visible across 7 zoom levels.  This assumes a 2D feature will fill at most 1024 x 1024 pixels but no more than 32 x 32 pixels.
+
+## Computing Cluster Position
+
+To render clusters nearest to location they represent, several values must be known:
+1. `c`: the center of the tile
+1. `m`: the total mass of the tile
+1. `vm`: the mass of the visible features within the tile
+1. `dm`: the mass of the non-visible features within the tile
+1. `pm`: the phantom mass of the tile
+
+The center of a tile is easily computed.
+The total mass is either assigned via a count-query response or undefined.
+The mass of a feature is 1.
+The phantom mass is unaccounted for mass computed as `m - vm - dm`. 
+
+It is not enough to know the mass but also the location of that mass:
+@m: the center of m
+@vm: the center of vm
+@dm: the center of dm
+@pm: the center of pm
+
+A cluster only represents dark mass because visual mass represents itself.
+
+The center of mass of a cluster is the `center-of-mass(@dm+@pm)`, which is the `center-of-mass(@m-@vm)`.  The later can only be computed when `m` is defined and the former reduces to `center-of-mass(@dm)` when `m` is undefined.
 
 ### Rule 3
-Now it may be that we reach a child tile that has such a small count as to justify querying for the features within that tile.  This introduces a new configuration option...how many features should we render in a single tile?  Call this `MaxFeaturesPerTile`.
-Once this happens it is not a given that the features will render.  We now need to compute the density of each feature.  As before with tiles, any features that are too dense will result in the parent tile rendering as a cluster, so either all the features will render or none of them will.  
+The @vm of a tile is equal to the sum of the @vm of its children plus the @vm of any visible features bound by only that tile.
 
-### Rule 4
-Alternatively we can do a client-side spatial query to cluster neighboring features to allow reaching across grid boundaries.  I think that without this last step things will snap to grid lines, but I will leave this as a future rule.
+The @dm of a tile is equal to the sum of the @dm of its children plus the @dm of any hidden features bound by only that tile.
+
+The @pm of a tile is equal to the @m of a tile minus all @dm and @vm and represents mass of features that are bound by only that tile but still unknown to that tile.
 
 ### Threshold
 The Threshold should be externally configurable via `ClusterDensityThreshold` but should default to a value that ensures a reasonably styled cluster marker will remain within the tile it represents.  Assuming a square tile, `T` if size `w²` pixels at zoom level `Z`, it will have an area of `w²4<sup>(z-Z)</sup>`, where `z` represent the current zoom level.  As the user zooms out from `Z` the tile `T` gets smaller because z-Z gets smaller.  The smaller `T` gets the more dense it becomes.  At some point it should disappear, yielding to its parent to render instead.  This threshold value should default to about 2πr², which is `2π(A+B√count)²`.  
@@ -103,13 +132,6 @@ There are `stringify` and `unstringify` methods on the TileTree that may be used
 There is a security risk in exposing aggregate feature counts, but defaulting to cache seems reasonable.  Use `DisableClusterCaching` to turn this feature off. 
 
 There is risk of stale data but since the data grows more accurate as the user exercises the map (only leaf tiles need "count" data so zooming beyond current leaves will auto-refresh the data) it should be self-correcting without explicitly expiring the cache. The trick here is to only cache the leaf nodes and work backwards to rebuild the tree.  To that end, custom encoder/decoders should be used for processing the tree serializer, some for readability, some for terseness.  By default, use `TerseClusterEncoding`.
-
-
-PRELIMINARY RESULTS
-* Missing animation 
-* Missing proper styling
-* Center-of-mass calculations are wrong
-![Rough Draft](./assets/draft.gif)
 
 LINKS
 * [this document](https://github.com/ca0v/ol3-lab/blob/v6.4.3/poc/README.md)
