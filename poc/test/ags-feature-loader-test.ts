@@ -7,6 +7,7 @@ import { get as getProjection } from "@ol/proj";
 import type { XY } from "poc/types/XY";
 import { showOnMap } from "./fun/showOnMap";
 import { TileTreeExt } from "poc/TileTreeExt";
+import { TileTreeTersifier } from "poc/TileTreeTersifier";
 
 describe("AgsFeatureLoader tests", () => {
   it("loads features", async () => {
@@ -62,25 +63,24 @@ describe("AgsFeatureLoader tests", () => {
 
   it("renders a fully loaded tree with clusters via showOnMap", async () => {
     const url =
-      "http://localhost:3002/mock/sampleserver3/arcgis/rest/services/Petroleum/KSFields/FeatureServer/0/query";
-    const minRecordCount = 100;
-    const maxRecordCount = 100;
+      "http://localhost:3002/mock/sampleserver3/arcgis/rest/services/Hydrography/Watershed173811/FeatureServer/1/query";
     const projection = getProjection("EPSG:3857");
-    const tree = new TileTree<{ count: number; center: XY }>({
+    const tree = new TileTree<{}>({
       extent: projection.getExtent(),
     });
-    const ext = new TileTreeExt(tree, { minZoom: 6, maxZoom: 20 });
+    const ext = new TileTreeExt(tree, { minZoom: 6, maxZoom: 18 });
 
     const loader = new AgsFeatureLoader({
       url,
-      minRecordCount,
-      maxRecordCount,
+      minRecordCount: 1000,
+      maxRecordCount: 1000,
       tree: ext,
     });
 
     const tileIdentifier = tree.parent({ X: 29 * 2, Y: 78 * 2, Z: 8 });
     const featureCount = await loader.loader(tileIdentifier, projection);
-    assert.equal(1617, featureCount, "features");
-    showOnMap({ tree });
-  }).timeout(60 * 1000);
+
+    assert.equal(5354, featureCount, "features");
+    showOnMap({ helper: ext });
+  });
 });

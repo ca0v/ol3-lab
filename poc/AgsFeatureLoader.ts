@@ -29,7 +29,7 @@ function bbox(extent: Extent) {
   return JSON.stringify({ xmin, ymin, xmax, ymax });
 }
 
-export class AgsFeatureLoader<T extends {}> {
+export class AgsFeatureLoader {
   private helper: TileTreeExt;
   public constructor(
     private options: {

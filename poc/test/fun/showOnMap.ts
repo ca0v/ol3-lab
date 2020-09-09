@@ -35,20 +35,15 @@ function getTileFeature(
   return tileFeatures.get(key);
 }
 
-export function showOnMap(options: { tree: TileTree<{}> }) {
-  const { tree } = options;
-
-  const hack = new TileTreeExt(tree);
-  const tiles = tree.descendants().filter((id) => null !== hack.getMass(id));
-
-  const minZoom = Math.max(0, tiles[0].Z + MIN_ZOOM_OFFSET);
-  const maxZoom = tiles[tiles.length - 1].Z + MAX_ZOOM_OFFSET;
-  const helper = new TileTreeExt(tree, { minZoom, maxZoom });
-  const extent = tree.asExtent(tiles[0]);
+export function showOnMap(options: { helper: TileTreeExt }) {
+  const { helper } = options;
+  const tiles = helper.tree
+    .descendants()
+    .filter((id) => null !== helper.getMass(id));
 
   const view = new View({
-    center: getCenter(extent),
-    zoom: Math.round((helper.minZoom + helper.maxZoom) / 2),
+    center: getCenter(helper.tree.asExtent(tiles[0])),
+    zoom: helper.minZoom + 1,
     minZoom: helper.minZoom,
     maxZoom: helper.maxZoom,
   });
@@ -64,7 +59,7 @@ export function showOnMap(options: { tree: TileTree<{}> }) {
   const source = new VectorSource<Geometry>();
   layer.setSource(source);
 
-  const totalFeaturesAdded = tree.visit((a, b) => {
+  const totalFeaturesAdded = helper.tree.visit((a, b) => {
     const features = helper.getFeatures(b);
     if (!features) return a;
     source.addFeatures(features);
@@ -204,7 +199,7 @@ export function showOnMap(options: { tree: TileTree<{}> }) {
       let targetIdentifier = tileIdentifier;
       if (targetIdentifier.Z < currentZoom + MAX_ZOOM_OFFSET - 2) return;
       while (targetIdentifier.Z > currentZoom + MAX_ZOOM_OFFSET - 2) {
-        targetIdentifier = tree.parent(targetIdentifier);
+        targetIdentifier = helper.tree.parent(targetIdentifier);
       }
 
       const mass = helper.centerOfMass(targetIdentifier).mass;
@@ -218,7 +213,7 @@ export function showOnMap(options: { tree: TileTree<{}> }) {
         });
         setTileFeature(tileFeatures, targetIdentifier, feature);
         source.addFeature(feature);
-        const center = tree.asCenter(targetIdentifier);
+        const center = helper.tree.asCenter(targetIdentifier);
         feature.setGeometry(new Point(center));
       }
 

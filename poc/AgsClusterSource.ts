@@ -24,7 +24,7 @@ export class AgsClusterSource<
   T extends { count: number; center: XY }
 > extends VectorSource<Geometry> {
   private tileSize: number;
-  private featureLoader: AgsFeatureLoader<T>;
+  private featureLoader: AgsFeatureLoader;
   private loadingStrategy: LoadingStrategy;
   private tree: TileTreeExt;
   private isFirstDraw: boolean;
