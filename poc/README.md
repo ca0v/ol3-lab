@@ -1,5 +1,5 @@
 
-PRELIMINARY RESULTS
+## PRELIMINARY RESULTS
 * Missing animation 
 * Missing proper styling
 * Center-of-mass calculations are wrong
@@ -7,8 +7,11 @@ PRELIMINARY RESULTS
 
 ![Rough Draft](./assets/draft.gif)
 
+## TODO
+* Illustrate how mass that crosses a tile boundary is detected and handled and why it requires the unfortunate overhead of running FID queries.
+
 ## Problem
-Rendering a large number of feature is impractical.  A a system is needed for determining when to fetch "count" and when to fetch the actual features.  A clustering strategy for determining when to render an approximation of the features and when to render the actual features is needed.
+Rendering a large number of features is impractical in terms of the overhead in acquiring that much data, storing it on the client and rendering it on a canvas. Vector Tiles overcome all of these issues and are a prefered solution, but are not always an option.  A system is needed for determining when to fetch "count" and when to fetch the actual features along with a clustering strategy for determining when to render an approximation of the features and when to render the actual features.
 
 ## Cient Side Solutions
 Existing client-side clustering strategies rely on having the underlying geometry and testing for proximity, basically buffering around a feature, testing for any unclustered neighbors and putting them all in the same cluster.  This strategy only works when all the features are loaded in the current viewport.
@@ -78,11 +81,11 @@ Feature markers will have more leaway as it makes a lot of sense for the same fe
 Render tiles where -2 <= current level - Z <= -2 to ensure an adaquately large marker can represent the cluster area.  I use 2 assuming a square tile size of 256 as this leaves 64 x 64 pixels for the marker.
 
 ### Rule 2
-Render features where -3 <= current level - Z <= 3 to ensure a single feature is visible across 7 zoom levels.  This assumes a 2D feature will fill at most 1024 x 1024 pixels but no more than 32 x 32 pixels.
+Render features where -3 <= current level - Z <= 4 to ensure a single feature is visible across 8 zoom levels.  This assumes a 2D feature will fill at most 1024 x 1024 pixels but no less than 32 x 32 pixels.
 
 ## Computing Cluster Position
 
-To render clusters nearest to location they represent, several values must be known:
+To render clusters nearest to the location they represent, several values must be known:
 * `@c`: the center of the tile
 * `m`: the total mass of the tile
 * `vm`: the mass of the visible features within the tile
@@ -105,21 +108,21 @@ A cluster only represents `dark mass` because visual mass represents itself.
 The moment of a cluster is the `@dm+@pm`, which is `@m-@vm`.  The later can only be computed when `m` is defined and the former reduces to `@dm` when `m` is undefined.
 
 ### Computing Visible Moment
-The `@vm` of a tile is equal to the `∑@vm` of its sub-tiles plus the `@vm` of any visible features bound by that tile and no sub-tiles.
+The `@vm` of a tile is equal to the `∑@vm` of its sub-tiles plus the moment of any visible features bound by exactly that tile.
 
 ### Computing Dark Moment
-The `@dm` of a tile is equal to the `∑@dm` of its sub-tiles plus the `@dm` of any hidden features bound by that tile and no sub-tiles.
+The `@dm` of a tile is equal to the `∑@dm` of its sub-tiles plus the moment of any hidden features bound by that tile and no sub-tiles.
 
 ### Computing Phantom Moment
-The `@pm` of a tile is equal to  `@m-@dm-@vm` and represents location and mass of unknown features bound by a tile and no sub-tiles. We know they exist from the count query but we will not know where, exactly, until we query for the features.  A feature is associated with the smallest tile that fully contains that feature.  This was the one way I could consistently assign the mass of a feature to a tile to ensure its mass is only counted once per zoom level.
+The `@pm` of a tile is equal to  `@m-@dm-@vm` and represents location and mass of unknown features bound by a tile and no sub-tiles. We know they exist from the count query but we will not know where, exactly, until we query for the features.  A feature is associated with the smallest tile that fully contains that feature.  This will consistently assign a feature to exactly one tile to ensure it is not over-represented.
 
 ### Configuration
 `clusterZOffset` is the zoom offset for cluster markers.  If this value plus the cluster Z value equals the current zoom level then the cluster is visible.
-The `clusterZoomOffset` is also used to determine how far to query ahead for tile counts.
+The `clusterZOffset` is also used to determine how far to query ahead for tile counts.
 
 `featureMinZOffset` and `featureMaxZOffset` set the bounds of the visibility of a feature such that a feature is visible if `featureMinZOffset <= currentZoomLevel - Z <= featureMaxOffset`.
 
-And because `Z` is associate with the feature we can style bases on this offset as well.
+Since `Z` is associated with the feature we can style bases on this offset as well.  Styling rules must also be configurable although it is conceivable they can be derived from the layer symbology.
 
 ## Notes of Interest
 
