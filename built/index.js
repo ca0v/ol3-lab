@@ -4768,8 +4768,9 @@ define("poc/TileTree", ["require", "exports", "node_modules/ol/src/extent", "nod
         asExtent(tileName = { X: 0, Y: 0, Z: 0 }) {
             return asExtent_1.asExtent(this.extent, tileName);
         }
-        parent({ X, Y, Z }) {
-            return { X: Math.floor(X / 2), Y: Math.floor(Y / 2), Z: Z - 1 };
+        parent({ X, Y, Z }, depth = 1) {
+            const scale = Math.pow(2, -depth);
+            return { X: Math.floor(X * scale), Y: Math.floor(Y * scale), Z: Z - depth };
         }
         findByXYZ(point, options) {
             const { X, Y, Z } = point;
@@ -4828,9 +4829,9 @@ define("poc/TileTree", ["require", "exports", "node_modules/ol/src/extent", "nod
             Zs.forEach((Z) => {
                 const pow = Math.pow(2, Z - input.Z);
                 const xmin = input.X * pow;
-                const xmax = (input.X + 1) * pow;
+                const xmax = (input.X + 1) * pow - 1;
                 const ymin = input.Y * pow;
-                const ymax = (input.Y + 1) * pow;
+                const ymax = (input.Y + 1) * pow - 1;
                 const Xs = Object.keys(this.tileCache[Z])
                     .map((n) => parseInt(n))
                     .filter((x) => xmin <= x && x <= xmax);
@@ -14560,20 +14561,12 @@ define("poc/test/ags-feature-loader-test", ["require", "exports", "mocha", "chai
                 { X: 472, Y: 1256, Z: 11, count: 1 },
                 { X: 472, Y: 1257, Z: 11, count: 2 },
                 { X: 473, Y: 1256, Z: 11, count: 1 },
-                { X: 474, Y: 1256, Z: 11, count: 3 },
                 { X: 944, Y: 2513, Z: 12, count: 1 },
                 { X: 944, Y: 2515, Z: 12, count: 2 },
-                { X: 944, Y: 2516, Z: 12, count: 1 },
                 { X: 945, Y: 2515, Z: 12, count: 1 },
                 { X: 946, Y: 2512, Z: 12, count: 1 },
-                { X: 946, Y: 2516, Z: 12, count: 1 },
                 { X: 947, Y: 2512, Z: 12, count: 1 },
-                { X: 948, Y: 2512, Z: 12, count: 1 },
-                { X: 948, Y: 2513, Z: 12, count: 1 },
-                { X: 948, Y: 2514, Z: 12, count: 1 },
-                { X: 1888, Y: 5032, Z: 13, count: 1 },
                 { X: 1889, Y: 5025, Z: 13, count: 1 },
-                { X: 1889, Y: 5032, Z: 13, count: 2 },
                 { X: 1890, Y: 5029, Z: 13, count: 1 },
                 { X: 1890, Y: 5030, Z: 13, count: 1 },
                 { X: 1894, Y: 5025, Z: 13, count: 1 },
@@ -14587,32 +14580,22 @@ define("poc/test/ags-feature-loader-test", ["require", "exports", "mocha", "chai
                 { X: 3790, Y: 10048, Z: 14, count: 1 },
                 { X: 3790, Y: 10049, Z: 14, count: 1 },
             ]);
-            chai_3.assert.equal(tilesWithFeatures.reduce((a, b) => a + b.count, 0), 35);
+            chai_3.assert.equal(tilesWithFeatures.reduce((a, b) => a + b.count, 0), 24, "tile contains 26 features but all but 2 are in sub-tile");
             const fids = flatten_1.flatten(tilesWithFeatures.map((id) => ext.getFeatures(id).map((f) => f.getProperties().objectid)));
-            chai_3.assert.equal(fids.length, 35, "this is an invalid assertion...should be 24");
+            chai_3.assert.equal(fids.length, 24, "These are the feature ids associated with the sub-tiles");
+            console.log(fids);
             chai_3.assert.deepEqual(fids, [
                 1840,
                 2122,
                 2556,
                 4974,
-                2018,
-                2679,
-                1446,
                 4671,
                 5127,
                 3571,
-                6233,
                 1907,
                 229,
-                5055,
                 2844,
-                2984,
-                4204,
-                2043,
-                3058,
                 1715,
-                3138,
-                898,
                 6820,
                 2545,
                 3231,
@@ -14627,80 +14610,6 @@ define("poc/test/ags-feature-loader-test", ["require", "exports", "mocha", "chai
                 6609,
                 6556,
             ]);
-            {
-                const tree = new TileTree_1.TileTree({
-                    extent: projection.getExtent(),
-                });
-                const innerExt = new TileTreeExt_1.TileTreeExt(tree, { minZoom: 6, maxZoom: 20 });
-                const loader = new AgsFeatureLoader_1.AgsFeatureLoader({
-                    url,
-                    maxDepth: 10,
-                    minRecordCount: 128,
-                    tree: innerExt,
-                });
-                yield loader.loader(tile10, projection);
-                const features = flatten_1.flatten(tree
-                    .descendants(tile10)
-                    .map((id) => innerExt.getFeatures(id))
-                    .filter((v) => !!v));
-                const fids = features.map((f) => f.getProperties().objectid);
-                chai_3.assert.equal(fids.length, 24, "there are 24 features within tile10");
-                chai_3.assert.deepEqual(fids, [
-                    1840,
-                    2122,
-                    2556,
-                    4974,
-                    4671,
-                    5127,
-                    3571,
-                    1907,
-                    229,
-                    2844,
-                    1715,
-                    6820,
-                    2545,
-                    3231,
-                    4869,
-                    5895,
-                    4117,
-                    2602,
-                    2601,
-                    1913,
-                    3489,
-                    3574,
-                    6609,
-                    6556,
-                ]);
-                const tooManyFids = flatten_1.flatten(tilesWithFeatures.map((id) => ext.getFeatures(id).map((f) => f.getProperties().objectid)));
-                const extras = tooManyFids.filter((id) => 0 > fids.indexOf(id));
-                chai_3.assert.deepEqual(extras, [
-                    2018,
-                    2679,
-                    1446,
-                    6233,
-                    5055,
-                    2984,
-                    4204,
-                    2043,
-                    3058,
-                    3138,
-                    898,
-                ]);
-                const tileWith2018 = tilesWithFeatures.filter((id) => ext.getFeatures(id).some((f) => f.getProperties().objectid === 2018))[0];
-                console.log(tileWith2018, ext.getFeatures(tileWith2018));
-                chai_3.assert.deepEqual(tileWith2018, { X: 474, Y: 1256, Z: 11, count: 3 });
-                const feature2018 = ext
-                    .getFeatures(tileWith2018)
-                    .filter((f) => f.getProperties().objectid)[0];
-                const extent = feature2018.getGeometry().getExtent();
-                const target = ext.findByExtent(extent);
-                chai_3.assert.deepEqual(target, { X: 474, Y: 1256, Z: 11 });
-                chai_3.assert.deepEqual(ext.tree.parent({ X: 474, Y: 1256, Z: 11 }), {
-                    X: 237,
-                    Y: 628,
-                    Z: 10,
-                });
-            }
         }));
     });
 });
@@ -16337,6 +16246,53 @@ define("poc/test/treetile-test", ["require", "exports", "mocha", "chai", "poc/Ti
                 chai_5.assert.isTrue(tiny_3.isEq(d[3].center[0], expected[i][3].center[0], 0.1), "cx");
                 chai_5.assert.isTrue(tiny_3.isEq(d[3].center[1], expected[i][3].center[1], 0.1), "cy");
             });
+        });
+        mocha_4.it("all the descendents of a tile share that tile as a common ancestor", () => {
+            const extent = proj_3.get("EPSG:3857").getExtent();
+            const tree = new TileTree_4.TileTree({
+                extent,
+            });
+            const root = {
+                X: 236,
+                Y: 628,
+                Z: 10,
+            };
+            const tiles = [
+                { X: 472, Y: 1256, Z: 11, count: 1 },
+                { X: 472, Y: 1257, Z: 11, count: 2 },
+                { X: 473, Y: 1256, Z: 11, count: 1 },
+                { X: 944, Y: 2513, Z: 12, count: 1 },
+                { X: 944, Y: 2515, Z: 12, count: 2 },
+                { X: 945, Y: 2515, Z: 12, count: 1 },
+                { X: 946, Y: 2512, Z: 12, count: 1 },
+                { X: 947, Y: 2512, Z: 12, count: 1 },
+                { X: 1889, Y: 5025, Z: 13, count: 1 },
+                { X: 1890, Y: 5029, Z: 13, count: 1 },
+                { X: 1890, Y: 5030, Z: 13, count: 1 },
+                { X: 1894, Y: 5025, Z: 13, count: 1 },
+                { X: 1895, Y: 5024, Z: 13, count: 1 },
+                { X: 1895, Y: 5026, Z: 13, count: 1 },
+                { X: 3776, Y: 10050, Z: 14, count: 1 },
+                { X: 3776, Y: 10055, Z: 14, count: 1 },
+                { X: 3777, Y: 10054, Z: 14, count: 1 },
+                { X: 3777, Y: 10062, Z: 14, count: 1 },
+                { X: 3781, Y: 10062, Z: 14, count: 2 },
+                { X: 3790, Y: 10048, Z: 14, count: 1 },
+                { X: 3790, Y: 10049, Z: 14, count: 1 },
+            ].map(({ X, Y, Z }) => ({ X, Y, Z }));
+            tiles.forEach((t, i) => tree.decorate(t, { id: i }));
+            const descendants = tree.descendants(root);
+            tiles.forEach((t, i) => chai_5.assert.deepEqual(t, descendants[i], `tile ${i}`));
+            chai_5.assert.deepEqual(descendants, tiles);
+            const level10Roots = descendants.map((id) => tree.parent(id, id.Z - root.Z));
+            chai_5.assert.deepEqual(tree.parent({ X: 474, Y: 1256, Z: 11 }), {
+                X: 237,
+                Y: 628,
+                Z: 10,
+            });
+            chai_5.assert.equal(474 / 2, 237, "parent X is 1/2 of child rounded down");
+            chai_5.assert.equal(237 * 2, 474, "child X is twice parent");
+            level10Roots.forEach((id, i) => chai_5.assert.deepEqual(id, root, `level10Roots: ${i}`));
         });
     });
 });

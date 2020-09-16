@@ -67,8 +67,9 @@ export class TileTree<T> {
     return asExtent(this.extent, tileName);
   }
 
-  public parent({ X, Y, Z }: XYZ) {
-    return { X: Math.floor(X / 2), Y: Math.floor(Y / 2), Z: Z - 1 };
+  public parent({ X, Y, Z }: XYZ, depth = 1) {
+    const scale = Math.pow(2, -depth);
+    return { X: Math.floor(X * scale), Y: Math.floor(Y * scale), Z: Z - depth };
   }
 
   public findByXYZ(
@@ -131,9 +132,9 @@ export class TileTree<T> {
     Zs.forEach((Z) => {
       const pow = Math.pow(2, Z - input.Z);
       const xmin = input.X * pow;
-      const xmax = (input.X + 1) * pow;
+      const xmax = (input.X + 1) * pow - 1;
       const ymin = input.Y * pow;
-      const ymax = (input.Y + 1) * pow;
+      const ymax = (input.Y + 1) * pow - 1;
 
       const Xs = Object.keys(this.tileCache[Z])
         .map((n) => parseInt(n))

@@ -7,7 +7,7 @@ import type { XY } from "../types/XY";
 import { get as getProjection } from "@ol/proj";
 import type { TileNode } from "../types/TileNode";
 import { createXYZ } from "@ol/tilegrid";
-import { tile as tileStrategy } from "@ol/loadingstrategy";
+import { tile, tile as tileStrategy } from "@ol/loadingstrategy";
 import Point from "@ol/geom/Point";
 import Feature from "@ol/Feature";
 import VectorEventType from "@ol/source/VectorEventType";
@@ -257,5 +257,70 @@ describe("Preserve TileTree State", () => {
       assert.isTrue(isEq(d[3].center[0], expected[i][3].center[0], 0.1), "cx");
       assert.isTrue(isEq(d[3].center[1], expected[i][3].center[1], 0.1), "cy");
     });
+  });
+
+  it("all the descendents of a tile share that tile as a common ancestor", () => {
+    const extent = getProjection("EPSG:3857").getExtent() as Extent;
+    const tree = new TileTree<{ center: XY; count: number }>({
+      extent,
+    });
+
+    const root = {
+      X: 236,
+      Y: 628,
+      Z: 10,
+    };
+
+    const tiles = [
+      { X: 472, Y: 1256, Z: 11, count: 1 },
+      { X: 472, Y: 1257, Z: 11, count: 2 },
+      { X: 473, Y: 1256, Z: 11, count: 1 },
+      { X: 944, Y: 2513, Z: 12, count: 1 },
+      { X: 944, Y: 2515, Z: 12, count: 2 },
+      { X: 945, Y: 2515, Z: 12, count: 1 },
+      { X: 946, Y: 2512, Z: 12, count: 1 },
+      { X: 947, Y: 2512, Z: 12, count: 1 },
+      { X: 1889, Y: 5025, Z: 13, count: 1 },
+      { X: 1890, Y: 5029, Z: 13, count: 1 },
+      { X: 1890, Y: 5030, Z: 13, count: 1 },
+      { X: 1894, Y: 5025, Z: 13, count: 1 },
+      { X: 1895, Y: 5024, Z: 13, count: 1 },
+      { X: 1895, Y: 5026, Z: 13, count: 1 },
+      { X: 3776, Y: 10050, Z: 14, count: 1 },
+      { X: 3776, Y: 10055, Z: 14, count: 1 },
+      { X: 3777, Y: 10054, Z: 14, count: 1 },
+      { X: 3777, Y: 10062, Z: 14, count: 1 },
+      { X: 3781, Y: 10062, Z: 14, count: 2 },
+      { X: 3790, Y: 10048, Z: 14, count: 1 },
+      { X: 3790, Y: 10049, Z: 14, count: 1 },
+    ].map(({ X, Y, Z }) => ({ X, Y, Z }));
+
+    tiles.forEach((t, i) => tree.decorate(t, { id: i }));
+
+    // each tile should be a descendant and visa versa
+    const descendants = tree.descendants(root);
+    tiles.forEach((t, i) => assert.deepEqual(t, descendants[i], `tile ${i}`));
+
+    // in other words...
+    assert.deepEqual(descendants, tiles);
+
+    // so all these descendants must resolve to root as an ancestor...
+    const level10Roots = descendants.map((id) =>
+      tree.parent(id, id.Z - root.Z)
+    );
+
+    // they do not...this is the sibling to our right of root
+    assert.deepEqual(tree.parent({ X: 474, Y: 1256, Z: 11 }), {
+      X: 237,
+      Y: 628,
+      Z: 10,
+    });
+
+    assert.equal(474 / 2, 237, "parent X is 1/2 of child rounded down");
+    assert.equal(237 * 2, 474, "child X is twice parent");
+
+    level10Roots.forEach((id, i) =>
+      assert.deepEqual(id, root, `level10Roots: ${i}`)
+    );
   });
 });

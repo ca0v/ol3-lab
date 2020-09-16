@@ -166,20 +166,12 @@ describe("AgsFeatureLoader tests", () => {
       { X: 472, Y: 1256, Z: 11, count: 1 },
       { X: 472, Y: 1257, Z: 11, count: 2 },
       { X: 473, Y: 1256, Z: 11, count: 1 },
-      { X: 474, Y: 1256, Z: 11, count: 3 },
       { X: 944, Y: 2513, Z: 12, count: 1 },
       { X: 944, Y: 2515, Z: 12, count: 2 },
-      { X: 944, Y: 2516, Z: 12, count: 1 },
       { X: 945, Y: 2515, Z: 12, count: 1 },
       { X: 946, Y: 2512, Z: 12, count: 1 },
-      { X: 946, Y: 2516, Z: 12, count: 1 },
       { X: 947, Y: 2512, Z: 12, count: 1 },
-      { X: 948, Y: 2512, Z: 12, count: 1 },
-      { X: 948, Y: 2513, Z: 12, count: 1 },
-      { X: 948, Y: 2514, Z: 12, count: 1 },
-      { X: 1888, Y: 5032, Z: 13, count: 1 },
       { X: 1889, Y: 5025, Z: 13, count: 1 },
-      { X: 1889, Y: 5032, Z: 13, count: 2 },
       { X: 1890, Y: 5029, Z: 13, count: 1 },
       { X: 1890, Y: 5030, Z: 13, count: 1 },
       { X: 1894, Y: 5025, Z: 13, count: 1 },
@@ -194,10 +186,10 @@ describe("AgsFeatureLoader tests", () => {
       { X: 3790, Y: 10049, Z: 14, count: 1 },
     ]);
 
-    // ah...35? Not 24?
     assert.equal(
       tilesWithFeatures.reduce((a, b) => a + b.count, 0),
-      35
+      24,
+      "tile contains 26 features but all but 2 are in sub-tile"
     );
 
     // at this point I am debugging why I do not get 24 for the total number of features...
@@ -209,33 +201,23 @@ describe("AgsFeatureLoader tests", () => {
 
     assert.equal(
       fids.length,
-      35,
-      "this is an invalid assertion...should be 24"
+      24,
+      "These are the feature ids associated with the sub-tiles"
     );
+    console.log(fids);
 
     assert.deepEqual(fids, [
       1840,
       2122,
       2556,
       4974,
-      2018,
-      2679,
-      1446,
       4671,
       5127,
       3571,
-      6233,
       1907,
       229,
-      5055,
       2844,
-      2984,
-      4204,
-      2043,
-      3058,
       1715,
-      3138,
-      898,
       6820,
       2545,
       3231,
@@ -250,109 +232,5 @@ describe("AgsFeatureLoader tests", () => {
       6609,
       6556,
     ]);
-
-    // get all features within tile10 to see if I get the same FIDs
-    {
-      const tree = new TileTree<{ count: number; center: XY }>({
-        extent: projection.getExtent(),
-      });
-
-      const innerExt = new TileTreeExt(tree, { minZoom: 6, maxZoom: 20 });
-
-      const loader = new AgsFeatureLoader({
-        url,
-        maxDepth: 10, // never go more than 10 levels deep
-        minRecordCount: 128, // when count is this or less get the actual features
-        tree: innerExt,
-      });
-      await loader.loader(tile10, projection);
-
-      const features = flatten(
-        tree
-          .descendants(tile10)
-          .map((id) => innerExt.getFeatures(id))
-          .filter((v) => !!v)
-      );
-
-      const fids = features.map((f) => f.getProperties().objectid);
-      assert.equal(fids.length, 24, "there are 24 features within tile10");
-
-      // these are those features
-      assert.deepEqual(fids, [
-        1840,
-        2122,
-        2556,
-        4974,
-        4671,
-        5127,
-        3571,
-        1907,
-        229,
-        2844,
-        1715,
-        6820,
-        2545,
-        3231,
-        4869,
-        5895,
-        4117,
-        2602,
-        2601,
-        1913,
-        3489,
-        3574,
-        6609,
-        6556,
-      ]);
-
-      // buggy fids
-      const tooManyFids = flatten(
-        tilesWithFeatures.map((id) =>
-          ext.getFeatures(id).map((f) => f.getProperties().objectid)
-        )
-      );
-
-      const extras = tooManyFids.filter((id) => 0 > fids.indexOf(id));
-      assert.deepEqual(extras, [
-        2018,
-        2679,
-        1446,
-        6233,
-        5055,
-        2984,
-        4204,
-        2043,
-        3058,
-        3138,
-        898,
-      ]);
-
-      // lets focus on the memerable 2018 feature...
-      const tileWith2018 = tilesWithFeatures.filter((id) =>
-        ext.getFeatures(id).some((f) => f.getProperties().objectid === 2018)
-      )[0];
-      console.log(tileWith2018, ext.getFeatures(tileWith2018));
-
-      assert.deepEqual(tileWith2018, { X: 474, Y: 1256, Z: 11, count: 3 });
-
-      // so why does the original ext contain this feature on this tile...does it belong here?
-      const feature2018 = ext
-        .getFeatures(tileWith2018)
-        .filter((f) => f.getProperties().objectid)[0];
-      const extent = feature2018.getGeometry()!.getExtent();
-      const target = ext.findByExtent(extent);
-      assert.deepEqual(target, { X: 474, Y: 1256, Z: 11 });
-
-      // it is in the correct tile according to findByExtent and the correct tile is a child of tile10?
-      // NO!!!! this is not tile10, the X value is +1 here so why did this feature load?
-      // or more importantly why is it considered a descendant of tile10?
-      assert.deepEqual(ext.tree.parent({ X: 474, Y: 1256, Z: 11 }), {
-        X: 237,
-        Y: 628,
-        Z: 10,
-      });
-
-      // If so why does this innerExt not contain one?
-    }
   });
 });
