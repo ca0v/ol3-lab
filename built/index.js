@@ -4653,6 +4653,10 @@ define("node_modules/ol/src/extent", ["require", "exports", "node_modules/ol/src
     }
     exports.wrapX = wrapX;
 });
+define("poc/types/XYZ", ["require", "exports"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+});
 define("poc/fun/explode", ["require", "exports"], function (require, exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
@@ -4664,10 +4668,6 @@ define("poc/fun/explode", ["require", "exports"], function (require, exports) {
         return { xmin, ymin, xmax, ymax, w, h, xmid, ymid };
     }
     exports.explode = explode;
-});
-define("poc/types/XYZ", ["require", "exports"], function (require, exports) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
 });
 define("poc/fun/asXYZ", ["require", "exports", "poc/fun/explode", "poc/fun/tiny"], function (require, exports, explode_1, tiny_2) {
     "use strict";
@@ -13676,6 +13676,7 @@ define("poc/TileTreeExt", ["require", "exports", "node_modules/ol/src/extent", "
                 tileIdentifier,
                 Z: this.findZByExtent(extent),
                 type: "feature",
+                visible: false,
             });
             features.push(feature);
             this.setStale(tileIdentifier, true);
@@ -14417,10 +14418,20 @@ define("poc/AgsFeatureLoader", ["require", "exports", "poc/FeatureServiceProxy",
         constructor(options) {
             this.options = options;
             this.helper = options.tree;
+            if (!this.options.maxRecordCount)
+                this.options.maxRecordCount = this.options.minRecordCount;
         }
         loader(tileIdentifier, projection) {
             return __awaiter(this, void 0, void 0, function* () {
-                const { tree, maxRecordCount, minRecordCount, url } = this.options;
+                return this.loadTile(tileIdentifier, projection, this.options.maxDepth);
+            });
+        }
+        loadTile(tileIdentifier, projection, depth) {
+            return __awaiter(this, void 0, void 0, function* () {
+                if (depth < 0)
+                    throw "cannot load tile with negative depth";
+                const { tree, minRecordCount, url } = this.options;
+                const maxRecordCount = this.options.maxRecordCount || this.options.minRecordCount;
                 const proxy = new FeatureServiceProxy_1.FeatureServiceProxy({
                     service: url,
                 });
@@ -14430,12 +14441,16 @@ define("poc/AgsFeatureLoader", ["require", "exports", "poc/FeatureServiceProxy",
                 const response = yield proxy.fetch(request);
                 const count = response.count;
                 this.helper.setMass(tileIdentifier, count);
-                if (maxRecordCount < count) {
-                    yield Promise.all(tree.tree.quads(tileIdentifier).map((id) => this.loader(id, projection)));
-                }
-                if (0 < count && count < minRecordCount) {
+                if (0 >= depth || 0 == count)
+                    return count;
+                if (count < minRecordCount) {
                     const features = yield this.loadFeatures(request, proxy, projection);
                     features.forEach((f) => this.helper.addFeature(f));
+                }
+                else if (count > maxRecordCount) {
+                    yield Promise.all(tree.tree
+                        .quads(tileIdentifier)
+                        .map((id) => this.loadTile(id, projection, depth - 1)));
                 }
                 return count;
             });
@@ -14454,2554 +14469,328 @@ define("poc/AgsFeatureLoader", ["require", "exports", "poc/FeatureServiceProxy",
     }
     exports.AgsFeatureLoader = AgsFeatureLoader;
 });
-define("node_modules/ol/src/renderer/Composite", ["require", "exports", "node_modules/ol/src/renderer/Map", "node_modules/ol/src/ObjectEventType", "node_modules/ol/src/render/Event", "node_modules/ol/src/render/EventType", "node_modules/ol/src/source/State", "node_modules/ol/src/css", "node_modules/ol/src/render/canvas", "node_modules/ol/src/layer/Layer", "node_modules/ol/src/events", "node_modules/ol/src/dom"], function (require, exports, Map_js_1, ObjectEventType_js_4, Event_js_7, EventType_js_19, State_js_5, css_js_3, canvas_js_6, Layer_js_2, events_js_11, dom_js_7) {
+define("poc/fun/flatten", ["require", "exports"], function (require, exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    class CompositeMapRenderer extends Map_js_1.default {
-        constructor(map) {
-            super(map);
-            this.fontChangeListenerKey_ = events_js_11.listen(canvas_js_6.checkedFonts, ObjectEventType_js_4.default.PROPERTYCHANGE, map.redrawText.bind(map));
-            this.element_ = document.createElement('div');
-            const style = this.element_.style;
-            style.position = 'absolute';
-            style.width = '100%';
-            style.height = '100%';
-            style.zIndex = '0';
-            this.element_.className = css_js_3.CLASS_UNSELECTABLE + ' ol-layers';
-            const container = map.getViewport();
-            container.insertBefore(this.element_, container.firstChild || null);
-            this.children_ = [];
-            this.renderedVisible_ = true;
-        }
-        dispatchRenderEvent(type, frameState) {
-            const map = this.getMap();
-            if (map.hasListener(type)) {
-                const event = new Event_js_7.default(type, undefined, frameState);
-                map.dispatchEvent(event);
-            }
-        }
-        disposeInternal() {
-            events_js_11.unlistenByKey(this.fontChangeListenerKey_);
-            this.element_.parentNode.removeChild(this.element_);
-            super.disposeInternal();
-        }
-        renderFrame(frameState) {
-            if (!frameState) {
-                if (this.renderedVisible_) {
-                    this.element_.style.display = 'none';
-                    this.renderedVisible_ = false;
-                }
-                return;
-            }
-            this.calculateMatrices2D(frameState);
-            this.dispatchRenderEvent(EventType_js_19.default.PRECOMPOSE, frameState);
-            const layerStatesArray = frameState.layerStatesArray.sort(function (a, b) {
-                return a.zIndex - b.zIndex;
+    exports.flatten = void 0;
+    function flatten(values) {
+        const result = [];
+        return result.concat(...values);
+    }
+    exports.flatten = flatten;
+});
+define("poc/test/ags-feature-loader-test", ["require", "exports", "mocha", "chai", "poc/AgsFeatureLoader", "poc/TileTree", "node_modules/ol/src/proj", "poc/TileTreeExt", "poc/fun/flatten"], function (require, exports, mocha_2, chai_3, AgsFeatureLoader_1, TileTree_1, proj_1, TileTreeExt_1, flatten_1) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    mocha_2.describe("AgsFeatureLoader tests", () => {
+        mocha_2.it("loads feature counts for specific tiles up to 3 levels deep", () => __awaiter(void 0, void 0, void 0, function* () {
+            const url = "http://localhost:3002/mock/sampleserver3/arcgis/rest/services/Petroleum/KSFields/FeatureServer/0/query";
+            const minRecordCount = -1;
+            const maxRecordCount = 1000;
+            const projection = proj_1.get("EPSG:3857");
+            const tree = new TileTree_1.TileTree({
+                extent: projection.getExtent(),
             });
-            const viewState = frameState.viewState;
-            this.children_.length = 0;
-            let previousElement = null;
-            for (let i = 0, ii = layerStatesArray.length; i < ii; ++i) {
-                const layerState = layerStatesArray[i];
-                frameState.layerIndex = i;
-                if (!Layer_js_2.inView(layerState, viewState) ||
-                    (layerState.sourceState != State_js_5.default.READY &&
-                        layerState.sourceState != State_js_5.default.UNDEFINED)) {
-                    continue;
-                }
-                const layer = layerState.layer;
-                const element = layer.render(frameState, previousElement);
-                if (!element) {
-                    continue;
-                }
-                if (element !== previousElement) {
-                    this.children_.push(element);
-                    previousElement = element;
-                }
+            const ext = new TileTreeExt_1.TileTreeExt(tree, { minZoom: 6, maxZoom: 20 });
+            const loader = new AgsFeatureLoader_1.AgsFeatureLoader({
+                url,
+                maxDepth: 3,
+                minRecordCount,
+                maxRecordCount,
+                tree: ext,
+            });
+            const q0mass = yield loader.loader({ X: 29 * 2, Y: 78 * 2, Z: 8 }, projection);
+            chai_3.assert.equal(481, q0mass, "q0");
+            const q1mass = yield loader.loader({ X: 29 * 2, Y: 78 * 2 + 1, Z: 8 }, projection);
+            chai_3.assert.equal(433, q1mass, "q1");
+            const q2mass = yield loader.loader({ X: 29 * 2 + 1, Y: 78 * 2, Z: 8 }, projection);
+            chai_3.assert.equal(396, q2mass, "q2");
+            const q3mass = yield loader.loader({ X: 29 * 2 + 1, Y: 78 * 2 + 1, Z: 8 }, projection);
+            chai_3.assert.equal(260, q3mass, "q3");
+            const mass = yield loader.loader({ X: 29, Y: 78, Z: 7 }, projection);
+            chai_3.assert.equal(q0mass + q1mass + q2mass + q3mass + 47, mass);
+            const totalMass = yield loader.loader({ X: 0, Y: 0, Z: 0 }, projection);
+            chai_3.assert.equal(6918, totalMass);
+            chai_3.assert.equal(ext.getMass({ X: 0, Y: 0, Z: 0 }), totalMass, "loader is modifying the tree data on level-0 tiles");
+            chai_3.assert.equal(ext.getMass({ X: 0, Y: 1, Z: 1 }), totalMass, "loader is modifying the tree data on level-1 tiles");
+            chai_3.assert.equal(ext.getMass({ X: 0, Y: 2, Z: 2 }), totalMass, "loader is modifying the tree data on level-2 tiles");
+            chai_3.assert.equal(ext.getMass({ X: 0, Y: 4, Z: 3 }), null, "loader is NOT modifying the tree data on level-3 tiles");
+        }));
+        mocha_2.it("drills into a tile until all features are loaded up to 10 levels deep but never more than 128 features at a time", () => __awaiter(void 0, void 0, void 0, function* () {
+            const url = "http://localhost:3002/mock/sampleserver3/arcgis/rest/services/Petroleum/KSFields/FeatureServer/0/query";
+            const projection = proj_1.get("EPSG:3857");
+            const tree = new TileTree_1.TileTree({
+                extent: projection.getExtent(),
+            });
+            const ext = new TileTreeExt_1.TileTreeExt(tree, { minZoom: 6, maxZoom: 20 });
+            const loader = new AgsFeatureLoader_1.AgsFeatureLoader({
+                url,
+                maxDepth: 10,
+                minRecordCount: 128,
+                tree: ext,
+            });
+            const totalMass = yield loader.loader({ X: 59, Y: 157, Z: 8 }, projection);
+            chai_3.assert.equal(260, totalMass, "q3");
+            chai_3.assert.equal(ext.getMass({ X: 59, Y: 157, Z: 8 }), totalMass, "loader is modifying the tree data on level-8 tiles");
+            const tile9 = { X: 59 * 2, Y: 157 * 2, Z: 9 };
+            chai_3.assert.equal(ext.getMass(tile9), 75, "loader is modifying the tree data on level-9 tiles");
+            const masses = ext.tree.children(tile9).map((id) => ext.getMass(id));
+            chai_3.assert.deepEqual(masses, [null, null, null, null]);
+            const features = ext.tree
+                .children(tile9)
+                .map((id) => ext.getFeatures(id).length);
+            chai_3.assert.deepEqual(features, [2, 1, 1, 3]);
+            chai_3.assert.deepEqual(ext.getFeatures(tile9).length, 6);
+            chai_3.assert.equal(ext.centerOfMass(tile9).mass, 75, "tile9 moment mass is the same as its count");
+            const moments = ext.tree
+                .children(tile9)
+                .map((id) => ext.centerOfMass(id).mass);
+            chai_3.assert.deepEqual(moments, [26, 19, 7, 17], "69 features accounted for");
+            const [tile10] = ext.tree.quads(tile9);
+            chai_3.assert.deepEqual(tile10, {
+                X: 236,
+                Y: 628,
+                Z: 10,
+            });
+            const tilesWithFeatures = ext.tree
+                .descendants(tile10)
+                .map((id) => { var _a; return (Object.assign(Object.assign({}, id), { count: (_a = ext.getFeatures(id)) === null || _a === void 0 ? void 0 : _a.length })); })
+                .filter((n) => !!n.count);
+            chai_3.assert.deepEqual(tilesWithFeatures, [
+                { X: 472, Y: 1256, Z: 11, count: 1 },
+                { X: 472, Y: 1257, Z: 11, count: 2 },
+                { X: 473, Y: 1256, Z: 11, count: 1 },
+                { X: 474, Y: 1256, Z: 11, count: 3 },
+                { X: 944, Y: 2513, Z: 12, count: 1 },
+                { X: 944, Y: 2515, Z: 12, count: 2 },
+                { X: 944, Y: 2516, Z: 12, count: 1 },
+                { X: 945, Y: 2515, Z: 12, count: 1 },
+                { X: 946, Y: 2512, Z: 12, count: 1 },
+                { X: 946, Y: 2516, Z: 12, count: 1 },
+                { X: 947, Y: 2512, Z: 12, count: 1 },
+                { X: 948, Y: 2512, Z: 12, count: 1 },
+                { X: 948, Y: 2513, Z: 12, count: 1 },
+                { X: 948, Y: 2514, Z: 12, count: 1 },
+                { X: 1888, Y: 5032, Z: 13, count: 1 },
+                { X: 1889, Y: 5025, Z: 13, count: 1 },
+                { X: 1889, Y: 5032, Z: 13, count: 2 },
+                { X: 1890, Y: 5029, Z: 13, count: 1 },
+                { X: 1890, Y: 5030, Z: 13, count: 1 },
+                { X: 1894, Y: 5025, Z: 13, count: 1 },
+                { X: 1895, Y: 5024, Z: 13, count: 1 },
+                { X: 1895, Y: 5026, Z: 13, count: 1 },
+                { X: 3776, Y: 10050, Z: 14, count: 1 },
+                { X: 3776, Y: 10055, Z: 14, count: 1 },
+                { X: 3777, Y: 10054, Z: 14, count: 1 },
+                { X: 3777, Y: 10062, Z: 14, count: 1 },
+                { X: 3781, Y: 10062, Z: 14, count: 2 },
+                { X: 3790, Y: 10048, Z: 14, count: 1 },
+                { X: 3790, Y: 10049, Z: 14, count: 1 },
+            ]);
+            chai_3.assert.equal(tilesWithFeatures.reduce((a, b) => a + b.count, 0), 35);
+            const fids = flatten_1.flatten(tilesWithFeatures.map((id) => ext.getFeatures(id).map((f) => f.getProperties().objectid)));
+            chai_3.assert.equal(fids.length, 35, "this is an invalid assertion...should be 24");
+            chai_3.assert.deepEqual(fids, [
+                1840,
+                2122,
+                2556,
+                4974,
+                2018,
+                2679,
+                1446,
+                4671,
+                5127,
+                3571,
+                6233,
+                1907,
+                229,
+                5055,
+                2844,
+                2984,
+                4204,
+                2043,
+                3058,
+                1715,
+                3138,
+                898,
+                6820,
+                2545,
+                3231,
+                4869,
+                5895,
+                4117,
+                2602,
+                2601,
+                1913,
+                3489,
+                3574,
+                6609,
+                6556,
+            ]);
+            {
+                const tree = new TileTree_1.TileTree({
+                    extent: projection.getExtent(),
+                });
+                const innerExt = new TileTreeExt_1.TileTreeExt(tree, { minZoom: 6, maxZoom: 20 });
+                const loader = new AgsFeatureLoader_1.AgsFeatureLoader({
+                    url,
+                    maxDepth: 10,
+                    minRecordCount: 128,
+                    tree: innerExt,
+                });
+                yield loader.loader(tile10, projection);
+                const features = flatten_1.flatten(tree
+                    .descendants(tile10)
+                    .map((id) => innerExt.getFeatures(id))
+                    .filter((v) => !!v));
+                const fids = features.map((f) => f.getProperties().objectid);
+                chai_3.assert.equal(fids.length, 24, "there are 24 features within tile10");
+                chai_3.assert.deepEqual(fids, [
+                    1840,
+                    2122,
+                    2556,
+                    4974,
+                    4671,
+                    5127,
+                    3571,
+                    1907,
+                    229,
+                    2844,
+                    1715,
+                    6820,
+                    2545,
+                    3231,
+                    4869,
+                    5895,
+                    4117,
+                    2602,
+                    2601,
+                    1913,
+                    3489,
+                    3574,
+                    6609,
+                    6556,
+                ]);
+                const tooManyFids = flatten_1.flatten(tilesWithFeatures.map((id) => ext.getFeatures(id).map((f) => f.getProperties().objectid)));
+                const extras = tooManyFids.filter((id) => 0 > fids.indexOf(id));
+                chai_3.assert.deepEqual(extras, [
+                    2018,
+                    2679,
+                    1446,
+                    6233,
+                    5055,
+                    2984,
+                    4204,
+                    2043,
+                    3058,
+                    3138,
+                    898,
+                ]);
+                const tileWith2018 = tilesWithFeatures.filter((id) => ext.getFeatures(id).some((f) => f.getProperties().objectid === 2018))[0];
+                console.log(tileWith2018, ext.getFeatures(tileWith2018));
+                chai_3.assert.deepEqual(tileWith2018, { X: 474, Y: 1256, Z: 11, count: 3 });
+                const feature2018 = ext
+                    .getFeatures(tileWith2018)
+                    .filter((f) => f.getProperties().objectid)[0];
+                const extent = feature2018.getGeometry().getExtent();
+                const target = ext.findByExtent(extent);
+                chai_3.assert.deepEqual(target, { X: 474, Y: 1256, Z: 11 });
+                chai_3.assert.deepEqual(ext.tree.parent({ X: 474, Y: 1256, Z: 11 }), {
+                    X: 237,
+                    Y: 628,
+                    Z: 10,
+                });
             }
-            super.renderFrame(frameState);
-            dom_js_7.replaceChildren(this.element_, this.children_);
-            this.dispatchRenderEvent(EventType_js_19.default.POSTCOMPOSE, frameState);
-            if (!this.renderedVisible_) {
-                this.element_.style.display = '';
-                this.renderedVisible_ = true;
-            }
-            this.scheduleExpireIconCache(frameState);
-        }
-        forEachLayerAtPixel(pixel, frameState, hitTolerance, callback, layerFilter) {
-            const viewState = frameState.viewState;
-            const layerStates = frameState.layerStatesArray;
-            const numLayers = layerStates.length;
-            for (let i = numLayers - 1; i >= 0; --i) {
-                const layerState = layerStates[i];
-                const layer = layerState.layer;
-                if (layer.hasRenderer() &&
-                    Layer_js_2.inView(layerState, viewState) &&
-                    layerFilter(layer)) {
-                    const layerRenderer = layer.getRenderer();
-                    const data = layerRenderer.getDataAtPixel(pixel, frameState, hitTolerance);
-                    if (data) {
-                        const result = callback(layer, data);
-                        if (result) {
-                            return result;
+        }));
+    });
+});
+define("poc/test/xyz-test", ["require", "exports", "mocha", "chai", "node_modules/ol/src/proj", "poc/fun/asExtent", "poc/fun/asXYZ"], function (require, exports, mocha_3, chai_4, proj_2, asExtent_2, asXYZ_2) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    mocha_3.describe("XYZ testing", () => {
+        mocha_3.it("asExtent test", () => {
+            const extent = [0, 0, 16, 16];
+            let x = asExtent_2.asExtent(extent, { X: 0, Y: 0, Z: 0 });
+            chai_4.assert.deepEqual(x, [0, 0, 16, 16]);
+            x = asExtent_2.asExtent(extent, { X: 0, Y: 0, Z: 1 });
+            chai_4.assert.deepEqual(x, [0, 0, 8, 8]);
+            x = asExtent_2.asExtent(extent, { X: 1, Y: 0, Z: 1 });
+            chai_4.assert.deepEqual(x, [8, 0, 16, 8]);
+            x = asExtent_2.asExtent(extent, { X: 1, Y: 0, Z: 2 });
+            chai_4.assert.deepEqual(x, [4, 0, 8, 4]);
+            x = asExtent_2.asExtent(extent, { X: 1, Y: 0, Z: 3 });
+            chai_4.assert.deepEqual(x, [2, 0, 4, 2]);
+            x = asExtent_2.asExtent(extent, { X: 3, Y: 1020, Z: 10 });
+            chai_4.assert.deepEqual(x, [0.046875, 15.9375, 0.0625, 15.953125]);
+        });
+        mocha_3.it("asXYZ test", () => {
+            const extent = [0, 0, 16, 16];
+            let x = asXYZ_2.asXYZ(extent, [0, 0, 16, 16]);
+            chai_4.assert.deepEqual(x, { X: 0, Y: 0, Z: 0 });
+            x = asXYZ_2.asXYZ(extent, [0, 4, 4, 8]);
+            chai_4.assert.deepEqual(x, { X: 0, Y: 1, Z: 2 });
+            x = asXYZ_2.asXYZ(extent, [0.046875, 15.9375, 0.0625, 15.953125]);
+            chai_4.assert.deepEqual(x, { X: 3, Y: 1020, Z: 10 });
+        });
+        mocha_3.it("exhaustive XYZ", () => {
+            const extents = [
+                [0, 0, 1024, 1024],
+                proj_2.get("EPSG:3857").getExtent(),
+                proj_2.get("EPSG:4326").getExtent(),
+            ];
+            extents.forEach((extent) => {
+                for (let z = 0; z < 10; z++) {
+                    for (let x = 0; x < 10; x++) {
+                        for (let y = 0; y < 10; y++) {
+                            const v1 = asExtent_2.asExtent(extent, { X: x, Y: y, Z: z });
+                            const v2 = asXYZ_2.asXYZ(extent, v1);
+                            chai_4.assert.equal(v2.X, x, "x");
+                            chai_4.assert.equal(v2.Y, y, "y");
+                            chai_4.assert.equal(v2.Z, z, "z");
                         }
                     }
                 }
-            }
-            return undefined;
-        }
-    }
-    exports.default = CompositeMapRenderer;
+            });
+        });
+    });
 });
-define("node_modules/ol/src/control/Attribution", ["require", "exports", "node_modules/ol/src/control/Control", "node_modules/ol/src/events/EventType", "node_modules/ol/src/css", "node_modules/ol/src/array", "node_modules/ol/src/layer/Layer", "node_modules/ol/src/dom"], function (require, exports, Control_js_1, EventType_js_20, css_js_4, array_js_15, Layer_js_3, dom_js_8) {
+define("node_modules/ol/src/loadingstrategy", ["require", "exports"], function (require, exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    class Attribution extends Control_js_1.default {
-        constructor(opt_options) {
-            const options = opt_options ? opt_options : {};
-            super({
-                element: document.createElement('div'),
-                render: options.render,
-                target: options.target,
-            });
-            this.ulElement_ = document.createElement('ul');
-            this.collapsed_ =
-                options.collapsed !== undefined ? options.collapsed : true;
-            this.overrideCollapsible_ = options.collapsible !== undefined;
-            this.collapsible_ =
-                options.collapsible !== undefined ? options.collapsible : true;
-            if (!this.collapsible_) {
-                this.collapsed_ = false;
-            }
-            const className = options.className !== undefined ? options.className : 'ol-attribution';
-            const tipLabel = options.tipLabel !== undefined ? options.tipLabel : 'Attributions';
-            const collapseLabel = options.collapseLabel !== undefined ? options.collapseLabel : '\u00BB';
-            if (typeof collapseLabel === 'string') {
-                this.collapseLabel_ = document.createElement('span');
-                this.collapseLabel_.textContent = collapseLabel;
-            }
-            else {
-                this.collapseLabel_ = collapseLabel;
-            }
-            const label = options.label !== undefined ? options.label : 'i';
-            if (typeof label === 'string') {
-                this.label_ = document.createElement('span');
-                this.label_.textContent = label;
-            }
-            else {
-                this.label_ = label;
-            }
-            const activeLabel = this.collapsible_ && !this.collapsed_ ? this.collapseLabel_ : this.label_;
-            const button = document.createElement('button');
-            button.setAttribute('type', 'button');
-            button.title = tipLabel;
-            button.appendChild(activeLabel);
-            button.addEventListener(EventType_js_20.default.CLICK, this.handleClick_.bind(this), false);
-            const cssClasses = className +
-                ' ' +
-                css_js_4.CLASS_UNSELECTABLE +
-                ' ' +
-                css_js_4.CLASS_CONTROL +
-                (this.collapsed_ && this.collapsible_ ? ' ' + css_js_4.CLASS_COLLAPSED : '') +
-                (this.collapsible_ ? '' : ' ol-uncollapsible');
-            const element = this.element;
-            element.className = cssClasses;
-            element.appendChild(this.ulElement_);
-            element.appendChild(button);
-            this.renderedAttributions_ = [];
-            this.renderedVisible_ = true;
-        }
-        collectSourceAttributions_(frameState) {
-            const lookup = {};
-            const visibleAttributions = [];
-            const layerStatesArray = frameState.layerStatesArray;
-            for (let i = 0, ii = layerStatesArray.length; i < ii; ++i) {
-                const layerState = layerStatesArray[i];
-                if (!Layer_js_3.inView(layerState, frameState.viewState)) {
-                    continue;
-                }
-                const source = (layerState.layer).getSource();
-                if (!source) {
-                    continue;
-                }
-                const attributionGetter = source.getAttributions();
-                if (!attributionGetter) {
-                    continue;
-                }
-                const attributions = attributionGetter(frameState);
-                if (!attributions) {
-                    continue;
-                }
-                if (!this.overrideCollapsible_ &&
-                    source.getAttributionsCollapsible() === false) {
-                    this.setCollapsible(false);
-                }
-                if (Array.isArray(attributions)) {
-                    for (let j = 0, jj = attributions.length; j < jj; ++j) {
-                        if (!(attributions[j] in lookup)) {
-                            visibleAttributions.push(attributions[j]);
-                            lookup[attributions[j]] = true;
-                        }
-                    }
-                }
-                else {
-                    if (!(attributions in lookup)) {
-                        visibleAttributions.push(attributions);
-                        lookup[attributions] = true;
-                    }
-                }
-            }
-            return visibleAttributions;
-        }
-        updateElement_(frameState) {
-            if (!frameState) {
-                if (this.renderedVisible_) {
-                    this.element.style.display = 'none';
-                    this.renderedVisible_ = false;
-                }
-                return;
-            }
-            const attributions = this.collectSourceAttributions_(frameState);
-            const visible = attributions.length > 0;
-            if (this.renderedVisible_ != visible) {
-                this.element.style.display = visible ? '' : 'none';
-                this.renderedVisible_ = visible;
-            }
-            if (array_js_15.equals(attributions, this.renderedAttributions_)) {
-                return;
-            }
-            dom_js_8.removeChildren(this.ulElement_);
-            for (let i = 0, ii = attributions.length; i < ii; ++i) {
-                const element = document.createElement('li');
-                element.innerHTML = attributions[i];
-                this.ulElement_.appendChild(element);
-            }
-            this.renderedAttributions_ = attributions;
-        }
-        handleClick_(event) {
-            event.preventDefault();
-            this.handleToggle_();
-        }
-        handleToggle_() {
-            this.element.classList.toggle(css_js_4.CLASS_COLLAPSED);
-            if (this.collapsed_) {
-                dom_js_8.replaceNode(this.collapseLabel_, this.label_);
-            }
-            else {
-                dom_js_8.replaceNode(this.label_, this.collapseLabel_);
-            }
-            this.collapsed_ = !this.collapsed_;
-        }
-        getCollapsible() {
-            return this.collapsible_;
-        }
-        setCollapsible(collapsible) {
-            if (this.collapsible_ === collapsible) {
-                return;
-            }
-            this.collapsible_ = collapsible;
-            this.element.classList.toggle('ol-uncollapsible');
-            if (!collapsible && this.collapsed_) {
-                this.handleToggle_();
-            }
-        }
-        setCollapsed(collapsed) {
-            if (!this.collapsible_ || this.collapsed_ === collapsed) {
-                return;
-            }
-            this.handleToggle_();
-        }
-        getCollapsed() {
-            return this.collapsed_;
-        }
-        render(mapEvent) {
-            this.updateElement_(mapEvent.frameState);
-        }
-    }
-    exports.default = Attribution;
-});
-define("node_modules/ol/src/control/Rotate", ["require", "exports", "node_modules/ol/src/control/Control", "node_modules/ol/src/events/EventType", "node_modules/ol/src/css", "node_modules/ol/src/easing"], function (require, exports, Control_js_2, EventType_js_21, css_js_5, easing_js_5) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    class Rotate extends Control_js_2.default {
-        constructor(opt_options) {
-            const options = opt_options ? opt_options : {};
-            super({
-                element: document.createElement('div'),
-                render: options.render,
-                target: options.target,
-            });
-            const className = options.className !== undefined ? options.className : 'ol-rotate';
-            const label = options.label !== undefined ? options.label : '\u21E7';
-            this.label_ = null;
-            if (typeof label === 'string') {
-                this.label_ = document.createElement('span');
-                this.label_.className = 'ol-compass';
-                this.label_.textContent = label;
-            }
-            else {
-                this.label_ = label;
-                this.label_.classList.add('ol-compass');
-            }
-            const tipLabel = options.tipLabel ? options.tipLabel : 'Reset rotation';
-            const button = document.createElement('button');
-            button.className = className + '-reset';
-            button.setAttribute('type', 'button');
-            button.title = tipLabel;
-            button.appendChild(this.label_);
-            button.addEventListener(EventType_js_21.default.CLICK, this.handleClick_.bind(this), false);
-            const cssClasses = className + ' ' + css_js_5.CLASS_UNSELECTABLE + ' ' + css_js_5.CLASS_CONTROL;
-            const element = this.element;
-            element.className = cssClasses;
-            element.appendChild(button);
-            this.callResetNorth_ = options.resetNorth ? options.resetNorth : undefined;
-            this.duration_ = options.duration !== undefined ? options.duration : 250;
-            this.autoHide_ = options.autoHide !== undefined ? options.autoHide : true;
-            this.rotation_ = undefined;
-            if (this.autoHide_) {
-                this.element.classList.add(css_js_5.CLASS_HIDDEN);
-            }
-        }
-        handleClick_(event) {
-            event.preventDefault();
-            if (this.callResetNorth_ !== undefined) {
-                this.callResetNorth_();
-            }
-            else {
-                this.resetNorth_();
-            }
-        }
-        resetNorth_() {
-            const map = this.getMap();
-            const view = map.getView();
-            if (!view) {
-                return;
-            }
-            const rotation = view.getRotation();
-            if (rotation !== undefined) {
-                if (this.duration_ > 0 && rotation % (2 * Math.PI) !== 0) {
-                    view.animate({
-                        rotation: 0,
-                        duration: this.duration_,
-                        easing: easing_js_5.easeOut,
-                    });
-                }
-                else {
-                    view.setRotation(0);
-                }
-            }
-        }
-        render(mapEvent) {
-            const frameState = mapEvent.frameState;
-            if (!frameState) {
-                return;
-            }
-            const rotation = frameState.viewState.rotation;
-            if (rotation != this.rotation_) {
-                const transform = 'rotate(' + rotation + 'rad)';
-                if (this.autoHide_) {
-                    const contains = this.element.classList.contains(css_js_5.CLASS_HIDDEN);
-                    if (!contains && rotation === 0) {
-                        this.element.classList.add(css_js_5.CLASS_HIDDEN);
-                    }
-                    else if (contains && rotation !== 0) {
-                        this.element.classList.remove(css_js_5.CLASS_HIDDEN);
-                    }
-                }
-                this.label_.style.transform = transform;
-            }
-            this.rotation_ = rotation;
-        }
-    }
-    exports.default = Rotate;
-});
-define("node_modules/ol/src/control/Zoom", ["require", "exports", "node_modules/ol/src/control/Control", "node_modules/ol/src/events/EventType", "node_modules/ol/src/css", "node_modules/ol/src/easing"], function (require, exports, Control_js_3, EventType_js_22, css_js_6, easing_js_6) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    class Zoom extends Control_js_3.default {
-        constructor(opt_options) {
-            const options = opt_options ? opt_options : {};
-            super({
-                element: document.createElement('div'),
-                target: options.target,
-            });
-            const className = options.className !== undefined ? options.className : 'ol-zoom';
-            const delta = options.delta !== undefined ? options.delta : 1;
-            const zoomInLabel = options.zoomInLabel !== undefined ? options.zoomInLabel : '+';
-            const zoomOutLabel = options.zoomOutLabel !== undefined ? options.zoomOutLabel : '\u2212';
-            const zoomInTipLabel = options.zoomInTipLabel !== undefined ? options.zoomInTipLabel : 'Zoom in';
-            const zoomOutTipLabel = options.zoomOutTipLabel !== undefined
-                ? options.zoomOutTipLabel
-                : 'Zoom out';
-            const inElement = document.createElement('button');
-            inElement.className = className + '-in';
-            inElement.setAttribute('type', 'button');
-            inElement.title = zoomInTipLabel;
-            inElement.appendChild(typeof zoomInLabel === 'string'
-                ? document.createTextNode(zoomInLabel)
-                : zoomInLabel);
-            inElement.addEventListener(EventType_js_22.default.CLICK, this.handleClick_.bind(this, delta), false);
-            const outElement = document.createElement('button');
-            outElement.className = className + '-out';
-            outElement.setAttribute('type', 'button');
-            outElement.title = zoomOutTipLabel;
-            outElement.appendChild(typeof zoomOutLabel === 'string'
-                ? document.createTextNode(zoomOutLabel)
-                : zoomOutLabel);
-            outElement.addEventListener(EventType_js_22.default.CLICK, this.handleClick_.bind(this, -delta), false);
-            const cssClasses = className + ' ' + css_js_6.CLASS_UNSELECTABLE + ' ' + css_js_6.CLASS_CONTROL;
-            const element = this.element;
-            element.className = cssClasses;
-            element.appendChild(inElement);
-            element.appendChild(outElement);
-            this.duration_ = options.duration !== undefined ? options.duration : 250;
-        }
-        handleClick_(delta, event) {
-            event.preventDefault();
-            this.zoomByDelta_(delta);
-        }
-        zoomByDelta_(delta) {
-            const map = this.getMap();
-            const view = map.getView();
-            if (!view) {
-                return;
-            }
-            const currentZoom = view.getZoom();
-            if (currentZoom !== undefined) {
-                const newZoom = view.getConstrainedZoom(currentZoom + delta);
-                if (this.duration_ > 0) {
-                    if (view.getAnimating()) {
-                        view.cancelAnimations();
-                    }
-                    view.animate({
-                        zoom: newZoom,
-                        duration: this.duration_,
-                        easing: easing_js_6.easeOut,
-                    });
-                }
-                else {
-                    view.setZoom(newZoom);
-                }
-            }
-        }
-    }
-    exports.default = Zoom;
-});
-define("node_modules/ol/src/control/FullScreen", ["require", "exports", "node_modules/ol/src/control/Control", "node_modules/ol/src/events/EventType", "node_modules/ol/src/css", "node_modules/ol/src/events", "node_modules/ol/src/dom"], function (require, exports, Control_js_4, EventType_js_23, css_js_7, events_js_12, dom_js_9) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    const events = [
-        'fullscreenchange',
-        'webkitfullscreenchange',
-        'MSFullscreenChange',
-    ];
-    const FullScreenEventType = {
-        ENTERFULLSCREEN: 'enterfullscreen',
-        LEAVEFULLSCREEN: 'leavefullscreen',
-    };
-    class FullScreen extends Control_js_4.default {
-        constructor(opt_options) {
-            const options = opt_options ? opt_options : {};
-            super({
-                element: document.createElement('div'),
-                target: options.target,
-            });
-            this.cssClassName_ =
-                options.className !== undefined ? options.className : 'ol-full-screen';
-            const label = options.label !== undefined ? options.label : '\u2922';
-            this.labelNode_ =
-                typeof label === 'string' ? document.createTextNode(label) : label;
-            const labelActive = options.labelActive !== undefined ? options.labelActive : '\u00d7';
-            this.labelActiveNode_ =
-                typeof labelActive === 'string'
-                    ? document.createTextNode(labelActive)
-                    : labelActive;
-            this.button_ = document.createElement('button');
-            const tipLabel = options.tipLabel ? options.tipLabel : 'Toggle full-screen';
-            this.setClassName_(this.button_, isFullScreen());
-            this.button_.setAttribute('type', 'button');
-            this.button_.title = tipLabel;
-            this.button_.appendChild(this.labelNode_);
-            this.button_.addEventListener(EventType_js_23.default.CLICK, this.handleClick_.bind(this), false);
-            const cssClasses = this.cssClassName_ +
-                ' ' +
-                css_js_7.CLASS_UNSELECTABLE +
-                ' ' +
-                css_js_7.CLASS_CONTROL +
-                ' ' +
-                (!isFullScreenSupported() ? css_js_7.CLASS_UNSUPPORTED : '');
-            const element = this.element;
-            element.className = cssClasses;
-            element.appendChild(this.button_);
-            this.keys_ = options.keys !== undefined ? options.keys : false;
-            this.source_ = options.source;
-        }
-        handleClick_(event) {
-            event.preventDefault();
-            this.handleFullScreen_();
-        }
-        handleFullScreen_() {
-            if (!isFullScreenSupported()) {
-                return;
-            }
-            const map = this.getMap();
-            if (!map) {
-                return;
-            }
-            if (isFullScreen()) {
-                exitFullScreen();
-            }
-            else {
-                let element;
-                if (this.source_) {
-                    element =
-                        typeof this.source_ === 'string'
-                            ? document.getElementById(this.source_)
-                            : this.source_;
-                }
-                else {
-                    element = map.getTargetElement();
-                }
-                if (this.keys_) {
-                    requestFullScreenWithKeys(element);
-                }
-                else {
-                    requestFullScreen(element);
-                }
-            }
-        }
-        handleFullScreenChange_() {
-            const map = this.getMap();
-            if (isFullScreen()) {
-                this.setClassName_(this.button_, true);
-                dom_js_9.replaceNode(this.labelActiveNode_, this.labelNode_);
-                this.dispatchEvent(FullScreenEventType.ENTERFULLSCREEN);
-            }
-            else {
-                this.setClassName_(this.button_, false);
-                dom_js_9.replaceNode(this.labelNode_, this.labelActiveNode_);
-                this.dispatchEvent(FullScreenEventType.LEAVEFULLSCREEN);
-            }
-            if (map) {
-                map.updateSize();
-            }
-        }
-        setClassName_(element, fullscreen) {
-            const activeClassName = this.cssClassName_ + '-true';
-            const inactiveClassName = this.cssClassName_ + '-false';
-            const nextClassName = fullscreen ? activeClassName : inactiveClassName;
-            element.classList.remove(activeClassName);
-            element.classList.remove(inactiveClassName);
-            element.classList.add(nextClassName);
-        }
-        setMap(map) {
-            super.setMap(map);
-            if (map) {
-                for (let i = 0, ii = events.length; i < ii; ++i) {
-                    this.listenerKeys.push(events_js_12.listen(document, events[i], this.handleFullScreenChange_, this));
-                }
-            }
-        }
-    }
-    function isFullScreenSupported() {
-        const body = document.body;
-        return !!(body['webkitRequestFullscreen'] ||
-            (body['msRequestFullscreen'] && document['msFullscreenEnabled']) ||
-            (body.requestFullscreen && document.fullscreenEnabled));
-    }
-    function isFullScreen() {
-        return !!(document['webkitIsFullScreen'] ||
-            document['msFullscreenElement'] ||
-            document.fullscreenElement);
-    }
-    function requestFullScreen(element) {
-        if (element.requestFullscreen) {
-            element.requestFullscreen();
-        }
-        else if (element['msRequestFullscreen']) {
-            element['msRequestFullscreen']();
-        }
-        else if (element['webkitRequestFullscreen']) {
-            element['webkitRequestFullscreen']();
-        }
-    }
-    function requestFullScreenWithKeys(element) {
-        if (element['webkitRequestFullscreen']) {
-            element['webkitRequestFullscreen']();
-        }
-        else {
-            requestFullScreen(element);
-        }
-    }
-    function exitFullScreen() {
-        if (document.exitFullscreen) {
-            document.exitFullscreen();
-        }
-        else if (document['msExitFullscreen']) {
-            document['msExitFullscreen']();
-        }
-        else if (document['webkitExitFullscreen']) {
-            document['webkitExitFullscreen']();
-        }
-    }
-    exports.default = FullScreen;
-});
-define("node_modules/ol/src/control/MousePosition", ["require", "exports", "node_modules/ol/src/control/Control", "node_modules/ol/src/pointer/EventType", "node_modules/ol/src/Object", "node_modules/ol/src/proj", "node_modules/ol/src/events"], function (require, exports, Control_js_5, EventType_js_24, Object_js_14, proj_js_11, events_js_13) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    const PROJECTION = 'projection';
-    const COORDINATE_FORMAT = 'coordinateFormat';
-    class MousePosition extends Control_js_5.default {
-        constructor(opt_options) {
-            const options = opt_options ? opt_options : {};
-            const element = document.createElement('div');
-            element.className =
-                options.className !== undefined ? options.className : 'ol-mouse-position';
-            super({
-                element: element,
-                render: options.render,
-                target: options.target,
-            });
-            this.addEventListener(Object_js_14.getChangeEventType(PROJECTION), this.handleProjectionChanged_);
-            if (options.coordinateFormat) {
-                this.setCoordinateFormat(options.coordinateFormat);
-            }
-            if (options.projection) {
-                this.setProjection(options.projection);
-            }
-            this.undefinedHTML_ =
-                options.undefinedHTML !== undefined ? options.undefinedHTML : '&#160;';
-            this.renderOnMouseOut_ = !!this.undefinedHTML_;
-            this.renderedHTML_ = element.innerHTML;
-            this.mapProjection_ = null;
-            this.transform_ = null;
-        }
-        handleProjectionChanged_() {
-            this.transform_ = null;
-        }
-        getCoordinateFormat() {
-            return (this.get(COORDINATE_FORMAT));
-        }
-        getProjection() {
-            return (this.get(PROJECTION));
-        }
-        handleMouseMove(event) {
-            const map = this.getMap();
-            this.updateHTML_(map.getEventPixel(event));
-        }
-        handleMouseOut(event) {
-            this.updateHTML_(null);
-        }
-        setMap(map) {
-            super.setMap(map);
-            if (map) {
-                const viewport = map.getViewport();
-                this.listenerKeys.push(events_js_13.listen(viewport, EventType_js_24.default.POINTERMOVE, this.handleMouseMove, this));
-                if (this.renderOnMouseOut_) {
-                    this.listenerKeys.push(events_js_13.listen(viewport, EventType_js_24.default.POINTEROUT, this.handleMouseOut, this));
-                }
-            }
-        }
-        setCoordinateFormat(format) {
-            this.set(COORDINATE_FORMAT, format);
-        }
-        setProjection(projection) {
-            this.set(PROJECTION, proj_js_11.get(projection));
-        }
-        updateHTML_(pixel) {
-            let html = this.undefinedHTML_;
-            if (pixel && this.mapProjection_) {
-                if (!this.transform_) {
-                    const projection = this.getProjection();
-                    if (projection) {
-                        this.transform_ = proj_js_11.getTransformFromProjections(this.mapProjection_, projection);
-                    }
-                    else {
-                        this.transform_ = proj_js_11.identityTransform;
-                    }
-                }
-                const map = this.getMap();
-                const coordinate = map.getCoordinateFromPixelInternal(pixel);
-                if (coordinate) {
-                    const userProjection = proj_js_11.getUserProjection();
-                    if (userProjection) {
-                        this.transform_ = proj_js_11.getTransformFromProjections(this.mapProjection_, userProjection);
-                    }
-                    this.transform_(coordinate, coordinate);
-                    const coordinateFormat = this.getCoordinateFormat();
-                    if (coordinateFormat) {
-                        html = coordinateFormat(coordinate);
-                    }
-                    else {
-                        html = coordinate.toString();
-                    }
-                }
-            }
-            if (!this.renderedHTML_ || html !== this.renderedHTML_) {
-                this.element.innerHTML = html;
-                this.renderedHTML_ = html;
-            }
-        }
-        render(mapEvent) {
-            const frameState = mapEvent.frameState;
-            if (!frameState) {
-                this.mapProjection_ = null;
-            }
-            else {
-                if (this.mapProjection_ != frameState.viewState.projection) {
-                    this.mapProjection_ = frameState.viewState.projection;
-                    this.transform_ = null;
-                }
-            }
-        }
-    }
-    exports.default = MousePosition;
-});
-define("node_modules/ol/src/control/OverviewMap", ["require", "exports", "node_modules/ol/src/renderer/Composite", "node_modules/ol/src/control/Control", "node_modules/ol/src/events/EventType", "node_modules/ol/src/MapEventType", "node_modules/ol/src/MapProperty", "node_modules/ol/src/ObjectEventType", "node_modules/ol/src/Overlay", "node_modules/ol/src/OverlayPositioning", "node_modules/ol/src/PluggableMap", "node_modules/ol/src/View", "node_modules/ol/src/ViewProperty", "node_modules/ol/src/css", "node_modules/ol/src/extent", "node_modules/ol/src/Object", "node_modules/ol/src/events", "node_modules/ol/src/geom/Polygon", "node_modules/ol/src/dom"], function (require, exports, Composite_js_1, Control_js_6, EventType_js_25, MapEventType_js_4, MapProperty_js_2, ObjectEventType_js_5, Overlay_js_1, OverlayPositioning_js_2, PluggableMap_js_1, View_js_2, ViewProperty_js_2, css_js_8, extent_js_31, Object_js_15, events_js_14, Polygon_js_4, dom_js_10) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    const MAX_RATIO = 0.75;
-    const MIN_RATIO = 0.1;
-    class ControlledMap extends PluggableMap_js_1.default {
-        createRenderer() {
-            return new Composite_js_1.default(this);
-        }
-    }
-    class OverviewMap extends Control_js_6.default {
-        constructor(opt_options) {
-            const options = opt_options ? opt_options : {};
-            super({
-                element: document.createElement('div'),
-                render: options.render,
-                target: options.target,
-            });
-            this.boundHandleRotationChanged_ = this.handleRotationChanged_.bind(this);
-            this.collapsed_ =
-                options.collapsed !== undefined ? options.collapsed : true;
-            this.collapsible_ =
-                options.collapsible !== undefined ? options.collapsible : true;
-            if (!this.collapsible_) {
-                this.collapsed_ = false;
-            }
-            this.rotateWithView_ =
-                options.rotateWithView !== undefined ? options.rotateWithView : false;
-            this.viewExtent_ = undefined;
-            const className = options.className !== undefined ? options.className : 'ol-overviewmap';
-            const tipLabel = options.tipLabel !== undefined ? options.tipLabel : 'Overview map';
-            const collapseLabel = options.collapseLabel !== undefined ? options.collapseLabel : '\u00AB';
-            if (typeof collapseLabel === 'string') {
-                this.collapseLabel_ = document.createElement('span');
-                this.collapseLabel_.textContent = collapseLabel;
-            }
-            else {
-                this.collapseLabel_ = collapseLabel;
-            }
-            const label = options.label !== undefined ? options.label : '\u00BB';
-            if (typeof label === 'string') {
-                this.label_ = document.createElement('span');
-                this.label_.textContent = label;
-            }
-            else {
-                this.label_ = label;
-            }
-            const activeLabel = this.collapsible_ && !this.collapsed_ ? this.collapseLabel_ : this.label_;
-            const button = document.createElement('button');
-            button.setAttribute('type', 'button');
-            button.title = tipLabel;
-            button.appendChild(activeLabel);
-            button.addEventListener(EventType_js_25.default.CLICK, this.handleClick_.bind(this), false);
-            this.ovmapDiv_ = document.createElement('div');
-            this.ovmapDiv_.className = 'ol-overviewmap-map';
-            this.view_ = options.view;
-            this.ovmap_ = new ControlledMap({
-                view: options.view,
-            });
-            const ovmap = this.ovmap_;
-            if (options.layers) {
-                options.layers.forEach(function (layer) {
-                    ovmap.addLayer(layer);
-                });
-            }
-            const box = document.createElement('div');
-            box.className = 'ol-overviewmap-box';
-            box.style.boxSizing = 'border-box';
-            this.boxOverlay_ = new Overlay_js_1.default({
-                position: [0, 0],
-                positioning: OverlayPositioning_js_2.default.CENTER_CENTER,
-                element: box,
-            });
-            this.ovmap_.addOverlay(this.boxOverlay_);
-            const cssClasses = className +
-                ' ' +
-                css_js_8.CLASS_UNSELECTABLE +
-                ' ' +
-                css_js_8.CLASS_CONTROL +
-                (this.collapsed_ && this.collapsible_ ? ' ' + css_js_8.CLASS_COLLAPSED : '') +
-                (this.collapsible_ ? '' : ' ol-uncollapsible');
-            const element = this.element;
-            element.className = cssClasses;
-            element.appendChild(this.ovmapDiv_);
-            element.appendChild(button);
-            const scope = this;
-            const overlay = this.boxOverlay_;
-            const overlayBox = this.boxOverlay_.getElement();
-            const computeDesiredMousePosition = function (mousePosition) {
-                return {
-                    clientX: mousePosition.clientX,
-                    clientY: mousePosition.clientY,
-                };
-            };
-            const move = function (event) {
-                const position = (computeDesiredMousePosition(event));
-                const coordinates = ovmap.getEventCoordinateInternal((position));
-                overlay.setPosition(coordinates);
-            };
-            const endMoving = function (event) {
-                const coordinates = ovmap.getEventCoordinateInternal(event);
-                scope.getMap().getView().setCenterInternal(coordinates);
-                window.removeEventListener('mousemove', move);
-                window.removeEventListener('mouseup', endMoving);
-            };
-            overlayBox.addEventListener('mousedown', function () {
-                window.addEventListener('mousemove', move);
-                window.addEventListener('mouseup', endMoving);
-            });
-        }
-        setMap(map) {
-            const oldMap = this.getMap();
-            if (map === oldMap) {
-                return;
-            }
-            if (oldMap) {
-                const oldView = oldMap.getView();
-                if (oldView) {
-                    this.unbindView_(oldView);
-                }
-                this.ovmap_.setTarget(null);
-            }
-            super.setMap(map);
-            if (map) {
-                this.ovmap_.setTarget(this.ovmapDiv_);
-                this.listenerKeys.push(events_js_14.listen(map, ObjectEventType_js_5.default.PROPERTYCHANGE, this.handleMapPropertyChange_, this));
-                const view = map.getView();
-                if (view) {
-                    this.bindView_(view);
-                    if (view.isDef()) {
-                        this.ovmap_.updateSize();
-                        this.resetExtent_();
-                    }
-                }
-            }
-        }
-        handleMapPropertyChange_(event) {
-            if (event.key === MapProperty_js_2.default.VIEW) {
-                const oldView = (event.oldValue);
-                if (oldView) {
-                    this.unbindView_(oldView);
-                }
-                const newView = this.getMap().getView();
-                this.bindView_(newView);
-            }
-        }
-        bindView_(view) {
-            if (!this.view_) {
-                const newView = new View_js_2.default({
-                    projection: view.getProjection(),
-                });
-                this.ovmap_.setView(newView);
-            }
-            view.addEventListener(Object_js_15.getChangeEventType(ViewProperty_js_2.default.ROTATION), this.boundHandleRotationChanged_);
-            this.handleRotationChanged_();
-        }
-        unbindView_(view) {
-            view.removeEventListener(Object_js_15.getChangeEventType(ViewProperty_js_2.default.ROTATION), this.boundHandleRotationChanged_);
-        }
-        handleRotationChanged_() {
-            if (this.rotateWithView_) {
-                this.ovmap_.getView().setRotation(this.getMap().getView().getRotation());
-            }
-        }
-        validateExtent_() {
-            const map = this.getMap();
-            const ovmap = this.ovmap_;
-            if (!map.isRendered() || !ovmap.isRendered()) {
-                return;
-            }
-            const mapSize = (map.getSize());
-            const view = map.getView();
-            const extent = view.calculateExtentInternal(mapSize);
-            if (this.viewExtent_ && extent_js_31.equals(extent, this.viewExtent_)) {
-                return;
-            }
-            this.viewExtent_ = extent;
-            const ovmapSize = (ovmap.getSize());
-            const ovview = ovmap.getView();
-            const ovextent = ovview.calculateExtentInternal(ovmapSize);
-            const topLeftPixel = ovmap.getPixelFromCoordinateInternal(extent_js_31.getTopLeft(extent));
-            const bottomRightPixel = ovmap.getPixelFromCoordinateInternal(extent_js_31.getBottomRight(extent));
-            const boxWidth = Math.abs(topLeftPixel[0] - bottomRightPixel[0]);
-            const boxHeight = Math.abs(topLeftPixel[1] - bottomRightPixel[1]);
-            const ovmapWidth = ovmapSize[0];
-            const ovmapHeight = ovmapSize[1];
-            if (boxWidth < ovmapWidth * MIN_RATIO ||
-                boxHeight < ovmapHeight * MIN_RATIO ||
-                boxWidth > ovmapWidth * MAX_RATIO ||
-                boxHeight > ovmapHeight * MAX_RATIO) {
-                this.resetExtent_();
-            }
-            else if (!extent_js_31.containsExtent(ovextent, extent)) {
-                this.recenter_();
-            }
-        }
-        resetExtent_() {
-            if (MAX_RATIO === 0 || MIN_RATIO === 0) {
-                return;
-            }
-            const map = this.getMap();
-            const ovmap = this.ovmap_;
-            const mapSize = (map.getSize());
-            const view = map.getView();
-            const extent = view.calculateExtentInternal(mapSize);
-            const ovview = ovmap.getView();
-            const steps = Math.log(MAX_RATIO / MIN_RATIO) / Math.LN2;
-            const ratio = 1 / (Math.pow(2, steps / 2) * MIN_RATIO);
-            extent_js_31.scaleFromCenter(extent, ratio);
-            ovview.fitInternal(Polygon_js_4.fromExtent(extent));
-        }
-        recenter_() {
-            const map = this.getMap();
-            const ovmap = this.ovmap_;
-            const view = map.getView();
-            const ovview = ovmap.getView();
-            ovview.setCenterInternal(view.getCenterInternal());
-        }
-        updateBox_() {
-            const map = this.getMap();
-            const ovmap = this.ovmap_;
-            if (!map.isRendered() || !ovmap.isRendered()) {
-                return;
-            }
-            const mapSize = (map.getSize());
-            const view = map.getView();
-            const ovview = ovmap.getView();
-            const rotation = this.rotateWithView_ ? 0 : -view.getRotation();
-            const overlay = this.boxOverlay_;
-            const box = this.boxOverlay_.getElement();
-            const center = view.getCenterInternal();
-            const resolution = view.getResolution();
-            const ovresolution = ovview.getResolution();
-            const width = (mapSize[0] * resolution) / ovresolution;
-            const height = (mapSize[1] * resolution) / ovresolution;
-            overlay.setPosition(center);
-            if (box) {
-                box.style.width = width + 'px';
-                box.style.height = height + 'px';
-                const transform = 'rotate(' + rotation + 'rad)';
-                box.style.transform = transform;
-            }
-        }
-        handleClick_(event) {
-            event.preventDefault();
-            this.handleToggle_();
-        }
-        handleToggle_() {
-            this.element.classList.toggle(css_js_8.CLASS_COLLAPSED);
-            if (this.collapsed_) {
-                dom_js_10.replaceNode(this.collapseLabel_, this.label_);
-            }
-            else {
-                dom_js_10.replaceNode(this.label_, this.collapseLabel_);
-            }
-            this.collapsed_ = !this.collapsed_;
-            const ovmap = this.ovmap_;
-            if (!this.collapsed_) {
-                if (ovmap.isRendered()) {
-                    this.viewExtent_ = undefined;
-                    ovmap.render();
-                    return;
-                }
-                ovmap.updateSize();
-                this.resetExtent_();
-                events_js_14.listenOnce(ovmap, MapEventType_js_4.default.POSTRENDER, function (event) {
-                    this.updateBox_();
-                }, this);
-            }
-        }
-        getCollapsible() {
-            return this.collapsible_;
-        }
-        setCollapsible(collapsible) {
-            if (this.collapsible_ === collapsible) {
-                return;
-            }
-            this.collapsible_ = collapsible;
-            this.element.classList.toggle('ol-uncollapsible');
-            if (!collapsible && this.collapsed_) {
-                this.handleToggle_();
-            }
-        }
-        setCollapsed(collapsed) {
-            if (!this.collapsible_ || this.collapsed_ === collapsed) {
-                return;
-            }
-            this.handleToggle_();
-        }
-        getCollapsed() {
-            return this.collapsed_;
-        }
-        getRotateWithView() {
-            return this.rotateWithView_;
-        }
-        setRotateWithView(rotateWithView) {
-            if (this.rotateWithView_ === rotateWithView) {
-                return;
-            }
-            this.rotateWithView_ = rotateWithView;
-            if (this.getMap().getView().getRotation() !== 0) {
-                if (this.rotateWithView_) {
-                    this.handleRotationChanged_();
-                }
-                else {
-                    this.ovmap_.getView().setRotation(0);
-                }
-                this.viewExtent_ = undefined;
-                this.validateExtent_();
-                this.updateBox_();
-            }
-        }
-        getOverviewMap() {
-            return this.ovmap_;
-        }
-        render(mapEvent) {
-            this.validateExtent_();
-            this.updateBox_();
-        }
-    }
-    exports.default = OverviewMap;
-});
-define("node_modules/ol/src/control/ScaleLine", ["require", "exports", "node_modules/ol/src/control/Control", "node_modules/ol/src/proj/Units", "node_modules/ol/src/css", "node_modules/ol/src/proj", "node_modules/ol/src/asserts", "node_modules/ol/src/Object"], function (require, exports, Control_js_7, Units_js_9, css_js_9, proj_js_12, asserts_js_15, Object_js_16) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    exports.Units = void 0;
-    const UNITS_PROP = 'units';
-    exports.Units = {
-        DEGREES: 'degrees',
-        IMPERIAL: 'imperial',
-        NAUTICAL: 'nautical',
-        METRIC: 'metric',
-        US: 'us',
-    };
-    const LEADING_DIGITS = [1, 2, 5];
-    const DEFAULT_DPI = 25.4 / 0.28;
-    class ScaleLine extends Control_js_7.default {
-        constructor(opt_options) {
-            const options = opt_options ? opt_options : {};
-            const className = options.className !== undefined
-                ? options.className
-                : options.bar
-                    ? 'ol-scale-bar'
-                    : 'ol-scale-line';
-            super({
-                element: document.createElement('div'),
-                render: options.render,
-                target: options.target,
-            });
-            this.innerElement_ = document.createElement('div');
-            this.innerElement_.className = className + '-inner';
-            this.element.className = className + ' ' + css_js_9.CLASS_UNSELECTABLE;
-            this.element.appendChild(this.innerElement_);
-            this.viewState_ = null;
-            this.minWidth_ = options.minWidth !== undefined ? options.minWidth : 64;
-            this.renderedVisible_ = false;
-            this.renderedWidth_ = undefined;
-            this.renderedHTML_ = '';
-            this.addEventListener(Object_js_16.getChangeEventType(UNITS_PROP), this.handleUnitsChanged_);
-            this.setUnits(options.units || exports.Units.METRIC);
-            this.scaleBar_ = options.bar || false;
-            this.scaleBarSteps_ = options.steps || 4;
-            this.scaleBarText_ = options.text || false;
-            this.dpi_ = options.dpi || undefined;
-        }
-        getUnits() {
-            return this.get(UNITS_PROP);
-        }
-        handleUnitsChanged_() {
-            this.updateElement_();
-        }
-        setUnits(units) {
-            this.set(UNITS_PROP, units);
-        }
-        setDpi(dpi) {
-            this.dpi_ = dpi;
-        }
-        updateElement_() {
-            const viewState = this.viewState_;
-            if (!viewState) {
-                if (this.renderedVisible_) {
-                    this.element.style.display = 'none';
-                    this.renderedVisible_ = false;
-                }
-                return;
-            }
-            const center = viewState.center;
-            const projection = viewState.projection;
-            const units = this.getUnits();
-            const pointResolutionUnits = units == exports.Units.DEGREES ? Units_js_9.default.DEGREES : Units_js_9.default.METERS;
-            let pointResolution = proj_js_12.getPointResolution(projection, viewState.resolution, center, pointResolutionUnits);
-            const minWidth = (this.minWidth_ * (this.dpi_ || DEFAULT_DPI)) / DEFAULT_DPI;
-            let nominalCount = minWidth * pointResolution;
-            let suffix = '';
-            if (units == exports.Units.DEGREES) {
-                const metersPerDegree = proj_js_12.METERS_PER_UNIT[Units_js_9.default.DEGREES];
-                nominalCount *= metersPerDegree;
-                if (nominalCount < metersPerDegree / 60) {
-                    suffix = '\u2033';
-                    pointResolution *= 3600;
-                }
-                else if (nominalCount < metersPerDegree) {
-                    suffix = '\u2032';
-                    pointResolution *= 60;
-                }
-                else {
-                    suffix = '\u00b0';
-                }
-            }
-            else if (units == exports.Units.IMPERIAL) {
-                if (nominalCount < 0.9144) {
-                    suffix = 'in';
-                    pointResolution /= 0.0254;
-                }
-                else if (nominalCount < 1609.344) {
-                    suffix = 'ft';
-                    pointResolution /= 0.3048;
-                }
-                else {
-                    suffix = 'mi';
-                    pointResolution /= 1609.344;
-                }
-            }
-            else if (units == exports.Units.NAUTICAL) {
-                pointResolution /= 1852;
-                suffix = 'nm';
-            }
-            else if (units == exports.Units.METRIC) {
-                if (nominalCount < 0.001) {
-                    suffix = 'μm';
-                    pointResolution *= 1000000;
-                }
-                else if (nominalCount < 1) {
-                    suffix = 'mm';
-                    pointResolution *= 1000;
-                }
-                else if (nominalCount < 1000) {
-                    suffix = 'm';
-                }
-                else {
-                    suffix = 'km';
-                    pointResolution /= 1000;
-                }
-            }
-            else if (units == exports.Units.US) {
-                if (nominalCount < 0.9144) {
-                    suffix = 'in';
-                    pointResolution *= 39.37;
-                }
-                else if (nominalCount < 1609.344) {
-                    suffix = 'ft';
-                    pointResolution /= 0.30480061;
-                }
-                else {
-                    suffix = 'mi';
-                    pointResolution /= 1609.3472;
-                }
-            }
-            else {
-                asserts_js_15.assert(false, 33);
-            }
-            let i = 3 * Math.floor(Math.log(minWidth * pointResolution) / Math.log(10));
-            let count, width, decimalCount;
-            while (true) {
-                decimalCount = Math.floor(i / 3);
-                const decimal = Math.pow(10, decimalCount);
-                count = LEADING_DIGITS[((i % 3) + 3) % 3] * decimal;
-                width = Math.round(count / pointResolution);
-                if (isNaN(width)) {
-                    this.element.style.display = 'none';
-                    this.renderedVisible_ = false;
-                    return;
-                }
-                else if (width >= minWidth) {
-                    break;
-                }
-                ++i;
-            }
-            let html;
-            if (this.scaleBar_) {
-                html = this.createScaleBar(width, count, suffix);
-            }
-            else {
-                html = count.toFixed(decimalCount < 0 ? -decimalCount : 0) + ' ' + suffix;
-            }
-            if (this.renderedHTML_ != html) {
-                this.innerElement_.innerHTML = html;
-                this.renderedHTML_ = html;
-            }
-            if (this.renderedWidth_ != width) {
-                this.innerElement_.style.width = width + 'px';
-                this.renderedWidth_ = width;
-            }
-            if (!this.renderedVisible_) {
-                this.element.style.display = '';
-                this.renderedVisible_ = true;
-            }
-        }
-        createScaleBar(width, scale, suffix) {
-            const mapScale = '1 : ' + Math.round(this.getScaleForResolution()).toLocaleString();
-            const scaleSteps = [];
-            const stepWidth = width / this.scaleBarSteps_;
-            let backgroundColor = '#ffffff';
-            for (let i = 0; i < this.scaleBarSteps_; i++) {
-                if (i === 0) {
-                    scaleSteps.push(this.createMarker('absolute', i));
-                }
-                scaleSteps.push('<div>' +
-                    '<div ' +
-                    'class="ol-scale-singlebar" ' +
-                    'style=' +
-                    '"width: ' +
-                    stepWidth +
-                    'px;' +
-                    'background-color: ' +
-                    backgroundColor +
-                    ';"' +
-                    '>' +
-                    '</div>' +
-                    this.createMarker('relative', i) +
-                    (i % 2 === 0 || this.scaleBarSteps_ === 2
-                        ? this.createStepText(i, width, false, scale, suffix)
-                        : '') +
-                    '</div>');
-                if (i === this.scaleBarSteps_ - 1) {
-                    {
-                    }
-                    scaleSteps.push(this.createStepText(i + 1, width, true, scale, suffix));
-                }
-                if (backgroundColor === '#ffffff') {
-                    backgroundColor = '#000000';
-                }
-                else {
-                    backgroundColor = '#ffffff';
-                }
-            }
-            let scaleBarText;
-            if (this.scaleBarText_) {
-                scaleBarText =
-                    '<div ' +
-                        'class="ol-scale-text" ' +
-                        'style="width: ' +
-                        width +
-                        'px;">' +
-                        mapScale +
-                        '</div>';
-            }
-            else {
-                scaleBarText = '';
-            }
-            const container = '<div ' +
-                'style="display: flex;">' +
-                scaleBarText +
-                scaleSteps.join('') +
-                '</div>';
-            return container;
-        }
-        createMarker(position, i) {
-            const top = position === 'absolute' ? 3 : -10;
-            return ('<div ' +
-                'class="ol-scale-step-marker" ' +
-                'style="position: ' +
-                position +
-                ';' +
-                'top: ' +
-                top +
-                'px;"' +
-                '></div>');
-        }
-        createStepText(i, width, isLast, scale, suffix) {
-            const length = i === 0 ? 0 : Math.round((scale / this.scaleBarSteps_) * i * 100) / 100;
-            const lengthString = length + (i === 0 ? '' : ' ' + suffix);
-            const margin = i === 0 ? -3 : (width / this.scaleBarSteps_) * -1;
-            const minWidth = i === 0 ? 0 : (width / this.scaleBarSteps_) * 2;
-            return ('<div ' +
-                'class="ol-scale-step-text" ' +
-                'style="' +
-                'margin-left: ' +
-                margin +
-                'px;' +
-                'text-align: ' +
-                (i === 0 ? 'left' : 'center') +
-                '; ' +
-                'min-width: ' +
-                minWidth +
-                'px;' +
-                'left: ' +
-                (isLast ? width + 'px' : 'unset') +
-                ';"' +
-                '>' +
-                lengthString +
-                '</div>');
-        }
-        getScaleForResolution() {
-            const resolution = proj_js_12.getPointResolution(this.viewState_.projection, this.viewState_.resolution, this.viewState_.center);
-            const dpi = this.dpi_ || DEFAULT_DPI;
-            const mpu = this.viewState_.projection.getMetersPerUnit();
-            const inchesPerMeter = 39.37;
-            return parseFloat(resolution.toString()) * mpu * inchesPerMeter * dpi;
-        }
-        render(mapEvent) {
-            const frameState = mapEvent.frameState;
-            if (!frameState) {
-                this.viewState_ = null;
-            }
-            else {
-                this.viewState_ = frameState.viewState;
-            }
-            this.updateElement_();
-        }
-    }
-    exports.default = ScaleLine;
-});
-define("node_modules/ol/src/control/ZoomSlider", ["require", "exports", "node_modules/ol/src/control/Control", "node_modules/ol/src/events/EventType", "node_modules/ol/src/pointer/EventType", "node_modules/ol/src/css", "node_modules/ol/src/math", "node_modules/ol/src/easing", "node_modules/ol/src/events", "node_modules/ol/src/events/Event"], function (require, exports, Control_js_8, EventType_js_26, EventType_js_27, css_js_10, math_js_18, easing_js_7, events_js_15, Event_js_8) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    const Direction = {
-        VERTICAL: 0,
-        HORIZONTAL: 1,
-    };
-    class ZoomSlider extends Control_js_8.default {
-        constructor(opt_options) {
-            const options = opt_options ? opt_options : {};
-            super({
-                element: document.createElement('div'),
-                render: options.render,
-            });
-            this.dragListenerKeys_ = [];
-            this.currentResolution_ = undefined;
-            this.direction_ = Direction.VERTICAL;
-            this.dragging_;
-            this.heightLimit_ = 0;
-            this.widthLimit_ = 0;
-            this.startX_;
-            this.startY_;
-            this.thumbSize_ = null;
-            this.sliderInitialized_ = false;
-            this.duration_ = options.duration !== undefined ? options.duration : 200;
-            const className = options.className !== undefined ? options.className : 'ol-zoomslider';
-            const thumbElement = document.createElement('button');
-            thumbElement.setAttribute('type', 'button');
-            thumbElement.className = className + '-thumb ' + css_js_10.CLASS_UNSELECTABLE;
-            const containerElement = this.element;
-            containerElement.className =
-                className + ' ' + css_js_10.CLASS_UNSELECTABLE + ' ' + css_js_10.CLASS_CONTROL;
-            containerElement.appendChild(thumbElement);
-            containerElement.addEventListener(EventType_js_27.default.POINTERDOWN, this.handleDraggerStart_.bind(this), false);
-            containerElement.addEventListener(EventType_js_27.default.POINTERMOVE, this.handleDraggerDrag_.bind(this), false);
-            containerElement.addEventListener(EventType_js_27.default.POINTERUP, this.handleDraggerEnd_.bind(this), false);
-            containerElement.addEventListener(EventType_js_26.default.CLICK, this.handleContainerClick_.bind(this), false);
-            thumbElement.addEventListener(EventType_js_26.default.CLICK, Event_js_8.stopPropagation, false);
-        }
-        setMap(map) {
-            super.setMap(map);
-            if (map) {
-                map.render();
-            }
-        }
-        initSlider_() {
-            const container = this.element;
-            const containerWidth = container.offsetWidth;
-            const containerHeight = container.offsetHeight;
-            if (containerWidth === 0 && containerHeight === 0) {
-                return (this.sliderInitialized_ = false);
-            }
-            const thumb = (container.firstElementChild);
-            const computedStyle = getComputedStyle(thumb);
-            const thumbWidth = thumb.offsetWidth +
-                parseFloat(computedStyle['marginRight']) +
-                parseFloat(computedStyle['marginLeft']);
-            const thumbHeight = thumb.offsetHeight +
-                parseFloat(computedStyle['marginTop']) +
-                parseFloat(computedStyle['marginBottom']);
-            this.thumbSize_ = [thumbWidth, thumbHeight];
-            if (containerWidth > containerHeight) {
-                this.direction_ = Direction.HORIZONTAL;
-                this.widthLimit_ = containerWidth - thumbWidth;
-            }
-            else {
-                this.direction_ = Direction.VERTICAL;
-                this.heightLimit_ = containerHeight - thumbHeight;
-            }
-            return (this.sliderInitialized_ = true);
-        }
-        handleContainerClick_(event) {
-            const view = this.getMap().getView();
-            const relativePosition = this.getRelativePosition_(event.offsetX - this.thumbSize_[0] / 2, event.offsetY - this.thumbSize_[1] / 2);
-            const resolution = this.getResolutionForPosition_(relativePosition);
-            const zoom = view.getConstrainedZoom(view.getZoomForResolution(resolution));
-            view.animateInternal({
-                zoom: zoom,
-                duration: this.duration_,
-                easing: easing_js_7.easeOut,
-            });
-        }
-        handleDraggerStart_(event) {
-            if (!this.dragging_ && event.target === this.element.firstElementChild) {
-                const element = (this.element
-                    .firstElementChild);
-                this.getMap().getView().beginInteraction();
-                this.startX_ = event.clientX - parseFloat(element.style.left);
-                this.startY_ = event.clientY - parseFloat(element.style.top);
-                this.dragging_ = true;
-                if (this.dragListenerKeys_.length === 0) {
-                    const drag = this.handleDraggerDrag_;
-                    const end = this.handleDraggerEnd_;
-                    this.dragListenerKeys_.push(events_js_15.listen(document, EventType_js_27.default.POINTERMOVE, drag, this), events_js_15.listen(document, EventType_js_27.default.POINTERUP, end, this));
-                }
-            }
-        }
-        handleDraggerDrag_(event) {
-            if (this.dragging_) {
-                const deltaX = event.clientX - this.startX_;
-                const deltaY = event.clientY - this.startY_;
-                const relativePosition = this.getRelativePosition_(deltaX, deltaY);
-                this.currentResolution_ = this.getResolutionForPosition_(relativePosition);
-                this.getMap().getView().setResolution(this.currentResolution_);
-            }
-        }
-        handleDraggerEnd_(event) {
-            if (this.dragging_) {
-                const view = this.getMap().getView();
-                view.endInteraction();
-                this.dragging_ = false;
-                this.startX_ = undefined;
-                this.startY_ = undefined;
-                this.dragListenerKeys_.forEach(events_js_15.unlistenByKey);
-                this.dragListenerKeys_.length = 0;
-            }
-        }
-        setThumbPosition_(res) {
-            const position = this.getPositionForResolution_(res);
-            const thumb = (this.element.firstElementChild);
-            if (this.direction_ == Direction.HORIZONTAL) {
-                thumb.style.left = this.widthLimit_ * position + 'px';
-            }
-            else {
-                thumb.style.top = this.heightLimit_ * position + 'px';
-            }
-        }
-        getRelativePosition_(x, y) {
-            let amount;
-            if (this.direction_ === Direction.HORIZONTAL) {
-                amount = x / this.widthLimit_;
-            }
-            else {
-                amount = y / this.heightLimit_;
-            }
-            return math_js_18.clamp(amount, 0, 1);
-        }
-        getResolutionForPosition_(position) {
-            const fn = this.getMap().getView().getResolutionForValueFunction();
-            return fn(1 - position);
-        }
-        getPositionForResolution_(res) {
-            const fn = this.getMap().getView().getValueForResolutionFunction();
-            return math_js_18.clamp(1 - fn(res), 0, 1);
-        }
-        render(mapEvent) {
-            if (!mapEvent.frameState) {
-                return;
-            }
-            if (!this.sliderInitialized_ && !this.initSlider_()) {
-                return;
-            }
-            const res = mapEvent.frameState.viewState.resolution;
-            this.currentResolution_ = res;
-            this.setThumbPosition_(res);
-        }
-    }
-    exports.default = ZoomSlider;
-});
-define("node_modules/ol/src/control/ZoomToExtent", ["require", "exports", "node_modules/ol/src/control/Control", "node_modules/ol/src/events/EventType", "node_modules/ol/src/css", "node_modules/ol/src/geom/Polygon"], function (require, exports, Control_js_9, EventType_js_28, css_js_11, Polygon_js_5) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    class ZoomToExtent extends Control_js_9.default {
-        constructor(opt_options) {
-            const options = opt_options ? opt_options : {};
-            super({
-                element: document.createElement('div'),
-                target: options.target,
-            });
-            this.extent = options.extent ? options.extent : null;
-            const className = options.className !== undefined ? options.className : 'ol-zoom-extent';
-            const label = options.label !== undefined ? options.label : 'E';
-            const tipLabel = options.tipLabel !== undefined ? options.tipLabel : 'Fit to extent';
-            const button = document.createElement('button');
-            button.setAttribute('type', 'button');
-            button.title = tipLabel;
-            button.appendChild(typeof label === 'string' ? document.createTextNode(label) : label);
-            button.addEventListener(EventType_js_28.default.CLICK, this.handleClick_.bind(this), false);
-            const cssClasses = className + ' ' + css_js_11.CLASS_UNSELECTABLE + ' ' + css_js_11.CLASS_CONTROL;
-            const element = this.element;
-            element.className = cssClasses;
-            element.appendChild(button);
-        }
-        handleClick_(event) {
-            event.preventDefault();
-            this.handleZoomToExtent();
-        }
-        handleZoomToExtent() {
-            const map = this.getMap();
-            const view = map.getView();
-            const extent = !this.extent
-                ? view.getProjection().getExtent()
-                : this.extent;
-            view.fitInternal(Polygon_js_5.fromExtent(extent));
-        }
-    }
-    exports.default = ZoomToExtent;
-});
-define("node_modules/ol/src/control", ["require", "exports", "node_modules/ol/src/control/Attribution", "node_modules/ol/src/Collection", "node_modules/ol/src/control/Rotate", "node_modules/ol/src/control/Zoom", "node_modules/ol/src/control/Attribution", "node_modules/ol/src/control/Control", "node_modules/ol/src/control/FullScreen", "node_modules/ol/src/control/MousePosition", "node_modules/ol/src/control/OverviewMap", "node_modules/ol/src/control/Rotate", "node_modules/ol/src/control/ScaleLine", "node_modules/ol/src/control/Zoom", "node_modules/ol/src/control/ZoomSlider", "node_modules/ol/src/control/ZoomToExtent"], function (require, exports, Attribution_js_1, Collection_js_3, Rotate_js_1, Zoom_js_1, Attribution_js_2, Control_js_10, FullScreen_js_1, MousePosition_js_1, OverviewMap_js_1, Rotate_js_2, ScaleLine_js_1, Zoom_js_2, ZoomSlider_js_1, ZoomToExtent_js_1) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    exports.defaults = exports.ZoomToExtent = exports.ZoomSlider = exports.Zoom = exports.ScaleLine = exports.Rotate = exports.OverviewMap = exports.MousePosition = exports.FullScreen = exports.Control = exports.Attribution = void 0;
-    Object.defineProperty(exports, "Attribution", { enumerable: true, get: function () { return Attribution_js_2.default; } });
-    Object.defineProperty(exports, "Control", { enumerable: true, get: function () { return Control_js_10.default; } });
-    Object.defineProperty(exports, "FullScreen", { enumerable: true, get: function () { return FullScreen_js_1.default; } });
-    Object.defineProperty(exports, "MousePosition", { enumerable: true, get: function () { return MousePosition_js_1.default; } });
-    Object.defineProperty(exports, "OverviewMap", { enumerable: true, get: function () { return OverviewMap_js_1.default; } });
-    Object.defineProperty(exports, "Rotate", { enumerable: true, get: function () { return Rotate_js_2.default; } });
-    Object.defineProperty(exports, "ScaleLine", { enumerable: true, get: function () { return ScaleLine_js_1.default; } });
-    Object.defineProperty(exports, "Zoom", { enumerable: true, get: function () { return Zoom_js_2.default; } });
-    Object.defineProperty(exports, "ZoomSlider", { enumerable: true, get: function () { return ZoomSlider_js_1.default; } });
-    Object.defineProperty(exports, "ZoomToExtent", { enumerable: true, get: function () { return ZoomToExtent_js_1.default; } });
-    function defaults(opt_options) {
-        const options = opt_options ? opt_options : {};
-        const controls = new Collection_js_3.default();
-        const zoomControl = options.zoom !== undefined ? options.zoom : true;
-        if (zoomControl) {
-            controls.push(new Zoom_js_1.default(options.zoomOptions));
-        }
-        const rotateControl = options.rotate !== undefined ? options.rotate : true;
-        if (rotateControl) {
-            controls.push(new Rotate_js_1.default(options.rotateOptions));
-        }
-        const attributionControl = options.attribution !== undefined ? options.attribution : true;
-        if (attributionControl) {
-            controls.push(new Attribution_js_1.default(options.attributionOptions));
-        }
-        return controls;
-    }
-    exports.defaults = defaults;
-});
-define("node_modules/ol/src/interaction/DoubleClickZoom", ["require", "exports", "node_modules/ol/src/interaction/Interaction", "node_modules/ol/src/MapBrowserEventType"], function (require, exports, Interaction_js_1, MapBrowserEventType_js_3) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    class DoubleClickZoom extends Interaction_js_1.default {
-        constructor(opt_options) {
-            super();
-            const options = opt_options ? opt_options : {};
-            this.delta_ = options.delta ? options.delta : 1;
-            this.duration_ = options.duration !== undefined ? options.duration : 250;
-        }
-        handleEvent(mapBrowserEvent) {
-            let stopEvent = false;
-            if (mapBrowserEvent.type == MapBrowserEventType_js_3.default.DBLCLICK) {
-                const browserEvent = (mapBrowserEvent.originalEvent);
-                const map = mapBrowserEvent.map;
-                const anchor = mapBrowserEvent.coordinate;
-                const delta = browserEvent.shiftKey ? -this.delta_ : this.delta_;
-                const view = map.getView();
-                Interaction_js_1.zoomByDelta(view, delta, anchor, this.duration_);
-                mapBrowserEvent.preventDefault();
-                stopEvent = true;
-            }
-            return !stopEvent;
-        }
-    }
-    exports.default = DoubleClickZoom;
-});
-define("node_modules/ol/src/interaction/Pointer", ["require", "exports", "node_modules/ol/src/interaction/Interaction", "node_modules/ol/src/MapBrowserEventType", "node_modules/ol/src/obj"], function (require, exports, Interaction_js_2, MapBrowserEventType_js_4, obj_js_13) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    exports.centroid = void 0;
-    class PointerInteraction extends Interaction_js_2.default {
-        constructor(opt_options) {
-            const options = opt_options ? opt_options : {};
-            super((options));
-            if (options.handleDownEvent) {
-                this.handleDownEvent = options.handleDownEvent;
-            }
-            if (options.handleDragEvent) {
-                this.handleDragEvent = options.handleDragEvent;
-            }
-            if (options.handleMoveEvent) {
-                this.handleMoveEvent = options.handleMoveEvent;
-            }
-            if (options.handleUpEvent) {
-                this.handleUpEvent = options.handleUpEvent;
-            }
-            if (options.stopDown) {
-                this.stopDown = options.stopDown;
-            }
-            this.handlingDownUpSequence = false;
-            this.trackedPointers_ = {};
-            this.targetPointers = [];
-        }
-        getPointerCount() {
-            return this.targetPointers.length;
-        }
-        handleDownEvent(mapBrowserEvent) {
-            return false;
-        }
-        handleDragEvent(mapBrowserEvent) { }
-        handleEvent(mapBrowserEvent) {
-            if (!mapBrowserEvent.originalEvent) {
-                return true;
-            }
-            let stopEvent = false;
-            this.updateTrackedPointers_(mapBrowserEvent);
-            if (this.handlingDownUpSequence) {
-                if (mapBrowserEvent.type == MapBrowserEventType_js_4.default.POINTERDRAG) {
-                    this.handleDragEvent(mapBrowserEvent);
-                    mapBrowserEvent.preventDefault();
-                }
-                else if (mapBrowserEvent.type == MapBrowserEventType_js_4.default.POINTERUP) {
-                    const handledUp = this.handleUpEvent(mapBrowserEvent);
-                    this.handlingDownUpSequence =
-                        handledUp && this.targetPointers.length > 0;
-                }
-            }
-            else {
-                if (mapBrowserEvent.type == MapBrowserEventType_js_4.default.POINTERDOWN) {
-                    const handled = this.handleDownEvent(mapBrowserEvent);
-                    this.handlingDownUpSequence = handled;
-                    stopEvent = this.stopDown(handled);
-                }
-                else if (mapBrowserEvent.type == MapBrowserEventType_js_4.default.POINTERMOVE) {
-                    this.handleMoveEvent(mapBrowserEvent);
-                }
-            }
-            return !stopEvent;
-        }
-        handleMoveEvent(mapBrowserEvent) { }
-        handleUpEvent(mapBrowserEvent) {
-            return false;
-        }
-        stopDown(handled) {
-            return handled;
-        }
-        updateTrackedPointers_(mapBrowserEvent) {
-            if (isPointerDraggingEvent(mapBrowserEvent)) {
-                const event = mapBrowserEvent.originalEvent;
-                const id = event.pointerId.toString();
-                if (mapBrowserEvent.type == MapBrowserEventType_js_4.default.POINTERUP) {
-                    delete this.trackedPointers_[id];
-                }
-                else if (mapBrowserEvent.type == MapBrowserEventType_js_4.default.POINTERDOWN) {
-                    this.trackedPointers_[id] = event;
-                }
-                else if (id in this.trackedPointers_) {
-                    this.trackedPointers_[id] = event;
-                }
-                this.targetPointers = obj_js_13.getValues(this.trackedPointers_);
-            }
-        }
-    }
-    function centroid(pointerEvents) {
-        const length = pointerEvents.length;
-        let clientX = 0;
-        let clientY = 0;
-        for (let i = 0; i < length; i++) {
-            clientX += pointerEvents[i].clientX;
-            clientY += pointerEvents[i].clientY;
-        }
-        return [clientX / length, clientY / length];
-    }
-    exports.centroid = centroid;
-    function isPointerDraggingEvent(mapBrowserEvent) {
-        const type = mapBrowserEvent.type;
-        return (type === MapBrowserEventType_js_4.default.POINTERDOWN ||
-            type === MapBrowserEventType_js_4.default.POINTERDRAG ||
-            type === MapBrowserEventType_js_4.default.POINTERUP);
-    }
-    exports.default = PointerInteraction;
-});
-define("node_modules/ol/src/events/condition", ["require", "exports", "node_modules/ol/src/MapBrowserEventType", "node_modules/ol/src/functions", "node_modules/ol/src/has", "node_modules/ol/src/asserts"], function (require, exports, MapBrowserEventType_js_5, functions_js_7, has_js_7, asserts_js_16) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    exports.primaryAction = exports.penOnly = exports.touchOnly = exports.mouseOnly = exports.targetNotEditable = exports.shiftKeyOnly = exports.platformModifierKeyOnly = exports.noModifierKeys = exports.doubleClick = exports.singleClick = exports.pointerMove = exports.never = exports.mouseActionButton = exports.click = exports.always = exports.focusWithTabindex = exports.focus = exports.altShiftKeysOnly = exports.altKeyOnly = exports.all = void 0;
-    function all(var_args) {
-        const conditions = arguments;
-        return function (event) {
-            let pass = true;
-            for (let i = 0, ii = conditions.length; i < ii; ++i) {
-                pass = pass && conditions[i](event);
-                if (!pass) {
-                    break;
-                }
-            }
-            return pass;
-        };
+    exports.tile = exports.bbox = exports.all = void 0;
+    function all(extent, resolution) {
+        return [[-Infinity, -Infinity, Infinity, Infinity]];
     }
     exports.all = all;
-    exports.altKeyOnly = function (mapBrowserEvent) {
-        const originalEvent = (mapBrowserEvent.originalEvent);
-        return (originalEvent.altKey &&
-            !(originalEvent.metaKey || originalEvent.ctrlKey) &&
-            !originalEvent.shiftKey);
-    };
-    exports.altShiftKeysOnly = function (mapBrowserEvent) {
-        const originalEvent = (mapBrowserEvent.originalEvent);
-        return (originalEvent.altKey &&
-            !(originalEvent.metaKey || originalEvent.ctrlKey) &&
-            originalEvent.shiftKey);
-    };
-    exports.focus = function (event) {
-        return event.target.getTargetElement().contains(document.activeElement);
-    };
-    exports.focusWithTabindex = function (event) {
-        return event.map.getTargetElement().hasAttribute('tabindex')
-            ? exports.focus(event)
-            : true;
-    };
-    exports.always = functions_js_7.TRUE;
-    exports.click = function (mapBrowserEvent) {
-        return mapBrowserEvent.type == MapBrowserEventType_js_5.default.CLICK;
-    };
-    exports.mouseActionButton = function (mapBrowserEvent) {
-        const originalEvent = (mapBrowserEvent.originalEvent);
-        return originalEvent.button == 0 && !(has_js_7.WEBKIT && has_js_7.MAC && originalEvent.ctrlKey);
-    };
-    exports.never = functions_js_7.FALSE;
-    exports.pointerMove = function (mapBrowserEvent) {
-        return mapBrowserEvent.type == 'pointermove';
-    };
-    exports.singleClick = function (mapBrowserEvent) {
-        return mapBrowserEvent.type == MapBrowserEventType_js_5.default.SINGLECLICK;
-    };
-    exports.doubleClick = function (mapBrowserEvent) {
-        return mapBrowserEvent.type == MapBrowserEventType_js_5.default.DBLCLICK;
-    };
-    exports.noModifierKeys = function (mapBrowserEvent) {
-        const originalEvent = (mapBrowserEvent.originalEvent);
-        return (!originalEvent.altKey &&
-            !(originalEvent.metaKey || originalEvent.ctrlKey) &&
-            !originalEvent.shiftKey);
-    };
-    exports.platformModifierKeyOnly = function (mapBrowserEvent) {
-        const originalEvent = (mapBrowserEvent.originalEvent);
-        return (!originalEvent.altKey &&
-            (has_js_7.MAC ? originalEvent.metaKey : originalEvent.ctrlKey) &&
-            !originalEvent.shiftKey);
-    };
-    exports.shiftKeyOnly = function (mapBrowserEvent) {
-        const originalEvent = (mapBrowserEvent.originalEvent);
-        return (!originalEvent.altKey &&
-            !(originalEvent.metaKey || originalEvent.ctrlKey) &&
-            originalEvent.shiftKey);
-    };
-    exports.targetNotEditable = function (mapBrowserEvent) {
-        const originalEvent = (mapBrowserEvent.originalEvent);
-        const tagName = (originalEvent.target).tagName;
-        return tagName !== 'INPUT' && tagName !== 'SELECT' && tagName !== 'TEXTAREA';
-    };
-    exports.mouseOnly = function (mapBrowserEvent) {
-        const pointerEvent = (mapBrowserEvent)
-            .originalEvent;
-        asserts_js_16.assert(pointerEvent !== undefined, 56);
-        return pointerEvent.pointerType == 'mouse';
-    };
-    exports.touchOnly = function (mapBrowserEvent) {
-        const pointerEvt = (mapBrowserEvent)
-            .originalEvent;
-        asserts_js_16.assert(pointerEvt !== undefined, 56);
-        return pointerEvt.pointerType === 'touch';
-    };
-    exports.penOnly = function (mapBrowserEvent) {
-        const pointerEvt = (mapBrowserEvent)
-            .originalEvent;
-        asserts_js_16.assert(pointerEvt !== undefined, 56);
-        return pointerEvt.pointerType === 'pen';
-    };
-    exports.primaryAction = function (mapBrowserEvent) {
-        const pointerEvent = (mapBrowserEvent)
-            .originalEvent;
-        asserts_js_16.assert(pointerEvent !== undefined, 56);
-        return pointerEvent.isPrimary && pointerEvent.button === 0;
-    };
-});
-define("node_modules/ol/src/Kinetic", ["require", "exports"], function (require, exports) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    class Kinetic {
-        constructor(decay, minVelocity, delay) {
-            this.decay_ = decay;
-            this.minVelocity_ = minVelocity;
-            this.delay_ = delay;
-            this.points_ = [];
-            this.angle_ = 0;
-            this.initialVelocity_ = 0;
-        }
-        begin() {
-            this.points_.length = 0;
-            this.angle_ = 0;
-            this.initialVelocity_ = 0;
-        }
-        update(x, y) {
-            this.points_.push(x, y, Date.now());
-        }
-        end() {
-            if (this.points_.length < 6) {
-                return false;
-            }
-            const delay = Date.now() - this.delay_;
-            const lastIndex = this.points_.length - 3;
-            if (this.points_[lastIndex + 2] < delay) {
-                return false;
-            }
-            let firstIndex = lastIndex - 3;
-            while (firstIndex > 0 && this.points_[firstIndex + 2] > delay) {
-                firstIndex -= 3;
-            }
-            const duration = this.points_[lastIndex + 2] - this.points_[firstIndex + 2];
-            if (duration < 1000 / 60) {
-                return false;
-            }
-            const dx = this.points_[lastIndex] - this.points_[firstIndex];
-            const dy = this.points_[lastIndex + 1] - this.points_[firstIndex + 1];
-            this.angle_ = Math.atan2(dy, dx);
-            this.initialVelocity_ = Math.sqrt(dx * dx + dy * dy) / duration;
-            return this.initialVelocity_ > this.minVelocity_;
-        }
-        getDistance() {
-            return (this.minVelocity_ - this.initialVelocity_) / this.decay_;
-        }
-        getAngle() {
-            return this.angle_;
-        }
+    function bbox(extent, resolution) {
+        return [extent];
     }
-    exports.default = Kinetic;
-});
-define("node_modules/ol/src/interaction/DragPan", ["require", "exports", "node_modules/ol/src/interaction/Pointer", "node_modules/ol/src/functions", "node_modules/ol/src/events/condition", "node_modules/ol/src/easing", "node_modules/ol/src/coordinate"], function (require, exports, Pointer_js_1, functions_js_8, condition_js_1, easing_js_8, coordinate_js_5) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    class DragPan extends Pointer_js_1.default {
-        constructor(opt_options) {
-            super({
-                stopDown: functions_js_8.FALSE,
-            });
-            const options = opt_options ? opt_options : {};
-            this.kinetic_ = options.kinetic;
-            this.lastCentroid = null;
-            this.lastPointersCount_;
-            this.panning_ = false;
-            const condition = options.condition
-                ? options.condition
-                : condition_js_1.all(condition_js_1.noModifierKeys, condition_js_1.primaryAction);
-            this.condition_ = options.onFocusOnly
-                ? condition_js_1.all(condition_js_1.focusWithTabindex, condition)
-                : condition;
-            this.noKinetic_ = false;
-        }
-        handleDragEvent(mapBrowserEvent) {
-            if (!this.panning_) {
-                this.panning_ = true;
-                this.getMap().getView().beginInteraction();
-            }
-            const targetPointers = this.targetPointers;
-            const centroid = Pointer_js_1.centroid(targetPointers);
-            if (targetPointers.length == this.lastPointersCount_) {
-                if (this.kinetic_) {
-                    this.kinetic_.update(centroid[0], centroid[1]);
-                }
-                if (this.lastCentroid) {
-                    const delta = [
-                        this.lastCentroid[0] - centroid[0],
-                        centroid[1] - this.lastCentroid[1],
-                    ];
-                    const map = mapBrowserEvent.map;
-                    const view = map.getView();
-                    coordinate_js_5.scale(delta, view.getResolution());
-                    coordinate_js_5.rotate(delta, view.getRotation());
-                    view.adjustCenterInternal(delta);
+    exports.bbox = bbox;
+    function tile(tileGrid) {
+        return (function (extent, resolution) {
+            const z = tileGrid.getZForResolution(resolution);
+            const tileRange = tileGrid.getTileRangeForExtentAndZ(extent, z);
+            const extents = [];
+            const tileCoord = [z, 0, 0];
+            for (tileCoord[1] = tileRange.minX; tileCoord[1] <= tileRange.maxX; ++tileCoord[1]) {
+                for (tileCoord[2] = tileRange.minY; tileCoord[2] <= tileRange.maxY; ++tileCoord[2]) {
+                    extents.push(tileGrid.getTileCoordExtent(tileCoord));
                 }
             }
-            else if (this.kinetic_) {
-                this.kinetic_.begin();
-            }
-            this.lastCentroid = centroid;
-            this.lastPointersCount_ = targetPointers.length;
-            mapBrowserEvent.originalEvent.preventDefault();
-        }
-        handleUpEvent(mapBrowserEvent) {
-            const map = mapBrowserEvent.map;
-            const view = map.getView();
-            if (this.targetPointers.length === 0) {
-                if (!this.noKinetic_ && this.kinetic_ && this.kinetic_.end()) {
-                    const distance = this.kinetic_.getDistance();
-                    const angle = this.kinetic_.getAngle();
-                    const center = view.getCenterInternal();
-                    const centerpx = map.getPixelFromCoordinateInternal(center);
-                    const dest = map.getCoordinateFromPixelInternal([
-                        centerpx[0] - distance * Math.cos(angle),
-                        centerpx[1] - distance * Math.sin(angle),
-                    ]);
-                    view.animateInternal({
-                        center: view.getConstrainedCenter(dest),
-                        duration: 500,
-                        easing: easing_js_8.easeOut,
-                    });
-                }
-                if (this.panning_) {
-                    this.panning_ = false;
-                    view.endInteraction();
-                }
-                return false;
-            }
-            else {
-                if (this.kinetic_) {
-                    this.kinetic_.begin();
-                }
-                this.lastCentroid = null;
-                return true;
-            }
-        }
-        handleDownEvent(mapBrowserEvent) {
-            if (this.targetPointers.length > 0 && this.condition_(mapBrowserEvent)) {
-                const map = mapBrowserEvent.map;
-                const view = map.getView();
-                this.lastCentroid = null;
-                if (view.getAnimating()) {
-                    view.cancelAnimations();
-                }
-                if (this.kinetic_) {
-                    this.kinetic_.begin();
-                }
-                this.noKinetic_ = this.targetPointers.length > 1;
-                return true;
-            }
-            else {
-                return false;
-            }
-        }
+            return extents;
+        });
     }
-    exports.default = DragPan;
+    exports.tile = tile;
 });
-define("node_modules/ol/src/interaction/DragRotate", ["require", "exports", "node_modules/ol/src/interaction/Pointer", "node_modules/ol/src/functions", "node_modules/ol/src/events/condition", "node_modules/ol/src/rotationconstraint"], function (require, exports, Pointer_js_2, functions_js_9, condition_js_2, rotationconstraint_js_2) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    class DragRotate extends Pointer_js_2.default {
-        constructor(opt_options) {
-            const options = opt_options ? opt_options : {};
-            super({
-                stopDown: functions_js_9.FALSE,
-            });
-            this.condition_ = options.condition ? options.condition : condition_js_2.altShiftKeysOnly;
-            this.lastAngle_ = undefined;
-            this.duration_ = options.duration !== undefined ? options.duration : 250;
-        }
-        handleDragEvent(mapBrowserEvent) {
-            if (!condition_js_2.mouseOnly(mapBrowserEvent)) {
-                return;
-            }
-            const map = mapBrowserEvent.map;
-            const view = map.getView();
-            if (view.getConstraints().rotation === rotationconstraint_js_2.disable) {
-                return;
-            }
-            const size = map.getSize();
-            const offset = mapBrowserEvent.pixel;
-            const theta = Math.atan2(size[1] / 2 - offset[1], offset[0] - size[0] / 2);
-            if (this.lastAngle_ !== undefined) {
-                const delta = theta - this.lastAngle_;
-                view.adjustRotationInternal(-delta);
-            }
-            this.lastAngle_ = theta;
-        }
-        handleUpEvent(mapBrowserEvent) {
-            if (!condition_js_2.mouseOnly(mapBrowserEvent)) {
-                return true;
-            }
-            const map = mapBrowserEvent.map;
-            const view = map.getView();
-            view.endInteraction(this.duration_);
-            return false;
-        }
-        handleDownEvent(mapBrowserEvent) {
-            if (!condition_js_2.mouseOnly(mapBrowserEvent)) {
-                return false;
-            }
-            if (condition_js_2.mouseActionButton(mapBrowserEvent) &&
-                this.condition_(mapBrowserEvent)) {
-                const map = mapBrowserEvent.map;
-                map.getView().beginInteraction();
-                this.lastAngle_ = undefined;
-                return true;
-            }
-            else {
-                return false;
-            }
-        }
-    }
-    exports.default = DragRotate;
-});
-define("node_modules/ol/src/render/Box", ["require", "exports", "node_modules/ol/src/Disposable", "node_modules/ol/src/geom/Polygon"], function (require, exports, Disposable_js_3, Polygon_js_6) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    class RenderBox extends Disposable_js_3.default {
-        constructor(className) {
-            super();
-            this.geometry_ = null;
-            this.element_ = document.createElement('div');
-            this.element_.style.position = 'absolute';
-            this.element_.style.pointerEvents = 'auto';
-            this.element_.className = 'ol-box ' + className;
-            this.map_ = null;
-            this.startPixel_ = null;
-            this.endPixel_ = null;
-        }
-        disposeInternal() {
-            this.setMap(null);
-        }
-        render_() {
-            const startPixel = this.startPixel_;
-            const endPixel = this.endPixel_;
-            const px = 'px';
-            const style = this.element_.style;
-            style.left = Math.min(startPixel[0], endPixel[0]) + px;
-            style.top = Math.min(startPixel[1], endPixel[1]) + px;
-            style.width = Math.abs(endPixel[0] - startPixel[0]) + px;
-            style.height = Math.abs(endPixel[1] - startPixel[1]) + px;
-        }
-        setMap(map) {
-            if (this.map_) {
-                this.map_.getOverlayContainer().removeChild(this.element_);
-                const style = this.element_.style;
-                style.left = 'inherit';
-                style.top = 'inherit';
-                style.width = 'inherit';
-                style.height = 'inherit';
-            }
-            this.map_ = map;
-            if (this.map_) {
-                this.map_.getOverlayContainer().appendChild(this.element_);
-            }
-        }
-        setPixels(startPixel, endPixel) {
-            this.startPixel_ = startPixel;
-            this.endPixel_ = endPixel;
-            this.createOrUpdateGeometry();
-            this.render_();
-        }
-        createOrUpdateGeometry() {
-            const startPixel = this.startPixel_;
-            const endPixel = this.endPixel_;
-            const pixels = [
-                startPixel,
-                [startPixel[0], endPixel[1]],
-                endPixel,
-                [endPixel[0], startPixel[1]],
-            ];
-            const coordinates = pixels.map(this.map_.getCoordinateFromPixelInternal, this.map_);
-            coordinates[4] = coordinates[0].slice();
-            if (!this.geometry_) {
-                this.geometry_ = new Polygon_js_6.default([coordinates]);
-            }
-            else {
-                this.geometry_.setCoordinates([coordinates]);
-            }
-        }
-        getGeometry() {
-            return this.geometry_;
-        }
-    }
-    exports.default = RenderBox;
-});
-define("node_modules/ol/src/interaction/DragBox", ["require", "exports", "node_modules/ol/src/events/Event", "node_modules/ol/src/interaction/Pointer", "node_modules/ol/src/render/Box", "node_modules/ol/src/events/condition"], function (require, exports, Event_js_9, Pointer_js_3, Box_js_1, condition_js_3) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    const DragBoxEventType = {
-        BOXSTART: 'boxstart',
-        BOXDRAG: 'boxdrag',
-        BOXEND: 'boxend',
-    };
-    class DragBoxEvent extends Event_js_9.default {
-        constructor(type, coordinate, mapBrowserEvent) {
-            super(type);
-            this.coordinate = coordinate;
-            this.mapBrowserEvent = mapBrowserEvent;
-        }
-    }
-    class DragBox extends Pointer_js_3.default {
-        constructor(opt_options) {
-            super();
-            const options = opt_options ? opt_options : {};
-            this.box_ = new Box_js_1.default(options.className || 'ol-dragbox');
-            this.minArea_ = options.minArea !== undefined ? options.minArea : 64;
-            if (options.onBoxEnd) {
-                this.onBoxEnd = options.onBoxEnd;
-            }
-            this.startPixel_ = null;
-            this.condition_ = options.condition ? options.condition : condition_js_3.mouseActionButton;
-            this.boxEndCondition_ = options.boxEndCondition
-                ? options.boxEndCondition
-                : this.defaultBoxEndCondition;
-        }
-        defaultBoxEndCondition(mapBrowserEvent, startPixel, endPixel) {
-            const width = endPixel[0] - startPixel[0];
-            const height = endPixel[1] - startPixel[1];
-            return width * width + height * height >= this.minArea_;
-        }
-        getGeometry() {
-            return this.box_.getGeometry();
-        }
-        handleDragEvent(mapBrowserEvent) {
-            this.box_.setPixels(this.startPixel_, mapBrowserEvent.pixel);
-            this.dispatchEvent(new DragBoxEvent(DragBoxEventType.BOXDRAG, mapBrowserEvent.coordinate, mapBrowserEvent));
-        }
-        handleUpEvent(mapBrowserEvent) {
-            this.box_.setMap(null);
-            if (this.boxEndCondition_(mapBrowserEvent, this.startPixel_, mapBrowserEvent.pixel)) {
-                this.onBoxEnd(mapBrowserEvent);
-                this.dispatchEvent(new DragBoxEvent(DragBoxEventType.BOXEND, mapBrowserEvent.coordinate, mapBrowserEvent));
-            }
-            return false;
-        }
-        handleDownEvent(mapBrowserEvent) {
-            if (this.condition_(mapBrowserEvent)) {
-                this.startPixel_ = mapBrowserEvent.pixel;
-                this.box_.setMap(mapBrowserEvent.map);
-                this.box_.setPixels(this.startPixel_, this.startPixel_);
-                this.dispatchEvent(new DragBoxEvent(DragBoxEventType.BOXSTART, mapBrowserEvent.coordinate, mapBrowserEvent));
-                return true;
-            }
-            else {
-                return false;
-            }
-        }
-        onBoxEnd(event) { }
-    }
-    exports.default = DragBox;
-});
-define("node_modules/ol/src/interaction/DragZoom", ["require", "exports", "node_modules/ol/src/interaction/DragBox", "node_modules/ol/src/extent", "node_modules/ol/src/easing", "node_modules/ol/src/events/condition"], function (require, exports, DragBox_js_1, extent_js_32, easing_js_9, condition_js_4) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    class DragZoom extends DragBox_js_1.default {
-        constructor(opt_options) {
-            const options = opt_options ? opt_options : {};
-            const condition = options.condition ? options.condition : condition_js_4.shiftKeyOnly;
-            super({
-                condition: condition,
-                className: options.className || 'ol-dragzoom',
-                minArea: options.minArea,
-            });
-            this.duration_ = options.duration !== undefined ? options.duration : 200;
-            this.out_ = options.out !== undefined ? options.out : false;
-        }
-        onBoxEnd(event) {
-            const map = this.getMap();
-            const view = (map.getView());
-            const size = (map.getSize());
-            let extent = this.getGeometry().getExtent();
-            if (this.out_) {
-                const mapExtent = view.calculateExtentInternal(size);
-                const boxPixelExtent = extent_js_32.createOrUpdateFromCoordinates([
-                    map.getPixelFromCoordinateInternal(extent_js_32.getBottomLeft(extent)),
-                    map.getPixelFromCoordinateInternal(extent_js_32.getTopRight(extent)),
-                ]);
-                const factor = view.getResolutionForExtentInternal(boxPixelExtent, size);
-                extent_js_32.scaleFromCenter(mapExtent, 1 / factor);
-                extent = mapExtent;
-            }
-            const resolution = view.getConstrainedResolution(view.getResolutionForExtentInternal(extent, size));
-            const center = view.getConstrainedCenter(extent_js_32.getCenter(extent), resolution);
-            view.animateInternal({
-                resolution: resolution,
-                center: center,
-                duration: this.duration_,
-                easing: easing_js_9.easeOut,
-            });
-        }
-    }
-    exports.default = DragZoom;
-});
-define("node_modules/ol/src/events/KeyCode", ["require", "exports"], function (require, exports) {
+define("node_modules/ol/src/source/VectorEventType", ["require", "exports"], function (require, exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.default = {
-        LEFT: 37,
-        UP: 38,
-        RIGHT: 39,
-        DOWN: 40,
+        ADDFEATURE: 'addfeature',
+        CHANGEFEATURE: 'changefeature',
+        CLEAR: 'clear',
+        REMOVEFEATURE: 'removefeature',
     };
-});
-define("node_modules/ol/src/interaction/KeyboardPan", ["require", "exports", "node_modules/ol/src/events/EventType", "node_modules/ol/src/interaction/Interaction", "node_modules/ol/src/events/KeyCode", "node_modules/ol/src/events/condition", "node_modules/ol/src/coordinate"], function (require, exports, EventType_js_29, Interaction_js_3, KeyCode_js_1, condition_js_5, coordinate_js_6) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    class KeyboardPan extends Interaction_js_3.default {
-        constructor(opt_options) {
-            super();
-            const options = opt_options || {};
-            this.defaultCondition_ = function (mapBrowserEvent) {
-                return (condition_js_5.noModifierKeys(mapBrowserEvent) && condition_js_5.targetNotEditable(mapBrowserEvent));
-            };
-            this.condition_ =
-                options.condition !== undefined
-                    ? options.condition
-                    : this.defaultCondition_;
-            this.duration_ = options.duration !== undefined ? options.duration : 100;
-            this.pixelDelta_ =
-                options.pixelDelta !== undefined ? options.pixelDelta : 128;
-        }
-        handleEvent(mapBrowserEvent) {
-            let stopEvent = false;
-            if (mapBrowserEvent.type == EventType_js_29.default.KEYDOWN) {
-                const keyEvent = (mapBrowserEvent.originalEvent);
-                const keyCode = keyEvent.keyCode;
-                if (this.condition_(mapBrowserEvent) &&
-                    (keyCode == KeyCode_js_1.default.DOWN ||
-                        keyCode == KeyCode_js_1.default.LEFT ||
-                        keyCode == KeyCode_js_1.default.RIGHT ||
-                        keyCode == KeyCode_js_1.default.UP)) {
-                    const map = mapBrowserEvent.map;
-                    const view = map.getView();
-                    const mapUnitsDelta = view.getResolution() * this.pixelDelta_;
-                    let deltaX = 0, deltaY = 0;
-                    if (keyCode == KeyCode_js_1.default.DOWN) {
-                        deltaY = -mapUnitsDelta;
-                    }
-                    else if (keyCode == KeyCode_js_1.default.LEFT) {
-                        deltaX = -mapUnitsDelta;
-                    }
-                    else if (keyCode == KeyCode_js_1.default.RIGHT) {
-                        deltaX = mapUnitsDelta;
-                    }
-                    else {
-                        deltaY = mapUnitsDelta;
-                    }
-                    const delta = [deltaX, deltaY];
-                    coordinate_js_6.rotate(delta, view.getRotation());
-                    Interaction_js_3.pan(view, delta, this.duration_);
-                    mapBrowserEvent.preventDefault();
-                    stopEvent = true;
-                }
-            }
-            return !stopEvent;
-        }
-    }
-    exports.default = KeyboardPan;
-});
-define("node_modules/ol/src/interaction/KeyboardZoom", ["require", "exports", "node_modules/ol/src/events/EventType", "node_modules/ol/src/interaction/Interaction", "node_modules/ol/src/events/condition"], function (require, exports, EventType_js_30, Interaction_js_4, condition_js_6) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    class KeyboardZoom extends Interaction_js_4.default {
-        constructor(opt_options) {
-            super();
-            const options = opt_options ? opt_options : {};
-            this.condition_ = options.condition ? options.condition : condition_js_6.targetNotEditable;
-            this.delta_ = options.delta ? options.delta : 1;
-            this.duration_ = options.duration !== undefined ? options.duration : 100;
-        }
-        handleEvent(mapBrowserEvent) {
-            let stopEvent = false;
-            if (mapBrowserEvent.type == EventType_js_30.default.KEYDOWN ||
-                mapBrowserEvent.type == EventType_js_30.default.KEYPRESS) {
-                const keyEvent = (mapBrowserEvent.originalEvent);
-                const charCode = keyEvent.charCode;
-                if (this.condition_(mapBrowserEvent) &&
-                    (charCode == '+'.charCodeAt(0) || charCode == '-'.charCodeAt(0))) {
-                    const map = mapBrowserEvent.map;
-                    const delta = charCode == '+'.charCodeAt(0) ? this.delta_ : -this.delta_;
-                    const view = map.getView();
-                    Interaction_js_4.zoomByDelta(view, delta, undefined, this.duration_);
-                    mapBrowserEvent.preventDefault();
-                    stopEvent = true;
-                }
-            }
-            return !stopEvent;
-        }
-    }
-    exports.default = KeyboardZoom;
-});
-define("node_modules/ol/src/interaction/MouseWheelZoom", ["require", "exports", "node_modules/ol/src/events/EventType", "node_modules/ol/src/interaction/Interaction", "node_modules/ol/src/has", "node_modules/ol/src/events/condition", "node_modules/ol/src/math"], function (require, exports, EventType_js_31, Interaction_js_5, has_js_8, condition_js_7, math_js_19) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    exports.Mode = void 0;
-    exports.Mode = {
-        TRACKPAD: 'trackpad',
-        WHEEL: 'wheel',
-    };
-    class MouseWheelZoom extends Interaction_js_5.default {
-        constructor(opt_options) {
-            const options = opt_options ? opt_options : {};
-            super((options));
-            this.totalDelta_ = 0;
-            this.lastDelta_ = 0;
-            this.maxDelta_ = options.maxDelta !== undefined ? options.maxDelta : 1;
-            this.duration_ = options.duration !== undefined ? options.duration : 250;
-            this.timeout_ = options.timeout !== undefined ? options.timeout : 80;
-            this.useAnchor_ =
-                options.useAnchor !== undefined ? options.useAnchor : true;
-            this.constrainResolution_ =
-                options.constrainResolution !== undefined
-                    ? options.constrainResolution
-                    : false;
-            const condition = options.condition ? options.condition : condition_js_7.always;
-            this.condition_ = options.onFocusOnly
-                ? condition_js_7.all(condition_js_7.focusWithTabindex, condition)
-                : condition;
-            this.lastAnchor_ = null;
-            this.startTime_ = undefined;
-            this.timeoutId_;
-            this.mode_ = undefined;
-            this.trackpadEventGap_ = 400;
-            this.trackpadTimeoutId_;
-            this.deltaPerZoom_ = 300;
-        }
-        endInteraction_() {
-            this.trackpadTimeoutId_ = undefined;
-            const view = this.getMap().getView();
-            view.endInteraction(undefined, this.lastDelta_ ? (this.lastDelta_ > 0 ? 1 : -1) : 0, this.lastAnchor_);
-        }
-        handleEvent(mapBrowserEvent) {
-            if (!this.condition_(mapBrowserEvent)) {
-                return true;
-            }
-            const type = mapBrowserEvent.type;
-            if (type !== EventType_js_31.default.WHEEL) {
-                return true;
-            }
-            mapBrowserEvent.preventDefault();
-            const map = mapBrowserEvent.map;
-            const wheelEvent = (mapBrowserEvent.originalEvent);
-            if (this.useAnchor_) {
-                this.lastAnchor_ = mapBrowserEvent.coordinate;
-            }
-            let delta;
-            if (mapBrowserEvent.type == EventType_js_31.default.WHEEL) {
-                delta = wheelEvent.deltaY;
-                if (has_js_8.FIREFOX && wheelEvent.deltaMode === WheelEvent.DOM_DELTA_PIXEL) {
-                    delta /= has_js_8.DEVICE_PIXEL_RATIO;
-                }
-                if (wheelEvent.deltaMode === WheelEvent.DOM_DELTA_LINE) {
-                    delta *= 40;
-                }
-            }
-            if (delta === 0) {
-                return false;
-            }
-            else {
-                this.lastDelta_ = delta;
-            }
-            const now = Date.now();
-            if (this.startTime_ === undefined) {
-                this.startTime_ = now;
-            }
-            if (!this.mode_ || now - this.startTime_ > this.trackpadEventGap_) {
-                this.mode_ = Math.abs(delta) < 4 ? exports.Mode.TRACKPAD : exports.Mode.WHEEL;
-            }
-            const view = map.getView();
-            if (this.mode_ === exports.Mode.TRACKPAD &&
-                !(view.getConstrainResolution() || this.constrainResolution_)) {
-                if (this.trackpadTimeoutId_) {
-                    clearTimeout(this.trackpadTimeoutId_);
-                }
-                else {
-                    if (view.getAnimating()) {
-                        view.cancelAnimations();
-                    }
-                    view.beginInteraction();
-                }
-                this.trackpadTimeoutId_ = setTimeout(this.endInteraction_.bind(this), this.timeout_);
-                view.adjustZoom(-delta / this.deltaPerZoom_, this.lastAnchor_);
-                this.startTime_ = now;
-                return false;
-            }
-            this.totalDelta_ += delta;
-            const timeLeft = Math.max(this.timeout_ - (now - this.startTime_), 0);
-            clearTimeout(this.timeoutId_);
-            this.timeoutId_ = setTimeout(this.handleWheelZoom_.bind(this, map), timeLeft);
-            return false;
-        }
-        handleWheelZoom_(map) {
-            const view = map.getView();
-            if (view.getAnimating()) {
-                view.cancelAnimations();
-            }
-            let delta = -math_js_19.clamp(this.totalDelta_, -this.maxDelta_ * this.deltaPerZoom_, this.maxDelta_ * this.deltaPerZoom_) / this.deltaPerZoom_;
-            if (view.getConstrainResolution() || this.constrainResolution_) {
-                delta = delta ? (delta > 0 ? 1 : -1) : 0;
-            }
-            Interaction_js_5.zoomByDelta(view, delta, this.lastAnchor_, this.duration_);
-            this.mode_ = undefined;
-            this.totalDelta_ = 0;
-            this.lastAnchor_ = null;
-            this.startTime_ = undefined;
-            this.timeoutId_ = undefined;
-        }
-        setMouseAnchor(useAnchor) {
-            this.useAnchor_ = useAnchor;
-            if (!useAnchor) {
-                this.lastAnchor_ = null;
-            }
-        }
-    }
-    exports.default = MouseWheelZoom;
-});
-define("node_modules/ol/src/interaction/PinchRotate", ["require", "exports", "node_modules/ol/src/interaction/Pointer", "node_modules/ol/src/functions", "node_modules/ol/src/rotationconstraint"], function (require, exports, Pointer_js_4, functions_js_10, rotationconstraint_js_3) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    class PinchRotate extends Pointer_js_4.default {
-        constructor(opt_options) {
-            const options = opt_options ? opt_options : {};
-            const pointerOptions = (options);
-            if (!pointerOptions.stopDown) {
-                pointerOptions.stopDown = functions_js_10.FALSE;
-            }
-            super(pointerOptions);
-            this.anchor_ = null;
-            this.lastAngle_ = undefined;
-            this.rotating_ = false;
-            this.rotationDelta_ = 0.0;
-            this.threshold_ = options.threshold !== undefined ? options.threshold : 0.3;
-            this.duration_ = options.duration !== undefined ? options.duration : 250;
-        }
-        handleDragEvent(mapBrowserEvent) {
-            let rotationDelta = 0.0;
-            const touch0 = this.targetPointers[0];
-            const touch1 = this.targetPointers[1];
-            const angle = Math.atan2(touch1.clientY - touch0.clientY, touch1.clientX - touch0.clientX);
-            if (this.lastAngle_ !== undefined) {
-                const delta = angle - this.lastAngle_;
-                this.rotationDelta_ += delta;
-                if (!this.rotating_ && Math.abs(this.rotationDelta_) > this.threshold_) {
-                    this.rotating_ = true;
-                }
-                rotationDelta = delta;
-            }
-            this.lastAngle_ = angle;
-            const map = mapBrowserEvent.map;
-            const view = map.getView();
-            if (view.getConstraints().rotation === rotationconstraint_js_3.disable) {
-                return;
-            }
-            const viewportPosition = map.getViewport().getBoundingClientRect();
-            const centroid = Pointer_js_4.centroid(this.targetPointers);
-            centroid[0] -= viewportPosition.left;
-            centroid[1] -= viewportPosition.top;
-            this.anchor_ = map.getCoordinateFromPixelInternal(centroid);
-            if (this.rotating_) {
-                map.render();
-                view.adjustRotationInternal(rotationDelta, this.anchor_);
-            }
-        }
-        handleUpEvent(mapBrowserEvent) {
-            if (this.targetPointers.length < 2) {
-                const map = mapBrowserEvent.map;
-                const view = map.getView();
-                view.endInteraction(this.duration_);
-                return false;
-            }
-            else {
-                return true;
-            }
-        }
-        handleDownEvent(mapBrowserEvent) {
-            if (this.targetPointers.length >= 2) {
-                const map = mapBrowserEvent.map;
-                this.anchor_ = null;
-                this.lastAngle_ = undefined;
-                this.rotating_ = false;
-                this.rotationDelta_ = 0.0;
-                if (!this.handlingDownUpSequence) {
-                    map.getView().beginInteraction();
-                }
-                return true;
-            }
-            else {
-                return false;
-            }
-        }
-    }
-    exports.default = PinchRotate;
-});
-define("node_modules/ol/src/interaction/PinchZoom", ["require", "exports", "node_modules/ol/src/interaction/Pointer", "node_modules/ol/src/functions"], function (require, exports, Pointer_js_5, functions_js_11) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    class PinchZoom extends Pointer_js_5.default {
-        constructor(opt_options) {
-            const options = opt_options ? opt_options : {};
-            const pointerOptions = (options);
-            if (!pointerOptions.stopDown) {
-                pointerOptions.stopDown = functions_js_11.FALSE;
-            }
-            super(pointerOptions);
-            this.anchor_ = null;
-            this.duration_ = options.duration !== undefined ? options.duration : 400;
-            this.lastDistance_ = undefined;
-            this.lastScaleDelta_ = 1;
-        }
-        handleDragEvent(mapBrowserEvent) {
-            let scaleDelta = 1.0;
-            const touch0 = this.targetPointers[0];
-            const touch1 = this.targetPointers[1];
-            const dx = touch0.clientX - touch1.clientX;
-            const dy = touch0.clientY - touch1.clientY;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-            if (this.lastDistance_ !== undefined) {
-                scaleDelta = this.lastDistance_ / distance;
-            }
-            this.lastDistance_ = distance;
-            const map = mapBrowserEvent.map;
-            const view = map.getView();
-            if (scaleDelta != 1.0) {
-                this.lastScaleDelta_ = scaleDelta;
-            }
-            const viewportPosition = map.getViewport().getBoundingClientRect();
-            const centroid = Pointer_js_5.centroid(this.targetPointers);
-            centroid[0] -= viewportPosition.left;
-            centroid[1] -= viewportPosition.top;
-            this.anchor_ = map.getCoordinateFromPixelInternal(centroid);
-            map.render();
-            view.adjustResolutionInternal(scaleDelta, this.anchor_);
-        }
-        handleUpEvent(mapBrowserEvent) {
-            if (this.targetPointers.length < 2) {
-                const map = mapBrowserEvent.map;
-                const view = map.getView();
-                const direction = this.lastScaleDelta_ > 1 ? 1 : -1;
-                view.endInteraction(this.duration_, direction);
-                return false;
-            }
-            else {
-                return true;
-            }
-        }
-        handleDownEvent(mapBrowserEvent) {
-            if (this.targetPointers.length >= 2) {
-                const map = mapBrowserEvent.map;
-                this.anchor_ = null;
-                this.lastDistance_ = undefined;
-                this.lastScaleDelta_ = 1;
-                if (!this.handlingDownUpSequence) {
-                    map.getView().beginInteraction();
-                }
-                return true;
-            }
-            else {
-                return false;
-            }
-        }
-    }
-    exports.default = PinchZoom;
 });
 define("node_modules/quickselect/index", ["require", "exports"], function (require, exports) {
     "use strict";
@@ -17458,7 +15247,7 @@ define("node_modules/rbush/index", ["require", "exports", "node_modules/quicksel
         }
     }
 });
-define("node_modules/ol/src/structs/RBush", ["require", "exports", "node_modules/rbush/index", "node_modules/ol/src/extent", "node_modules/ol/src/util", "node_modules/ol/src/obj"], function (require, exports, rbush_js_1, extent_js_33, util_js_18, obj_js_14) {
+define("node_modules/ol/src/structs/RBush", ["require", "exports", "node_modules/rbush/index", "node_modules/ol/src/extent", "node_modules/ol/src/util", "node_modules/ol/src/obj"], function (require, exports, rbush_js_1, extent_js_31, util_js_18, obj_js_13) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     class RBush {
@@ -17503,7 +15292,7 @@ define("node_modules/ol/src/structs/RBush", ["require", "exports", "node_modules
         update(extent, value) {
             const item = this.items_[util_js_18.getUid(value)];
             const bbox = [item.minX, item.minY, item.maxX, item.maxY];
-            if (!extent_js_33.equals(bbox, extent)) {
+            if (!extent_js_31.equals(bbox, extent)) {
                 this.remove(value);
                 this.insert(extent, value);
             }
@@ -17543,7 +15332,7 @@ define("node_modules/ol/src/structs/RBush", ["require", "exports", "node_modules
             return result;
         }
         isEmpty() {
-            return obj_js_14.isEmpty(this.items_);
+            return obj_js_13.isEmpty(this.items_);
         }
         clear() {
             this.rbush_.clear();
@@ -17551,7 +15340,7 @@ define("node_modules/ol/src/structs/RBush", ["require", "exports", "node_modules
         }
         getExtent(opt_extent) {
             const data = this.rbush_.toJSON();
-            return extent_js_33.createOrUpdate(data.minX, data.minY, data.maxX, data.maxY, opt_extent);
+            return extent_js_31.createOrUpdate(data.minX, data.minY, data.maxX, data.maxY, opt_extent);
         }
         concat(rbush) {
             this.rbush_.load(rbush.rbush_.all());
@@ -17561,44 +15350,6 @@ define("node_modules/ol/src/structs/RBush", ["require", "exports", "node_modules
         }
     }
     exports.default = RBush;
-});
-define("node_modules/ol/src/source/VectorEventType", ["require", "exports"], function (require, exports) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    exports.default = {
-        ADDFEATURE: 'addfeature',
-        CHANGEFEATURE: 'changefeature',
-        CLEAR: 'clear',
-        REMOVEFEATURE: 'removefeature',
-    };
-});
-define("node_modules/ol/src/loadingstrategy", ["require", "exports"], function (require, exports) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    exports.tile = exports.bbox = exports.all = void 0;
-    function all(extent, resolution) {
-        return [[-Infinity, -Infinity, Infinity, Infinity]];
-    }
-    exports.all = all;
-    function bbox(extent, resolution) {
-        return [extent];
-    }
-    exports.bbox = bbox;
-    function tile(tileGrid) {
-        return (function (extent, resolution) {
-            const z = tileGrid.getZForResolution(resolution);
-            const tileRange = tileGrid.getTileRangeForExtentAndZ(extent, z);
-            const extents = [];
-            const tileCoord = [z, 0, 0];
-            for (tileCoord[1] = tileRange.minX; tileCoord[1] <= tileRange.maxX; ++tileCoord[1]) {
-                for (tileCoord[2] = tileRange.minY; tileCoord[2] <= tileRange.maxY; ++tileCoord[2]) {
-                    extents.push(tileGrid.getTileCoordExtent(tileCoord));
-                }
-            }
-            return extents;
-        });
-    }
-    exports.tile = tile;
 });
 define("node_modules/ol/src/VectorTile", ["require", "exports", "node_modules/ol/src/Tile", "node_modules/ol/src/TileState"], function (require, exports, Tile_js_1, TileState_js_4) {
     "use strict";
@@ -17649,7 +15400,7 @@ define("node_modules/ol/src/VectorTile", ["require", "exports", "node_modules/ol
     }
     exports.default = VectorTile;
 });
-define("node_modules/ol/src/featureloader", ["require", "exports", "node_modules/ol/src/format/FormatType", "node_modules/ol/src/functions"], function (require, exports, FormatType_js_2, functions_js_12) {
+define("node_modules/ol/src/featureloader", ["require", "exports", "node_modules/ol/src/format/FormatType", "node_modules/ol/src/functions"], function (require, exports, FormatType_js_2, functions_js_7) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.setWithCredentials = exports.xhr = exports.loadFeaturesXhr = void 0;
@@ -17705,7 +15456,7 @@ define("node_modules/ol/src/featureloader", ["require", "exports", "node_modules
             if (typeof sourceOrTile.addFeatures === 'function') {
                 (sourceOrTile).addFeatures(features);
             }
-        }, functions_js_12.VOID);
+        }, functions_js_7.VOID);
     }
     exports.xhr = xhr;
     function setWithCredentials(xhrWithCredentials) {
@@ -17713,11 +15464,11 @@ define("node_modules/ol/src/featureloader", ["require", "exports", "node_modules
     }
     exports.setWithCredentials = setWithCredentials;
 });
-define("node_modules/ol/src/source/Vector", ["require", "exports", "node_modules/ol/src/Collection", "node_modules/ol/src/CollectionEventType", "node_modules/ol/src/events/Event", "node_modules/ol/src/events/EventType", "node_modules/ol/src/ObjectEventType", "node_modules/ol/src/structs/RBush", "node_modules/ol/src/source/Source", "node_modules/ol/src/source/State", "node_modules/ol/src/source/VectorEventType", "node_modules/ol/src/functions", "node_modules/ol/src/loadingstrategy", "node_modules/ol/src/asserts", "node_modules/ol/src/extent", "node_modules/ol/src/array", "node_modules/ol/src/util", "node_modules/ol/src/obj", "node_modules/ol/src/events", "node_modules/ol/src/featureloader"], function (require, exports, Collection_js_4, CollectionEventType_js_4, Event_js_10, EventType_js_32, ObjectEventType_js_6, RBush_js_1, Source_js_2, State_js_6, VectorEventType_js_1, functions_js_13, loadingstrategy_js_1, asserts_js_17, extent_js_34, array_js_16, util_js_19, obj_js_15, events_js_16, featureloader_js_1) {
+define("node_modules/ol/src/source/Vector", ["require", "exports", "node_modules/ol/src/Collection", "node_modules/ol/src/CollectionEventType", "node_modules/ol/src/events/Event", "node_modules/ol/src/events/EventType", "node_modules/ol/src/ObjectEventType", "node_modules/ol/src/structs/RBush", "node_modules/ol/src/source/Source", "node_modules/ol/src/source/State", "node_modules/ol/src/source/VectorEventType", "node_modules/ol/src/functions", "node_modules/ol/src/loadingstrategy", "node_modules/ol/src/asserts", "node_modules/ol/src/extent", "node_modules/ol/src/array", "node_modules/ol/src/util", "node_modules/ol/src/obj", "node_modules/ol/src/events", "node_modules/ol/src/featureloader"], function (require, exports, Collection_js_3, CollectionEventType_js_4, Event_js_7, EventType_js_19, ObjectEventType_js_4, RBush_js_1, Source_js_2, State_js_5, VectorEventType_js_1, functions_js_8, loadingstrategy_js_1, asserts_js_15, extent_js_32, array_js_15, util_js_19, obj_js_14, events_js_11, featureloader_js_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.VectorSourceEvent = void 0;
-    class VectorSourceEvent extends Event_js_10.default {
+    class VectorSourceEvent extends Event_js_7.default {
         constructor(type, opt_feature) {
             super(type);
             this.feature = opt_feature;
@@ -17730,10 +15481,10 @@ define("node_modules/ol/src/source/Vector", ["require", "exports", "node_modules
             super({
                 attributions: options.attributions,
                 projection: undefined,
-                state: State_js_6.default.READY,
+                state: State_js_5.default.READY,
                 wrapX: options.wrapX !== undefined ? options.wrapX : true,
             });
-            this.loader_ = functions_js_13.VOID;
+            this.loader_ = functions_js_8.VOID;
             this.format_ = options.format;
             this.overlaps_ = options.overlaps === undefined ? true : options.overlaps;
             this.url_ = options.url;
@@ -17741,7 +15492,7 @@ define("node_modules/ol/src/source/Vector", ["require", "exports", "node_modules
                 this.loader_ = options.loader;
             }
             else if (this.url_ !== undefined) {
-                asserts_js_17.assert(this.format_, 7);
+                asserts_js_15.assert(this.format_, 7);
                 this.loader_ = featureloader_js_1.xhr(this.url_, (this.format_));
             }
             this.strategy_ =
@@ -17763,7 +15514,7 @@ define("node_modules/ol/src/source/Vector", ["require", "exports", "node_modules
                 features = collection.getArray();
             }
             if (!useSpatialIndex && collection === undefined) {
-                collection = new Collection_js_4.default(features);
+                collection = new Collection_js_3.default(features);
             }
             if (features !== undefined) {
                 this.addFeaturesInternal(features);
@@ -17799,8 +15550,8 @@ define("node_modules/ol/src/source/Vector", ["require", "exports", "node_modules
         }
         setupChangeEvents_(featureKey, feature) {
             this.featureChangeKeys_[featureKey] = [
-                events_js_16.listen(feature, EventType_js_32.default.CHANGE, this.handleFeatureChange_, this),
-                events_js_16.listen(feature, ObjectEventType_js_6.default.PROPERTYCHANGE, this.handleFeatureChange_, this),
+                events_js_11.listen(feature, EventType_js_19.default.CHANGE, this.handleFeatureChange_, this),
+                events_js_11.listen(feature, ObjectEventType_js_4.default.PROPERTYCHANGE, this.handleFeatureChange_, this),
             ];
         }
         addToIndex_(featureKey, feature) {
@@ -17815,7 +15566,7 @@ define("node_modules/ol/src/source/Vector", ["require", "exports", "node_modules
                 }
             }
             if (valid) {
-                asserts_js_17.assert(!(featureKey in this.uidIndex_), 30);
+                asserts_js_15.assert(!(featureKey in this.uidIndex_), 30);
                 this.uidIndex_[featureKey] = feature;
             }
             return valid;
@@ -17892,7 +15643,7 @@ define("node_modules/ol/src/source/Vector", ["require", "exports", "node_modules
             if (opt_fast) {
                 for (const featureId in this.featureChangeKeys_) {
                     const keys = this.featureChangeKeys_[featureId];
-                    keys.forEach(events_js_16.unlistenByKey);
+                    keys.forEach(events_js_11.unlistenByKey);
                 }
                 if (!this.featuresCollection_) {
                     this.featureChangeKeys_ = {};
@@ -17968,8 +15719,8 @@ define("node_modules/ol/src/source/Vector", ["require", "exports", "node_modules
             }
             else if (this.featuresRtree_) {
                 features = this.featuresRtree_.getAll();
-                if (!obj_js_15.isEmpty(this.nullGeometryFeatures_)) {
-                    array_js_16.extend(features, obj_js_15.getValues(this.nullGeometryFeatures_));
+                if (!obj_js_14.isEmpty(this.nullGeometryFeatures_)) {
+                    array_js_15.extend(features, obj_js_14.getValues(this.nullGeometryFeatures_));
                 }
             }
             return (features);
@@ -17999,7 +15750,7 @@ define("node_modules/ol/src/source/Vector", ["require", "exports", "node_modules
             const closestPoint = [NaN, NaN];
             let minSquaredDistance = Infinity;
             const extent = [-Infinity, -Infinity, Infinity, Infinity];
-            const filter = opt_filter ? opt_filter : functions_js_13.TRUE;
+            const filter = opt_filter ? opt_filter : functions_js_8.TRUE;
             this.featuresRtree_.forEachInExtent(extent, function (feature) {
                 if (filter(feature)) {
                     const geometry = feature.getGeometry();
@@ -18088,7 +15839,7 @@ define("node_modules/ol/src/source/Vector", ["require", "exports", "node_modules
             }
         }
         isEmpty() {
-            return this.featuresRtree_.isEmpty() && obj_js_15.isEmpty(this.nullGeometryFeatures_);
+            return this.featuresRtree_.isEmpty() && obj_js_14.isEmpty(this.nullGeometryFeatures_);
         }
         loadFeatures(extent, resolution, projection) {
             const loadedExtentsRtree = this.loadedExtentsRtree_;
@@ -18097,12 +15848,12 @@ define("node_modules/ol/src/source/Vector", ["require", "exports", "node_modules
             for (let i = 0, ii = extentsToLoad.length; i < ii; ++i) {
                 const extentToLoad = extentsToLoad[i];
                 const alreadyLoaded = loadedExtentsRtree.forEachInExtent(extentToLoad, function (object) {
-                    return extent_js_34.containsExtent(object.extent, extentToLoad);
+                    return extent_js_32.containsExtent(object.extent, extentToLoad);
                 });
                 if (!alreadyLoaded) {
                     this.loader_.call(this, extentToLoad, resolution, projection);
                     loadedExtentsRtree.insert(extentToLoad, { extent: extentToLoad.slice() });
-                    this.loading = this.loader_ !== functions_js_13.VOID;
+                    this.loading = this.loader_ !== functions_js_8.VOID;
                 }
             }
         }
@@ -18115,7 +15866,7 @@ define("node_modules/ol/src/source/Vector", ["require", "exports", "node_modules
             const loadedExtentsRtree = this.loadedExtentsRtree_;
             let obj;
             loadedExtentsRtree.forEachInExtent(extent, function (object) {
-                if (extent_js_34.equals(object.extent, extent)) {
+                if (extent_js_32.equals(object.extent, extent)) {
                     obj = object;
                     return true;
                 }
@@ -18139,7 +15890,7 @@ define("node_modules/ol/src/source/Vector", ["require", "exports", "node_modules
         }
         removeFeatureInternal(feature) {
             const featureKey = util_js_19.getUid(feature);
-            this.featureChangeKeys_[featureKey].forEach(events_js_16.unlistenByKey);
+            this.featureChangeKeys_[featureKey].forEach(events_js_11.unlistenByKey);
             delete this.featureChangeKeys_[featureKey];
             const id = feature.getId();
             if (id !== undefined) {
@@ -18163,11 +15914,3227 @@ define("node_modules/ol/src/source/Vector", ["require", "exports", "node_modules
             this.loader_ = loader;
         }
         setUrl(url) {
-            asserts_js_17.assert(this.format_, 7);
+            asserts_js_15.assert(this.format_, 7);
             this.setLoader(featureloader_js_1.xhr(url, this.format_));
         }
     }
     exports.default = VectorSource;
+});
+define("poc/fun/split", ["require", "exports"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.split = void 0;
+    function split(list, splitter) {
+        const yesno = [[], []];
+        list.forEach((item) => yesno[splitter(item) ? 0 : 1].push(item));
+        return yesno;
+    }
+    exports.split = split;
+});
+define("poc/AgsClusterSource", ["require", "exports", "poc/TileTree", "poc/TileTreeExt", "node_modules/ol/src/source/Vector", "poc/AgsFeatureLoader", "node_modules/ol/src/Feature", "node_modules/ol/src/geom/Point", "node_modules/ol/src/tilegrid", "node_modules/ol/src/loadingstrategy", "poc/fun/split"], function (require, exports, TileTree_2, TileTreeExt_2, Vector_1, AgsFeatureLoader_2, Feature_1, Point_1, tilegrid_1, loadingstrategy_1, split_1) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.AgsClusterSource = void 0;
+    const LOOKAHEAD_THRESHOLD = 3;
+    function onlyUnique(value, index, self) {
+        return self.indexOf(value) === index;
+    }
+    class AgsClusterSource extends Vector_1.default {
+        constructor(options) {
+            const { url, maxRecordCount, minRecordCount, tileSize } = options;
+            const tileGrid = tilegrid_1.createXYZ({ tileSize });
+            const strategy = loadingstrategy_1.tile(tileGrid);
+            const tree = new TileTree_2.TileTree({
+                extent: tileGrid.getExtent(),
+            });
+            options.treeTileState && tree.load(options.treeTileState);
+            super({ strategy });
+            this.tree = new TileTreeExt_2.TileTreeExt(tree, { minZoom: 5, maxZoom: 16 });
+            this.tileSize = tileSize;
+            this.loadingStrategy = strategy;
+            this.isFirstDraw = true;
+            this.priorResolution = 0;
+            this.minRecordCount = minRecordCount;
+            this.maxRecordCount = maxRecordCount;
+            this.featureLoader = new AgsFeatureLoader_2.AgsFeatureLoader({
+                tree: this.tree,
+                url,
+                maxDepth: 3,
+                minRecordCount,
+                maxRecordCount,
+            });
+        }
+        loadFeatures(extent, resolution, projection) {
+            return __awaiter(this, void 0, void 0, function* () {
+                const { tree } = this;
+                const extentsToLoad = this.loadingStrategy(extent, resolution).map((extent) => tree.tree.asXyz(extent));
+                if (!extentsToLoad.length) {
+                    return;
+                }
+                const Z = extentsToLoad[0].Z;
+                if (this.isFirstDraw) {
+                    this.isFirstDraw && console.log("rendering 1st tree");
+                    this.isFirstDraw = false;
+                    this.renderTree(tree, Z, projection);
+                }
+                if (resolution === this.priorResolution) {
+                    return;
+                }
+                this.priorResolution = resolution;
+                extentsToLoad.forEach((tileIdentifier) => __awaiter(this, void 0, void 0, function* () {
+                    yield this.loadTile(tileIdentifier, projection);
+                    const nodes = yield this.loadDescendantsUntil(tileIdentifier, projection, (nodeId) => {
+                        const mass = tree.getMass(nodeId) || 0;
+                        const tooVagueTest = mass > this.maxRecordCount;
+                        const tooSmallTest = mass < this.minRecordCount;
+                        const tooDeepTest = nodeId.Z >= Z + LOOKAHEAD_THRESHOLD;
+                        const allowLoad = tooVagueTest || (!tooDeepTest && !tooSmallTest);
+                        return !allowLoad;
+                    });
+                    if (nodes.length) {
+                        this.renderTree(this.tree, Z, projection);
+                    }
+                }));
+            });
+        }
+        loadDescendantsUntil(tileIdentifier, projection, stop) {
+            return __awaiter(this, void 0, void 0, function* () {
+                if (stop(tileIdentifier))
+                    return [];
+                const allChildren = this.tree.tree.quads(tileIdentifier);
+                const unloadedChildren = allChildren.filter((c) => typeof this.tree.getMass(c) !== "number");
+                yield this.loadAllChildren(this.tree, tileIdentifier, projection);
+                const grandChildren = yield Promise.all(allChildren.map((c) => this.loadDescendantsUntil(c, projection, stop)));
+                return unloadedChildren.concat(...grandChildren);
+            });
+        }
+        renderTree(tree, Z, projection) {
+            const leafNodes = [];
+            tree.tree.visit((a, tileIdentifier) => {
+                if (0 === tree.tree.children(tileIdentifier).length) {
+                    leafNodes.push(tileIdentifier);
+                }
+            }, {});
+            this.getFeatures().forEach((f) => f.setProperties({ visible: false }));
+            const [keep, remove] = split_1.split(leafNodes, (tileIdentifier) => {
+                const node = tree.tree.findByXYZ(tileIdentifier);
+                if (!node.data)
+                    return false;
+                const mass = tree.getMass(tileIdentifier) || 0;
+                if (0 >= mass)
+                    return false;
+                if (!tree.getCenter(tileIdentifier))
+                    return false;
+                return true;
+            });
+            this.reduce(keep, Z).forEach((id) => this.render(tree, id, Z));
+            remove.forEach((id) => this.unrender(tree, id));
+            keep
+                .filter((tileIdentifier) => !!tree.getFeatures(tileIdentifier))
+                .forEach((id) => this.render(tree, id, Z));
+            this.getFeatures()
+                .filter((f) => f.getProperties().type === "feature")
+                .forEach((f) => f.setProperties({ visible: true }));
+        }
+        reduce(keep, Z) {
+            const { tree } = this;
+            keep.forEach((nodeId) => {
+                tree.tree.decorate(nodeId, { yieldToParent: false });
+            });
+            keep.forEach((nodeId) => {
+                if (nodeId.Z > Z + LOOKAHEAD_THRESHOLD) {
+                    if (!tree.tree.decorate(nodeId).yieldToParent) {
+                        const parentIdentifier = tree.tree.parent(nodeId);
+                        tree.tree
+                            .children(parentIdentifier)
+                            .forEach((id) => tree.tree.decorate(id, { yieldToParent: true }));
+                    }
+                }
+            });
+            let [leaf, parent] = split_1.split(keep, (nodeId) => {
+                const { yieldToParent } = tree.tree.decorate(nodeId);
+                return !yieldToParent;
+            });
+            parent = parent.filter(onlyUnique).map((id) => tree.tree.parent(id));
+            if (parent.length) {
+                parent = this.reduce(parent, Z);
+            }
+            return parent.concat(leaf);
+        }
+        loadAllChildren(tree, tileIdentifier, projection) {
+            return __awaiter(this, void 0, void 0, function* () {
+                return Promise.all(tree.tree.quads(tileIdentifier).map((id) => this.loadTile(id, projection)));
+            });
+        }
+        loadTile(tileIdentifier, projection) {
+            return __awaiter(this, void 0, void 0, function* () {
+                const count = yield this.featureLoader.loader(tileIdentifier, projection);
+                this.tree.setMass(tileIdentifier, count);
+            });
+        }
+        tileDensity(currentZoomLevel, tileIdentifier) {
+            const { Z } = tileIdentifier;
+            return Math.pow(4, currentZoomLevel - Z);
+        }
+        unrender(tree, tileIdentifier) {
+            const { feature } = tree.tree.decorate(tileIdentifier);
+            if (!feature)
+                return;
+            feature.setProperties({ visible: false });
+        }
+        render(tree, tileIdentifier, Z) {
+            let { feature } = tree.tree.decorate(tileIdentifier);
+            if (feature) {
+                feature.setProperties({ visible: true });
+                return;
+            }
+            if (!tree.getMass(tileIdentifier))
+                return;
+            const features = tree.getFeatures(tileIdentifier);
+            if (features) {
+                features.forEach((f) => f.setProperties({ visible: true, type: "feature", tileIdentifier }));
+                this.addFeatures(features);
+                return;
+            }
+            const point = new Point_1.default(tree.getCenter(tileIdentifier));
+            feature = new Feature_1.default();
+            const mass = tree.getMass(tileIdentifier);
+            feature.setGeometry(point);
+            feature.setProperties({
+                visible: true,
+                tileIdentifier,
+                text: tree.tree.decorate(tileIdentifier).text || `${mass}`,
+                type: tree.tree.decorate(tileIdentifier).type ||
+                    "cluster",
+                mass,
+                density: this.tileDensity(Z, tileIdentifier),
+            });
+            this.addFeature(feature);
+            tree.tree.decorate(tileIdentifier, { feature });
+        }
+    }
+    exports.AgsClusterSource = AgsClusterSource;
+});
+define("poc/types/TileTreeEncoder", ["require", "exports"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+});
+define("poc/TileTreeTersifier", ["require", "exports", "poc/TileTree", "node_modules/ol/src/extent"], function (require, exports, TileTree_3, extent_4) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.TileTreeTersifier = void 0;
+    class TileTreeTersifier {
+        unstringify(treestate) {
+            const { extent, data } = JSON.parse(treestate);
+            const tree = new TileTree_3.TileTree({ extent });
+            const outputData = data.map((d) => {
+                const [X, Y, Z, count, dx, dy] = d;
+                const extent = tree.asExtent({ X, Y, Z });
+                const [cx, cy] = extent_4.getCenter(extent);
+                return [X, Y, Z, { count, center: [cx + dx / 10, cy + dy / 10] }];
+            });
+            return { extent, data: outputData };
+        }
+        stringify(treestate) {
+            const { extent, data } = treestate;
+            const tree = new TileTree_3.TileTree({ extent });
+            const outData = data.map(([X, Y, Z, d]) => {
+                const center = extent_4.getCenter(tree.asExtent({ X, Y, Z }));
+                return [
+                    X,
+                    Y,
+                    Z,
+                    d.count,
+                    ...d.center.map((v, i) => Math.round((v - center[i]) * 10)),
+                ];
+            });
+            return JSON.stringify({ extent, data: outData });
+        }
+    }
+    exports.TileTreeTersifier = TileTreeTersifier;
+});
+define("poc/test/treetile-test", ["require", "exports", "mocha", "chai", "poc/TileTree", "node_modules/ol/src/proj", "node_modules/ol/src/tilegrid", "node_modules/ol/src/loadingstrategy", "node_modules/ol/src/source/VectorEventType", "poc/AgsClusterSource", "poc/fun/explode", "poc/fun/tiny", "poc/TileTreeTersifier"], function (require, exports, mocha_4, chai_5, TileTree_4, proj_3, tilegrid_2, loadingstrategy_2, VectorEventType_1, AgsClusterSource_1, explode_5, tiny_3, TileTreeTersifier_1) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    mocha_4.describe("TileTree Tests", () => {
+        mocha_4.it("decorate test", () => {
+            const extent = [0, 0, 10, 10];
+            const tree = new TileTree_4.TileTree({
+                extent,
+            });
+            let tileId = { X: 10, Y: 10, Z: 10 };
+            const data = { foo: "bar" };
+            chai_5.assert.equal(tree.decorate(tileId, data).foo, "bar");
+            chai_5.assert.equal(tree.decorate(tileId).foo, "bar");
+        });
+    });
+    mocha_4.describe("TileTree Tests", () => {
+        mocha_4.it("creates a tile tree", () => {
+            const extent = [0, 0, 10, 10];
+            const tree = new TileTree_4.TileTree({ extent });
+            const root = tree.findByExtent(extent);
+            chai_5.assert.isTrue(tiny_3.isEq(extent[0], tree.asExtent(root)[0]));
+        });
+        mocha_4.it("inserts an extent outside of the bounds of the current tree", () => {
+            const extent = [0, 0, 1, 1];
+            const tree = new TileTree_4.TileTree({ extent });
+            chai_5.assert.throws(() => {
+                tree.findByExtent([1, 1, 2, 2]);
+            }, "invalid X");
+            chai_5.assert.throws(() => {
+                tree.findByExtent([0.1, 0.1, 0.9, 1.00001]);
+            }, "invalid extent");
+        });
+        mocha_4.it("inserts an extent that misaligns to the established scale", () => {
+            const extent = [0, 0, 1, 1];
+            const tree = new TileTree_4.TileTree({ extent });
+            chai_5.assert.throws(() => {
+                tree.findByExtent([0, 0, 0.4, 0.4]);
+            }, "invalid extent");
+            chai_5.assert.throws(() => {
+                tree.findByExtent([0, 0, 0.5, 0.4]);
+            }, "invalid extent");
+            chai_5.assert.throws(() => {
+                tree.findByExtent([0.1, 0, 0.6, 0.5]);
+            }, "invalid extent");
+        });
+        mocha_4.it("uses 3857 to find a tile for a given depth and coordinate", () => {
+            const extent = proj_3.get("EPSG:3857").getExtent();
+            const tree = new TileTree_4.TileTree({ extent });
+            const q0 = tree.findByPoint({ zoom: 3, point: [-1, -1] });
+            const q1 = tree.findByPoint({ zoom: 3, point: [1, -1] });
+            const q2 = tree.findByPoint({ zoom: 3, point: [-1, 1] });
+            const q3 = tree.findByPoint({ zoom: 3, point: [1, 1] });
+            const size = -5009377.085697312;
+            const extents = [q0, q1, q2, q3].map((q) => tree.asExtent(q));
+            chai_5.assert.isTrue(tiny_3.isEq(extents[0][0], size), "q0.x");
+            chai_5.assert.equal(extents[1][0], 0, "q1.x");
+            chai_5.assert.equal(extents[2][0], size, "q2.x");
+            chai_5.assert.equal(extents[3][0], 0, "q3.x");
+            chai_5.assert.equal(extents[0][1], size, "q0.y");
+            chai_5.assert.equal(extents[1][1], size, "q1.y");
+            chai_5.assert.equal(extents[2][1], 0, "q2.y");
+            chai_5.assert.equal(extents[3][1], 0, "q3.y");
+        });
+        mocha_4.it("can cache tiles from a TileGrid", () => {
+            const extent = proj_3.get("EPSG:3857").getExtent();
+            const tree = new TileTree_4.TileTree({
+                extent,
+            });
+            const tileGrid = tilegrid_2.createXYZ({ extent });
+            const addTiles = (level) => tileGrid.forEachTileCoord(extent, level, (tileCoord) => {
+                const [z, x, y] = tileCoord;
+                const extent = tileGrid.getTileCoordExtent(tileCoord);
+                tree.decorate(tree.findByExtent(extent), { tileCoord });
+            });
+            const maxX = () => tree.visit((a, b) => {
+                const { tileCoord } = tree.decorate(b);
+                return Math.max(a, tileCoord ? tileCoord[1] : a);
+            }, 0);
+            for (let i = 0; i <= 8; i++) {
+                console.log(`adding ${i}`);
+                addTiles(i);
+                chai_5.assert.equal(Math.pow(2, i) - 1, maxX(), `addTiles(${i})`);
+            }
+        });
+        mocha_4.it("integrates with a tiling strategy", () => {
+            const extent = proj_3.get("EPSG:3857").getExtent();
+            const extentInfo = explode_5.explode(extent);
+            const tree = new TileTree_4.TileTree({ extent });
+            const tileGrid = tilegrid_2.createXYZ({ extent });
+            const strategy = loadingstrategy_2.tile(tileGrid);
+            const resolutions = tileGrid.getResolutions();
+            const r0 = extentInfo.w / 256;
+            chai_5.assert.equal(resolutions[0], r0, "meters per pixel");
+            resolutions.forEach((r, i) => {
+                chai_5.assert.equal(r, r0 * Math.pow(2, -i), `resolution[${i}]`);
+            });
+            {
+                let quad0 = extent;
+                resolutions.forEach((resolution, i) => {
+                    const extents = strategy(quad0, resolution);
+                    extents.forEach((q) => tree.findByExtent(q));
+                    quad0 = extents[0];
+                });
+            }
+        });
+        mocha_4.it("integrates with a feature source", () => {
+            const url = "http://localhost:3002/mock/sampleserver3/arcgis/rest/services/Petroleum/KSFields/FeatureServer/0/query";
+            const projection = proj_3.get("EPSG:3857");
+            const tileSize = 256;
+            const source = new AgsClusterSource_1.AgsClusterSource({
+                tileSize,
+                url,
+                maxRecordCount: 1000,
+                minRecordCount: 100,
+            });
+            source.loadTile({ X: 0, Y: 0, Z: 0 }, projection);
+            source.on(VectorEventType_1.default.ADDFEATURE, (args) => {
+                const { count, resolution } = args.feature.getProperties();
+            });
+        });
+    });
+    mocha_4.describe("Cluster Rendering Rules", () => {
+        mocha_4.it("tests ensureQuads", () => {
+            const extent = [0, 0, 10, 10];
+            const tree = new TileTree_4.TileTree({
+                extent,
+            });
+            let quad = tree.quads({ X: 1, Y: 1, Z: 1 });
+            chai_5.assert.deepEqual({ X: 2, Y: 2, Z: 2 }, quad[0], "1st quadrant");
+            chai_5.assert.deepEqual({ X: 2, Y: 3, Z: 2 }, quad[1], "2nd quadrant");
+            chai_5.assert.deepEqual({ X: 3, Y: 3, Z: 2 }, quad[2], "3rd quadrant");
+            chai_5.assert.deepEqual({ X: 3, Y: 2, Z: 2 }, quad[3], "4th quadrant");
+        });
+    });
+    mocha_4.describe("Preserve TileTree State", () => {
+        mocha_4.it("stringify a tree", () => {
+            const extent = [0, 0, 10, 10];
+            const tree = new TileTree_4.TileTree({
+                extent,
+            });
+            chai_5.assert.equal('{"extent":[0,0,10,10],"data":[]}', JSON.stringify(tree.save()), "empty");
+            let X = 0;
+            let Y = 0;
+            let Z = 0;
+            tree.findByXYZ({ X, Y, Z }, { force: true });
+            chai_5.assert.equal('{"extent":[0,0,10,10],"data":[]}', JSON.stringify(tree.save()), "root node only");
+            X = 3;
+            Y = 20;
+            Z = 5;
+            tree.findByXYZ({ X, Y, Z }, { force: true }).data.center = [1, 2];
+            chai_5.assert.equal('{"extent":[0,0,10,10],"data":[[3,20,5,{"center":[1,2]}]]}', JSON.stringify(tree.save()), "deep child");
+            for (X = 10; X < 20; X += 3) {
+                const data = tree.findByXYZ({ X, Y, Z }, { force: true }).data;
+                data.count = X;
+            }
+            chai_5.assert.equal("[[3,20,5,[[1,2],null]],[10,20,5,[null,10]],[13,20,5,[null,13]],[16,20,5,[null,16]],[19,20,5,[null,19]]]", JSON.stringify(tree
+                .save()
+                .data.map(([X, Y, Z, data]) => [X, Y, Z, [data.center, data.count]])), "deep child");
+        });
+        mocha_4.it("destringify into a tree", () => {
+            const encoder = new TileTreeTersifier_1.TileTreeTersifier();
+            const extent = proj_3.get("EPSG:3857").getExtent();
+            const terserfied = `{"extent":[-20037508.342789244,-20037508.342789244,20037508.342789244,20037508.342789244],"data":[[6,19,5,267,0,0],[6,20,5,-1,7827152,-4696291],[7,19,5,6658,0,0],[7,20,5,-1,-4696291,-4696291],[14,38,6,6595,-315816,4479220],[14,39,6,6364,0,0],[15,38,6,0,0,0],[15,39,6,306,0,0],[27,78,7,202,0,0],[27,79,7,66,0,0],[27,80,7,0,0,0],[28,78,7,3114,0,0],[28,79,7,1608,0,0],[28,80,7,-1,0,0],[29,78,7,1652,0,0],[29,79,7,51,0,0],[29,80,7,0,0,0],[56,156,8,315,0,0],[56,157,8,812,0,0],[56,158,8,590,0,0],[56,159,8,49,0,0],[57,156,8,576,0,0],[57,157,8,1447,0,0],[57,158,8,982,0,0],[57,159,8,8,0,0],[58,156,8,515,0,0],[58,157,8,472,0,0],[59,156,8,423,0,0],[59,157,8,292,0,0],[114,314,9,185,0,0],[114,315,9,384,0,0],[115,314,9,468,0,0],[115,315,9,442,0,0]]}`;
+            const stringified = `{"extent":[${extent}],"data":[[6,19,5,{"count":267,"center":[-11897270.578531114,4383204.949985148]}],[6,20,5,{"count":-1,"center":[-11114555.408890907,5165920.119625352]}],[7,19,5,{"count":6658,"center":[-10644926.307106785,4383204.949985148]}],[7,20,5,{"count":-1,"center":[-11114555.408890907,5165920.119625352]}],[14,38,6,{"count":6595,"center":[-10989593.952922117,4518040.841452657]}],[14,39,6,{"count":6364,"center":[-10958012.374962866,4696291.017841228]}],[15,38,6,{"count":0,"center":[-10331840.239250705,4070118.8821290666]}],[15,39,6,{"count":306,"center":[-10331840.239250705,4696291.017841228]}],[27,78,7,{"count":202,"center":[-11427641.476746991,4539747.983913187]}],[27,79,7,{"count":66,"center":[-11427641.476746991,4852834.051769268]}],[27,80,7,{"count":0,"center":[-11427641.476746991,5165920.119625352]}],[28,78,7,{"count":3114,"center":[-11114555.408890907,4539747.983913187]}],[28,79,7,{"count":1608,"center":[-11114555.408890907,4852834.051769268]}],[28,80,7,{"count":-1,"center":[-11114555.408890907,5165920.119625352]}],[29,78,7,{"count":1652,"center":[-10801469.341034826,4539747.983913187]}],[29,79,7,{"count":51,"center":[-10801469.341034826,4852834.051769268]}],[29,80,7,{"count":0,"center":[-10801469.341034826,5165920.119625352]}],[56,156,8,{"count":315,"center":[-11192826.925854929,4461476.466949167]}],[56,157,8,{"count":812,"center":[-11192826.925854929,4618019.500877207]}],[56,158,8,{"count":590,"center":[-11192826.925854929,4774562.534805248]}],[56,159,8,{"count":49,"center":[-11192826.925854929,4931105.568733292]}],[57,156,8,{"count":576,"center":[-11036283.891926888,4461476.466949167]}],[57,157,8,{"count":1447,"center":[-11036283.891926888,4618019.500877207]}],[57,158,8,{"count":982,"center":[-11036283.891926888,4774562.534805248]}],[57,159,8,{"count":8,"center":[-11036283.891926888,4931105.568733292]}],[58,156,8,{"count":515,"center":[-10879740.857998848,4461476.466949167]}],[58,157,8,{"count":472,"center":[-10879740.857998848,4618019.500877207]}],[59,156,8,{"count":423,"center":[-10723197.824070806,4461476.466949167]}],[59,157,8,{"count":292,"center":[-10723197.824070806,4618019.500877207]}],[114,314,9,{"count":185,"center":[-11075419.650408898,4578883.742395197]}],[114,315,9,{"count":384,"center":[-11075419.650408898,4657155.259359219]}],[115,314,9,{"count":468,"center":[-10997148.13344488,4578883.742395197]}],[115,315,9,{"count":442,"center":[-10997148.13344488,4657155.259359219]}]]}`;
+            chai_5.assert.equal(Math.round(100 - (100 * terserfied.length) / stringified.length), 71);
+            const tree = new TileTree_4.TileTree({
+                extent,
+            });
+            tree.load(JSON.parse(stringified));
+            chai_5.assert.equal(JSON.stringify(tree.save()), stringified, "save=load");
+            const terser = encoder.stringify(tree.save());
+            chai_5.assert.equal(terser, terserfied, "terserfied");
+            const tree2 = TileTree_4.TileTree.create(encoder.unstringify(terser));
+            const expected = tree.save().data;
+            const actual = tree2.save().data;
+            chai_5.assert.equal(actual.length, expected.length, "tree from tersified");
+            actual.forEach((d, i) => {
+                chai_5.assert.equal(d[0], expected[i][0], "X");
+                chai_5.assert.equal(d[1], expected[i][1], "Y");
+                chai_5.assert.equal(d[2], expected[i][2], "Z");
+                chai_5.assert.equal(d[3].count, expected[i][3].count, "count");
+                chai_5.assert.isTrue(tiny_3.isEq(d[3].center[0], expected[i][3].center[0], 0.1), "cx");
+                chai_5.assert.isTrue(tiny_3.isEq(d[3].center[1], expected[i][3].center[1], 0.1), "cy");
+            });
+        });
+    });
+});
+define("poc/test/tiletreeext-test", ["require", "exports", "mocha", "chai", "poc/TileTree", "poc/TileTreeExt", "poc/fun/tiny", "poc/fun/flatten", "node_modules/ol/src/geom/Point", "node_modules/ol/src/Feature", "poc/test/fun/isSamePoint"], function (require, exports, mocha_5, chai_6, TileTree_5, TileTreeExt_3, tiny_4, flatten_2, Point_2, Feature_2, isSamePoint_2) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    function createTree() {
+        const extent = [0, 0, 1, 1];
+        const tree = new TileTree_5.TileTree({
+            extent,
+        });
+        return tree;
+    }
+    function createPoint(point) {
+        const feature = new Feature_2.default();
+        feature.setGeometry(new Point_2.default(point));
+        return feature;
+    }
+    function de(a, b, expectation) {
+        console.log(a);
+        chai_6.assert.deepEqual(a, b, expectation);
+    }
+    function isSameCenterOfMass(a, b, message) {
+        chai_6.assert.equal(a.mass, b.mass, `mass: ${message}`);
+        chai_6.assert.equal(a.featureMass, b.featureMass, `featureMass: ${message}`);
+        isSamePoint_2.isSamePoint(a.center, b.center, `mass: ${message}`);
+    }
+    mocha_5.describe("TileTreeExt Tests", () => {
+        mocha_5.it("findByExtent and findZByExtent test", () => {
+            const tree = TileTree_5.TileTree.create({
+                extent: [0, 0, 16, 16],
+                data: [[0, 0, 0, { count: 0, center: [0, 0] }]],
+            });
+            const ext = new TileTreeExt_3.TileTreeExt(tree);
+            de(ext.findByExtent([0, 0, 1, 1]), { X: 0, Y: 0, Z: 3 }, "bottom-left most tile 1/16 total width");
+            de(ext.findByExtent([0.25, 0, 1, 1]), { X: 0, Y: 0, Z: 3 }, "not as wide but same tile as before");
+            de(ext.findByExtent([0.25, 0.25, 0.5, 0.5]), { X: 0, Y: 0, Z: 4 }, "shifted right and up and deeper");
+            {
+                const extent = [7.9, 7.9, 8.1, 8.1];
+                de(ext.findByExtent(extent), { X: 0, Y: 0, Z: 0 }, "worst case scenario, cannot find a child");
+                de(ext.findZByExtent(extent), 6, "can still get accurate Z");
+            }
+            de(ext.findByExtent([10.1, 10.1, 10.11, 10.11]), { X: 323, Y: 323, Z: 9 }, "trusting this is correct.");
+            chai_6.assert.throws(() => ext.findByExtent([0, 0, 16.01, 16]), "out of bounds");
+        });
+        mocha_5.it("findByExtent and setMass test", () => {
+            const extent = [0, 0, 1, 1];
+            const tree = new TileTree_5.TileTree({ extent });
+            const helper = new TileTreeExt_3.TileTreeExt(tree);
+            const q0 = tree.findByExtent([0, 0, 0.25, 0.25]);
+            const q1 = tree.findByExtent([0.25, 0, 0.5, 0.25]);
+            const q2 = tree.findByExtent([0, 0.25, 0.25, 0.5]);
+            const q3 = tree.findByExtent([0.25, 0.25, 0.5, 0.5]);
+            const q33 = tree.findByExtent([0.375, 0.375, 0.5, 0.5]);
+            helper.setMass(q0, 1);
+            helper.setMass(q1, 2);
+            helper.setMass(q2, 4);
+            helper.setMass(q3, 8);
+            helper.setMass(q33, 16);
+            const totalCount = tree.visit((a, b) => a + (helper.getMass(b) || 0), 0);
+            chai_6.assert.equal(totalCount, 31);
+            chai_6.assert.throws(() => helper.setMass(q0, 0), "mass cannot be destroyed");
+        });
+        mocha_5.it("findByExtent and setMass test", () => {
+            const extent = [0, 0, 1, 1];
+            const tree = new TileTree_5.TileTree({ extent });
+            const helper = new TileTreeExt_3.TileTreeExt(tree);
+            const q0 = tree.findByExtent([0, 0, 0.25, 0.25]);
+            const q1 = tree.findByExtent([0.25, 0, 0.5, 0.25]);
+            const q2 = tree.findByExtent([0, 0.25, 0.25, 0.5]);
+            const q3 = tree.findByExtent([0.25, 0.25, 0.5, 0.5]);
+            const q33 = tree.findByExtent([0.375, 0.375, 0.5, 0.5]);
+            helper.setMass(q0, 1);
+            helper.setMass(q1, 2);
+            helper.setMass(q2, 4);
+            helper.setMass(q3, 8);
+            helper.setMass(q33, 16);
+            const totalCount = tree.visit((a, b) => a + (helper.getMass(b) || 0), 0);
+            chai_6.assert.equal(totalCount, 31);
+            chai_6.assert.throws(() => helper.setMass(q0, 0), "mass cannot be destroyed");
+            const { center, mass, featureMass } = helper.centerOfMass({
+                X: 0,
+                Y: 0,
+                Z: 0,
+            });
+            chai_6.assert.equal(mass, 15, "the mass of the root is the sum of the mass of its children");
+            chai_6.assert.equal(featureMass, 0, "no visible features therefore no visible mass");
+            isSamePoint_2.isSamePoint(center, [0.325, 0.35833333333333334], "center test");
+        });
+        mocha_5.it("computes density", () => {
+            const extent = [0, 0, 10, 10];
+            const tree = new TileTree_5.TileTree({
+                extent,
+            });
+            const helper = new TileTreeExt_3.TileTreeExt(tree);
+            const rootIdentifier = { X: 0, Y: 0, Z: 0 };
+            chai_6.assert.equal(0, helper.density(rootIdentifier), "root density is 0");
+            const children = tree.quads(rootIdentifier);
+            children.forEach((c, i) => helper.setMass(c, 1 + i));
+            chai_6.assert.equal(10, helper.centerOfMass(rootIdentifier).mass, "total count");
+            chai_6.assert.equal(10, helper.density(rootIdentifier), "density at Z=0");
+            chai_6.assert.equal(4, helper.density(children[0]), "child 0");
+            chai_6.assert.equal(8, helper.density(children[1]), "child 1");
+            chai_6.assert.equal(12, helper.density(children[2]), "child 2");
+            chai_6.assert.equal(16, helper.density(children[3]), "child 3");
+        });
+        mocha_5.it("computes center of mass of parent with undeclared mass", () => {
+            const extent = [0, 0, 16, 16];
+            const tree = new TileTree_5.TileTree({
+                extent,
+            });
+            const helper = new TileTreeExt_3.TileTreeExt(tree);
+            const root = { X: 0, Y: 0, Z: 0 };
+            const t000 = tree.findByXYZ(root);
+            const [q0, q1, q2, q3] = tree.quads(root);
+            let com = helper.centerOfMass(root);
+            chai_6.assert.deepEqual(com.mass, 0, "assumed to be massless");
+            chai_6.assert.deepEqual(com.center, [8, 8], "no mass => no center but center of tile seems reasonable");
+            helper.setMass(q0, 4);
+            com = helper.centerOfMass(root);
+            chai_6.assert.deepEqual(com.mass, 4, "mass of q0");
+            chai_6.assert.deepEqual(com.center, [4, 4], "center of mass of q0");
+            helper.setMass(q1, 2);
+            com = helper.centerOfMass(root);
+            chai_6.assert.deepEqual(com.mass, 6, "mass of q0 + q1");
+            chai_6.assert.deepEqual(com.center, [4, 8 - 4 / 3], "center of mass of q0+q1");
+            helper.setMass(q2, 1);
+            com = helper.centerOfMass(root);
+            chai_6.assert.deepEqual(com.mass, 7, "mass of q0 + q1 + q2");
+            chai_6.assert.isTrue(tiny_4.isEq(com.center[0], 8 - 20 / 7), "cx center of mass of q0 + q1 + q2");
+            chai_6.assert.isTrue(tiny_4.isEq(com.center[1], 8 - 4 / 7), "cy center of mass of q0 + q1 + q2");
+            helper.setMass(q3, 8);
+            com = helper.centerOfMass(root);
+            chai_6.assert.deepEqual(com.mass, 15, "mass of q0 + q1 + q2 + q3");
+            chai_6.assert.deepEqual(com.center, [8 + 12 / 15, 8 - 36 / 15], "center of mass of q0 + q1 + q2 + q3");
+        });
+        mocha_5.it("calculate center of mass of tile with assigned mass of 10", () => {
+            const extent = [0, 0, 10, 10];
+            const tree = TileTree_5.TileTree.create({
+                extent,
+                data: [],
+            });
+            const ext = new TileTreeExt_3.TileTreeExt(tree);
+            const tileIdentifier = { X: 0, Y: 0, Z: 0 };
+            chai_6.assert.equal(ext.density(tileIdentifier), 0);
+            ext.setMass(tileIdentifier, 10);
+            chai_6.assert.equal(ext.density(tileIdentifier), 10);
+            isSameCenterOfMass(ext.centerOfMass(tileIdentifier), {
+                mass: 10,
+                center: [5, 5],
+                featureMass: 0,
+            }, "root tile com");
+            ext.setCenter(tileIdentifier, [1, 1]);
+            const com = ext.centerOfMass(tileIdentifier);
+            chai_6.assert.equal(com.mass, 10, "mass");
+            chai_6.assert.equal(com.featureMass, 0, "featureMass");
+            isSamePoint_2.isSamePoint(com.center, [5, 5], "center");
+        });
+        mocha_5.it("calculate center of mass of tile of mass 100 with features", () => {
+            const tree = createTree();
+            const ext = new TileTreeExt_3.TileTreeExt(tree, { minZoom: 0, maxZoom: 19 });
+            const tileIdentifier = { X: 0, Y: 0, Z: 1 };
+            {
+                ext.setMass(tileIdentifier, 100);
+                let { center, mass } = ext.centerOfMass(tileIdentifier);
+                chai_6.assert.equal(mass, 100, "mass of tile");
+                isSamePoint_2.isSamePoint(center, [0.25, 0.25], "center of tile");
+            }
+            const features = [];
+            {
+                const [x, y] = [3, 3];
+                const feature = new Feature_2.default(new Point_2.default([1 / x, 1 / y]));
+                features.push(feature);
+                const targetIdentifier = ext.addFeature(feature);
+                chai_6.assert.deepEqual(targetIdentifier, { X: 174762, Y: 174762, Z: 19 });
+                ext.setVisible(feature, false);
+                const { mass, center } = ext.centerOfMass(tileIdentifier);
+                chai_6.assert.equal(mass, 100, "tile mass is unaffected by dark matter in child tiles");
+                isSamePoint_2.isSamePoint(center, [1 / 3, 1 / 3], "new center of tile");
+            }
+            const children = tree.children(tileIdentifier);
+            const grandChildren = flatten_2.flatten(children.map((id) => tree.children(id)));
+            de(children.map((id) => ext.centerOfMass(id).mass), [1], "child masses");
+            de(grandChildren.map((id) => ext.centerOfMass(id).mass), [1], "grandchild masses");
+            features.forEach((f) => ext.setVisible(f, true));
+            {
+                const { mass, center, featureMass } = ext.centerOfMass(tileIdentifier);
+                chai_6.assert.equal(mass, 99, "mass reduced");
+                chai_6.assert.equal(featureMass, -1, "because of one visible feature");
+                isSamePoint_2.isSamePoint(center, [1 / 4, 1 / 4], "center shifted");
+            }
+            {
+                const feature = new Feature_2.default(new Point_2.default([0.9, 0]));
+                ext.addFeature(feature, tileIdentifier);
+                ext.setVisible(feature, false);
+                const { center, mass, featureMass } = ext.centerOfMass(tileIdentifier);
+                chai_6.assert.equal(mass, 99, "mass unaffected by hidden features");
+                chai_6.assert.equal(featureMass, -1, "feature mass also uneffected");
+                isSamePoint_2.isSamePoint(center, [0.9, 0], "hidden features affect center");
+            }
+            {
+                const newChildId = { X: 0, Y: 0, Z: 7 };
+                chai_6.assert.isNull(tree.findByXYZ(newChildId), "child does not exist");
+                ext.setMass(newChildId, 1);
+                chai_6.assert.isNotNull(tree.findByXYZ(newChildId), "child exists");
+                const { center, mass, featureMass } = ext.centerOfMass(tileIdentifier);
+                chai_6.assert.equal(mass, 99, "mass unaffected by children without features");
+                chai_6.assert.equal(featureMass, -1, "feature mass unaffected by children without features");
+                isSamePoint_2.isSamePoint(center, [0.451953125, 0.001953125], "center shifts when adding a child with mass");
+            }
+        });
+        mocha_5.it("progressive center of mass calculations", () => {
+            const helper = new TileTreeExt_3.TileTreeExt(createTree());
+            const rootId = { X: 0, Y: 0, Z: 0 };
+            const p1 = createPoint([0.5 + 1 / 2048, 0.5 + 1 / 2048]);
+            const targetId = helper.addFeature(p1);
+            chai_6.assert.deepEqual(targetId, { X: 512, Y: 512, Z: 10 });
+            helper.setVisible(p1, false);
+            {
+                const { center, mass, featureMass } = helper.centerOfMass(targetId);
+                const com = helper.centerOfMass(targetId);
+                chai_6.assert.deepEqual(com, { center, mass, featureMass }, "centerOfMass is repeatable");
+                chai_6.assert.equal(mass, 1, "tile mass represents one hidden feature");
+                chai_6.assert.equal(featureMass, 0, "tile has 0 visible features");
+                isSamePoint_2.isSamePoint(center, [0.5 + 1 / 2048, 0.5 + 1 / 2048], "p1 is hidden but just right of center");
+            }
+            {
+                const { center, mass, featureMass } = helper.centerOfMass(rootId);
+                chai_6.assert.equal(mass, 1, "one child tile has mass since one feature is hidden");
+                chai_6.assert.equal(featureMass, 0, "no visible features");
+                isSamePoint_2.isSamePoint(center, [0.5 + 1 / 2048, 0.5 + 1 / 2048], "should have same center of mass as the only child tile");
+            }
+            helper.setVisible(p1, true);
+            {
+                const { center, mass, featureMass } = helper.centerOfMass(targetId);
+                const com = helper.centerOfMass(targetId);
+                chai_6.assert.deepEqual(com, { center, mass, featureMass }, "centerOfMass is repeatable");
+                chai_6.assert.equal(mass, 0, "tile has no effective mass, all features are visible");
+                chai_6.assert.equal(featureMass, -1, "tile has 1 visible feature");
+                isSamePoint_2.isSamePoint(center, [1 / 2 + 1 / 2048, 1 / 2 + 1 / 2048], "no mass so default to tile center");
+            }
+            {
+                const { center, mass, featureMass } = helper.centerOfMass(rootId);
+                chai_6.assert.equal(mass, 0, "no child tile has mass since all features are visible");
+                chai_6.assert.equal(featureMass, -1, "one visible feature in child tile");
+                isSamePoint_2.isSamePoint(center, [1 / 2, 1 / 2], "no mass so default to center of tile");
+            }
+        });
+    });
+});
+define("node_modules/ol/src/renderer/Composite", ["require", "exports", "node_modules/ol/src/renderer/Map", "node_modules/ol/src/ObjectEventType", "node_modules/ol/src/render/Event", "node_modules/ol/src/render/EventType", "node_modules/ol/src/source/State", "node_modules/ol/src/css", "node_modules/ol/src/render/canvas", "node_modules/ol/src/layer/Layer", "node_modules/ol/src/events", "node_modules/ol/src/dom"], function (require, exports, Map_js_1, ObjectEventType_js_5, Event_js_8, EventType_js_20, State_js_6, css_js_3, canvas_js_6, Layer_js_2, events_js_12, dom_js_7) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    class CompositeMapRenderer extends Map_js_1.default {
+        constructor(map) {
+            super(map);
+            this.fontChangeListenerKey_ = events_js_12.listen(canvas_js_6.checkedFonts, ObjectEventType_js_5.default.PROPERTYCHANGE, map.redrawText.bind(map));
+            this.element_ = document.createElement('div');
+            const style = this.element_.style;
+            style.position = 'absolute';
+            style.width = '100%';
+            style.height = '100%';
+            style.zIndex = '0';
+            this.element_.className = css_js_3.CLASS_UNSELECTABLE + ' ol-layers';
+            const container = map.getViewport();
+            container.insertBefore(this.element_, container.firstChild || null);
+            this.children_ = [];
+            this.renderedVisible_ = true;
+        }
+        dispatchRenderEvent(type, frameState) {
+            const map = this.getMap();
+            if (map.hasListener(type)) {
+                const event = new Event_js_8.default(type, undefined, frameState);
+                map.dispatchEvent(event);
+            }
+        }
+        disposeInternal() {
+            events_js_12.unlistenByKey(this.fontChangeListenerKey_);
+            this.element_.parentNode.removeChild(this.element_);
+            super.disposeInternal();
+        }
+        renderFrame(frameState) {
+            if (!frameState) {
+                if (this.renderedVisible_) {
+                    this.element_.style.display = 'none';
+                    this.renderedVisible_ = false;
+                }
+                return;
+            }
+            this.calculateMatrices2D(frameState);
+            this.dispatchRenderEvent(EventType_js_20.default.PRECOMPOSE, frameState);
+            const layerStatesArray = frameState.layerStatesArray.sort(function (a, b) {
+                return a.zIndex - b.zIndex;
+            });
+            const viewState = frameState.viewState;
+            this.children_.length = 0;
+            let previousElement = null;
+            for (let i = 0, ii = layerStatesArray.length; i < ii; ++i) {
+                const layerState = layerStatesArray[i];
+                frameState.layerIndex = i;
+                if (!Layer_js_2.inView(layerState, viewState) ||
+                    (layerState.sourceState != State_js_6.default.READY &&
+                        layerState.sourceState != State_js_6.default.UNDEFINED)) {
+                    continue;
+                }
+                const layer = layerState.layer;
+                const element = layer.render(frameState, previousElement);
+                if (!element) {
+                    continue;
+                }
+                if (element !== previousElement) {
+                    this.children_.push(element);
+                    previousElement = element;
+                }
+            }
+            super.renderFrame(frameState);
+            dom_js_7.replaceChildren(this.element_, this.children_);
+            this.dispatchRenderEvent(EventType_js_20.default.POSTCOMPOSE, frameState);
+            if (!this.renderedVisible_) {
+                this.element_.style.display = '';
+                this.renderedVisible_ = true;
+            }
+            this.scheduleExpireIconCache(frameState);
+        }
+        forEachLayerAtPixel(pixel, frameState, hitTolerance, callback, layerFilter) {
+            const viewState = frameState.viewState;
+            const layerStates = frameState.layerStatesArray;
+            const numLayers = layerStates.length;
+            for (let i = numLayers - 1; i >= 0; --i) {
+                const layerState = layerStates[i];
+                const layer = layerState.layer;
+                if (layer.hasRenderer() &&
+                    Layer_js_2.inView(layerState, viewState) &&
+                    layerFilter(layer)) {
+                    const layerRenderer = layer.getRenderer();
+                    const data = layerRenderer.getDataAtPixel(pixel, frameState, hitTolerance);
+                    if (data) {
+                        const result = callback(layer, data);
+                        if (result) {
+                            return result;
+                        }
+                    }
+                }
+            }
+            return undefined;
+        }
+    }
+    exports.default = CompositeMapRenderer;
+});
+define("node_modules/ol/src/control/Attribution", ["require", "exports", "node_modules/ol/src/control/Control", "node_modules/ol/src/events/EventType", "node_modules/ol/src/css", "node_modules/ol/src/array", "node_modules/ol/src/layer/Layer", "node_modules/ol/src/dom"], function (require, exports, Control_js_1, EventType_js_21, css_js_4, array_js_16, Layer_js_3, dom_js_8) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    class Attribution extends Control_js_1.default {
+        constructor(opt_options) {
+            const options = opt_options ? opt_options : {};
+            super({
+                element: document.createElement('div'),
+                render: options.render,
+                target: options.target,
+            });
+            this.ulElement_ = document.createElement('ul');
+            this.collapsed_ =
+                options.collapsed !== undefined ? options.collapsed : true;
+            this.overrideCollapsible_ = options.collapsible !== undefined;
+            this.collapsible_ =
+                options.collapsible !== undefined ? options.collapsible : true;
+            if (!this.collapsible_) {
+                this.collapsed_ = false;
+            }
+            const className = options.className !== undefined ? options.className : 'ol-attribution';
+            const tipLabel = options.tipLabel !== undefined ? options.tipLabel : 'Attributions';
+            const collapseLabel = options.collapseLabel !== undefined ? options.collapseLabel : '\u00BB';
+            if (typeof collapseLabel === 'string') {
+                this.collapseLabel_ = document.createElement('span');
+                this.collapseLabel_.textContent = collapseLabel;
+            }
+            else {
+                this.collapseLabel_ = collapseLabel;
+            }
+            const label = options.label !== undefined ? options.label : 'i';
+            if (typeof label === 'string') {
+                this.label_ = document.createElement('span');
+                this.label_.textContent = label;
+            }
+            else {
+                this.label_ = label;
+            }
+            const activeLabel = this.collapsible_ && !this.collapsed_ ? this.collapseLabel_ : this.label_;
+            const button = document.createElement('button');
+            button.setAttribute('type', 'button');
+            button.title = tipLabel;
+            button.appendChild(activeLabel);
+            button.addEventListener(EventType_js_21.default.CLICK, this.handleClick_.bind(this), false);
+            const cssClasses = className +
+                ' ' +
+                css_js_4.CLASS_UNSELECTABLE +
+                ' ' +
+                css_js_4.CLASS_CONTROL +
+                (this.collapsed_ && this.collapsible_ ? ' ' + css_js_4.CLASS_COLLAPSED : '') +
+                (this.collapsible_ ? '' : ' ol-uncollapsible');
+            const element = this.element;
+            element.className = cssClasses;
+            element.appendChild(this.ulElement_);
+            element.appendChild(button);
+            this.renderedAttributions_ = [];
+            this.renderedVisible_ = true;
+        }
+        collectSourceAttributions_(frameState) {
+            const lookup = {};
+            const visibleAttributions = [];
+            const layerStatesArray = frameState.layerStatesArray;
+            for (let i = 0, ii = layerStatesArray.length; i < ii; ++i) {
+                const layerState = layerStatesArray[i];
+                if (!Layer_js_3.inView(layerState, frameState.viewState)) {
+                    continue;
+                }
+                const source = (layerState.layer).getSource();
+                if (!source) {
+                    continue;
+                }
+                const attributionGetter = source.getAttributions();
+                if (!attributionGetter) {
+                    continue;
+                }
+                const attributions = attributionGetter(frameState);
+                if (!attributions) {
+                    continue;
+                }
+                if (!this.overrideCollapsible_ &&
+                    source.getAttributionsCollapsible() === false) {
+                    this.setCollapsible(false);
+                }
+                if (Array.isArray(attributions)) {
+                    for (let j = 0, jj = attributions.length; j < jj; ++j) {
+                        if (!(attributions[j] in lookup)) {
+                            visibleAttributions.push(attributions[j]);
+                            lookup[attributions[j]] = true;
+                        }
+                    }
+                }
+                else {
+                    if (!(attributions in lookup)) {
+                        visibleAttributions.push(attributions);
+                        lookup[attributions] = true;
+                    }
+                }
+            }
+            return visibleAttributions;
+        }
+        updateElement_(frameState) {
+            if (!frameState) {
+                if (this.renderedVisible_) {
+                    this.element.style.display = 'none';
+                    this.renderedVisible_ = false;
+                }
+                return;
+            }
+            const attributions = this.collectSourceAttributions_(frameState);
+            const visible = attributions.length > 0;
+            if (this.renderedVisible_ != visible) {
+                this.element.style.display = visible ? '' : 'none';
+                this.renderedVisible_ = visible;
+            }
+            if (array_js_16.equals(attributions, this.renderedAttributions_)) {
+                return;
+            }
+            dom_js_8.removeChildren(this.ulElement_);
+            for (let i = 0, ii = attributions.length; i < ii; ++i) {
+                const element = document.createElement('li');
+                element.innerHTML = attributions[i];
+                this.ulElement_.appendChild(element);
+            }
+            this.renderedAttributions_ = attributions;
+        }
+        handleClick_(event) {
+            event.preventDefault();
+            this.handleToggle_();
+        }
+        handleToggle_() {
+            this.element.classList.toggle(css_js_4.CLASS_COLLAPSED);
+            if (this.collapsed_) {
+                dom_js_8.replaceNode(this.collapseLabel_, this.label_);
+            }
+            else {
+                dom_js_8.replaceNode(this.label_, this.collapseLabel_);
+            }
+            this.collapsed_ = !this.collapsed_;
+        }
+        getCollapsible() {
+            return this.collapsible_;
+        }
+        setCollapsible(collapsible) {
+            if (this.collapsible_ === collapsible) {
+                return;
+            }
+            this.collapsible_ = collapsible;
+            this.element.classList.toggle('ol-uncollapsible');
+            if (!collapsible && this.collapsed_) {
+                this.handleToggle_();
+            }
+        }
+        setCollapsed(collapsed) {
+            if (!this.collapsible_ || this.collapsed_ === collapsed) {
+                return;
+            }
+            this.handleToggle_();
+        }
+        getCollapsed() {
+            return this.collapsed_;
+        }
+        render(mapEvent) {
+            this.updateElement_(mapEvent.frameState);
+        }
+    }
+    exports.default = Attribution;
+});
+define("node_modules/ol/src/control/Rotate", ["require", "exports", "node_modules/ol/src/control/Control", "node_modules/ol/src/events/EventType", "node_modules/ol/src/css", "node_modules/ol/src/easing"], function (require, exports, Control_js_2, EventType_js_22, css_js_5, easing_js_5) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    class Rotate extends Control_js_2.default {
+        constructor(opt_options) {
+            const options = opt_options ? opt_options : {};
+            super({
+                element: document.createElement('div'),
+                render: options.render,
+                target: options.target,
+            });
+            const className = options.className !== undefined ? options.className : 'ol-rotate';
+            const label = options.label !== undefined ? options.label : '\u21E7';
+            this.label_ = null;
+            if (typeof label === 'string') {
+                this.label_ = document.createElement('span');
+                this.label_.className = 'ol-compass';
+                this.label_.textContent = label;
+            }
+            else {
+                this.label_ = label;
+                this.label_.classList.add('ol-compass');
+            }
+            const tipLabel = options.tipLabel ? options.tipLabel : 'Reset rotation';
+            const button = document.createElement('button');
+            button.className = className + '-reset';
+            button.setAttribute('type', 'button');
+            button.title = tipLabel;
+            button.appendChild(this.label_);
+            button.addEventListener(EventType_js_22.default.CLICK, this.handleClick_.bind(this), false);
+            const cssClasses = className + ' ' + css_js_5.CLASS_UNSELECTABLE + ' ' + css_js_5.CLASS_CONTROL;
+            const element = this.element;
+            element.className = cssClasses;
+            element.appendChild(button);
+            this.callResetNorth_ = options.resetNorth ? options.resetNorth : undefined;
+            this.duration_ = options.duration !== undefined ? options.duration : 250;
+            this.autoHide_ = options.autoHide !== undefined ? options.autoHide : true;
+            this.rotation_ = undefined;
+            if (this.autoHide_) {
+                this.element.classList.add(css_js_5.CLASS_HIDDEN);
+            }
+        }
+        handleClick_(event) {
+            event.preventDefault();
+            if (this.callResetNorth_ !== undefined) {
+                this.callResetNorth_();
+            }
+            else {
+                this.resetNorth_();
+            }
+        }
+        resetNorth_() {
+            const map = this.getMap();
+            const view = map.getView();
+            if (!view) {
+                return;
+            }
+            const rotation = view.getRotation();
+            if (rotation !== undefined) {
+                if (this.duration_ > 0 && rotation % (2 * Math.PI) !== 0) {
+                    view.animate({
+                        rotation: 0,
+                        duration: this.duration_,
+                        easing: easing_js_5.easeOut,
+                    });
+                }
+                else {
+                    view.setRotation(0);
+                }
+            }
+        }
+        render(mapEvent) {
+            const frameState = mapEvent.frameState;
+            if (!frameState) {
+                return;
+            }
+            const rotation = frameState.viewState.rotation;
+            if (rotation != this.rotation_) {
+                const transform = 'rotate(' + rotation + 'rad)';
+                if (this.autoHide_) {
+                    const contains = this.element.classList.contains(css_js_5.CLASS_HIDDEN);
+                    if (!contains && rotation === 0) {
+                        this.element.classList.add(css_js_5.CLASS_HIDDEN);
+                    }
+                    else if (contains && rotation !== 0) {
+                        this.element.classList.remove(css_js_5.CLASS_HIDDEN);
+                    }
+                }
+                this.label_.style.transform = transform;
+            }
+            this.rotation_ = rotation;
+        }
+    }
+    exports.default = Rotate;
+});
+define("node_modules/ol/src/control/Zoom", ["require", "exports", "node_modules/ol/src/control/Control", "node_modules/ol/src/events/EventType", "node_modules/ol/src/css", "node_modules/ol/src/easing"], function (require, exports, Control_js_3, EventType_js_23, css_js_6, easing_js_6) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    class Zoom extends Control_js_3.default {
+        constructor(opt_options) {
+            const options = opt_options ? opt_options : {};
+            super({
+                element: document.createElement('div'),
+                target: options.target,
+            });
+            const className = options.className !== undefined ? options.className : 'ol-zoom';
+            const delta = options.delta !== undefined ? options.delta : 1;
+            const zoomInLabel = options.zoomInLabel !== undefined ? options.zoomInLabel : '+';
+            const zoomOutLabel = options.zoomOutLabel !== undefined ? options.zoomOutLabel : '\u2212';
+            const zoomInTipLabel = options.zoomInTipLabel !== undefined ? options.zoomInTipLabel : 'Zoom in';
+            const zoomOutTipLabel = options.zoomOutTipLabel !== undefined
+                ? options.zoomOutTipLabel
+                : 'Zoom out';
+            const inElement = document.createElement('button');
+            inElement.className = className + '-in';
+            inElement.setAttribute('type', 'button');
+            inElement.title = zoomInTipLabel;
+            inElement.appendChild(typeof zoomInLabel === 'string'
+                ? document.createTextNode(zoomInLabel)
+                : zoomInLabel);
+            inElement.addEventListener(EventType_js_23.default.CLICK, this.handleClick_.bind(this, delta), false);
+            const outElement = document.createElement('button');
+            outElement.className = className + '-out';
+            outElement.setAttribute('type', 'button');
+            outElement.title = zoomOutTipLabel;
+            outElement.appendChild(typeof zoomOutLabel === 'string'
+                ? document.createTextNode(zoomOutLabel)
+                : zoomOutLabel);
+            outElement.addEventListener(EventType_js_23.default.CLICK, this.handleClick_.bind(this, -delta), false);
+            const cssClasses = className + ' ' + css_js_6.CLASS_UNSELECTABLE + ' ' + css_js_6.CLASS_CONTROL;
+            const element = this.element;
+            element.className = cssClasses;
+            element.appendChild(inElement);
+            element.appendChild(outElement);
+            this.duration_ = options.duration !== undefined ? options.duration : 250;
+        }
+        handleClick_(delta, event) {
+            event.preventDefault();
+            this.zoomByDelta_(delta);
+        }
+        zoomByDelta_(delta) {
+            const map = this.getMap();
+            const view = map.getView();
+            if (!view) {
+                return;
+            }
+            const currentZoom = view.getZoom();
+            if (currentZoom !== undefined) {
+                const newZoom = view.getConstrainedZoom(currentZoom + delta);
+                if (this.duration_ > 0) {
+                    if (view.getAnimating()) {
+                        view.cancelAnimations();
+                    }
+                    view.animate({
+                        zoom: newZoom,
+                        duration: this.duration_,
+                        easing: easing_js_6.easeOut,
+                    });
+                }
+                else {
+                    view.setZoom(newZoom);
+                }
+            }
+        }
+    }
+    exports.default = Zoom;
+});
+define("node_modules/ol/src/control/FullScreen", ["require", "exports", "node_modules/ol/src/control/Control", "node_modules/ol/src/events/EventType", "node_modules/ol/src/css", "node_modules/ol/src/events", "node_modules/ol/src/dom"], function (require, exports, Control_js_4, EventType_js_24, css_js_7, events_js_13, dom_js_9) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    const events = [
+        'fullscreenchange',
+        'webkitfullscreenchange',
+        'MSFullscreenChange',
+    ];
+    const FullScreenEventType = {
+        ENTERFULLSCREEN: 'enterfullscreen',
+        LEAVEFULLSCREEN: 'leavefullscreen',
+    };
+    class FullScreen extends Control_js_4.default {
+        constructor(opt_options) {
+            const options = opt_options ? opt_options : {};
+            super({
+                element: document.createElement('div'),
+                target: options.target,
+            });
+            this.cssClassName_ =
+                options.className !== undefined ? options.className : 'ol-full-screen';
+            const label = options.label !== undefined ? options.label : '\u2922';
+            this.labelNode_ =
+                typeof label === 'string' ? document.createTextNode(label) : label;
+            const labelActive = options.labelActive !== undefined ? options.labelActive : '\u00d7';
+            this.labelActiveNode_ =
+                typeof labelActive === 'string'
+                    ? document.createTextNode(labelActive)
+                    : labelActive;
+            this.button_ = document.createElement('button');
+            const tipLabel = options.tipLabel ? options.tipLabel : 'Toggle full-screen';
+            this.setClassName_(this.button_, isFullScreen());
+            this.button_.setAttribute('type', 'button');
+            this.button_.title = tipLabel;
+            this.button_.appendChild(this.labelNode_);
+            this.button_.addEventListener(EventType_js_24.default.CLICK, this.handleClick_.bind(this), false);
+            const cssClasses = this.cssClassName_ +
+                ' ' +
+                css_js_7.CLASS_UNSELECTABLE +
+                ' ' +
+                css_js_7.CLASS_CONTROL +
+                ' ' +
+                (!isFullScreenSupported() ? css_js_7.CLASS_UNSUPPORTED : '');
+            const element = this.element;
+            element.className = cssClasses;
+            element.appendChild(this.button_);
+            this.keys_ = options.keys !== undefined ? options.keys : false;
+            this.source_ = options.source;
+        }
+        handleClick_(event) {
+            event.preventDefault();
+            this.handleFullScreen_();
+        }
+        handleFullScreen_() {
+            if (!isFullScreenSupported()) {
+                return;
+            }
+            const map = this.getMap();
+            if (!map) {
+                return;
+            }
+            if (isFullScreen()) {
+                exitFullScreen();
+            }
+            else {
+                let element;
+                if (this.source_) {
+                    element =
+                        typeof this.source_ === 'string'
+                            ? document.getElementById(this.source_)
+                            : this.source_;
+                }
+                else {
+                    element = map.getTargetElement();
+                }
+                if (this.keys_) {
+                    requestFullScreenWithKeys(element);
+                }
+                else {
+                    requestFullScreen(element);
+                }
+            }
+        }
+        handleFullScreenChange_() {
+            const map = this.getMap();
+            if (isFullScreen()) {
+                this.setClassName_(this.button_, true);
+                dom_js_9.replaceNode(this.labelActiveNode_, this.labelNode_);
+                this.dispatchEvent(FullScreenEventType.ENTERFULLSCREEN);
+            }
+            else {
+                this.setClassName_(this.button_, false);
+                dom_js_9.replaceNode(this.labelNode_, this.labelActiveNode_);
+                this.dispatchEvent(FullScreenEventType.LEAVEFULLSCREEN);
+            }
+            if (map) {
+                map.updateSize();
+            }
+        }
+        setClassName_(element, fullscreen) {
+            const activeClassName = this.cssClassName_ + '-true';
+            const inactiveClassName = this.cssClassName_ + '-false';
+            const nextClassName = fullscreen ? activeClassName : inactiveClassName;
+            element.classList.remove(activeClassName);
+            element.classList.remove(inactiveClassName);
+            element.classList.add(nextClassName);
+        }
+        setMap(map) {
+            super.setMap(map);
+            if (map) {
+                for (let i = 0, ii = events.length; i < ii; ++i) {
+                    this.listenerKeys.push(events_js_13.listen(document, events[i], this.handleFullScreenChange_, this));
+                }
+            }
+        }
+    }
+    function isFullScreenSupported() {
+        const body = document.body;
+        return !!(body['webkitRequestFullscreen'] ||
+            (body['msRequestFullscreen'] && document['msFullscreenEnabled']) ||
+            (body.requestFullscreen && document.fullscreenEnabled));
+    }
+    function isFullScreen() {
+        return !!(document['webkitIsFullScreen'] ||
+            document['msFullscreenElement'] ||
+            document.fullscreenElement);
+    }
+    function requestFullScreen(element) {
+        if (element.requestFullscreen) {
+            element.requestFullscreen();
+        }
+        else if (element['msRequestFullscreen']) {
+            element['msRequestFullscreen']();
+        }
+        else if (element['webkitRequestFullscreen']) {
+            element['webkitRequestFullscreen']();
+        }
+    }
+    function requestFullScreenWithKeys(element) {
+        if (element['webkitRequestFullscreen']) {
+            element['webkitRequestFullscreen']();
+        }
+        else {
+            requestFullScreen(element);
+        }
+    }
+    function exitFullScreen() {
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        }
+        else if (document['msExitFullscreen']) {
+            document['msExitFullscreen']();
+        }
+        else if (document['webkitExitFullscreen']) {
+            document['webkitExitFullscreen']();
+        }
+    }
+    exports.default = FullScreen;
+});
+define("node_modules/ol/src/control/MousePosition", ["require", "exports", "node_modules/ol/src/control/Control", "node_modules/ol/src/pointer/EventType", "node_modules/ol/src/Object", "node_modules/ol/src/proj", "node_modules/ol/src/events"], function (require, exports, Control_js_5, EventType_js_25, Object_js_14, proj_js_11, events_js_14) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    const PROJECTION = 'projection';
+    const COORDINATE_FORMAT = 'coordinateFormat';
+    class MousePosition extends Control_js_5.default {
+        constructor(opt_options) {
+            const options = opt_options ? opt_options : {};
+            const element = document.createElement('div');
+            element.className =
+                options.className !== undefined ? options.className : 'ol-mouse-position';
+            super({
+                element: element,
+                render: options.render,
+                target: options.target,
+            });
+            this.addEventListener(Object_js_14.getChangeEventType(PROJECTION), this.handleProjectionChanged_);
+            if (options.coordinateFormat) {
+                this.setCoordinateFormat(options.coordinateFormat);
+            }
+            if (options.projection) {
+                this.setProjection(options.projection);
+            }
+            this.undefinedHTML_ =
+                options.undefinedHTML !== undefined ? options.undefinedHTML : '&#160;';
+            this.renderOnMouseOut_ = !!this.undefinedHTML_;
+            this.renderedHTML_ = element.innerHTML;
+            this.mapProjection_ = null;
+            this.transform_ = null;
+        }
+        handleProjectionChanged_() {
+            this.transform_ = null;
+        }
+        getCoordinateFormat() {
+            return (this.get(COORDINATE_FORMAT));
+        }
+        getProjection() {
+            return (this.get(PROJECTION));
+        }
+        handleMouseMove(event) {
+            const map = this.getMap();
+            this.updateHTML_(map.getEventPixel(event));
+        }
+        handleMouseOut(event) {
+            this.updateHTML_(null);
+        }
+        setMap(map) {
+            super.setMap(map);
+            if (map) {
+                const viewport = map.getViewport();
+                this.listenerKeys.push(events_js_14.listen(viewport, EventType_js_25.default.POINTERMOVE, this.handleMouseMove, this));
+                if (this.renderOnMouseOut_) {
+                    this.listenerKeys.push(events_js_14.listen(viewport, EventType_js_25.default.POINTEROUT, this.handleMouseOut, this));
+                }
+            }
+        }
+        setCoordinateFormat(format) {
+            this.set(COORDINATE_FORMAT, format);
+        }
+        setProjection(projection) {
+            this.set(PROJECTION, proj_js_11.get(projection));
+        }
+        updateHTML_(pixel) {
+            let html = this.undefinedHTML_;
+            if (pixel && this.mapProjection_) {
+                if (!this.transform_) {
+                    const projection = this.getProjection();
+                    if (projection) {
+                        this.transform_ = proj_js_11.getTransformFromProjections(this.mapProjection_, projection);
+                    }
+                    else {
+                        this.transform_ = proj_js_11.identityTransform;
+                    }
+                }
+                const map = this.getMap();
+                const coordinate = map.getCoordinateFromPixelInternal(pixel);
+                if (coordinate) {
+                    const userProjection = proj_js_11.getUserProjection();
+                    if (userProjection) {
+                        this.transform_ = proj_js_11.getTransformFromProjections(this.mapProjection_, userProjection);
+                    }
+                    this.transform_(coordinate, coordinate);
+                    const coordinateFormat = this.getCoordinateFormat();
+                    if (coordinateFormat) {
+                        html = coordinateFormat(coordinate);
+                    }
+                    else {
+                        html = coordinate.toString();
+                    }
+                }
+            }
+            if (!this.renderedHTML_ || html !== this.renderedHTML_) {
+                this.element.innerHTML = html;
+                this.renderedHTML_ = html;
+            }
+        }
+        render(mapEvent) {
+            const frameState = mapEvent.frameState;
+            if (!frameState) {
+                this.mapProjection_ = null;
+            }
+            else {
+                if (this.mapProjection_ != frameState.viewState.projection) {
+                    this.mapProjection_ = frameState.viewState.projection;
+                    this.transform_ = null;
+                }
+            }
+        }
+    }
+    exports.default = MousePosition;
+});
+define("node_modules/ol/src/control/OverviewMap", ["require", "exports", "node_modules/ol/src/renderer/Composite", "node_modules/ol/src/control/Control", "node_modules/ol/src/events/EventType", "node_modules/ol/src/MapEventType", "node_modules/ol/src/MapProperty", "node_modules/ol/src/ObjectEventType", "node_modules/ol/src/Overlay", "node_modules/ol/src/OverlayPositioning", "node_modules/ol/src/PluggableMap", "node_modules/ol/src/View", "node_modules/ol/src/ViewProperty", "node_modules/ol/src/css", "node_modules/ol/src/extent", "node_modules/ol/src/Object", "node_modules/ol/src/events", "node_modules/ol/src/geom/Polygon", "node_modules/ol/src/dom"], function (require, exports, Composite_js_1, Control_js_6, EventType_js_26, MapEventType_js_4, MapProperty_js_2, ObjectEventType_js_6, Overlay_js_1, OverlayPositioning_js_2, PluggableMap_js_1, View_js_2, ViewProperty_js_2, css_js_8, extent_js_33, Object_js_15, events_js_15, Polygon_js_4, dom_js_10) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    const MAX_RATIO = 0.75;
+    const MIN_RATIO = 0.1;
+    class ControlledMap extends PluggableMap_js_1.default {
+        createRenderer() {
+            return new Composite_js_1.default(this);
+        }
+    }
+    class OverviewMap extends Control_js_6.default {
+        constructor(opt_options) {
+            const options = opt_options ? opt_options : {};
+            super({
+                element: document.createElement('div'),
+                render: options.render,
+                target: options.target,
+            });
+            this.boundHandleRotationChanged_ = this.handleRotationChanged_.bind(this);
+            this.collapsed_ =
+                options.collapsed !== undefined ? options.collapsed : true;
+            this.collapsible_ =
+                options.collapsible !== undefined ? options.collapsible : true;
+            if (!this.collapsible_) {
+                this.collapsed_ = false;
+            }
+            this.rotateWithView_ =
+                options.rotateWithView !== undefined ? options.rotateWithView : false;
+            this.viewExtent_ = undefined;
+            const className = options.className !== undefined ? options.className : 'ol-overviewmap';
+            const tipLabel = options.tipLabel !== undefined ? options.tipLabel : 'Overview map';
+            const collapseLabel = options.collapseLabel !== undefined ? options.collapseLabel : '\u00AB';
+            if (typeof collapseLabel === 'string') {
+                this.collapseLabel_ = document.createElement('span');
+                this.collapseLabel_.textContent = collapseLabel;
+            }
+            else {
+                this.collapseLabel_ = collapseLabel;
+            }
+            const label = options.label !== undefined ? options.label : '\u00BB';
+            if (typeof label === 'string') {
+                this.label_ = document.createElement('span');
+                this.label_.textContent = label;
+            }
+            else {
+                this.label_ = label;
+            }
+            const activeLabel = this.collapsible_ && !this.collapsed_ ? this.collapseLabel_ : this.label_;
+            const button = document.createElement('button');
+            button.setAttribute('type', 'button');
+            button.title = tipLabel;
+            button.appendChild(activeLabel);
+            button.addEventListener(EventType_js_26.default.CLICK, this.handleClick_.bind(this), false);
+            this.ovmapDiv_ = document.createElement('div');
+            this.ovmapDiv_.className = 'ol-overviewmap-map';
+            this.view_ = options.view;
+            this.ovmap_ = new ControlledMap({
+                view: options.view,
+            });
+            const ovmap = this.ovmap_;
+            if (options.layers) {
+                options.layers.forEach(function (layer) {
+                    ovmap.addLayer(layer);
+                });
+            }
+            const box = document.createElement('div');
+            box.className = 'ol-overviewmap-box';
+            box.style.boxSizing = 'border-box';
+            this.boxOverlay_ = new Overlay_js_1.default({
+                position: [0, 0],
+                positioning: OverlayPositioning_js_2.default.CENTER_CENTER,
+                element: box,
+            });
+            this.ovmap_.addOverlay(this.boxOverlay_);
+            const cssClasses = className +
+                ' ' +
+                css_js_8.CLASS_UNSELECTABLE +
+                ' ' +
+                css_js_8.CLASS_CONTROL +
+                (this.collapsed_ && this.collapsible_ ? ' ' + css_js_8.CLASS_COLLAPSED : '') +
+                (this.collapsible_ ? '' : ' ol-uncollapsible');
+            const element = this.element;
+            element.className = cssClasses;
+            element.appendChild(this.ovmapDiv_);
+            element.appendChild(button);
+            const scope = this;
+            const overlay = this.boxOverlay_;
+            const overlayBox = this.boxOverlay_.getElement();
+            const computeDesiredMousePosition = function (mousePosition) {
+                return {
+                    clientX: mousePosition.clientX,
+                    clientY: mousePosition.clientY,
+                };
+            };
+            const move = function (event) {
+                const position = (computeDesiredMousePosition(event));
+                const coordinates = ovmap.getEventCoordinateInternal((position));
+                overlay.setPosition(coordinates);
+            };
+            const endMoving = function (event) {
+                const coordinates = ovmap.getEventCoordinateInternal(event);
+                scope.getMap().getView().setCenterInternal(coordinates);
+                window.removeEventListener('mousemove', move);
+                window.removeEventListener('mouseup', endMoving);
+            };
+            overlayBox.addEventListener('mousedown', function () {
+                window.addEventListener('mousemove', move);
+                window.addEventListener('mouseup', endMoving);
+            });
+        }
+        setMap(map) {
+            const oldMap = this.getMap();
+            if (map === oldMap) {
+                return;
+            }
+            if (oldMap) {
+                const oldView = oldMap.getView();
+                if (oldView) {
+                    this.unbindView_(oldView);
+                }
+                this.ovmap_.setTarget(null);
+            }
+            super.setMap(map);
+            if (map) {
+                this.ovmap_.setTarget(this.ovmapDiv_);
+                this.listenerKeys.push(events_js_15.listen(map, ObjectEventType_js_6.default.PROPERTYCHANGE, this.handleMapPropertyChange_, this));
+                const view = map.getView();
+                if (view) {
+                    this.bindView_(view);
+                    if (view.isDef()) {
+                        this.ovmap_.updateSize();
+                        this.resetExtent_();
+                    }
+                }
+            }
+        }
+        handleMapPropertyChange_(event) {
+            if (event.key === MapProperty_js_2.default.VIEW) {
+                const oldView = (event.oldValue);
+                if (oldView) {
+                    this.unbindView_(oldView);
+                }
+                const newView = this.getMap().getView();
+                this.bindView_(newView);
+            }
+        }
+        bindView_(view) {
+            if (!this.view_) {
+                const newView = new View_js_2.default({
+                    projection: view.getProjection(),
+                });
+                this.ovmap_.setView(newView);
+            }
+            view.addEventListener(Object_js_15.getChangeEventType(ViewProperty_js_2.default.ROTATION), this.boundHandleRotationChanged_);
+            this.handleRotationChanged_();
+        }
+        unbindView_(view) {
+            view.removeEventListener(Object_js_15.getChangeEventType(ViewProperty_js_2.default.ROTATION), this.boundHandleRotationChanged_);
+        }
+        handleRotationChanged_() {
+            if (this.rotateWithView_) {
+                this.ovmap_.getView().setRotation(this.getMap().getView().getRotation());
+            }
+        }
+        validateExtent_() {
+            const map = this.getMap();
+            const ovmap = this.ovmap_;
+            if (!map.isRendered() || !ovmap.isRendered()) {
+                return;
+            }
+            const mapSize = (map.getSize());
+            const view = map.getView();
+            const extent = view.calculateExtentInternal(mapSize);
+            if (this.viewExtent_ && extent_js_33.equals(extent, this.viewExtent_)) {
+                return;
+            }
+            this.viewExtent_ = extent;
+            const ovmapSize = (ovmap.getSize());
+            const ovview = ovmap.getView();
+            const ovextent = ovview.calculateExtentInternal(ovmapSize);
+            const topLeftPixel = ovmap.getPixelFromCoordinateInternal(extent_js_33.getTopLeft(extent));
+            const bottomRightPixel = ovmap.getPixelFromCoordinateInternal(extent_js_33.getBottomRight(extent));
+            const boxWidth = Math.abs(topLeftPixel[0] - bottomRightPixel[0]);
+            const boxHeight = Math.abs(topLeftPixel[1] - bottomRightPixel[1]);
+            const ovmapWidth = ovmapSize[0];
+            const ovmapHeight = ovmapSize[1];
+            if (boxWidth < ovmapWidth * MIN_RATIO ||
+                boxHeight < ovmapHeight * MIN_RATIO ||
+                boxWidth > ovmapWidth * MAX_RATIO ||
+                boxHeight > ovmapHeight * MAX_RATIO) {
+                this.resetExtent_();
+            }
+            else if (!extent_js_33.containsExtent(ovextent, extent)) {
+                this.recenter_();
+            }
+        }
+        resetExtent_() {
+            if (MAX_RATIO === 0 || MIN_RATIO === 0) {
+                return;
+            }
+            const map = this.getMap();
+            const ovmap = this.ovmap_;
+            const mapSize = (map.getSize());
+            const view = map.getView();
+            const extent = view.calculateExtentInternal(mapSize);
+            const ovview = ovmap.getView();
+            const steps = Math.log(MAX_RATIO / MIN_RATIO) / Math.LN2;
+            const ratio = 1 / (Math.pow(2, steps / 2) * MIN_RATIO);
+            extent_js_33.scaleFromCenter(extent, ratio);
+            ovview.fitInternal(Polygon_js_4.fromExtent(extent));
+        }
+        recenter_() {
+            const map = this.getMap();
+            const ovmap = this.ovmap_;
+            const view = map.getView();
+            const ovview = ovmap.getView();
+            ovview.setCenterInternal(view.getCenterInternal());
+        }
+        updateBox_() {
+            const map = this.getMap();
+            const ovmap = this.ovmap_;
+            if (!map.isRendered() || !ovmap.isRendered()) {
+                return;
+            }
+            const mapSize = (map.getSize());
+            const view = map.getView();
+            const ovview = ovmap.getView();
+            const rotation = this.rotateWithView_ ? 0 : -view.getRotation();
+            const overlay = this.boxOverlay_;
+            const box = this.boxOverlay_.getElement();
+            const center = view.getCenterInternal();
+            const resolution = view.getResolution();
+            const ovresolution = ovview.getResolution();
+            const width = (mapSize[0] * resolution) / ovresolution;
+            const height = (mapSize[1] * resolution) / ovresolution;
+            overlay.setPosition(center);
+            if (box) {
+                box.style.width = width + 'px';
+                box.style.height = height + 'px';
+                const transform = 'rotate(' + rotation + 'rad)';
+                box.style.transform = transform;
+            }
+        }
+        handleClick_(event) {
+            event.preventDefault();
+            this.handleToggle_();
+        }
+        handleToggle_() {
+            this.element.classList.toggle(css_js_8.CLASS_COLLAPSED);
+            if (this.collapsed_) {
+                dom_js_10.replaceNode(this.collapseLabel_, this.label_);
+            }
+            else {
+                dom_js_10.replaceNode(this.label_, this.collapseLabel_);
+            }
+            this.collapsed_ = !this.collapsed_;
+            const ovmap = this.ovmap_;
+            if (!this.collapsed_) {
+                if (ovmap.isRendered()) {
+                    this.viewExtent_ = undefined;
+                    ovmap.render();
+                    return;
+                }
+                ovmap.updateSize();
+                this.resetExtent_();
+                events_js_15.listenOnce(ovmap, MapEventType_js_4.default.POSTRENDER, function (event) {
+                    this.updateBox_();
+                }, this);
+            }
+        }
+        getCollapsible() {
+            return this.collapsible_;
+        }
+        setCollapsible(collapsible) {
+            if (this.collapsible_ === collapsible) {
+                return;
+            }
+            this.collapsible_ = collapsible;
+            this.element.classList.toggle('ol-uncollapsible');
+            if (!collapsible && this.collapsed_) {
+                this.handleToggle_();
+            }
+        }
+        setCollapsed(collapsed) {
+            if (!this.collapsible_ || this.collapsed_ === collapsed) {
+                return;
+            }
+            this.handleToggle_();
+        }
+        getCollapsed() {
+            return this.collapsed_;
+        }
+        getRotateWithView() {
+            return this.rotateWithView_;
+        }
+        setRotateWithView(rotateWithView) {
+            if (this.rotateWithView_ === rotateWithView) {
+                return;
+            }
+            this.rotateWithView_ = rotateWithView;
+            if (this.getMap().getView().getRotation() !== 0) {
+                if (this.rotateWithView_) {
+                    this.handleRotationChanged_();
+                }
+                else {
+                    this.ovmap_.getView().setRotation(0);
+                }
+                this.viewExtent_ = undefined;
+                this.validateExtent_();
+                this.updateBox_();
+            }
+        }
+        getOverviewMap() {
+            return this.ovmap_;
+        }
+        render(mapEvent) {
+            this.validateExtent_();
+            this.updateBox_();
+        }
+    }
+    exports.default = OverviewMap;
+});
+define("node_modules/ol/src/control/ScaleLine", ["require", "exports", "node_modules/ol/src/control/Control", "node_modules/ol/src/proj/Units", "node_modules/ol/src/css", "node_modules/ol/src/proj", "node_modules/ol/src/asserts", "node_modules/ol/src/Object"], function (require, exports, Control_js_7, Units_js_9, css_js_9, proj_js_12, asserts_js_16, Object_js_16) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.Units = void 0;
+    const UNITS_PROP = 'units';
+    exports.Units = {
+        DEGREES: 'degrees',
+        IMPERIAL: 'imperial',
+        NAUTICAL: 'nautical',
+        METRIC: 'metric',
+        US: 'us',
+    };
+    const LEADING_DIGITS = [1, 2, 5];
+    const DEFAULT_DPI = 25.4 / 0.28;
+    class ScaleLine extends Control_js_7.default {
+        constructor(opt_options) {
+            const options = opt_options ? opt_options : {};
+            const className = options.className !== undefined
+                ? options.className
+                : options.bar
+                    ? 'ol-scale-bar'
+                    : 'ol-scale-line';
+            super({
+                element: document.createElement('div'),
+                render: options.render,
+                target: options.target,
+            });
+            this.innerElement_ = document.createElement('div');
+            this.innerElement_.className = className + '-inner';
+            this.element.className = className + ' ' + css_js_9.CLASS_UNSELECTABLE;
+            this.element.appendChild(this.innerElement_);
+            this.viewState_ = null;
+            this.minWidth_ = options.minWidth !== undefined ? options.minWidth : 64;
+            this.renderedVisible_ = false;
+            this.renderedWidth_ = undefined;
+            this.renderedHTML_ = '';
+            this.addEventListener(Object_js_16.getChangeEventType(UNITS_PROP), this.handleUnitsChanged_);
+            this.setUnits(options.units || exports.Units.METRIC);
+            this.scaleBar_ = options.bar || false;
+            this.scaleBarSteps_ = options.steps || 4;
+            this.scaleBarText_ = options.text || false;
+            this.dpi_ = options.dpi || undefined;
+        }
+        getUnits() {
+            return this.get(UNITS_PROP);
+        }
+        handleUnitsChanged_() {
+            this.updateElement_();
+        }
+        setUnits(units) {
+            this.set(UNITS_PROP, units);
+        }
+        setDpi(dpi) {
+            this.dpi_ = dpi;
+        }
+        updateElement_() {
+            const viewState = this.viewState_;
+            if (!viewState) {
+                if (this.renderedVisible_) {
+                    this.element.style.display = 'none';
+                    this.renderedVisible_ = false;
+                }
+                return;
+            }
+            const center = viewState.center;
+            const projection = viewState.projection;
+            const units = this.getUnits();
+            const pointResolutionUnits = units == exports.Units.DEGREES ? Units_js_9.default.DEGREES : Units_js_9.default.METERS;
+            let pointResolution = proj_js_12.getPointResolution(projection, viewState.resolution, center, pointResolutionUnits);
+            const minWidth = (this.minWidth_ * (this.dpi_ || DEFAULT_DPI)) / DEFAULT_DPI;
+            let nominalCount = minWidth * pointResolution;
+            let suffix = '';
+            if (units == exports.Units.DEGREES) {
+                const metersPerDegree = proj_js_12.METERS_PER_UNIT[Units_js_9.default.DEGREES];
+                nominalCount *= metersPerDegree;
+                if (nominalCount < metersPerDegree / 60) {
+                    suffix = '\u2033';
+                    pointResolution *= 3600;
+                }
+                else if (nominalCount < metersPerDegree) {
+                    suffix = '\u2032';
+                    pointResolution *= 60;
+                }
+                else {
+                    suffix = '\u00b0';
+                }
+            }
+            else if (units == exports.Units.IMPERIAL) {
+                if (nominalCount < 0.9144) {
+                    suffix = 'in';
+                    pointResolution /= 0.0254;
+                }
+                else if (nominalCount < 1609.344) {
+                    suffix = 'ft';
+                    pointResolution /= 0.3048;
+                }
+                else {
+                    suffix = 'mi';
+                    pointResolution /= 1609.344;
+                }
+            }
+            else if (units == exports.Units.NAUTICAL) {
+                pointResolution /= 1852;
+                suffix = 'nm';
+            }
+            else if (units == exports.Units.METRIC) {
+                if (nominalCount < 0.001) {
+                    suffix = 'μm';
+                    pointResolution *= 1000000;
+                }
+                else if (nominalCount < 1) {
+                    suffix = 'mm';
+                    pointResolution *= 1000;
+                }
+                else if (nominalCount < 1000) {
+                    suffix = 'm';
+                }
+                else {
+                    suffix = 'km';
+                    pointResolution /= 1000;
+                }
+            }
+            else if (units == exports.Units.US) {
+                if (nominalCount < 0.9144) {
+                    suffix = 'in';
+                    pointResolution *= 39.37;
+                }
+                else if (nominalCount < 1609.344) {
+                    suffix = 'ft';
+                    pointResolution /= 0.30480061;
+                }
+                else {
+                    suffix = 'mi';
+                    pointResolution /= 1609.3472;
+                }
+            }
+            else {
+                asserts_js_16.assert(false, 33);
+            }
+            let i = 3 * Math.floor(Math.log(minWidth * pointResolution) / Math.log(10));
+            let count, width, decimalCount;
+            while (true) {
+                decimalCount = Math.floor(i / 3);
+                const decimal = Math.pow(10, decimalCount);
+                count = LEADING_DIGITS[((i % 3) + 3) % 3] * decimal;
+                width = Math.round(count / pointResolution);
+                if (isNaN(width)) {
+                    this.element.style.display = 'none';
+                    this.renderedVisible_ = false;
+                    return;
+                }
+                else if (width >= minWidth) {
+                    break;
+                }
+                ++i;
+            }
+            let html;
+            if (this.scaleBar_) {
+                html = this.createScaleBar(width, count, suffix);
+            }
+            else {
+                html = count.toFixed(decimalCount < 0 ? -decimalCount : 0) + ' ' + suffix;
+            }
+            if (this.renderedHTML_ != html) {
+                this.innerElement_.innerHTML = html;
+                this.renderedHTML_ = html;
+            }
+            if (this.renderedWidth_ != width) {
+                this.innerElement_.style.width = width + 'px';
+                this.renderedWidth_ = width;
+            }
+            if (!this.renderedVisible_) {
+                this.element.style.display = '';
+                this.renderedVisible_ = true;
+            }
+        }
+        createScaleBar(width, scale, suffix) {
+            const mapScale = '1 : ' + Math.round(this.getScaleForResolution()).toLocaleString();
+            const scaleSteps = [];
+            const stepWidth = width / this.scaleBarSteps_;
+            let backgroundColor = '#ffffff';
+            for (let i = 0; i < this.scaleBarSteps_; i++) {
+                if (i === 0) {
+                    scaleSteps.push(this.createMarker('absolute', i));
+                }
+                scaleSteps.push('<div>' +
+                    '<div ' +
+                    'class="ol-scale-singlebar" ' +
+                    'style=' +
+                    '"width: ' +
+                    stepWidth +
+                    'px;' +
+                    'background-color: ' +
+                    backgroundColor +
+                    ';"' +
+                    '>' +
+                    '</div>' +
+                    this.createMarker('relative', i) +
+                    (i % 2 === 0 || this.scaleBarSteps_ === 2
+                        ? this.createStepText(i, width, false, scale, suffix)
+                        : '') +
+                    '</div>');
+                if (i === this.scaleBarSteps_ - 1) {
+                    {
+                    }
+                    scaleSteps.push(this.createStepText(i + 1, width, true, scale, suffix));
+                }
+                if (backgroundColor === '#ffffff') {
+                    backgroundColor = '#000000';
+                }
+                else {
+                    backgroundColor = '#ffffff';
+                }
+            }
+            let scaleBarText;
+            if (this.scaleBarText_) {
+                scaleBarText =
+                    '<div ' +
+                        'class="ol-scale-text" ' +
+                        'style="width: ' +
+                        width +
+                        'px;">' +
+                        mapScale +
+                        '</div>';
+            }
+            else {
+                scaleBarText = '';
+            }
+            const container = '<div ' +
+                'style="display: flex;">' +
+                scaleBarText +
+                scaleSteps.join('') +
+                '</div>';
+            return container;
+        }
+        createMarker(position, i) {
+            const top = position === 'absolute' ? 3 : -10;
+            return ('<div ' +
+                'class="ol-scale-step-marker" ' +
+                'style="position: ' +
+                position +
+                ';' +
+                'top: ' +
+                top +
+                'px;"' +
+                '></div>');
+        }
+        createStepText(i, width, isLast, scale, suffix) {
+            const length = i === 0 ? 0 : Math.round((scale / this.scaleBarSteps_) * i * 100) / 100;
+            const lengthString = length + (i === 0 ? '' : ' ' + suffix);
+            const margin = i === 0 ? -3 : (width / this.scaleBarSteps_) * -1;
+            const minWidth = i === 0 ? 0 : (width / this.scaleBarSteps_) * 2;
+            return ('<div ' +
+                'class="ol-scale-step-text" ' +
+                'style="' +
+                'margin-left: ' +
+                margin +
+                'px;' +
+                'text-align: ' +
+                (i === 0 ? 'left' : 'center') +
+                '; ' +
+                'min-width: ' +
+                minWidth +
+                'px;' +
+                'left: ' +
+                (isLast ? width + 'px' : 'unset') +
+                ';"' +
+                '>' +
+                lengthString +
+                '</div>');
+        }
+        getScaleForResolution() {
+            const resolution = proj_js_12.getPointResolution(this.viewState_.projection, this.viewState_.resolution, this.viewState_.center);
+            const dpi = this.dpi_ || DEFAULT_DPI;
+            const mpu = this.viewState_.projection.getMetersPerUnit();
+            const inchesPerMeter = 39.37;
+            return parseFloat(resolution.toString()) * mpu * inchesPerMeter * dpi;
+        }
+        render(mapEvent) {
+            const frameState = mapEvent.frameState;
+            if (!frameState) {
+                this.viewState_ = null;
+            }
+            else {
+                this.viewState_ = frameState.viewState;
+            }
+            this.updateElement_();
+        }
+    }
+    exports.default = ScaleLine;
+});
+define("node_modules/ol/src/control/ZoomSlider", ["require", "exports", "node_modules/ol/src/control/Control", "node_modules/ol/src/events/EventType", "node_modules/ol/src/pointer/EventType", "node_modules/ol/src/css", "node_modules/ol/src/math", "node_modules/ol/src/easing", "node_modules/ol/src/events", "node_modules/ol/src/events/Event"], function (require, exports, Control_js_8, EventType_js_27, EventType_js_28, css_js_10, math_js_18, easing_js_7, events_js_16, Event_js_9) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    const Direction = {
+        VERTICAL: 0,
+        HORIZONTAL: 1,
+    };
+    class ZoomSlider extends Control_js_8.default {
+        constructor(opt_options) {
+            const options = opt_options ? opt_options : {};
+            super({
+                element: document.createElement('div'),
+                render: options.render,
+            });
+            this.dragListenerKeys_ = [];
+            this.currentResolution_ = undefined;
+            this.direction_ = Direction.VERTICAL;
+            this.dragging_;
+            this.heightLimit_ = 0;
+            this.widthLimit_ = 0;
+            this.startX_;
+            this.startY_;
+            this.thumbSize_ = null;
+            this.sliderInitialized_ = false;
+            this.duration_ = options.duration !== undefined ? options.duration : 200;
+            const className = options.className !== undefined ? options.className : 'ol-zoomslider';
+            const thumbElement = document.createElement('button');
+            thumbElement.setAttribute('type', 'button');
+            thumbElement.className = className + '-thumb ' + css_js_10.CLASS_UNSELECTABLE;
+            const containerElement = this.element;
+            containerElement.className =
+                className + ' ' + css_js_10.CLASS_UNSELECTABLE + ' ' + css_js_10.CLASS_CONTROL;
+            containerElement.appendChild(thumbElement);
+            containerElement.addEventListener(EventType_js_28.default.POINTERDOWN, this.handleDraggerStart_.bind(this), false);
+            containerElement.addEventListener(EventType_js_28.default.POINTERMOVE, this.handleDraggerDrag_.bind(this), false);
+            containerElement.addEventListener(EventType_js_28.default.POINTERUP, this.handleDraggerEnd_.bind(this), false);
+            containerElement.addEventListener(EventType_js_27.default.CLICK, this.handleContainerClick_.bind(this), false);
+            thumbElement.addEventListener(EventType_js_27.default.CLICK, Event_js_9.stopPropagation, false);
+        }
+        setMap(map) {
+            super.setMap(map);
+            if (map) {
+                map.render();
+            }
+        }
+        initSlider_() {
+            const container = this.element;
+            const containerWidth = container.offsetWidth;
+            const containerHeight = container.offsetHeight;
+            if (containerWidth === 0 && containerHeight === 0) {
+                return (this.sliderInitialized_ = false);
+            }
+            const thumb = (container.firstElementChild);
+            const computedStyle = getComputedStyle(thumb);
+            const thumbWidth = thumb.offsetWidth +
+                parseFloat(computedStyle['marginRight']) +
+                parseFloat(computedStyle['marginLeft']);
+            const thumbHeight = thumb.offsetHeight +
+                parseFloat(computedStyle['marginTop']) +
+                parseFloat(computedStyle['marginBottom']);
+            this.thumbSize_ = [thumbWidth, thumbHeight];
+            if (containerWidth > containerHeight) {
+                this.direction_ = Direction.HORIZONTAL;
+                this.widthLimit_ = containerWidth - thumbWidth;
+            }
+            else {
+                this.direction_ = Direction.VERTICAL;
+                this.heightLimit_ = containerHeight - thumbHeight;
+            }
+            return (this.sliderInitialized_ = true);
+        }
+        handleContainerClick_(event) {
+            const view = this.getMap().getView();
+            const relativePosition = this.getRelativePosition_(event.offsetX - this.thumbSize_[0] / 2, event.offsetY - this.thumbSize_[1] / 2);
+            const resolution = this.getResolutionForPosition_(relativePosition);
+            const zoom = view.getConstrainedZoom(view.getZoomForResolution(resolution));
+            view.animateInternal({
+                zoom: zoom,
+                duration: this.duration_,
+                easing: easing_js_7.easeOut,
+            });
+        }
+        handleDraggerStart_(event) {
+            if (!this.dragging_ && event.target === this.element.firstElementChild) {
+                const element = (this.element
+                    .firstElementChild);
+                this.getMap().getView().beginInteraction();
+                this.startX_ = event.clientX - parseFloat(element.style.left);
+                this.startY_ = event.clientY - parseFloat(element.style.top);
+                this.dragging_ = true;
+                if (this.dragListenerKeys_.length === 0) {
+                    const drag = this.handleDraggerDrag_;
+                    const end = this.handleDraggerEnd_;
+                    this.dragListenerKeys_.push(events_js_16.listen(document, EventType_js_28.default.POINTERMOVE, drag, this), events_js_16.listen(document, EventType_js_28.default.POINTERUP, end, this));
+                }
+            }
+        }
+        handleDraggerDrag_(event) {
+            if (this.dragging_) {
+                const deltaX = event.clientX - this.startX_;
+                const deltaY = event.clientY - this.startY_;
+                const relativePosition = this.getRelativePosition_(deltaX, deltaY);
+                this.currentResolution_ = this.getResolutionForPosition_(relativePosition);
+                this.getMap().getView().setResolution(this.currentResolution_);
+            }
+        }
+        handleDraggerEnd_(event) {
+            if (this.dragging_) {
+                const view = this.getMap().getView();
+                view.endInteraction();
+                this.dragging_ = false;
+                this.startX_ = undefined;
+                this.startY_ = undefined;
+                this.dragListenerKeys_.forEach(events_js_16.unlistenByKey);
+                this.dragListenerKeys_.length = 0;
+            }
+        }
+        setThumbPosition_(res) {
+            const position = this.getPositionForResolution_(res);
+            const thumb = (this.element.firstElementChild);
+            if (this.direction_ == Direction.HORIZONTAL) {
+                thumb.style.left = this.widthLimit_ * position + 'px';
+            }
+            else {
+                thumb.style.top = this.heightLimit_ * position + 'px';
+            }
+        }
+        getRelativePosition_(x, y) {
+            let amount;
+            if (this.direction_ === Direction.HORIZONTAL) {
+                amount = x / this.widthLimit_;
+            }
+            else {
+                amount = y / this.heightLimit_;
+            }
+            return math_js_18.clamp(amount, 0, 1);
+        }
+        getResolutionForPosition_(position) {
+            const fn = this.getMap().getView().getResolutionForValueFunction();
+            return fn(1 - position);
+        }
+        getPositionForResolution_(res) {
+            const fn = this.getMap().getView().getValueForResolutionFunction();
+            return math_js_18.clamp(1 - fn(res), 0, 1);
+        }
+        render(mapEvent) {
+            if (!mapEvent.frameState) {
+                return;
+            }
+            if (!this.sliderInitialized_ && !this.initSlider_()) {
+                return;
+            }
+            const res = mapEvent.frameState.viewState.resolution;
+            this.currentResolution_ = res;
+            this.setThumbPosition_(res);
+        }
+    }
+    exports.default = ZoomSlider;
+});
+define("node_modules/ol/src/control/ZoomToExtent", ["require", "exports", "node_modules/ol/src/control/Control", "node_modules/ol/src/events/EventType", "node_modules/ol/src/css", "node_modules/ol/src/geom/Polygon"], function (require, exports, Control_js_9, EventType_js_29, css_js_11, Polygon_js_5) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    class ZoomToExtent extends Control_js_9.default {
+        constructor(opt_options) {
+            const options = opt_options ? opt_options : {};
+            super({
+                element: document.createElement('div'),
+                target: options.target,
+            });
+            this.extent = options.extent ? options.extent : null;
+            const className = options.className !== undefined ? options.className : 'ol-zoom-extent';
+            const label = options.label !== undefined ? options.label : 'E';
+            const tipLabel = options.tipLabel !== undefined ? options.tipLabel : 'Fit to extent';
+            const button = document.createElement('button');
+            button.setAttribute('type', 'button');
+            button.title = tipLabel;
+            button.appendChild(typeof label === 'string' ? document.createTextNode(label) : label);
+            button.addEventListener(EventType_js_29.default.CLICK, this.handleClick_.bind(this), false);
+            const cssClasses = className + ' ' + css_js_11.CLASS_UNSELECTABLE + ' ' + css_js_11.CLASS_CONTROL;
+            const element = this.element;
+            element.className = cssClasses;
+            element.appendChild(button);
+        }
+        handleClick_(event) {
+            event.preventDefault();
+            this.handleZoomToExtent();
+        }
+        handleZoomToExtent() {
+            const map = this.getMap();
+            const view = map.getView();
+            const extent = !this.extent
+                ? view.getProjection().getExtent()
+                : this.extent;
+            view.fitInternal(Polygon_js_5.fromExtent(extent));
+        }
+    }
+    exports.default = ZoomToExtent;
+});
+define("node_modules/ol/src/control", ["require", "exports", "node_modules/ol/src/control/Attribution", "node_modules/ol/src/Collection", "node_modules/ol/src/control/Rotate", "node_modules/ol/src/control/Zoom", "node_modules/ol/src/control/Attribution", "node_modules/ol/src/control/Control", "node_modules/ol/src/control/FullScreen", "node_modules/ol/src/control/MousePosition", "node_modules/ol/src/control/OverviewMap", "node_modules/ol/src/control/Rotate", "node_modules/ol/src/control/ScaleLine", "node_modules/ol/src/control/Zoom", "node_modules/ol/src/control/ZoomSlider", "node_modules/ol/src/control/ZoomToExtent"], function (require, exports, Attribution_js_1, Collection_js_4, Rotate_js_1, Zoom_js_1, Attribution_js_2, Control_js_10, FullScreen_js_1, MousePosition_js_1, OverviewMap_js_1, Rotate_js_2, ScaleLine_js_1, Zoom_js_2, ZoomSlider_js_1, ZoomToExtent_js_1) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.defaults = exports.ZoomToExtent = exports.ZoomSlider = exports.Zoom = exports.ScaleLine = exports.Rotate = exports.OverviewMap = exports.MousePosition = exports.FullScreen = exports.Control = exports.Attribution = void 0;
+    Object.defineProperty(exports, "Attribution", { enumerable: true, get: function () { return Attribution_js_2.default; } });
+    Object.defineProperty(exports, "Control", { enumerable: true, get: function () { return Control_js_10.default; } });
+    Object.defineProperty(exports, "FullScreen", { enumerable: true, get: function () { return FullScreen_js_1.default; } });
+    Object.defineProperty(exports, "MousePosition", { enumerable: true, get: function () { return MousePosition_js_1.default; } });
+    Object.defineProperty(exports, "OverviewMap", { enumerable: true, get: function () { return OverviewMap_js_1.default; } });
+    Object.defineProperty(exports, "Rotate", { enumerable: true, get: function () { return Rotate_js_2.default; } });
+    Object.defineProperty(exports, "ScaleLine", { enumerable: true, get: function () { return ScaleLine_js_1.default; } });
+    Object.defineProperty(exports, "Zoom", { enumerable: true, get: function () { return Zoom_js_2.default; } });
+    Object.defineProperty(exports, "ZoomSlider", { enumerable: true, get: function () { return ZoomSlider_js_1.default; } });
+    Object.defineProperty(exports, "ZoomToExtent", { enumerable: true, get: function () { return ZoomToExtent_js_1.default; } });
+    function defaults(opt_options) {
+        const options = opt_options ? opt_options : {};
+        const controls = new Collection_js_4.default();
+        const zoomControl = options.zoom !== undefined ? options.zoom : true;
+        if (zoomControl) {
+            controls.push(new Zoom_js_1.default(options.zoomOptions));
+        }
+        const rotateControl = options.rotate !== undefined ? options.rotate : true;
+        if (rotateControl) {
+            controls.push(new Rotate_js_1.default(options.rotateOptions));
+        }
+        const attributionControl = options.attribution !== undefined ? options.attribution : true;
+        if (attributionControl) {
+            controls.push(new Attribution_js_1.default(options.attributionOptions));
+        }
+        return controls;
+    }
+    exports.defaults = defaults;
+});
+define("node_modules/ol/src/interaction/DoubleClickZoom", ["require", "exports", "node_modules/ol/src/interaction/Interaction", "node_modules/ol/src/MapBrowserEventType"], function (require, exports, Interaction_js_1, MapBrowserEventType_js_3) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    class DoubleClickZoom extends Interaction_js_1.default {
+        constructor(opt_options) {
+            super();
+            const options = opt_options ? opt_options : {};
+            this.delta_ = options.delta ? options.delta : 1;
+            this.duration_ = options.duration !== undefined ? options.duration : 250;
+        }
+        handleEvent(mapBrowserEvent) {
+            let stopEvent = false;
+            if (mapBrowserEvent.type == MapBrowserEventType_js_3.default.DBLCLICK) {
+                const browserEvent = (mapBrowserEvent.originalEvent);
+                const map = mapBrowserEvent.map;
+                const anchor = mapBrowserEvent.coordinate;
+                const delta = browserEvent.shiftKey ? -this.delta_ : this.delta_;
+                const view = map.getView();
+                Interaction_js_1.zoomByDelta(view, delta, anchor, this.duration_);
+                mapBrowserEvent.preventDefault();
+                stopEvent = true;
+            }
+            return !stopEvent;
+        }
+    }
+    exports.default = DoubleClickZoom;
+});
+define("node_modules/ol/src/interaction/Pointer", ["require", "exports", "node_modules/ol/src/interaction/Interaction", "node_modules/ol/src/MapBrowserEventType", "node_modules/ol/src/obj"], function (require, exports, Interaction_js_2, MapBrowserEventType_js_4, obj_js_15) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.centroid = void 0;
+    class PointerInteraction extends Interaction_js_2.default {
+        constructor(opt_options) {
+            const options = opt_options ? opt_options : {};
+            super((options));
+            if (options.handleDownEvent) {
+                this.handleDownEvent = options.handleDownEvent;
+            }
+            if (options.handleDragEvent) {
+                this.handleDragEvent = options.handleDragEvent;
+            }
+            if (options.handleMoveEvent) {
+                this.handleMoveEvent = options.handleMoveEvent;
+            }
+            if (options.handleUpEvent) {
+                this.handleUpEvent = options.handleUpEvent;
+            }
+            if (options.stopDown) {
+                this.stopDown = options.stopDown;
+            }
+            this.handlingDownUpSequence = false;
+            this.trackedPointers_ = {};
+            this.targetPointers = [];
+        }
+        getPointerCount() {
+            return this.targetPointers.length;
+        }
+        handleDownEvent(mapBrowserEvent) {
+            return false;
+        }
+        handleDragEvent(mapBrowserEvent) { }
+        handleEvent(mapBrowserEvent) {
+            if (!mapBrowserEvent.originalEvent) {
+                return true;
+            }
+            let stopEvent = false;
+            this.updateTrackedPointers_(mapBrowserEvent);
+            if (this.handlingDownUpSequence) {
+                if (mapBrowserEvent.type == MapBrowserEventType_js_4.default.POINTERDRAG) {
+                    this.handleDragEvent(mapBrowserEvent);
+                    mapBrowserEvent.preventDefault();
+                }
+                else if (mapBrowserEvent.type == MapBrowserEventType_js_4.default.POINTERUP) {
+                    const handledUp = this.handleUpEvent(mapBrowserEvent);
+                    this.handlingDownUpSequence =
+                        handledUp && this.targetPointers.length > 0;
+                }
+            }
+            else {
+                if (mapBrowserEvent.type == MapBrowserEventType_js_4.default.POINTERDOWN) {
+                    const handled = this.handleDownEvent(mapBrowserEvent);
+                    this.handlingDownUpSequence = handled;
+                    stopEvent = this.stopDown(handled);
+                }
+                else if (mapBrowserEvent.type == MapBrowserEventType_js_4.default.POINTERMOVE) {
+                    this.handleMoveEvent(mapBrowserEvent);
+                }
+            }
+            return !stopEvent;
+        }
+        handleMoveEvent(mapBrowserEvent) { }
+        handleUpEvent(mapBrowserEvent) {
+            return false;
+        }
+        stopDown(handled) {
+            return handled;
+        }
+        updateTrackedPointers_(mapBrowserEvent) {
+            if (isPointerDraggingEvent(mapBrowserEvent)) {
+                const event = mapBrowserEvent.originalEvent;
+                const id = event.pointerId.toString();
+                if (mapBrowserEvent.type == MapBrowserEventType_js_4.default.POINTERUP) {
+                    delete this.trackedPointers_[id];
+                }
+                else if (mapBrowserEvent.type == MapBrowserEventType_js_4.default.POINTERDOWN) {
+                    this.trackedPointers_[id] = event;
+                }
+                else if (id in this.trackedPointers_) {
+                    this.trackedPointers_[id] = event;
+                }
+                this.targetPointers = obj_js_15.getValues(this.trackedPointers_);
+            }
+        }
+    }
+    function centroid(pointerEvents) {
+        const length = pointerEvents.length;
+        let clientX = 0;
+        let clientY = 0;
+        for (let i = 0; i < length; i++) {
+            clientX += pointerEvents[i].clientX;
+            clientY += pointerEvents[i].clientY;
+        }
+        return [clientX / length, clientY / length];
+    }
+    exports.centroid = centroid;
+    function isPointerDraggingEvent(mapBrowserEvent) {
+        const type = mapBrowserEvent.type;
+        return (type === MapBrowserEventType_js_4.default.POINTERDOWN ||
+            type === MapBrowserEventType_js_4.default.POINTERDRAG ||
+            type === MapBrowserEventType_js_4.default.POINTERUP);
+    }
+    exports.default = PointerInteraction;
+});
+define("node_modules/ol/src/events/condition", ["require", "exports", "node_modules/ol/src/MapBrowserEventType", "node_modules/ol/src/functions", "node_modules/ol/src/has", "node_modules/ol/src/asserts"], function (require, exports, MapBrowserEventType_js_5, functions_js_9, has_js_7, asserts_js_17) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.primaryAction = exports.penOnly = exports.touchOnly = exports.mouseOnly = exports.targetNotEditable = exports.shiftKeyOnly = exports.platformModifierKeyOnly = exports.noModifierKeys = exports.doubleClick = exports.singleClick = exports.pointerMove = exports.never = exports.mouseActionButton = exports.click = exports.always = exports.focusWithTabindex = exports.focus = exports.altShiftKeysOnly = exports.altKeyOnly = exports.all = void 0;
+    function all(var_args) {
+        const conditions = arguments;
+        return function (event) {
+            let pass = true;
+            for (let i = 0, ii = conditions.length; i < ii; ++i) {
+                pass = pass && conditions[i](event);
+                if (!pass) {
+                    break;
+                }
+            }
+            return pass;
+        };
+    }
+    exports.all = all;
+    exports.altKeyOnly = function (mapBrowserEvent) {
+        const originalEvent = (mapBrowserEvent.originalEvent);
+        return (originalEvent.altKey &&
+            !(originalEvent.metaKey || originalEvent.ctrlKey) &&
+            !originalEvent.shiftKey);
+    };
+    exports.altShiftKeysOnly = function (mapBrowserEvent) {
+        const originalEvent = (mapBrowserEvent.originalEvent);
+        return (originalEvent.altKey &&
+            !(originalEvent.metaKey || originalEvent.ctrlKey) &&
+            originalEvent.shiftKey);
+    };
+    exports.focus = function (event) {
+        return event.target.getTargetElement().contains(document.activeElement);
+    };
+    exports.focusWithTabindex = function (event) {
+        return event.map.getTargetElement().hasAttribute('tabindex')
+            ? exports.focus(event)
+            : true;
+    };
+    exports.always = functions_js_9.TRUE;
+    exports.click = function (mapBrowserEvent) {
+        return mapBrowserEvent.type == MapBrowserEventType_js_5.default.CLICK;
+    };
+    exports.mouseActionButton = function (mapBrowserEvent) {
+        const originalEvent = (mapBrowserEvent.originalEvent);
+        return originalEvent.button == 0 && !(has_js_7.WEBKIT && has_js_7.MAC && originalEvent.ctrlKey);
+    };
+    exports.never = functions_js_9.FALSE;
+    exports.pointerMove = function (mapBrowserEvent) {
+        return mapBrowserEvent.type == 'pointermove';
+    };
+    exports.singleClick = function (mapBrowserEvent) {
+        return mapBrowserEvent.type == MapBrowserEventType_js_5.default.SINGLECLICK;
+    };
+    exports.doubleClick = function (mapBrowserEvent) {
+        return mapBrowserEvent.type == MapBrowserEventType_js_5.default.DBLCLICK;
+    };
+    exports.noModifierKeys = function (mapBrowserEvent) {
+        const originalEvent = (mapBrowserEvent.originalEvent);
+        return (!originalEvent.altKey &&
+            !(originalEvent.metaKey || originalEvent.ctrlKey) &&
+            !originalEvent.shiftKey);
+    };
+    exports.platformModifierKeyOnly = function (mapBrowserEvent) {
+        const originalEvent = (mapBrowserEvent.originalEvent);
+        return (!originalEvent.altKey &&
+            (has_js_7.MAC ? originalEvent.metaKey : originalEvent.ctrlKey) &&
+            !originalEvent.shiftKey);
+    };
+    exports.shiftKeyOnly = function (mapBrowserEvent) {
+        const originalEvent = (mapBrowserEvent.originalEvent);
+        return (!originalEvent.altKey &&
+            !(originalEvent.metaKey || originalEvent.ctrlKey) &&
+            originalEvent.shiftKey);
+    };
+    exports.targetNotEditable = function (mapBrowserEvent) {
+        const originalEvent = (mapBrowserEvent.originalEvent);
+        const tagName = (originalEvent.target).tagName;
+        return tagName !== 'INPUT' && tagName !== 'SELECT' && tagName !== 'TEXTAREA';
+    };
+    exports.mouseOnly = function (mapBrowserEvent) {
+        const pointerEvent = (mapBrowserEvent)
+            .originalEvent;
+        asserts_js_17.assert(pointerEvent !== undefined, 56);
+        return pointerEvent.pointerType == 'mouse';
+    };
+    exports.touchOnly = function (mapBrowserEvent) {
+        const pointerEvt = (mapBrowserEvent)
+            .originalEvent;
+        asserts_js_17.assert(pointerEvt !== undefined, 56);
+        return pointerEvt.pointerType === 'touch';
+    };
+    exports.penOnly = function (mapBrowserEvent) {
+        const pointerEvt = (mapBrowserEvent)
+            .originalEvent;
+        asserts_js_17.assert(pointerEvt !== undefined, 56);
+        return pointerEvt.pointerType === 'pen';
+    };
+    exports.primaryAction = function (mapBrowserEvent) {
+        const pointerEvent = (mapBrowserEvent)
+            .originalEvent;
+        asserts_js_17.assert(pointerEvent !== undefined, 56);
+        return pointerEvent.isPrimary && pointerEvent.button === 0;
+    };
+});
+define("node_modules/ol/src/Kinetic", ["require", "exports"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    class Kinetic {
+        constructor(decay, minVelocity, delay) {
+            this.decay_ = decay;
+            this.minVelocity_ = minVelocity;
+            this.delay_ = delay;
+            this.points_ = [];
+            this.angle_ = 0;
+            this.initialVelocity_ = 0;
+        }
+        begin() {
+            this.points_.length = 0;
+            this.angle_ = 0;
+            this.initialVelocity_ = 0;
+        }
+        update(x, y) {
+            this.points_.push(x, y, Date.now());
+        }
+        end() {
+            if (this.points_.length < 6) {
+                return false;
+            }
+            const delay = Date.now() - this.delay_;
+            const lastIndex = this.points_.length - 3;
+            if (this.points_[lastIndex + 2] < delay) {
+                return false;
+            }
+            let firstIndex = lastIndex - 3;
+            while (firstIndex > 0 && this.points_[firstIndex + 2] > delay) {
+                firstIndex -= 3;
+            }
+            const duration = this.points_[lastIndex + 2] - this.points_[firstIndex + 2];
+            if (duration < 1000 / 60) {
+                return false;
+            }
+            const dx = this.points_[lastIndex] - this.points_[firstIndex];
+            const dy = this.points_[lastIndex + 1] - this.points_[firstIndex + 1];
+            this.angle_ = Math.atan2(dy, dx);
+            this.initialVelocity_ = Math.sqrt(dx * dx + dy * dy) / duration;
+            return this.initialVelocity_ > this.minVelocity_;
+        }
+        getDistance() {
+            return (this.minVelocity_ - this.initialVelocity_) / this.decay_;
+        }
+        getAngle() {
+            return this.angle_;
+        }
+    }
+    exports.default = Kinetic;
+});
+define("node_modules/ol/src/interaction/DragPan", ["require", "exports", "node_modules/ol/src/interaction/Pointer", "node_modules/ol/src/functions", "node_modules/ol/src/events/condition", "node_modules/ol/src/easing", "node_modules/ol/src/coordinate"], function (require, exports, Pointer_js_1, functions_js_10, condition_js_1, easing_js_8, coordinate_js_5) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    class DragPan extends Pointer_js_1.default {
+        constructor(opt_options) {
+            super({
+                stopDown: functions_js_10.FALSE,
+            });
+            const options = opt_options ? opt_options : {};
+            this.kinetic_ = options.kinetic;
+            this.lastCentroid = null;
+            this.lastPointersCount_;
+            this.panning_ = false;
+            const condition = options.condition
+                ? options.condition
+                : condition_js_1.all(condition_js_1.noModifierKeys, condition_js_1.primaryAction);
+            this.condition_ = options.onFocusOnly
+                ? condition_js_1.all(condition_js_1.focusWithTabindex, condition)
+                : condition;
+            this.noKinetic_ = false;
+        }
+        handleDragEvent(mapBrowserEvent) {
+            if (!this.panning_) {
+                this.panning_ = true;
+                this.getMap().getView().beginInteraction();
+            }
+            const targetPointers = this.targetPointers;
+            const centroid = Pointer_js_1.centroid(targetPointers);
+            if (targetPointers.length == this.lastPointersCount_) {
+                if (this.kinetic_) {
+                    this.kinetic_.update(centroid[0], centroid[1]);
+                }
+                if (this.lastCentroid) {
+                    const delta = [
+                        this.lastCentroid[0] - centroid[0],
+                        centroid[1] - this.lastCentroid[1],
+                    ];
+                    const map = mapBrowserEvent.map;
+                    const view = map.getView();
+                    coordinate_js_5.scale(delta, view.getResolution());
+                    coordinate_js_5.rotate(delta, view.getRotation());
+                    view.adjustCenterInternal(delta);
+                }
+            }
+            else if (this.kinetic_) {
+                this.kinetic_.begin();
+            }
+            this.lastCentroid = centroid;
+            this.lastPointersCount_ = targetPointers.length;
+            mapBrowserEvent.originalEvent.preventDefault();
+        }
+        handleUpEvent(mapBrowserEvent) {
+            const map = mapBrowserEvent.map;
+            const view = map.getView();
+            if (this.targetPointers.length === 0) {
+                if (!this.noKinetic_ && this.kinetic_ && this.kinetic_.end()) {
+                    const distance = this.kinetic_.getDistance();
+                    const angle = this.kinetic_.getAngle();
+                    const center = view.getCenterInternal();
+                    const centerpx = map.getPixelFromCoordinateInternal(center);
+                    const dest = map.getCoordinateFromPixelInternal([
+                        centerpx[0] - distance * Math.cos(angle),
+                        centerpx[1] - distance * Math.sin(angle),
+                    ]);
+                    view.animateInternal({
+                        center: view.getConstrainedCenter(dest),
+                        duration: 500,
+                        easing: easing_js_8.easeOut,
+                    });
+                }
+                if (this.panning_) {
+                    this.panning_ = false;
+                    view.endInteraction();
+                }
+                return false;
+            }
+            else {
+                if (this.kinetic_) {
+                    this.kinetic_.begin();
+                }
+                this.lastCentroid = null;
+                return true;
+            }
+        }
+        handleDownEvent(mapBrowserEvent) {
+            if (this.targetPointers.length > 0 && this.condition_(mapBrowserEvent)) {
+                const map = mapBrowserEvent.map;
+                const view = map.getView();
+                this.lastCentroid = null;
+                if (view.getAnimating()) {
+                    view.cancelAnimations();
+                }
+                if (this.kinetic_) {
+                    this.kinetic_.begin();
+                }
+                this.noKinetic_ = this.targetPointers.length > 1;
+                return true;
+            }
+            else {
+                return false;
+            }
+        }
+    }
+    exports.default = DragPan;
+});
+define("node_modules/ol/src/interaction/DragRotate", ["require", "exports", "node_modules/ol/src/interaction/Pointer", "node_modules/ol/src/functions", "node_modules/ol/src/events/condition", "node_modules/ol/src/rotationconstraint"], function (require, exports, Pointer_js_2, functions_js_11, condition_js_2, rotationconstraint_js_2) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    class DragRotate extends Pointer_js_2.default {
+        constructor(opt_options) {
+            const options = opt_options ? opt_options : {};
+            super({
+                stopDown: functions_js_11.FALSE,
+            });
+            this.condition_ = options.condition ? options.condition : condition_js_2.altShiftKeysOnly;
+            this.lastAngle_ = undefined;
+            this.duration_ = options.duration !== undefined ? options.duration : 250;
+        }
+        handleDragEvent(mapBrowserEvent) {
+            if (!condition_js_2.mouseOnly(mapBrowserEvent)) {
+                return;
+            }
+            const map = mapBrowserEvent.map;
+            const view = map.getView();
+            if (view.getConstraints().rotation === rotationconstraint_js_2.disable) {
+                return;
+            }
+            const size = map.getSize();
+            const offset = mapBrowserEvent.pixel;
+            const theta = Math.atan2(size[1] / 2 - offset[1], offset[0] - size[0] / 2);
+            if (this.lastAngle_ !== undefined) {
+                const delta = theta - this.lastAngle_;
+                view.adjustRotationInternal(-delta);
+            }
+            this.lastAngle_ = theta;
+        }
+        handleUpEvent(mapBrowserEvent) {
+            if (!condition_js_2.mouseOnly(mapBrowserEvent)) {
+                return true;
+            }
+            const map = mapBrowserEvent.map;
+            const view = map.getView();
+            view.endInteraction(this.duration_);
+            return false;
+        }
+        handleDownEvent(mapBrowserEvent) {
+            if (!condition_js_2.mouseOnly(mapBrowserEvent)) {
+                return false;
+            }
+            if (condition_js_2.mouseActionButton(mapBrowserEvent) &&
+                this.condition_(mapBrowserEvent)) {
+                const map = mapBrowserEvent.map;
+                map.getView().beginInteraction();
+                this.lastAngle_ = undefined;
+                return true;
+            }
+            else {
+                return false;
+            }
+        }
+    }
+    exports.default = DragRotate;
+});
+define("node_modules/ol/src/render/Box", ["require", "exports", "node_modules/ol/src/Disposable", "node_modules/ol/src/geom/Polygon"], function (require, exports, Disposable_js_3, Polygon_js_6) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    class RenderBox extends Disposable_js_3.default {
+        constructor(className) {
+            super();
+            this.geometry_ = null;
+            this.element_ = document.createElement('div');
+            this.element_.style.position = 'absolute';
+            this.element_.style.pointerEvents = 'auto';
+            this.element_.className = 'ol-box ' + className;
+            this.map_ = null;
+            this.startPixel_ = null;
+            this.endPixel_ = null;
+        }
+        disposeInternal() {
+            this.setMap(null);
+        }
+        render_() {
+            const startPixel = this.startPixel_;
+            const endPixel = this.endPixel_;
+            const px = 'px';
+            const style = this.element_.style;
+            style.left = Math.min(startPixel[0], endPixel[0]) + px;
+            style.top = Math.min(startPixel[1], endPixel[1]) + px;
+            style.width = Math.abs(endPixel[0] - startPixel[0]) + px;
+            style.height = Math.abs(endPixel[1] - startPixel[1]) + px;
+        }
+        setMap(map) {
+            if (this.map_) {
+                this.map_.getOverlayContainer().removeChild(this.element_);
+                const style = this.element_.style;
+                style.left = 'inherit';
+                style.top = 'inherit';
+                style.width = 'inherit';
+                style.height = 'inherit';
+            }
+            this.map_ = map;
+            if (this.map_) {
+                this.map_.getOverlayContainer().appendChild(this.element_);
+            }
+        }
+        setPixels(startPixel, endPixel) {
+            this.startPixel_ = startPixel;
+            this.endPixel_ = endPixel;
+            this.createOrUpdateGeometry();
+            this.render_();
+        }
+        createOrUpdateGeometry() {
+            const startPixel = this.startPixel_;
+            const endPixel = this.endPixel_;
+            const pixels = [
+                startPixel,
+                [startPixel[0], endPixel[1]],
+                endPixel,
+                [endPixel[0], startPixel[1]],
+            ];
+            const coordinates = pixels.map(this.map_.getCoordinateFromPixelInternal, this.map_);
+            coordinates[4] = coordinates[0].slice();
+            if (!this.geometry_) {
+                this.geometry_ = new Polygon_js_6.default([coordinates]);
+            }
+            else {
+                this.geometry_.setCoordinates([coordinates]);
+            }
+        }
+        getGeometry() {
+            return this.geometry_;
+        }
+    }
+    exports.default = RenderBox;
+});
+define("node_modules/ol/src/interaction/DragBox", ["require", "exports", "node_modules/ol/src/events/Event", "node_modules/ol/src/interaction/Pointer", "node_modules/ol/src/render/Box", "node_modules/ol/src/events/condition"], function (require, exports, Event_js_10, Pointer_js_3, Box_js_1, condition_js_3) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    const DragBoxEventType = {
+        BOXSTART: 'boxstart',
+        BOXDRAG: 'boxdrag',
+        BOXEND: 'boxend',
+    };
+    class DragBoxEvent extends Event_js_10.default {
+        constructor(type, coordinate, mapBrowserEvent) {
+            super(type);
+            this.coordinate = coordinate;
+            this.mapBrowserEvent = mapBrowserEvent;
+        }
+    }
+    class DragBox extends Pointer_js_3.default {
+        constructor(opt_options) {
+            super();
+            const options = opt_options ? opt_options : {};
+            this.box_ = new Box_js_1.default(options.className || 'ol-dragbox');
+            this.minArea_ = options.minArea !== undefined ? options.minArea : 64;
+            if (options.onBoxEnd) {
+                this.onBoxEnd = options.onBoxEnd;
+            }
+            this.startPixel_ = null;
+            this.condition_ = options.condition ? options.condition : condition_js_3.mouseActionButton;
+            this.boxEndCondition_ = options.boxEndCondition
+                ? options.boxEndCondition
+                : this.defaultBoxEndCondition;
+        }
+        defaultBoxEndCondition(mapBrowserEvent, startPixel, endPixel) {
+            const width = endPixel[0] - startPixel[0];
+            const height = endPixel[1] - startPixel[1];
+            return width * width + height * height >= this.minArea_;
+        }
+        getGeometry() {
+            return this.box_.getGeometry();
+        }
+        handleDragEvent(mapBrowserEvent) {
+            this.box_.setPixels(this.startPixel_, mapBrowserEvent.pixel);
+            this.dispatchEvent(new DragBoxEvent(DragBoxEventType.BOXDRAG, mapBrowserEvent.coordinate, mapBrowserEvent));
+        }
+        handleUpEvent(mapBrowserEvent) {
+            this.box_.setMap(null);
+            if (this.boxEndCondition_(mapBrowserEvent, this.startPixel_, mapBrowserEvent.pixel)) {
+                this.onBoxEnd(mapBrowserEvent);
+                this.dispatchEvent(new DragBoxEvent(DragBoxEventType.BOXEND, mapBrowserEvent.coordinate, mapBrowserEvent));
+            }
+            return false;
+        }
+        handleDownEvent(mapBrowserEvent) {
+            if (this.condition_(mapBrowserEvent)) {
+                this.startPixel_ = mapBrowserEvent.pixel;
+                this.box_.setMap(mapBrowserEvent.map);
+                this.box_.setPixels(this.startPixel_, this.startPixel_);
+                this.dispatchEvent(new DragBoxEvent(DragBoxEventType.BOXSTART, mapBrowserEvent.coordinate, mapBrowserEvent));
+                return true;
+            }
+            else {
+                return false;
+            }
+        }
+        onBoxEnd(event) { }
+    }
+    exports.default = DragBox;
+});
+define("node_modules/ol/src/interaction/DragZoom", ["require", "exports", "node_modules/ol/src/interaction/DragBox", "node_modules/ol/src/extent", "node_modules/ol/src/easing", "node_modules/ol/src/events/condition"], function (require, exports, DragBox_js_1, extent_js_34, easing_js_9, condition_js_4) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    class DragZoom extends DragBox_js_1.default {
+        constructor(opt_options) {
+            const options = opt_options ? opt_options : {};
+            const condition = options.condition ? options.condition : condition_js_4.shiftKeyOnly;
+            super({
+                condition: condition,
+                className: options.className || 'ol-dragzoom',
+                minArea: options.minArea,
+            });
+            this.duration_ = options.duration !== undefined ? options.duration : 200;
+            this.out_ = options.out !== undefined ? options.out : false;
+        }
+        onBoxEnd(event) {
+            const map = this.getMap();
+            const view = (map.getView());
+            const size = (map.getSize());
+            let extent = this.getGeometry().getExtent();
+            if (this.out_) {
+                const mapExtent = view.calculateExtentInternal(size);
+                const boxPixelExtent = extent_js_34.createOrUpdateFromCoordinates([
+                    map.getPixelFromCoordinateInternal(extent_js_34.getBottomLeft(extent)),
+                    map.getPixelFromCoordinateInternal(extent_js_34.getTopRight(extent)),
+                ]);
+                const factor = view.getResolutionForExtentInternal(boxPixelExtent, size);
+                extent_js_34.scaleFromCenter(mapExtent, 1 / factor);
+                extent = mapExtent;
+            }
+            const resolution = view.getConstrainedResolution(view.getResolutionForExtentInternal(extent, size));
+            const center = view.getConstrainedCenter(extent_js_34.getCenter(extent), resolution);
+            view.animateInternal({
+                resolution: resolution,
+                center: center,
+                duration: this.duration_,
+                easing: easing_js_9.easeOut,
+            });
+        }
+    }
+    exports.default = DragZoom;
+});
+define("node_modules/ol/src/events/KeyCode", ["require", "exports"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.default = {
+        LEFT: 37,
+        UP: 38,
+        RIGHT: 39,
+        DOWN: 40,
+    };
+});
+define("node_modules/ol/src/interaction/KeyboardPan", ["require", "exports", "node_modules/ol/src/events/EventType", "node_modules/ol/src/interaction/Interaction", "node_modules/ol/src/events/KeyCode", "node_modules/ol/src/events/condition", "node_modules/ol/src/coordinate"], function (require, exports, EventType_js_30, Interaction_js_3, KeyCode_js_1, condition_js_5, coordinate_js_6) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    class KeyboardPan extends Interaction_js_3.default {
+        constructor(opt_options) {
+            super();
+            const options = opt_options || {};
+            this.defaultCondition_ = function (mapBrowserEvent) {
+                return (condition_js_5.noModifierKeys(mapBrowserEvent) && condition_js_5.targetNotEditable(mapBrowserEvent));
+            };
+            this.condition_ =
+                options.condition !== undefined
+                    ? options.condition
+                    : this.defaultCondition_;
+            this.duration_ = options.duration !== undefined ? options.duration : 100;
+            this.pixelDelta_ =
+                options.pixelDelta !== undefined ? options.pixelDelta : 128;
+        }
+        handleEvent(mapBrowserEvent) {
+            let stopEvent = false;
+            if (mapBrowserEvent.type == EventType_js_30.default.KEYDOWN) {
+                const keyEvent = (mapBrowserEvent.originalEvent);
+                const keyCode = keyEvent.keyCode;
+                if (this.condition_(mapBrowserEvent) &&
+                    (keyCode == KeyCode_js_1.default.DOWN ||
+                        keyCode == KeyCode_js_1.default.LEFT ||
+                        keyCode == KeyCode_js_1.default.RIGHT ||
+                        keyCode == KeyCode_js_1.default.UP)) {
+                    const map = mapBrowserEvent.map;
+                    const view = map.getView();
+                    const mapUnitsDelta = view.getResolution() * this.pixelDelta_;
+                    let deltaX = 0, deltaY = 0;
+                    if (keyCode == KeyCode_js_1.default.DOWN) {
+                        deltaY = -mapUnitsDelta;
+                    }
+                    else if (keyCode == KeyCode_js_1.default.LEFT) {
+                        deltaX = -mapUnitsDelta;
+                    }
+                    else if (keyCode == KeyCode_js_1.default.RIGHT) {
+                        deltaX = mapUnitsDelta;
+                    }
+                    else {
+                        deltaY = mapUnitsDelta;
+                    }
+                    const delta = [deltaX, deltaY];
+                    coordinate_js_6.rotate(delta, view.getRotation());
+                    Interaction_js_3.pan(view, delta, this.duration_);
+                    mapBrowserEvent.preventDefault();
+                    stopEvent = true;
+                }
+            }
+            return !stopEvent;
+        }
+    }
+    exports.default = KeyboardPan;
+});
+define("node_modules/ol/src/interaction/KeyboardZoom", ["require", "exports", "node_modules/ol/src/events/EventType", "node_modules/ol/src/interaction/Interaction", "node_modules/ol/src/events/condition"], function (require, exports, EventType_js_31, Interaction_js_4, condition_js_6) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    class KeyboardZoom extends Interaction_js_4.default {
+        constructor(opt_options) {
+            super();
+            const options = opt_options ? opt_options : {};
+            this.condition_ = options.condition ? options.condition : condition_js_6.targetNotEditable;
+            this.delta_ = options.delta ? options.delta : 1;
+            this.duration_ = options.duration !== undefined ? options.duration : 100;
+        }
+        handleEvent(mapBrowserEvent) {
+            let stopEvent = false;
+            if (mapBrowserEvent.type == EventType_js_31.default.KEYDOWN ||
+                mapBrowserEvent.type == EventType_js_31.default.KEYPRESS) {
+                const keyEvent = (mapBrowserEvent.originalEvent);
+                const charCode = keyEvent.charCode;
+                if (this.condition_(mapBrowserEvent) &&
+                    (charCode == '+'.charCodeAt(0) || charCode == '-'.charCodeAt(0))) {
+                    const map = mapBrowserEvent.map;
+                    const delta = charCode == '+'.charCodeAt(0) ? this.delta_ : -this.delta_;
+                    const view = map.getView();
+                    Interaction_js_4.zoomByDelta(view, delta, undefined, this.duration_);
+                    mapBrowserEvent.preventDefault();
+                    stopEvent = true;
+                }
+            }
+            return !stopEvent;
+        }
+    }
+    exports.default = KeyboardZoom;
+});
+define("node_modules/ol/src/interaction/MouseWheelZoom", ["require", "exports", "node_modules/ol/src/events/EventType", "node_modules/ol/src/interaction/Interaction", "node_modules/ol/src/has", "node_modules/ol/src/events/condition", "node_modules/ol/src/math"], function (require, exports, EventType_js_32, Interaction_js_5, has_js_8, condition_js_7, math_js_19) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.Mode = void 0;
+    exports.Mode = {
+        TRACKPAD: 'trackpad',
+        WHEEL: 'wheel',
+    };
+    class MouseWheelZoom extends Interaction_js_5.default {
+        constructor(opt_options) {
+            const options = opt_options ? opt_options : {};
+            super((options));
+            this.totalDelta_ = 0;
+            this.lastDelta_ = 0;
+            this.maxDelta_ = options.maxDelta !== undefined ? options.maxDelta : 1;
+            this.duration_ = options.duration !== undefined ? options.duration : 250;
+            this.timeout_ = options.timeout !== undefined ? options.timeout : 80;
+            this.useAnchor_ =
+                options.useAnchor !== undefined ? options.useAnchor : true;
+            this.constrainResolution_ =
+                options.constrainResolution !== undefined
+                    ? options.constrainResolution
+                    : false;
+            const condition = options.condition ? options.condition : condition_js_7.always;
+            this.condition_ = options.onFocusOnly
+                ? condition_js_7.all(condition_js_7.focusWithTabindex, condition)
+                : condition;
+            this.lastAnchor_ = null;
+            this.startTime_ = undefined;
+            this.timeoutId_;
+            this.mode_ = undefined;
+            this.trackpadEventGap_ = 400;
+            this.trackpadTimeoutId_;
+            this.deltaPerZoom_ = 300;
+        }
+        endInteraction_() {
+            this.trackpadTimeoutId_ = undefined;
+            const view = this.getMap().getView();
+            view.endInteraction(undefined, this.lastDelta_ ? (this.lastDelta_ > 0 ? 1 : -1) : 0, this.lastAnchor_);
+        }
+        handleEvent(mapBrowserEvent) {
+            if (!this.condition_(mapBrowserEvent)) {
+                return true;
+            }
+            const type = mapBrowserEvent.type;
+            if (type !== EventType_js_32.default.WHEEL) {
+                return true;
+            }
+            mapBrowserEvent.preventDefault();
+            const map = mapBrowserEvent.map;
+            const wheelEvent = (mapBrowserEvent.originalEvent);
+            if (this.useAnchor_) {
+                this.lastAnchor_ = mapBrowserEvent.coordinate;
+            }
+            let delta;
+            if (mapBrowserEvent.type == EventType_js_32.default.WHEEL) {
+                delta = wheelEvent.deltaY;
+                if (has_js_8.FIREFOX && wheelEvent.deltaMode === WheelEvent.DOM_DELTA_PIXEL) {
+                    delta /= has_js_8.DEVICE_PIXEL_RATIO;
+                }
+                if (wheelEvent.deltaMode === WheelEvent.DOM_DELTA_LINE) {
+                    delta *= 40;
+                }
+            }
+            if (delta === 0) {
+                return false;
+            }
+            else {
+                this.lastDelta_ = delta;
+            }
+            const now = Date.now();
+            if (this.startTime_ === undefined) {
+                this.startTime_ = now;
+            }
+            if (!this.mode_ || now - this.startTime_ > this.trackpadEventGap_) {
+                this.mode_ = Math.abs(delta) < 4 ? exports.Mode.TRACKPAD : exports.Mode.WHEEL;
+            }
+            const view = map.getView();
+            if (this.mode_ === exports.Mode.TRACKPAD &&
+                !(view.getConstrainResolution() || this.constrainResolution_)) {
+                if (this.trackpadTimeoutId_) {
+                    clearTimeout(this.trackpadTimeoutId_);
+                }
+                else {
+                    if (view.getAnimating()) {
+                        view.cancelAnimations();
+                    }
+                    view.beginInteraction();
+                }
+                this.trackpadTimeoutId_ = setTimeout(this.endInteraction_.bind(this), this.timeout_);
+                view.adjustZoom(-delta / this.deltaPerZoom_, this.lastAnchor_);
+                this.startTime_ = now;
+                return false;
+            }
+            this.totalDelta_ += delta;
+            const timeLeft = Math.max(this.timeout_ - (now - this.startTime_), 0);
+            clearTimeout(this.timeoutId_);
+            this.timeoutId_ = setTimeout(this.handleWheelZoom_.bind(this, map), timeLeft);
+            return false;
+        }
+        handleWheelZoom_(map) {
+            const view = map.getView();
+            if (view.getAnimating()) {
+                view.cancelAnimations();
+            }
+            let delta = -math_js_19.clamp(this.totalDelta_, -this.maxDelta_ * this.deltaPerZoom_, this.maxDelta_ * this.deltaPerZoom_) / this.deltaPerZoom_;
+            if (view.getConstrainResolution() || this.constrainResolution_) {
+                delta = delta ? (delta > 0 ? 1 : -1) : 0;
+            }
+            Interaction_js_5.zoomByDelta(view, delta, this.lastAnchor_, this.duration_);
+            this.mode_ = undefined;
+            this.totalDelta_ = 0;
+            this.lastAnchor_ = null;
+            this.startTime_ = undefined;
+            this.timeoutId_ = undefined;
+        }
+        setMouseAnchor(useAnchor) {
+            this.useAnchor_ = useAnchor;
+            if (!useAnchor) {
+                this.lastAnchor_ = null;
+            }
+        }
+    }
+    exports.default = MouseWheelZoom;
+});
+define("node_modules/ol/src/interaction/PinchRotate", ["require", "exports", "node_modules/ol/src/interaction/Pointer", "node_modules/ol/src/functions", "node_modules/ol/src/rotationconstraint"], function (require, exports, Pointer_js_4, functions_js_12, rotationconstraint_js_3) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    class PinchRotate extends Pointer_js_4.default {
+        constructor(opt_options) {
+            const options = opt_options ? opt_options : {};
+            const pointerOptions = (options);
+            if (!pointerOptions.stopDown) {
+                pointerOptions.stopDown = functions_js_12.FALSE;
+            }
+            super(pointerOptions);
+            this.anchor_ = null;
+            this.lastAngle_ = undefined;
+            this.rotating_ = false;
+            this.rotationDelta_ = 0.0;
+            this.threshold_ = options.threshold !== undefined ? options.threshold : 0.3;
+            this.duration_ = options.duration !== undefined ? options.duration : 250;
+        }
+        handleDragEvent(mapBrowserEvent) {
+            let rotationDelta = 0.0;
+            const touch0 = this.targetPointers[0];
+            const touch1 = this.targetPointers[1];
+            const angle = Math.atan2(touch1.clientY - touch0.clientY, touch1.clientX - touch0.clientX);
+            if (this.lastAngle_ !== undefined) {
+                const delta = angle - this.lastAngle_;
+                this.rotationDelta_ += delta;
+                if (!this.rotating_ && Math.abs(this.rotationDelta_) > this.threshold_) {
+                    this.rotating_ = true;
+                }
+                rotationDelta = delta;
+            }
+            this.lastAngle_ = angle;
+            const map = mapBrowserEvent.map;
+            const view = map.getView();
+            if (view.getConstraints().rotation === rotationconstraint_js_3.disable) {
+                return;
+            }
+            const viewportPosition = map.getViewport().getBoundingClientRect();
+            const centroid = Pointer_js_4.centroid(this.targetPointers);
+            centroid[0] -= viewportPosition.left;
+            centroid[1] -= viewportPosition.top;
+            this.anchor_ = map.getCoordinateFromPixelInternal(centroid);
+            if (this.rotating_) {
+                map.render();
+                view.adjustRotationInternal(rotationDelta, this.anchor_);
+            }
+        }
+        handleUpEvent(mapBrowserEvent) {
+            if (this.targetPointers.length < 2) {
+                const map = mapBrowserEvent.map;
+                const view = map.getView();
+                view.endInteraction(this.duration_);
+                return false;
+            }
+            else {
+                return true;
+            }
+        }
+        handleDownEvent(mapBrowserEvent) {
+            if (this.targetPointers.length >= 2) {
+                const map = mapBrowserEvent.map;
+                this.anchor_ = null;
+                this.lastAngle_ = undefined;
+                this.rotating_ = false;
+                this.rotationDelta_ = 0.0;
+                if (!this.handlingDownUpSequence) {
+                    map.getView().beginInteraction();
+                }
+                return true;
+            }
+            else {
+                return false;
+            }
+        }
+    }
+    exports.default = PinchRotate;
+});
+define("node_modules/ol/src/interaction/PinchZoom", ["require", "exports", "node_modules/ol/src/interaction/Pointer", "node_modules/ol/src/functions"], function (require, exports, Pointer_js_5, functions_js_13) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    class PinchZoom extends Pointer_js_5.default {
+        constructor(opt_options) {
+            const options = opt_options ? opt_options : {};
+            const pointerOptions = (options);
+            if (!pointerOptions.stopDown) {
+                pointerOptions.stopDown = functions_js_13.FALSE;
+            }
+            super(pointerOptions);
+            this.anchor_ = null;
+            this.duration_ = options.duration !== undefined ? options.duration : 400;
+            this.lastDistance_ = undefined;
+            this.lastScaleDelta_ = 1;
+        }
+        handleDragEvent(mapBrowserEvent) {
+            let scaleDelta = 1.0;
+            const touch0 = this.targetPointers[0];
+            const touch1 = this.targetPointers[1];
+            const dx = touch0.clientX - touch1.clientX;
+            const dy = touch0.clientY - touch1.clientY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            if (this.lastDistance_ !== undefined) {
+                scaleDelta = this.lastDistance_ / distance;
+            }
+            this.lastDistance_ = distance;
+            const map = mapBrowserEvent.map;
+            const view = map.getView();
+            if (scaleDelta != 1.0) {
+                this.lastScaleDelta_ = scaleDelta;
+            }
+            const viewportPosition = map.getViewport().getBoundingClientRect();
+            const centroid = Pointer_js_5.centroid(this.targetPointers);
+            centroid[0] -= viewportPosition.left;
+            centroid[1] -= viewportPosition.top;
+            this.anchor_ = map.getCoordinateFromPixelInternal(centroid);
+            map.render();
+            view.adjustResolutionInternal(scaleDelta, this.anchor_);
+        }
+        handleUpEvent(mapBrowserEvent) {
+            if (this.targetPointers.length < 2) {
+                const map = mapBrowserEvent.map;
+                const view = map.getView();
+                const direction = this.lastScaleDelta_ > 1 ? 1 : -1;
+                view.endInteraction(this.duration_, direction);
+                return false;
+            }
+            else {
+                return true;
+            }
+        }
+        handleDownEvent(mapBrowserEvent) {
+            if (this.targetPointers.length >= 2) {
+                const map = mapBrowserEvent.map;
+                this.anchor_ = null;
+                this.lastDistance_ = undefined;
+                this.lastScaleDelta_ = 1;
+                if (!this.handlingDownUpSequence) {
+                    map.getView().beginInteraction();
+                }
+                return true;
+            }
+            else {
+                return false;
+            }
+        }
+    }
+    exports.default = PinchZoom;
 });
 define("node_modules/ol/src/interaction/DragAndDrop", ["require", "exports", "node_modules/ol/src/events/Event", "node_modules/ol/src/events/EventType", "node_modules/ol/src/interaction/Interaction", "node_modules/ol/src/functions", "node_modules/ol/src/proj", "node_modules/ol/src/events"], function (require, exports, Event_js_11, EventType_js_33, Interaction_js_6, functions_js_14, proj_js_13, events_js_17) {
     "use strict";
@@ -23343,955 +24310,7 @@ define("node_modules/ol/src/Map", ["require", "exports", "node_modules/ol/src/re
     }
     exports.default = Map;
 });
-define("poc/test/fun/showOnMap", ["require", "exports", "node_modules/ol/src/Feature", "poc/TileTreeExt", "node_modules/ol/src/extent", "node_modules/ol/src/View", "node_modules/ol/src/Map", "node_modules/ol/src/layer/Vector", "node_modules/ol/src/source/Vector", "node_modules/ol/src/style", "node_modules/ol/src/geom/Point", "node_modules/ol/src/style/Circle", "node_modules/ol/src/style/Text", "node_modules/ol/src/control"], function (require, exports, Feature_1, TileTreeExt_1, extent_4, View_1, Map_1, Vector_1, Vector_2, style_1, Point_1, Circle_1, Text_1, control_1) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    exports.showOnMap = void 0;
-    const MIN_ZOOM_OFFSET = -3;
-    const MAX_ZOOM_OFFSET = 4;
-    function setTileFeature(tileFeatures, { X, Y, Z }, feature) {
-        const key = `${X}.${Y}.${Z}`;
-        tileFeatures.set(key, feature);
-    }
-    function getTileFeature(tileFeatures, { X, Y, Z }) {
-        const key = `${X}.${Y}.${Z}`;
-        return tileFeatures.get(key);
-    }
-    function showOnMap(options) {
-        const { tree } = options;
-        const hack = new TileTreeExt_1.TileTreeExt(tree);
-        const tiles = tree.descendants().filter((id) => null !== hack.getMass(id));
-        const minZoom = Math.max(0, tiles[0].Z + MIN_ZOOM_OFFSET);
-        const maxZoom = tiles[tiles.length - 1].Z + MAX_ZOOM_OFFSET;
-        const helper = new TileTreeExt_1.TileTreeExt(tree, { minZoom, maxZoom });
-        const extent = tree.asExtent(tiles[0]);
-        const view = new View_1.default({
-            center: extent_4.getCenter(extent),
-            zoom: Math.round((helper.minZoom + helper.maxZoom) / 2),
-            minZoom: helper.minZoom,
-            maxZoom: helper.maxZoom,
-        });
-        const targetContainer = document.createElement("div");
-        targetContainer.className = "testmapcontainer";
-        const target = document.createElement("div");
-        target.className = "map";
-        document.body.appendChild(targetContainer);
-        targetContainer.appendChild(target);
-        const layer = new Vector_1.default();
-        const source = new Vector_2.default();
-        layer.setSource(source);
-        const totalFeaturesAdded = tree.visit((a, b) => {
-            const features = helper.getFeatures(b);
-            if (!features)
-                return a;
-            source.addFeatures(features);
-            console.log(features.map((f) => f.getProperties().Z).join("."));
-            return features.length + a;
-        }, 0);
-        console.log({ totalFeaturesAdded });
-        const styleCache = {};
-        const tileFeatures = new Map();
-        const styleMaker = ({ type, zoffset, mass, }) => {
-            const massLevel = Math.floor(Math.pow(2, Math.floor(Math.log2(mass))));
-            const styleKey = `${type}.${zoffset}.${massLevel}`;
-            let style = styleCache[styleKey];
-            if (!style) {
-                switch (type) {
-                    case "cluster": {
-                        style = new style_1.Style({
-                            image: new Circle_1.default({
-                                radius: 0.5 * (64 * Math.pow(2, -zoffset)),
-                                fill: new style_1.Fill({
-                                    color: `rgba(255,255,255,${0.05})`,
-                                }),
-                                stroke: new style_1.Stroke({
-                                    color: `rgba(0,0,0,${0.05})`,
-                                    width: 0.5 * (64 * Math.pow(2, -zoffset)),
-                                }),
-                            }),
-                            text: new Text_1.default({
-                                text: (mass ? mass : "") + "",
-                                scale: 0.5,
-                                fill: new style_1.Fill({ color: `rgba(255,255,255,${0.8})` }),
-                                stroke: new style_1.Stroke({
-                                    color: `rgba(0,0,0,${0.8})`,
-                                    width: 1,
-                                }),
-                            }),
-                        });
-                        break;
-                    }
-                    default: {
-                        const opacity = 0.8 * Math.pow(Math.SQRT2, -Math.abs(zoffset));
-                        style = new style_1.Style({
-                            fill: new style_1.Fill({ color: `rgba(0,0,255,${opacity})` }),
-                            stroke: new style_1.Stroke({
-                                color: `rgba(255,255,255,${opacity})`,
-                                width: 1,
-                            }),
-                        });
-                        break;
-                    }
-                }
-                styleCache[styleKey] = style;
-            }
-            switch (type) {
-                case "cluster": {
-                    if (style.getText()) {
-                        style.getText().setText(mass + "");
-                    }
-                    break;
-                }
-            }
-            return style;
-        };
-        layer.setStyle(((feature, resolution) => {
-            const { Z: featureZoom, type, visible, mass } = feature.getProperties();
-            if (false === visible)
-                return null;
-            const currentZoom = Math.round(view.getZoomForResolution(resolution) || 0);
-            const zoffset = featureZoom - currentZoom;
-            const style = styleMaker({ type, zoffset, mass });
-            return style;
-        }));
-        let touched = true;
-        view.on("change:resolution", () => {
-            touched = true;
-        });
-        layer.on("postrender", () => postRender());
-        const map = new Map_1.default({
-            view,
-            target,
-            layers: [layer],
-            controls: control_1.defaults().extend([new control_1.FullScreen()]),
-        });
-        return map;
-        function postRender() {
-            if (!touched)
-                return;
-            touched = false;
-            const currentZoom = view.getZoom() || 0;
-            tileFeatures.forEach((value) => value.setProperties({ visible: false }, true));
-            const features = source
-                .getFeatures()
-                .filter((f) => "feature" === f.getProperties().type);
-            features.forEach((f) => {
-                const featureZoom = f.getProperties().Z;
-                const zoffset = featureZoom - currentZoom;
-                const visible = MIN_ZOOM_OFFSET <= zoffset && zoffset <= MAX_ZOOM_OFFSET;
-                helper.setVisible(f, visible);
-            });
-            const hiddenFeatures = features.filter((f) => false === f.getProperties().visible);
-            hiddenFeatures.forEach((f) => {
-                const { tileIdentifier } = f.getProperties();
-                let targetIdentifier = tileIdentifier;
-                if (targetIdentifier.Z < currentZoom + MAX_ZOOM_OFFSET - 2)
-                    return;
-                while (targetIdentifier.Z > currentZoom + MAX_ZOOM_OFFSET - 2) {
-                    targetIdentifier = tree.parent(targetIdentifier);
-                }
-                const mass = helper.centerOfMass(targetIdentifier).mass;
-                let feature = getTileFeature(tileFeatures, targetIdentifier);
-                if (!feature) {
-                    feature = new Feature_1.default();
-                    feature.setProperties({
-                        type: "cluster",
-                        tileIdentifier: targetIdentifier,
-                        Z: targetIdentifier.Z,
-                    });
-                    setTileFeature(tileFeatures, targetIdentifier, feature);
-                    source.addFeature(feature);
-                    const center = tree.asCenter(targetIdentifier);
-                    feature.setGeometry(new Point_1.default(center));
-                }
-                const visible = !!mass;
-                feature.setProperties({ visible, mass }, true);
-            });
-        }
-    }
-    exports.showOnMap = showOnMap;
-});
-define("poc/test/ags-feature-loader-test", ["require", "exports", "mocha", "chai", "poc/AgsFeatureLoader", "poc/TileTree", "node_modules/ol/src/proj", "poc/test/fun/showOnMap", "poc/TileTreeExt"], function (require, exports, mocha_2, chai_3, AgsFeatureLoader_1, TileTree_1, proj_1, showOnMap_1, TileTreeExt_2) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    mocha_2.describe("AgsFeatureLoader tests", () => {
-        mocha_2.it("loads features", () => __awaiter(void 0, void 0, void 0, function* () {
-            const url = "http://localhost:3002/mock/sampleserver3/arcgis/rest/services/Petroleum/KSFields/FeatureServer/0/query";
-            const minRecordCount = -1;
-            const maxRecordCount = 1000;
-            const projection = proj_1.get("EPSG:3857");
-            const tree = new TileTree_1.TileTree({
-                extent: projection.getExtent(),
-            });
-            const ext = new TileTreeExt_2.TileTreeExt(tree, { minZoom: 6, maxZoom: 20 });
-            const loader = new AgsFeatureLoader_1.AgsFeatureLoader({
-                url,
-                minRecordCount,
-                maxRecordCount,
-                tree: ext,
-            });
-            const q0mass = yield loader.loader({ X: 29 * 2, Y: 78 * 2, Z: 8 }, projection);
-            chai_3.assert.equal(481, q0mass, "q0");
-            const q1mass = yield loader.loader({ X: 29 * 2, Y: 78 * 2 + 1, Z: 8 }, projection);
-            chai_3.assert.equal(433, q1mass, "q1");
-            const q2mass = yield loader.loader({ X: 29 * 2 + 1, Y: 78 * 2, Z: 8 }, projection);
-            chai_3.assert.equal(396, q2mass, "q2");
-            const q3mass = yield loader.loader({ X: 29 * 2 + 1, Y: 78 * 2 + 1, Z: 8 }, projection);
-            chai_3.assert.equal(260, q3mass, "q3");
-            const mass = yield loader.loader({ X: 29, Y: 78, Z: 7 }, projection);
-            chai_3.assert.equal(q0mass + q1mass + q2mass + q3mass + 47, mass);
-            const totalMass = yield loader.loader({ X: 0, Y: 0, Z: 0 }, projection);
-            chai_3.assert.equal(6918, totalMass);
-        }));
-        mocha_2.it("renders a fully loaded tree with clusters via showOnMap", () => __awaiter(void 0, void 0, void 0, function* () {
-            const url = "http://localhost:3002/mock/sampleserver3/arcgis/rest/services/Petroleum/KSFields/FeatureServer/0/query";
-            const minRecordCount = 100;
-            const maxRecordCount = 100;
-            const projection = proj_1.get("EPSG:3857");
-            const tree = new TileTree_1.TileTree({
-                extent: projection.getExtent(),
-            });
-            const ext = new TileTreeExt_2.TileTreeExt(tree, { minZoom: 6, maxZoom: 20 });
-            const loader = new AgsFeatureLoader_1.AgsFeatureLoader({
-                url,
-                minRecordCount,
-                maxRecordCount,
-                tree: ext,
-            });
-            const tileIdentifier = tree.parent({ X: 29 * 2, Y: 78 * 2, Z: 8 });
-            const featureCount = yield loader.loader(tileIdentifier, projection);
-            chai_3.assert.equal(1617, featureCount, "features");
-            showOnMap_1.showOnMap({ tree });
-        })).timeout(60 * 1000);
-    });
-});
-define("poc/test/xyz-test", ["require", "exports", "mocha", "chai", "node_modules/ol/src/proj", "poc/fun/asExtent", "poc/fun/asXYZ"], function (require, exports, mocha_3, chai_4, proj_2, asExtent_2, asXYZ_2) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    mocha_3.describe("XYZ testing", () => {
-        mocha_3.it("asExtent test", () => {
-            const extent = [0, 0, 16, 16];
-            let x = asExtent_2.asExtent(extent, { X: 0, Y: 0, Z: 0 });
-            chai_4.assert.deepEqual(x, [0, 0, 16, 16]);
-            x = asExtent_2.asExtent(extent, { X: 0, Y: 0, Z: 1 });
-            chai_4.assert.deepEqual(x, [0, 0, 8, 8]);
-            x = asExtent_2.asExtent(extent, { X: 1, Y: 0, Z: 1 });
-            chai_4.assert.deepEqual(x, [8, 0, 16, 8]);
-            x = asExtent_2.asExtent(extent, { X: 1, Y: 0, Z: 2 });
-            chai_4.assert.deepEqual(x, [4, 0, 8, 4]);
-            x = asExtent_2.asExtent(extent, { X: 1, Y: 0, Z: 3 });
-            chai_4.assert.deepEqual(x, [2, 0, 4, 2]);
-            x = asExtent_2.asExtent(extent, { X: 3, Y: 1020, Z: 10 });
-            chai_4.assert.deepEqual(x, [0.046875, 15.9375, 0.0625, 15.953125]);
-        });
-        mocha_3.it("asXYZ test", () => {
-            const extent = [0, 0, 16, 16];
-            let x = asXYZ_2.asXYZ(extent, [0, 0, 16, 16]);
-            chai_4.assert.deepEqual(x, { X: 0, Y: 0, Z: 0 });
-            x = asXYZ_2.asXYZ(extent, [0, 4, 4, 8]);
-            chai_4.assert.deepEqual(x, { X: 0, Y: 1, Z: 2 });
-            x = asXYZ_2.asXYZ(extent, [0.046875, 15.9375, 0.0625, 15.953125]);
-            chai_4.assert.deepEqual(x, { X: 3, Y: 1020, Z: 10 });
-        });
-        mocha_3.it("exhaustive XYZ", () => {
-            const extents = [
-                [0, 0, 1024, 1024],
-                proj_2.get("EPSG:3857").getExtent(),
-                proj_2.get("EPSG:4326").getExtent(),
-            ];
-            extents.forEach((extent) => {
-                for (let z = 0; z < 10; z++) {
-                    for (let x = 0; x < 10; x++) {
-                        for (let y = 0; y < 10; y++) {
-                            const v1 = asExtent_2.asExtent(extent, { X: x, Y: y, Z: z });
-                            const v2 = asXYZ_2.asXYZ(extent, v1);
-                            chai_4.assert.equal(v2.X, x, "x");
-                            chai_4.assert.equal(v2.Y, y, "y");
-                            chai_4.assert.equal(v2.Z, z, "z");
-                        }
-                    }
-                }
-            });
-        });
-    });
-});
-define("poc/fun/split", ["require", "exports"], function (require, exports) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    exports.split = void 0;
-    function split(list, splitter) {
-        const yesno = [[], []];
-        list.forEach((item) => yesno[splitter(item) ? 0 : 1].push(item));
-        return yesno;
-    }
-    exports.split = split;
-});
-define("poc/AgsClusterSource", ["require", "exports", "poc/TileTree", "poc/TileTreeExt", "node_modules/ol/src/source/Vector", "poc/AgsFeatureLoader", "node_modules/ol/src/Feature", "node_modules/ol/src/geom/Point", "node_modules/ol/src/tilegrid", "node_modules/ol/src/loadingstrategy", "poc/fun/split"], function (require, exports, TileTree_2, TileTreeExt_3, Vector_3, AgsFeatureLoader_2, Feature_2, Point_2, tilegrid_1, loadingstrategy_1, split_1) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    exports.AgsClusterSource = void 0;
-    const LOOKAHEAD_THRESHOLD = 3;
-    function onlyUnique(value, index, self) {
-        return self.indexOf(value) === index;
-    }
-    class AgsClusterSource extends Vector_3.default {
-        constructor(options) {
-            const { url, maxRecordCount, minRecordCount, tileSize } = options;
-            const tileGrid = tilegrid_1.createXYZ({ tileSize });
-            const strategy = loadingstrategy_1.tile(tileGrid);
-            const tree = new TileTree_2.TileTree({
-                extent: tileGrid.getExtent(),
-            });
-            options.treeTileState && tree.load(options.treeTileState);
-            super({ strategy });
-            this.tree = new TileTreeExt_3.TileTreeExt(tree, { minZoom: 5, maxZoom: 16 });
-            this.tileSize = tileSize;
-            this.loadingStrategy = strategy;
-            this.isFirstDraw = true;
-            this.priorResolution = 0;
-            this.minRecordCount = minRecordCount;
-            this.maxRecordCount = maxRecordCount;
-            this.featureLoader = new AgsFeatureLoader_2.AgsFeatureLoader({
-                tree: this.tree,
-                url,
-                minRecordCount,
-                maxRecordCount,
-            });
-        }
-        loadFeatures(extent, resolution, projection) {
-            return __awaiter(this, void 0, void 0, function* () {
-                const { tree } = this;
-                const extentsToLoad = this.loadingStrategy(extent, resolution).map((extent) => tree.tree.asXyz(extent));
-                if (!extentsToLoad.length) {
-                    return;
-                }
-                const Z = extentsToLoad[0].Z;
-                if (this.isFirstDraw) {
-                    this.isFirstDraw && console.log("rendering 1st tree");
-                    this.isFirstDraw = false;
-                    this.renderTree(tree, Z, projection);
-                }
-                if (resolution === this.priorResolution) {
-                    return;
-                }
-                this.priorResolution = resolution;
-                extentsToLoad.forEach((tileIdentifier) => __awaiter(this, void 0, void 0, function* () {
-                    yield this.loadTile(tileIdentifier, projection);
-                    const nodes = yield this.loadDescendantsUntil(tileIdentifier, projection, (nodeId) => {
-                        const mass = tree.getMass(nodeId) || 0;
-                        const tooVagueTest = mass > this.maxRecordCount;
-                        const tooSmallTest = mass < this.minRecordCount;
-                        const tooDeepTest = nodeId.Z >= Z + LOOKAHEAD_THRESHOLD;
-                        const allowLoad = tooVagueTest || (!tooDeepTest && !tooSmallTest);
-                        return !allowLoad;
-                    });
-                    if (nodes.length) {
-                        this.renderTree(this.tree, Z, projection);
-                    }
-                }));
-            });
-        }
-        loadDescendantsUntil(tileIdentifier, projection, stop) {
-            return __awaiter(this, void 0, void 0, function* () {
-                if (stop(tileIdentifier))
-                    return [];
-                const allChildren = this.tree.tree.quads(tileIdentifier);
-                const unloadedChildren = allChildren.filter((c) => typeof this.tree.getMass(c) !== "number");
-                yield this.loadAllChildren(this.tree, tileIdentifier, projection);
-                const grandChildren = yield Promise.all(allChildren.map((c) => this.loadDescendantsUntil(c, projection, stop)));
-                return unloadedChildren.concat(...grandChildren);
-            });
-        }
-        renderTree(tree, Z, projection) {
-            const leafNodes = [];
-            tree.tree.visit((a, tileIdentifier) => {
-                if (0 === tree.tree.children(tileIdentifier).length) {
-                    leafNodes.push(tileIdentifier);
-                }
-            }, {});
-            this.getFeatures().forEach((f) => f.setProperties({ visible: false }));
-            const [keep, remove] = split_1.split(leafNodes, (tileIdentifier) => {
-                const node = tree.tree.findByXYZ(tileIdentifier);
-                if (!node.data)
-                    return false;
-                const mass = tree.getMass(tileIdentifier) || 0;
-                if (0 >= mass)
-                    return false;
-                if (!tree.getCenter(tileIdentifier))
-                    return false;
-                return true;
-            });
-            this.reduce(keep, Z).forEach((id) => this.render(tree, id, Z));
-            remove.forEach((id) => this.unrender(tree, id));
-            keep
-                .filter((tileIdentifier) => !!tree.getFeatures(tileIdentifier))
-                .forEach((id) => this.render(tree, id, Z));
-            this.getFeatures()
-                .filter((f) => f.getProperties().type === "feature")
-                .forEach((f) => f.setProperties({ visible: true }));
-        }
-        reduce(keep, Z) {
-            const { tree } = this;
-            keep.forEach((nodeId) => {
-                tree.tree.decorate(nodeId, { yieldToParent: false });
-            });
-            keep.forEach((nodeId) => {
-                if (nodeId.Z > Z + LOOKAHEAD_THRESHOLD) {
-                    if (!tree.tree.decorate(nodeId).yieldToParent) {
-                        const parentIdentifier = tree.tree.parent(nodeId);
-                        tree.tree
-                            .children(parentIdentifier)
-                            .forEach((id) => tree.tree.decorate(id, { yieldToParent: true }));
-                    }
-                }
-            });
-            let [leaf, parent] = split_1.split(keep, (nodeId) => {
-                const { yieldToParent } = tree.tree.decorate(nodeId);
-                return !yieldToParent;
-            });
-            parent = parent.filter(onlyUnique).map((id) => tree.tree.parent(id));
-            if (parent.length) {
-                parent = this.reduce(parent, Z);
-            }
-            return parent.concat(leaf);
-        }
-        loadAllChildren(tree, tileIdentifier, projection) {
-            return __awaiter(this, void 0, void 0, function* () {
-                return Promise.all(tree.tree.quads(tileIdentifier).map((id) => this.loadTile(id, projection)));
-            });
-        }
-        loadTile(tileIdentifier, projection) {
-            return __awaiter(this, void 0, void 0, function* () {
-                const count = yield this.featureLoader.loader(tileIdentifier, projection);
-                this.tree.setMass(tileIdentifier, count);
-            });
-        }
-        tileDensity(currentZoomLevel, tileIdentifier) {
-            const { Z } = tileIdentifier;
-            return Math.pow(4, currentZoomLevel - Z);
-        }
-        unrender(tree, tileIdentifier) {
-            const { feature } = tree.tree.decorate(tileIdentifier);
-            if (!feature)
-                return;
-            feature.setProperties({ visible: false });
-        }
-        render(tree, tileIdentifier, Z) {
-            let { feature } = tree.tree.decorate(tileIdentifier);
-            if (feature) {
-                feature.setProperties({ visible: true });
-                return;
-            }
-            if (!tree.getMass(tileIdentifier))
-                return;
-            const features = tree.getFeatures(tileIdentifier);
-            if (features) {
-                features.forEach((f) => f.setProperties({ visible: true, type: "feature", tileIdentifier }));
-                this.addFeatures(features);
-                return;
-            }
-            const point = new Point_2.default(tree.getCenter(tileIdentifier));
-            feature = new Feature_2.default();
-            const mass = tree.getMass(tileIdentifier);
-            feature.setGeometry(point);
-            feature.setProperties({
-                visible: true,
-                tileIdentifier,
-                text: tree.tree.decorate(tileIdentifier).text || `${mass}`,
-                type: tree.tree.decorate(tileIdentifier).type ||
-                    "cluster",
-                mass,
-                density: this.tileDensity(Z, tileIdentifier),
-            });
-            this.addFeature(feature);
-            tree.tree.decorate(tileIdentifier, { feature });
-        }
-    }
-    exports.AgsClusterSource = AgsClusterSource;
-});
-define("poc/types/TileTreeEncoder", ["require", "exports"], function (require, exports) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-});
-define("poc/TileTreeTersifier", ["require", "exports", "poc/TileTree", "node_modules/ol/src/extent"], function (require, exports, TileTree_3, extent_5) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    exports.TileTreeTersifier = void 0;
-    class TileTreeTersifier {
-        unstringify(treestate) {
-            const { extent, data } = JSON.parse(treestate);
-            const tree = new TileTree_3.TileTree({ extent });
-            const outputData = data.map((d) => {
-                const [X, Y, Z, count, dx, dy] = d;
-                const extent = tree.asExtent({ X, Y, Z });
-                const [cx, cy] = extent_5.getCenter(extent);
-                return [X, Y, Z, { count, center: [cx + dx / 10, cy + dy / 10] }];
-            });
-            return { extent, data: outputData };
-        }
-        stringify(treestate) {
-            const { extent, data } = treestate;
-            const tree = new TileTree_3.TileTree({ extent });
-            const outData = data.map(([X, Y, Z, d]) => {
-                const center = extent_5.getCenter(tree.asExtent({ X, Y, Z }));
-                return [
-                    X,
-                    Y,
-                    Z,
-                    d.count,
-                    ...d.center.map((v, i) => Math.round((v - center[i]) * 10)),
-                ];
-            });
-            return JSON.stringify({ extent, data: outData });
-        }
-    }
-    exports.TileTreeTersifier = TileTreeTersifier;
-});
-define("poc/test/treetile-test", ["require", "exports", "mocha", "chai", "poc/TileTree", "node_modules/ol/src/proj", "node_modules/ol/src/tilegrid", "node_modules/ol/src/loadingstrategy", "node_modules/ol/src/source/VectorEventType", "poc/AgsClusterSource", "poc/fun/explode", "poc/fun/tiny", "poc/TileTreeTersifier"], function (require, exports, mocha_4, chai_5, TileTree_4, proj_3, tilegrid_2, loadingstrategy_2, VectorEventType_1, AgsClusterSource_1, explode_5, tiny_3, TileTreeTersifier_1) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    mocha_4.describe("TileTree Tests", () => {
-        mocha_4.it("decorate test", () => {
-            const extent = [0, 0, 10, 10];
-            const tree = new TileTree_4.TileTree({
-                extent,
-            });
-            let tileId = { X: 10, Y: 10, Z: 10 };
-            const data = { foo: "bar" };
-            chai_5.assert.equal(tree.decorate(tileId, data).foo, "bar");
-            chai_5.assert.equal(tree.decorate(tileId).foo, "bar");
-        });
-    });
-    mocha_4.describe("TileTree Tests", () => {
-        mocha_4.it("creates a tile tree", () => {
-            const extent = [0, 0, 10, 10];
-            const tree = new TileTree_4.TileTree({ extent });
-            const root = tree.findByExtent(extent);
-            chai_5.assert.isTrue(tiny_3.isEq(extent[0], tree.asExtent(root)[0]));
-        });
-        mocha_4.it("inserts an extent outside of the bounds of the current tree", () => {
-            const extent = [0, 0, 1, 1];
-            const tree = new TileTree_4.TileTree({ extent });
-            chai_5.assert.throws(() => {
-                tree.findByExtent([1, 1, 2, 2]);
-            }, "invalid X");
-            chai_5.assert.throws(() => {
-                tree.findByExtent([0.1, 0.1, 0.9, 1.00001]);
-            }, "invalid extent");
-        });
-        mocha_4.it("inserts an extent that misaligns to the established scale", () => {
-            const extent = [0, 0, 1, 1];
-            const tree = new TileTree_4.TileTree({ extent });
-            chai_5.assert.throws(() => {
-                tree.findByExtent([0, 0, 0.4, 0.4]);
-            }, "invalid extent");
-            chai_5.assert.throws(() => {
-                tree.findByExtent([0, 0, 0.5, 0.4]);
-            }, "invalid extent");
-            chai_5.assert.throws(() => {
-                tree.findByExtent([0.1, 0, 0.6, 0.5]);
-            }, "invalid extent");
-        });
-        mocha_4.it("uses 3857 to find a tile for a given depth and coordinate", () => {
-            const extent = proj_3.get("EPSG:3857").getExtent();
-            const tree = new TileTree_4.TileTree({ extent });
-            const q0 = tree.findByPoint({ zoom: 3, point: [-1, -1] });
-            const q1 = tree.findByPoint({ zoom: 3, point: [1, -1] });
-            const q2 = tree.findByPoint({ zoom: 3, point: [-1, 1] });
-            const q3 = tree.findByPoint({ zoom: 3, point: [1, 1] });
-            const size = -5009377.085697312;
-            const extents = [q0, q1, q2, q3].map((q) => tree.asExtent(q));
-            chai_5.assert.isTrue(tiny_3.isEq(extents[0][0], size), "q0.x");
-            chai_5.assert.equal(extents[1][0], 0, "q1.x");
-            chai_5.assert.equal(extents[2][0], size, "q2.x");
-            chai_5.assert.equal(extents[3][0], 0, "q3.x");
-            chai_5.assert.equal(extents[0][1], size, "q0.y");
-            chai_5.assert.equal(extents[1][1], size, "q1.y");
-            chai_5.assert.equal(extents[2][1], 0, "q2.y");
-            chai_5.assert.equal(extents[3][1], 0, "q3.y");
-        });
-        mocha_4.it("can cache tiles from a TileGrid", () => {
-            const extent = proj_3.get("EPSG:3857").getExtent();
-            const tree = new TileTree_4.TileTree({
-                extent,
-            });
-            const tileGrid = tilegrid_2.createXYZ({ extent });
-            const addTiles = (level) => tileGrid.forEachTileCoord(extent, level, (tileCoord) => {
-                const [z, x, y] = tileCoord;
-                const extent = tileGrid.getTileCoordExtent(tileCoord);
-                tree.decorate(tree.findByExtent(extent), { tileCoord });
-            });
-            const maxX = () => tree.visit((a, b) => {
-                const { tileCoord } = tree.decorate(b);
-                return Math.max(a, tileCoord ? tileCoord[1] : a);
-            }, 0);
-            for (let i = 0; i <= 8; i++) {
-                console.log(`adding ${i}`);
-                addTiles(i);
-                chai_5.assert.equal(Math.pow(2, i) - 1, maxX(), `addTiles(${i})`);
-            }
-        });
-        mocha_4.it("integrates with a tiling strategy", () => {
-            const extent = proj_3.get("EPSG:3857").getExtent();
-            const extentInfo = explode_5.explode(extent);
-            const tree = new TileTree_4.TileTree({ extent });
-            const tileGrid = tilegrid_2.createXYZ({ extent });
-            const strategy = loadingstrategy_2.tile(tileGrid);
-            const resolutions = tileGrid.getResolutions();
-            const r0 = extentInfo.w / 256;
-            chai_5.assert.equal(resolutions[0], r0, "meters per pixel");
-            resolutions.forEach((r, i) => {
-                chai_5.assert.equal(r, r0 * Math.pow(2, -i), `resolution[${i}]`);
-            });
-            {
-                let quad0 = extent;
-                resolutions.forEach((resolution, i) => {
-                    const extents = strategy(quad0, resolution);
-                    extents.forEach((q) => tree.findByExtent(q));
-                    quad0 = extents[0];
-                });
-            }
-        });
-        mocha_4.it("integrates with a feature source", () => {
-            const url = "http://localhost:3002/mock/sampleserver3/arcgis/rest/services/Petroleum/KSFields/FeatureServer/0/query";
-            const projection = proj_3.get("EPSG:3857");
-            const tileSize = 256;
-            const source = new AgsClusterSource_1.AgsClusterSource({
-                tileSize,
-                url,
-                maxRecordCount: 1000,
-                minRecordCount: 100,
-            });
-            source.loadTile({ X: 0, Y: 0, Z: 0 }, projection);
-            source.on(VectorEventType_1.default.ADDFEATURE, (args) => {
-                const { count, resolution } = args.feature.getProperties();
-            });
-        });
-    });
-    mocha_4.describe("Cluster Rendering Rules", () => {
-        mocha_4.it("tests ensureQuads", () => {
-            const extent = [0, 0, 10, 10];
-            const tree = new TileTree_4.TileTree({
-                extent,
-            });
-            let quad = tree.quads({ X: 1, Y: 1, Z: 1 });
-            chai_5.assert.deepEqual({ X: 2, Y: 2, Z: 2 }, quad[0], "1st quadrant");
-            chai_5.assert.deepEqual({ X: 2, Y: 3, Z: 2 }, quad[1], "2nd quadrant");
-            chai_5.assert.deepEqual({ X: 3, Y: 3, Z: 2 }, quad[2], "3rd quadrant");
-            chai_5.assert.deepEqual({ X: 3, Y: 2, Z: 2 }, quad[3], "4th quadrant");
-        });
-    });
-    mocha_4.describe("Preserve TileTree State", () => {
-        mocha_4.it("stringify a tree", () => {
-            const extent = [0, 0, 10, 10];
-            const tree = new TileTree_4.TileTree({
-                extent,
-            });
-            chai_5.assert.equal('{"extent":[0,0,10,10],"data":[]}', JSON.stringify(tree.save()), "empty");
-            let X = 0;
-            let Y = 0;
-            let Z = 0;
-            tree.findByXYZ({ X, Y, Z }, { force: true });
-            chai_5.assert.equal('{"extent":[0,0,10,10],"data":[]}', JSON.stringify(tree.save()), "root node only");
-            X = 3;
-            Y = 20;
-            Z = 5;
-            tree.findByXYZ({ X, Y, Z }, { force: true }).data.center = [1, 2];
-            chai_5.assert.equal('{"extent":[0,0,10,10],"data":[[3,20,5,{"center":[1,2]}]]}', JSON.stringify(tree.save()), "deep child");
-            for (X = 10; X < 20; X += 3) {
-                const data = tree.findByXYZ({ X, Y, Z }, { force: true }).data;
-                data.count = X;
-            }
-            chai_5.assert.equal("[[3,20,5,[[1,2],null]],[10,20,5,[null,10]],[13,20,5,[null,13]],[16,20,5,[null,16]],[19,20,5,[null,19]]]", JSON.stringify(tree
-                .save()
-                .data.map(([X, Y, Z, data]) => [X, Y, Z, [data.center, data.count]])), "deep child");
-        });
-        mocha_4.it("destringify into a tree", () => {
-            const encoder = new TileTreeTersifier_1.TileTreeTersifier();
-            const extent = proj_3.get("EPSG:3857").getExtent();
-            const terserfied = `{"extent":[-20037508.342789244,-20037508.342789244,20037508.342789244,20037508.342789244],"data":[[6,19,5,267,0,0],[6,20,5,-1,7827152,-4696291],[7,19,5,6658,0,0],[7,20,5,-1,-4696291,-4696291],[14,38,6,6595,-315816,4479220],[14,39,6,6364,0,0],[15,38,6,0,0,0],[15,39,6,306,0,0],[27,78,7,202,0,0],[27,79,7,66,0,0],[27,80,7,0,0,0],[28,78,7,3114,0,0],[28,79,7,1608,0,0],[28,80,7,-1,0,0],[29,78,7,1652,0,0],[29,79,7,51,0,0],[29,80,7,0,0,0],[56,156,8,315,0,0],[56,157,8,812,0,0],[56,158,8,590,0,0],[56,159,8,49,0,0],[57,156,8,576,0,0],[57,157,8,1447,0,0],[57,158,8,982,0,0],[57,159,8,8,0,0],[58,156,8,515,0,0],[58,157,8,472,0,0],[59,156,8,423,0,0],[59,157,8,292,0,0],[114,314,9,185,0,0],[114,315,9,384,0,0],[115,314,9,468,0,0],[115,315,9,442,0,0]]}`;
-            const stringified = `{"extent":[${extent}],"data":[[6,19,5,{"count":267,"center":[-11897270.578531114,4383204.949985148]}],[6,20,5,{"count":-1,"center":[-11114555.408890907,5165920.119625352]}],[7,19,5,{"count":6658,"center":[-10644926.307106785,4383204.949985148]}],[7,20,5,{"count":-1,"center":[-11114555.408890907,5165920.119625352]}],[14,38,6,{"count":6595,"center":[-10989593.952922117,4518040.841452657]}],[14,39,6,{"count":6364,"center":[-10958012.374962866,4696291.017841228]}],[15,38,6,{"count":0,"center":[-10331840.239250705,4070118.8821290666]}],[15,39,6,{"count":306,"center":[-10331840.239250705,4696291.017841228]}],[27,78,7,{"count":202,"center":[-11427641.476746991,4539747.983913187]}],[27,79,7,{"count":66,"center":[-11427641.476746991,4852834.051769268]}],[27,80,7,{"count":0,"center":[-11427641.476746991,5165920.119625352]}],[28,78,7,{"count":3114,"center":[-11114555.408890907,4539747.983913187]}],[28,79,7,{"count":1608,"center":[-11114555.408890907,4852834.051769268]}],[28,80,7,{"count":-1,"center":[-11114555.408890907,5165920.119625352]}],[29,78,7,{"count":1652,"center":[-10801469.341034826,4539747.983913187]}],[29,79,7,{"count":51,"center":[-10801469.341034826,4852834.051769268]}],[29,80,7,{"count":0,"center":[-10801469.341034826,5165920.119625352]}],[56,156,8,{"count":315,"center":[-11192826.925854929,4461476.466949167]}],[56,157,8,{"count":812,"center":[-11192826.925854929,4618019.500877207]}],[56,158,8,{"count":590,"center":[-11192826.925854929,4774562.534805248]}],[56,159,8,{"count":49,"center":[-11192826.925854929,4931105.568733292]}],[57,156,8,{"count":576,"center":[-11036283.891926888,4461476.466949167]}],[57,157,8,{"count":1447,"center":[-11036283.891926888,4618019.500877207]}],[57,158,8,{"count":982,"center":[-11036283.891926888,4774562.534805248]}],[57,159,8,{"count":8,"center":[-11036283.891926888,4931105.568733292]}],[58,156,8,{"count":515,"center":[-10879740.857998848,4461476.466949167]}],[58,157,8,{"count":472,"center":[-10879740.857998848,4618019.500877207]}],[59,156,8,{"count":423,"center":[-10723197.824070806,4461476.466949167]}],[59,157,8,{"count":292,"center":[-10723197.824070806,4618019.500877207]}],[114,314,9,{"count":185,"center":[-11075419.650408898,4578883.742395197]}],[114,315,9,{"count":384,"center":[-11075419.650408898,4657155.259359219]}],[115,314,9,{"count":468,"center":[-10997148.13344488,4578883.742395197]}],[115,315,9,{"count":442,"center":[-10997148.13344488,4657155.259359219]}]]}`;
-            chai_5.assert.equal(Math.round(100 - (100 * terserfied.length) / stringified.length), 71);
-            const tree = new TileTree_4.TileTree({
-                extent,
-            });
-            tree.load(JSON.parse(stringified));
-            chai_5.assert.equal(JSON.stringify(tree.save()), stringified, "save=load");
-            const terser = encoder.stringify(tree.save());
-            chai_5.assert.equal(terser, terserfied, "terserfied");
-            const tree2 = TileTree_4.TileTree.create(encoder.unstringify(terser));
-            const expected = tree.save().data;
-            const actual = tree2.save().data;
-            chai_5.assert.equal(actual.length, expected.length, "tree from tersified");
-            actual.forEach((d, i) => {
-                chai_5.assert.equal(d[0], expected[i][0], "X");
-                chai_5.assert.equal(d[1], expected[i][1], "Y");
-                chai_5.assert.equal(d[2], expected[i][2], "Z");
-                chai_5.assert.equal(d[3].count, expected[i][3].count, "count");
-                chai_5.assert.isTrue(tiny_3.isEq(d[3].center[0], expected[i][3].center[0], 0.1), "cx");
-                chai_5.assert.isTrue(tiny_3.isEq(d[3].center[1], expected[i][3].center[1], 0.1), "cy");
-            });
-        });
-    });
-});
-define("poc/fun/flatten", ["require", "exports"], function (require, exports) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    exports.flatten = void 0;
-    function flatten(values) {
-        const result = [];
-        return result.concat(...values);
-    }
-    exports.flatten = flatten;
-});
-define("poc/test/tiletreeext-test", ["require", "exports", "mocha", "chai", "poc/TileTree", "poc/TileTreeExt", "poc/fun/tiny", "poc/fun/flatten", "node_modules/ol/src/geom/Point", "node_modules/ol/src/Feature", "poc/test/fun/isSamePoint"], function (require, exports, mocha_5, chai_6, TileTree_5, TileTreeExt_4, tiny_4, flatten_1, Point_3, Feature_3, isSamePoint_2) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    function createTree() {
-        const extent = [0, 0, 1, 1];
-        const tree = new TileTree_5.TileTree({
-            extent,
-        });
-        return tree;
-    }
-    function createPoint(point) {
-        const feature = new Feature_3.default();
-        feature.setGeometry(new Point_3.default(point));
-        return feature;
-    }
-    function de(a, b, expectation) {
-        console.log(a);
-        chai_6.assert.deepEqual(a, b, expectation);
-    }
-    function isSameCenterOfMass(a, b, message) {
-        chai_6.assert.equal(a.mass, b.mass, `mass: ${message}`);
-        chai_6.assert.equal(a.featureMass, b.featureMass, `featureMass: ${message}`);
-        isSamePoint_2.isSamePoint(a.center, b.center, `mass: ${message}`);
-    }
-    mocha_5.describe("TileTreeExt Tests", () => {
-        mocha_5.it("findByExtent and findZByExtent test", () => {
-            const tree = TileTree_5.TileTree.create({
-                extent: [0, 0, 16, 16],
-                data: [[0, 0, 0, { count: 0, center: [0, 0] }]],
-            });
-            const ext = new TileTreeExt_4.TileTreeExt(tree);
-            de(ext.findByExtent([0, 0, 1, 1]), { X: 0, Y: 0, Z: 3 }, "bottom-left most tile 1/16 total width");
-            de(ext.findByExtent([0.25, 0, 1, 1]), { X: 0, Y: 0, Z: 3 }, "not as wide but same tile as before");
-            de(ext.findByExtent([0.25, 0.25, 0.5, 0.5]), { X: 0, Y: 0, Z: 4 }, "shifted right and up and deeper");
-            {
-                const extent = [7.9, 7.9, 8.1, 8.1];
-                de(ext.findByExtent(extent), { X: 0, Y: 0, Z: 0 }, "worst case scenario, cannot find a child");
-                de(ext.findZByExtent(extent), 6, "can still get accurate Z");
-            }
-            de(ext.findByExtent([10.1, 10.1, 10.11, 10.11]), { X: 323, Y: 323, Z: 9 }, "trusting this is correct.");
-            chai_6.assert.throws(() => ext.findByExtent([0, 0, 16.01, 16]), "out of bounds");
-        });
-        mocha_5.it("findByExtent and setMass test", () => {
-            const extent = [0, 0, 1, 1];
-            const tree = new TileTree_5.TileTree({ extent });
-            const helper = new TileTreeExt_4.TileTreeExt(tree);
-            const q0 = tree.findByExtent([0, 0, 0.25, 0.25]);
-            const q1 = tree.findByExtent([0.25, 0, 0.5, 0.25]);
-            const q2 = tree.findByExtent([0, 0.25, 0.25, 0.5]);
-            const q3 = tree.findByExtent([0.25, 0.25, 0.5, 0.5]);
-            const q33 = tree.findByExtent([0.375, 0.375, 0.5, 0.5]);
-            helper.setMass(q0, 1);
-            helper.setMass(q1, 2);
-            helper.setMass(q2, 4);
-            helper.setMass(q3, 8);
-            helper.setMass(q33, 16);
-            const totalCount = tree.visit((a, b) => a + (helper.getMass(b) || 0), 0);
-            chai_6.assert.equal(totalCount, 31);
-            chai_6.assert.throws(() => helper.setMass(q0, 0), "mass cannot be destroyed");
-        });
-        mocha_5.it("findByExtent and setMass test", () => {
-            const extent = [0, 0, 1, 1];
-            const tree = new TileTree_5.TileTree({ extent });
-            const helper = new TileTreeExt_4.TileTreeExt(tree);
-            const q0 = tree.findByExtent([0, 0, 0.25, 0.25]);
-            const q1 = tree.findByExtent([0.25, 0, 0.5, 0.25]);
-            const q2 = tree.findByExtent([0, 0.25, 0.25, 0.5]);
-            const q3 = tree.findByExtent([0.25, 0.25, 0.5, 0.5]);
-            const q33 = tree.findByExtent([0.375, 0.375, 0.5, 0.5]);
-            helper.setMass(q0, 1);
-            helper.setMass(q1, 2);
-            helper.setMass(q2, 4);
-            helper.setMass(q3, 8);
-            helper.setMass(q33, 16);
-            const totalCount = tree.visit((a, b) => a + (helper.getMass(b) || 0), 0);
-            chai_6.assert.equal(totalCount, 31);
-            chai_6.assert.throws(() => helper.setMass(q0, 0), "mass cannot be destroyed");
-            const { center, mass, featureMass } = helper.centerOfMass({
-                X: 0,
-                Y: 0,
-                Z: 0,
-            });
-            chai_6.assert.equal(mass, 15, "the mass of the root is the sum of the mass of its children");
-            chai_6.assert.equal(featureMass, 0, "no visible features therefore no visible mass");
-            isSamePoint_2.isSamePoint(center, [0.325, 0.35833333333333334], "center test");
-        });
-        mocha_5.it("computes density", () => {
-            const extent = [0, 0, 10, 10];
-            const tree = new TileTree_5.TileTree({
-                extent,
-            });
-            const helper = new TileTreeExt_4.TileTreeExt(tree);
-            const rootIdentifier = { X: 0, Y: 0, Z: 0 };
-            chai_6.assert.equal(0, helper.density(rootIdentifier), "root density is 0");
-            const children = tree.quads(rootIdentifier);
-            children.forEach((c, i) => helper.setMass(c, 1 + i));
-            chai_6.assert.equal(10, helper.centerOfMass(rootIdentifier).mass, "total count");
-            chai_6.assert.equal(10, helper.density(rootIdentifier), "density at Z=0");
-            chai_6.assert.equal(4, helper.density(children[0]), "child 0");
-            chai_6.assert.equal(8, helper.density(children[1]), "child 1");
-            chai_6.assert.equal(12, helper.density(children[2]), "child 2");
-            chai_6.assert.equal(16, helper.density(children[3]), "child 3");
-        });
-        mocha_5.it("computes center of mass of parent with undeclared mass", () => {
-            const extent = [0, 0, 16, 16];
-            const tree = new TileTree_5.TileTree({
-                extent,
-            });
-            const helper = new TileTreeExt_4.TileTreeExt(tree);
-            const root = { X: 0, Y: 0, Z: 0 };
-            const t000 = tree.findByXYZ(root);
-            const [q0, q1, q2, q3] = tree.quads(root);
-            let com = helper.centerOfMass(root);
-            chai_6.assert.deepEqual(com.mass, 0, "assumed to be massless");
-            chai_6.assert.deepEqual(com.center, [8, 8], "no mass => no center but center of tile seems reasonable");
-            helper.setMass(q0, 4);
-            com = helper.centerOfMass(root);
-            chai_6.assert.deepEqual(com.mass, 4, "mass of q0");
-            chai_6.assert.deepEqual(com.center, [4, 4], "center of mass of q0");
-            helper.setMass(q1, 2);
-            com = helper.centerOfMass(root);
-            chai_6.assert.deepEqual(com.mass, 6, "mass of q0 + q1");
-            chai_6.assert.deepEqual(com.center, [4, 8 - 4 / 3], "center of mass of q0+q1");
-            helper.setMass(q2, 1);
-            com = helper.centerOfMass(root);
-            chai_6.assert.deepEqual(com.mass, 7, "mass of q0 + q1 + q2");
-            chai_6.assert.isTrue(tiny_4.isEq(com.center[0], 8 - 20 / 7), "cx center of mass of q0 + q1 + q2");
-            chai_6.assert.isTrue(tiny_4.isEq(com.center[1], 8 - 4 / 7), "cy center of mass of q0 + q1 + q2");
-            helper.setMass(q3, 8);
-            com = helper.centerOfMass(root);
-            chai_6.assert.deepEqual(com.mass, 15, "mass of q0 + q1 + q2 + q3");
-            chai_6.assert.deepEqual(com.center, [8 + 12 / 15, 8 - 36 / 15], "center of mass of q0 + q1 + q2 + q3");
-        });
-        mocha_5.it("calculate center of mass of tile with assigned mass of 10", () => {
-            const extent = [0, 0, 10, 10];
-            const tree = TileTree_5.TileTree.create({
-                extent,
-                data: [],
-            });
-            const ext = new TileTreeExt_4.TileTreeExt(tree);
-            const tileIdentifier = { X: 0, Y: 0, Z: 0 };
-            chai_6.assert.equal(ext.density(tileIdentifier), 0);
-            ext.setMass(tileIdentifier, 10);
-            chai_6.assert.equal(ext.density(tileIdentifier), 10);
-            isSameCenterOfMass(ext.centerOfMass(tileIdentifier), {
-                mass: 10,
-                center: [5, 5],
-                featureMass: 0,
-            }, "root tile com");
-            ext.setCenter(tileIdentifier, [1, 1]);
-            const com = ext.centerOfMass(tileIdentifier);
-            chai_6.assert.equal(com.mass, 10, "mass");
-            chai_6.assert.equal(com.featureMass, 0, "featureMass");
-            isSamePoint_2.isSamePoint(com.center, [5, 5], "center");
-        });
-        mocha_5.it("calculate center of mass of tile of mass 100 with features", () => {
-            const tree = createTree();
-            const ext = new TileTreeExt_4.TileTreeExt(tree, { minZoom: 0, maxZoom: 19 });
-            const tileIdentifier = { X: 0, Y: 0, Z: 1 };
-            {
-                ext.setMass(tileIdentifier, 100);
-                let { center, mass } = ext.centerOfMass(tileIdentifier);
-                chai_6.assert.equal(mass, 100, "mass of tile");
-                isSamePoint_2.isSamePoint(center, [0.25, 0.25], "center of tile");
-            }
-            const features = [];
-            {
-                const [x, y] = [3, 3];
-                const feature = new Feature_3.default(new Point_3.default([1 / x, 1 / y]));
-                features.push(feature);
-                const targetIdentifier = ext.addFeature(feature);
-                chai_6.assert.deepEqual(targetIdentifier, { X: 174762, Y: 174762, Z: 19 });
-                ext.setVisible(feature, false);
-                const { mass, center } = ext.centerOfMass(tileIdentifier);
-                chai_6.assert.equal(mass, 100, "tile mass is unaffected by dark matter in child tiles");
-                isSamePoint_2.isSamePoint(center, [1 / 3, 1 / 3], "new center of tile");
-            }
-            const children = tree.children(tileIdentifier);
-            const grandChildren = flatten_1.flatten(children.map((id) => tree.children(id)));
-            de(children.map((id) => ext.centerOfMass(id).mass), [1], "child masses");
-            de(grandChildren.map((id) => ext.centerOfMass(id).mass), [1], "grandchild masses");
-            features.forEach((f) => ext.setVisible(f, true));
-            {
-                const { mass, center, featureMass } = ext.centerOfMass(tileIdentifier);
-                chai_6.assert.equal(mass, 99, "mass reduced");
-                chai_6.assert.equal(featureMass, -1, "because of one visible feature");
-                isSamePoint_2.isSamePoint(center, [1 / 4, 1 / 4], "center shifted");
-            }
-            {
-                const feature = new Feature_3.default(new Point_3.default([0.9, 0]));
-                ext.addFeature(feature, tileIdentifier);
-                ext.setVisible(feature, false);
-                const { center, mass, featureMass } = ext.centerOfMass(tileIdentifier);
-                chai_6.assert.equal(mass, 99, "mass unaffected by hidden features");
-                chai_6.assert.equal(featureMass, -1, "feature mass also uneffected");
-                isSamePoint_2.isSamePoint(center, [0.9, 0], "hidden features affect center");
-            }
-            {
-                const newChildId = { X: 0, Y: 0, Z: 7 };
-                chai_6.assert.isNull(tree.findByXYZ(newChildId), "child does not exist");
-                ext.setMass(newChildId, 1);
-                chai_6.assert.isNotNull(tree.findByXYZ(newChildId), "child exists");
-                const { center, mass, featureMass } = ext.centerOfMass(tileIdentifier);
-                chai_6.assert.equal(mass, 99, "mass unaffected by children without features");
-                chai_6.assert.equal(featureMass, -1, "feature mass unaffected by children without features");
-                isSamePoint_2.isSamePoint(center, [0.451953125, 0.001953125], "center shifts when adding a child with mass");
-            }
-        });
-        mocha_5.it("progressive center of mass calculations", () => {
-            const helper = new TileTreeExt_4.TileTreeExt(createTree());
-            const rootId = { X: 0, Y: 0, Z: 0 };
-            const p1 = createPoint([0.5 + 1 / 2048, 0.5 + 1 / 2048]);
-            const targetId = helper.addFeature(p1);
-            chai_6.assert.deepEqual(targetId, { X: 512, Y: 512, Z: 10 });
-            helper.setVisible(p1, false);
-            {
-                const { center, mass, featureMass } = helper.centerOfMass(targetId);
-                const com = helper.centerOfMass(targetId);
-                chai_6.assert.deepEqual(com, { center, mass, featureMass }, "centerOfMass is repeatable");
-                chai_6.assert.equal(mass, 1, "tile mass represents one hidden feature");
-                chai_6.assert.equal(featureMass, 0, "tile has 0 visible features");
-                isSamePoint_2.isSamePoint(center, [0.5 + 1 / 2048, 0.5 + 1 / 2048], "p1 is hidden but just right of center");
-            }
-            {
-                const { center, mass, featureMass } = helper.centerOfMass(rootId);
-                chai_6.assert.equal(mass, 1, "one child tile has mass since one feature is hidden");
-                chai_6.assert.equal(featureMass, 0, "no visible features");
-                isSamePoint_2.isSamePoint(center, [0.5 + 1 / 2048, 0.5 + 1 / 2048], "should have same center of mass as the only child tile");
-            }
-            helper.setVisible(p1, true);
-            {
-                const { center, mass, featureMass } = helper.centerOfMass(targetId);
-                const com = helper.centerOfMass(targetId);
-                chai_6.assert.deepEqual(com, { center, mass, featureMass }, "centerOfMass is repeatable");
-                chai_6.assert.equal(mass, 0, "tile has no effective mass, all features are visible");
-                chai_6.assert.equal(featureMass, -1, "tile has 1 visible feature");
-                isSamePoint_2.isSamePoint(center, [1 / 2 + 1 / 2048, 1 / 2 + 1 / 2048], "no mass so default to tile center");
-            }
-            {
-                const { center, mass, featureMass } = helper.centerOfMass(rootId);
-                chai_6.assert.equal(mass, 0, "no child tile has mass since all features are visible");
-                chai_6.assert.equal(featureMass, -1, "one visible feature in child tile");
-                isSamePoint_2.isSamePoint(center, [1 / 2, 1 / 2], "no mass so default to center of tile");
-            }
-        });
-    });
-});
-define("poc/fun/createStyleFactory", ["require", "exports", "node_modules/ol/src/style", "node_modules/ol/src/style/Circle"], function (require, exports, style_2, Circle_2) {
+define("poc/fun/createStyleFactory", ["require", "exports", "node_modules/ol/src/style", "node_modules/ol/src/style/Circle"], function (require, exports, style_1, Circle_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.createStyleFactory = void 0;
@@ -24323,46 +24342,46 @@ define("poc/fun/createStyleFactory", ["require", "exports", "node_modules/ol/src
         defaultMarkerTextStrokeWidth: 1,
     };
     function makeClusterImage(count, opacity) {
-        return new Circle_2.default({
+        return new Circle_1.default({
             radius: STYLE_CONFIG.clusterMinimumRadius +
                 STYLE_CONFIG.clusterRadiusScale *
                     (STYLE_CONFIG.clusterScaleOp || noop)(count),
-            fill: new style_2.Fill({ color: STYLE_CONFIG.clusterFillColor }),
-            stroke: new style_2.Stroke({
+            fill: new style_1.Fill({ color: STYLE_CONFIG.clusterFillColor }),
+            stroke: new style_1.Stroke({
                 color: STYLE_CONFIG.clusterStrokeColor,
                 width: STYLE_CONFIG.clusterStrokeWidth,
             }),
         });
     }
     function makeWarningImage() {
-        return new Circle_2.default({
+        return new Circle_1.default({
             radius: STYLE_CONFIG.warningRadius,
-            fill: new style_2.Fill({ color: STYLE_CONFIG.warningFillColor }),
-            stroke: new style_2.Stroke({
+            fill: new style_1.Fill({ color: STYLE_CONFIG.warningFillColor }),
+            stroke: new style_1.Stroke({
                 color: STYLE_CONFIG.warningStrokeColor,
                 width: STYLE_CONFIG.warningStrokeWidth,
             }),
         });
     }
     function makeMarkerImage() {
-        return new Circle_2.default({
+        return new Circle_1.default({
             radius: STYLE_CONFIG.defaultMarkerRadius,
-            fill: new style_2.Fill({ color: STYLE_CONFIG.defaultMarkerFillColor }),
-            stroke: new style_2.Stroke({
+            fill: new style_1.Fill({ color: STYLE_CONFIG.defaultMarkerFillColor }),
+            stroke: new style_1.Stroke({
                 color: STYLE_CONFIG.defaultMarkerStrokeColor,
                 width: STYLE_CONFIG.defaultMarkerStrokeWidth,
             }),
         });
     }
     function createStyleFactory() {
-        const textMaker = (text) => new style_2.Text({
+        const textMaker = (text) => new style_1.Text({
             text: text,
-            stroke: new style_2.Stroke({
+            stroke: new style_1.Stroke({
                 color: STYLE_CONFIG.clusterTextStrokeColor,
                 width: STYLE_CONFIG.clusterTextStrokeWidth,
             }),
             scale: STYLE_CONFIG.clusterTextScale,
-            fill: new style_2.Fill({ color: STYLE_CONFIG.clusterTextFillColor }),
+            fill: new style_1.Fill({ color: STYLE_CONFIG.clusterTextFillColor }),
         });
         const style = (feature, resolution) => {
             const { tileIdentifier, text, mass, density, visible, type, } = feature.getProperties();
@@ -24373,7 +24392,7 @@ define("poc/fun/createStyleFactory", ["require", "exports", "node_modules/ol/src
             const result = [];
             switch (type) {
                 case "cluster": {
-                    const style = new style_2.Style({
+                    const style = new style_1.Style({
                         image: makeClusterImage(mass, 1),
                         text: textMaker(text),
                     });
@@ -24381,7 +24400,7 @@ define("poc/fun/createStyleFactory", ["require", "exports", "node_modules/ol/src
                     break;
                 }
                 case "err": {
-                    const style = new style_2.Style({
+                    const style = new style_1.Style({
                         image: makeWarningImage(),
                         text: textMaker(text),
                     });
@@ -24390,11 +24409,11 @@ define("poc/fun/createStyleFactory", ["require", "exports", "node_modules/ol/src
                 }
                 case "feature":
                 default: {
-                    const style = new style_2.Style({
-                        fill: new style_2.Fill({ color: "white" }),
-                        stroke: new style_2.Stroke({ color: "black" }),
+                    const style = new style_1.Style({
+                        fill: new style_1.Fill({ color: "white" }),
+                        stroke: new style_1.Stroke({ color: "black" }),
                     });
-                    result.push(new style_2.Style({
+                    result.push(new style_1.Style({
                         image: makeMarkerImage(),
                     }));
                     result.push(style);
@@ -24406,11 +24425,11 @@ define("poc/fun/createStyleFactory", ["require", "exports", "node_modules/ol/src
     }
     exports.createStyleFactory = createStyleFactory;
 });
-define("poc/AgsClusterLayer", ["require", "exports", "node_modules/ol/src/layer/Vector", "poc/AgsClusterSource", "poc/fun/createStyleFactory"], function (require, exports, Vector_4, AgsClusterSource_2, createStyleFactory_1) {
+define("poc/AgsClusterLayer", ["require", "exports", "node_modules/ol/src/layer/Vector", "poc/AgsClusterSource", "poc/fun/createStyleFactory"], function (require, exports, Vector_2, AgsClusterSource_2, createStyleFactory_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.AgsClusterLayer = void 0;
-    class AgsClusterLayer extends Vector_4.default {
+    class AgsClusterLayer extends Vector_2.default {
         constructor(options) {
             super();
             const { url, tileSize, minRecordCount, maxRecordCount, treeTileState, } = options;
@@ -24712,13 +24731,13 @@ define("poc/test/data/treetilestate", ["require", "exports"], function (require,
         ],
     };
 });
-define("poc/test/map-test", ["require", "exports", "mocha", "node_modules/ol/src/extent", "node_modules/ol/src/Map", "node_modules/ol/src/View", "poc/AgsClusterLayer", "poc/fun/debounce", "poc/TileTreeTersifier", "poc/test/data/treetilestate"], function (require, exports, mocha_6, extent_6, Map_2, View_2, AgsClusterLayer_1, debounce_1, TileTreeTersifier_2, treetilestate_1) {
+define("poc/test/ux/map-test", ["require", "exports", "mocha", "node_modules/ol/src/extent", "node_modules/ol/src/Map", "node_modules/ol/src/View", "poc/AgsClusterLayer", "poc/fun/debounce", "poc/TileTreeTersifier", "poc/test/data/treetilestate"], function (require, exports, mocha_6, extent_5, Map_1, View_1, AgsClusterLayer_1, debounce_1, TileTreeTersifier_2, treetilestate_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     mocha_6.describe("UI Labs", () => {
-        mocha_6.it("renders on a map", () => {
-            const view = new View_2.default({
-                center: extent_6.getCenter([-11114555, 4696291, -10958012, 4852834]),
+        mocha_6.it("renders cluster layer on a map and continually cycles through the zoom levels", () => {
+            const view = new View_1.default({
+                center: extent_5.getCenter([-11114555, 4696291, -10958012, 4852834]),
                 minZoom: 3,
                 maxZoom: 9,
                 zoom: 6,
@@ -24737,7 +24756,7 @@ define("poc/test/map-test", ["require", "exports", "mocha", "node_modules/ol/src
                 minRecordCount: 100,
             });
             const layers = [vectorLayer];
-            const map = new Map_2.default({ view, target, layers });
+            const map = new Map_1.default({ view, target, layers });
             let automatedScaleDirection = 1;
             const h = setInterval(() => {
                 const z = view.getZoom() || 0;
@@ -24762,9 +24781,9 @@ define("poc/test/map-test", ["require", "exports", "mocha", "node_modules/ol/src
             view.on("change:rotation", closer);
             closer();
         });
-        mocha_6.it("sets map state into local storage", () => {
-            const view = new View_2.default({
-                center: extent_6.getCenter([-11114555, 4696291, -10958012, 4852834]),
+        mocha_6.it("sets map state into pre-loaded data from data/treetilestate", () => {
+            const view = new View_1.default({
+                center: extent_5.getCenter([-11114555, 4696291, -10958012, 4852834]),
                 minZoom: 3,
                 maxZoom: 9,
                 zoom: 6,
@@ -24785,11 +24804,212 @@ define("poc/test/map-test", ["require", "exports", "mocha", "node_modules/ol/src
                 treeTileState: decoder.unstringify(JSON.stringify(treetilestate_1.treeTileState)),
             });
             const layers = [vectorLayer];
-            const map = new Map_2.default({ view, target, layers });
+            const map = new Map_1.default({ view, target, layers });
         });
     });
 });
-define("poc/test/index", ["require", "exports", "poc/test/moment-test", "poc/test/ags-feature-loader-test", "poc/test/xyz-test", "poc/test/treetile-test", "poc/test/tiletreeext-test", "poc/test/map-test"], function (require, exports) {
+define("poc/test/fun/showOnMap", ["require", "exports", "node_modules/ol/src/Feature", "node_modules/ol/src/extent", "node_modules/ol/src/View", "node_modules/ol/src/Map", "node_modules/ol/src/layer/Vector", "node_modules/ol/src/source/Vector", "node_modules/ol/src/style", "node_modules/ol/src/geom/Point", "node_modules/ol/src/style/Circle", "node_modules/ol/src/style/Text", "node_modules/ol/src/control"], function (require, exports, Feature_3, extent_6, View_2, Map_2, Vector_3, Vector_4, style_2, Point_3, Circle_2, Text_1, control_1) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.showOnMap = void 0;
+    const MIN_ZOOM_OFFSET = -3;
+    const MAX_ZOOM_OFFSET = 4;
+    const CLUSTER_ZOOM_OFFSET = 2;
+    function setTileFeature(tileFeatures, { X, Y, Z }, feature) {
+        const key = `${X}.${Y}.${Z}`;
+        tileFeatures.set(key, feature);
+    }
+    function getTileFeature(tileFeatures, { X, Y, Z }) {
+        const key = `${X}.${Y}.${Z}`;
+        return tileFeatures.get(key);
+    }
+    function isFeatureVisible(f, Z) {
+        const featureZoom = f.getProperties().Z;
+        const type = f.getProperties().type;
+        const zoffset = featureZoom - Z;
+        switch (type) {
+            case "feature":
+                return MIN_ZOOM_OFFSET <= zoffset && zoffset <= MAX_ZOOM_OFFSET;
+            case "cluster":
+                return true;
+        }
+        return true;
+    }
+    function showOnMap(options) {
+        const { helper } = options;
+        const tiles = helper.tree
+            .descendants()
+            .filter((id) => null !== helper.getMass(id));
+        const view = new View_2.default({
+            center: extent_6.getCenter(helper.tree.asExtent(tiles[0])),
+            zoom: helper.minZoom + 1,
+            minZoom: helper.minZoom,
+            maxZoom: helper.maxZoom,
+        });
+        const targetContainer = document.createElement("div");
+        targetContainer.className = "testmapcontainer";
+        const target = document.createElement("div");
+        target.className = "map";
+        document.body.appendChild(targetContainer);
+        targetContainer.appendChild(target);
+        const layer = new Vector_3.default();
+        const source = new Vector_4.default();
+        layer.setSource(source);
+        helper.tree.visit((a, b) => {
+            const features = helper.getFeatures(b);
+            if (!features)
+                return a;
+            source.addFeatures(features);
+            console.log(features.map((f) => f.getProperties().Z).join("."));
+            return features.length + a;
+        }, 0);
+        const styleCache = {};
+        const tileFeatures = new Map();
+        const styleMaker = ({ type, zoffset, mass, }) => {
+            const massLevel = Math.floor(Math.pow(2, Math.floor(Math.log2(mass))));
+            const styleKey = `${type}.${zoffset}.${massLevel}`;
+            let style = styleCache[styleKey];
+            if (!style) {
+                switch (type) {
+                    case "cluster": {
+                        style = new style_2.Style({
+                            image: new Circle_2.default({
+                                radius: 0.5 * (64 * Math.pow(2, -zoffset)),
+                                fill: new style_2.Fill({
+                                    color: `rgba(255,255,255,${0.05})`,
+                                }),
+                                stroke: new style_2.Stroke({
+                                    color: `rgba(0,0,0,${0.05})`,
+                                    width: 0.5 * (64 * Math.pow(2, -zoffset)),
+                                }),
+                            }),
+                            text: new Text_1.default({
+                                text: (mass ? mass : "") + "",
+                                scale: 0.5,
+                                fill: new style_2.Fill({ color: `rgba(255,255,255,${0.8})` }),
+                                stroke: new style_2.Stroke({
+                                    color: `rgba(0,0,0,${0.8})`,
+                                    width: 1,
+                                }),
+                            }),
+                        });
+                        break;
+                    }
+                    default: {
+                        const opacity = 0.8 * Math.pow(Math.SQRT2, -Math.abs(zoffset));
+                        style = new style_2.Style({
+                            fill: new style_2.Fill({ color: `rgba(0,0,255,${opacity})` }),
+                            stroke: new style_2.Stroke({
+                                color: `rgba(255,255,255,${opacity})`,
+                                width: 1,
+                            }),
+                        });
+                        break;
+                    }
+                }
+                styleCache[styleKey] = style;
+            }
+            switch (type) {
+                case "cluster": {
+                    if (style.getText()) {
+                        style.getText().setText(mass + "");
+                    }
+                    break;
+                }
+            }
+            return style;
+        };
+        layer.setStyle(((feature, resolution) => {
+            const { Z: featureZoom, type, mass } = feature.getProperties();
+            const currentZoom = Math.round(view.getZoomForResolution(resolution) || 0);
+            if (!isFeatureVisible(feature, currentZoom))
+                return null;
+            const zoffset = featureZoom - currentZoom;
+            const style = styleMaker({ type, zoffset, mass });
+            return style;
+        }));
+        {
+            let touched = true;
+            view.on("change:resolution", () => {
+                touched = true;
+            });
+            layer.on("postrender", () => {
+                if (!touched)
+                    return;
+                touched = false;
+                postRender();
+            });
+        }
+        const map = new Map_2.default({
+            view,
+            target,
+            layers: [layer],
+            controls: control_1.defaults().extend([new control_1.FullScreen()]),
+        });
+        postRender();
+        return map;
+        function postRender() {
+            const currentZoom = view.getZoom() || 0;
+            source.getFeatures().forEach((f) => {
+                const { tileIdentifier } = f.getProperties();
+                f.setProperties({ visible: isFeatureVisible(f, currentZoom) });
+                updateCluster(tileIdentifier, currentZoom);
+            });
+        }
+        function updateCluster(tileIdentifier, Z) {
+            let targetIdentifier = tileIdentifier;
+            if (targetIdentifier.Z - Z < CLUSTER_ZOOM_OFFSET)
+                return;
+            while (targetIdentifier.Z - Z > CLUSTER_ZOOM_OFFSET) {
+                targetIdentifier = helper.tree.parent(targetIdentifier);
+            }
+            const mass = helper.centerOfMass(targetIdentifier).mass;
+            let feature = getTileFeature(tileFeatures, targetIdentifier);
+            if (!feature) {
+                feature = new Feature_3.default();
+                feature.setProperties({
+                    type: "cluster",
+                    tileIdentifier: targetIdentifier,
+                    Z: targetIdentifier.Z,
+                });
+                setTileFeature(tileFeatures, targetIdentifier, feature);
+                source.addFeature(feature);
+                const center = helper.tree.asCenter(targetIdentifier);
+                feature.setGeometry(new Point_3.default(center));
+            }
+            const visible = !!mass;
+            feature.setProperties({ visible, mass }, true);
+        }
+    }
+    exports.showOnMap = showOnMap;
+});
+define("poc/test/ux/show-on-map", ["require", "exports", "mocha", "chai", "poc/AgsFeatureLoader", "poc/TileTree", "node_modules/ol/src/proj", "poc/test/fun/showOnMap", "poc/TileTreeExt"], function (require, exports, mocha_7, chai_7, AgsFeatureLoader_3, TileTree_6, proj_4, showOnMap_1, TileTreeExt_4) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    mocha_7.describe("showOnMap tests", () => {
+        mocha_7.it("renders a fully loaded tree with clusters via showOnMap", () => __awaiter(void 0, void 0, void 0, function* () {
+            const url = "http://localhost:3002/mock/sampleserver3/arcgis/rest/services/Hydrography/Watershed173811/FeatureServer/1/query";
+            const projection = proj_4.get("EPSG:3857");
+            const tree = new TileTree_6.TileTree({
+                extent: projection.getExtent(),
+            });
+            const ext = new TileTreeExt_4.TileTreeExt(tree, { minZoom: 6, maxZoom: 18 });
+            const loader = new AgsFeatureLoader_3.AgsFeatureLoader({
+                url,
+                maxDepth: 0,
+                minRecordCount: 100,
+                maxRecordCount: 100,
+                tree: ext,
+            });
+            const tileIdentifier = tree.parent({ X: 29 * 2, Y: 78 * 2, Z: 8 });
+            const featureCount = yield loader.loader(tileIdentifier, projection);
+            chai_7.assert.equal(5354, featureCount, "features");
+            debugger;
+            showOnMap_1.showOnMap({ helper: ext });
+        }));
+    });
+});
+define("poc/test/index", ["require", "exports", "poc/test/moment-test", "poc/test/ags-feature-loader-test", "poc/test/xyz-test", "poc/test/treetile-test", "poc/test/tiletreeext-test", "poc/test/ux/map-test", "poc/test/ux/show-on-map"], function (require, exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
 });

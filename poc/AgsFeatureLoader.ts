@@ -1,13 +1,12 @@
 import { Extent } from "@ol/extent";
 import { Projection } from "@ol/proj";
-import { TileTree } from "./TileTree";
 import { TileTreeExt } from "./TileTreeExt";
 import { FeatureServiceProxy } from "./FeatureServiceProxy";
 import { removeAuthority } from "./fun/removeAuthority";
 import { FeatureServiceRequest } from "./FeatureServiceRequest";
 import EsriJSON from "@ol/format/EsriJSON";
 import type { XYZ } from "poc/types/XYZ";
-import type { XY } from "./types/XY";
+import type { Z } from "./types/XY";
 
 function asRequest(projection: Projection) {
   const request: FeatureServiceRequest = {
@@ -35,15 +34,30 @@ export class AgsFeatureLoader {
     private options: {
       tree: TileTreeExt;
       url: string;
-      maxRecordCount: number;
+      maxDepth: Z;
+      maxRecordCount?: number;
       minRecordCount: number;
     }
   ) {
     this.helper = options.tree;
+    if (!this.options.maxRecordCount)
+      this.options.maxRecordCount = this.options.minRecordCount;
   }
 
   public async loader(tileIdentifier: XYZ, projection: Projection) {
-    const { tree, maxRecordCount, minRecordCount, url } = this.options;
+    return this.loadTile(tileIdentifier, projection, this.options.maxDepth);
+  }
+
+  private async loadTile(
+    tileIdentifier: XYZ,
+    projection: Projection,
+    depth: number
+  ) {
+    if (depth < 0) throw "cannot load tile with negative depth";
+    const { tree, minRecordCount, url } = this.options;
+
+    const maxRecordCount =
+      this.options.maxRecordCount || this.options.minRecordCount;
 
     const proxy = new FeatureServiceProxy({
       service: url,
@@ -55,16 +69,25 @@ export class AgsFeatureLoader {
     const response = await proxy.fetch<{ count: number }>(request);
     const count = response.count;
     this.helper.setMass(tileIdentifier, count);
-    if (maxRecordCount < count) {
-      await Promise.all(
-        tree.tree.quads(tileIdentifier).map((id) => this.loader(id, projection))
-      );
-    }
-    if (0 < count && count < minRecordCount) {
+
+    if (0 >= depth || 0 == count) return count;
+
+    // count is low enough to load features
+    if (count < minRecordCount) {
       // load the actual features into the bounding tiles
       const features = await this.loadFeatures(request, proxy, projection);
       features.forEach((f) => this.helper.addFeature(f));
     }
+
+    // count is too high, load sub-tiles
+    else if (count > maxRecordCount) {
+      await Promise.all(
+        tree.tree
+          .quads(tileIdentifier)
+          .map((id) => this.loadTile(id, projection, depth - 1))
+      );
+    }
+
     return count;
   }
 

@@ -45,6 +45,7 @@ export class TileTreeExt {
       tileIdentifier,
       Z: this.findZByExtent(extent),
       type: "feature",
+      visible: false,
     });
     features.push(feature);
     this.setStale(tileIdentifier, true);

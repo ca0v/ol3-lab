@@ -3,4 +3,5 @@ import "./ags-feature-loader-test";
 import "./xyz-test";
 import "./treetile-test";
 import "./tiletreeext-test";
-import "./map-test";
+import "./ux/map-test";
+import "./ux/show-on-map";

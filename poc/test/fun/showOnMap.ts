@@ -17,6 +17,7 @@ import Text from "@ol/style/Text";
 import { FullScreen, defaults as defaultControls } from "@ol/control";
 const MIN_ZOOM_OFFSET = -3;
 const MAX_ZOOM_OFFSET = 4;
+const CLUSTER_ZOOM_OFFSET = 2;
 
 function setTileFeature(
   tileFeatures: Map<string, Feature<Geometry>>,
@@ -33,6 +34,20 @@ function getTileFeature(
 ) {
   const key = `${X}.${Y}.${Z}`;
   return tileFeatures.get(key);
+}
+
+// hide all features outside of current zoom
+function isFeatureVisible(f: Feature<Geometry>, Z: Z) {
+  const featureZoom = f.getProperties().Z as Z;
+  const type = f.getProperties().type as string;
+  const zoffset = featureZoom - Z;
+  switch (type) {
+    case "feature":
+      return MIN_ZOOM_OFFSET <= zoffset && zoffset <= MAX_ZOOM_OFFSET;
+    case "cluster":
+      return true; //CLUSTER_ZOOM_OFFSET <= zoffset && zoffset <= CLUSTER_ZOOM_OFFSET;
+  }
+  return true;
 }
 
 export function showOnMap(options: { helper: TileTreeExt }) {
@@ -59,15 +74,13 @@ export function showOnMap(options: { helper: TileTreeExt }) {
   const source = new VectorSource<Geometry>();
   layer.setSource(source);
 
-  const totalFeaturesAdded = helper.tree.visit((a, b) => {
+  helper.tree.visit((a, b) => {
     const features = helper.getFeatures(b);
     if (!features) return a;
     source.addFeatures(features);
     console.log(features.map((f) => f.getProperties().Z).join("."));
     return features.length + a;
   }, 0);
-
-  console.log({ totalFeaturesAdded });
 
   const styleCache = {} as any;
   const tileFeatures = new Map<string, Feature<Geometry>>();
@@ -137,24 +150,29 @@ export function showOnMap(options: { helper: TileTreeExt }) {
   };
 
   layer.setStyle(<any>((feature: Feature<Geometry>, resolution: number) => {
-    const { Z: featureZoom, type, visible, mass } = feature.getProperties() as {
+    const { Z: featureZoom, type, mass } = feature.getProperties() as {
       Z: Z;
       type: string;
       mass: number;
-      visible: boolean;
     };
-    if (false === visible) return null;
     const currentZoom = Math.round(view.getZoomForResolution(resolution) || 0);
+    if (!isFeatureVisible(feature, currentZoom)) return null;
     const zoffset = featureZoom - currentZoom;
     const style = styleMaker({ type, zoffset, mass });
     return style;
   }));
 
-  let touched = true;
-  view.on("change:resolution", () => {
-    touched = true;
-  });
-  layer.on("postrender", () => postRender());
+  {
+    let touched = true;
+    view.on("change:resolution", () => {
+      touched = true;
+    });
+    layer.on("postrender", () => {
+      if (!touched) return;
+      touched = false;
+      postRender();
+    });
+  }
 
   const map = new OlMap({
     view,
@@ -162,63 +180,46 @@ export function showOnMap(options: { helper: TileTreeExt }) {
     layers: [layer],
     controls: defaultControls().extend([new FullScreen()]),
   });
+  postRender();
   return map;
 
   function postRender(): any {
-    if (!touched) return;
-    touched = false;
     const currentZoom = view.getZoom() || 0;
 
-    // ensure only tiles with hidden features are represented on the map
-    tileFeatures.forEach((value) =>
-      value.setProperties({ visible: false }, true)
-    );
-
-    const features = source
-      .getFeatures()
-      .filter((f) => "feature" === f.getProperties().type);
-
-    // hide all features outside of current zoom
-    features.forEach((f) => {
-      const featureZoom = f.getProperties().Z;
-      const zoffset = featureZoom - currentZoom;
-      const visible = MIN_ZOOM_OFFSET <= zoffset && zoffset <= MAX_ZOOM_OFFSET;
-      helper.setVisible(f, visible);
-    });
-
-    // for each non-visible feature, compute the center of mass of the binding tile
-    const hiddenFeatures = features.filter(
-      (f) => false === f.getProperties().visible
-    );
-
-    hiddenFeatures.forEach((f) => {
+    // hide features
+    source.getFeatures().forEach((f) => {
       const { tileIdentifier } = f.getProperties() as {
         tileIdentifier: XYZ;
       };
 
-      let targetIdentifier = tileIdentifier;
-      if (targetIdentifier.Z < currentZoom + MAX_ZOOM_OFFSET - 2) return;
-      while (targetIdentifier.Z > currentZoom + MAX_ZOOM_OFFSET - 2) {
-        targetIdentifier = helper.tree.parent(targetIdentifier);
-      }
-
-      const mass = helper.centerOfMass(targetIdentifier).mass;
-      let feature = getTileFeature(tileFeatures, targetIdentifier);
-      if (!feature) {
-        feature = new Feature<Geometry>();
-        feature.setProperties({
-          type: "cluster",
-          tileIdentifier: targetIdentifier,
-          Z: targetIdentifier.Z,
-        });
-        setTileFeature(tileFeatures, targetIdentifier, feature);
-        source.addFeature(feature);
-        const center = helper.tree.asCenter(targetIdentifier);
-        feature.setGeometry(new Point(center));
-      }
-
-      const visible = !!mass;
-      feature.setProperties({ visible, mass }, true);
+      f.setProperties({ visible: isFeatureVisible(f, currentZoom) });
+      updateCluster(tileIdentifier, currentZoom);
     });
+  }
+
+  function updateCluster(tileIdentifier: XYZ, Z: Z) {
+    let targetIdentifier = tileIdentifier;
+    if (targetIdentifier.Z - Z < CLUSTER_ZOOM_OFFSET) return;
+    while (targetIdentifier.Z - Z > CLUSTER_ZOOM_OFFSET) {
+      targetIdentifier = helper.tree.parent(targetIdentifier);
+    }
+
+    const mass = helper.centerOfMass(targetIdentifier).mass;
+    let feature = getTileFeature(tileFeatures, targetIdentifier);
+    if (!feature) {
+      feature = new Feature<Geometry>();
+      feature.setProperties({
+        type: "cluster",
+        tileIdentifier: targetIdentifier,
+        Z: targetIdentifier.Z,
+      });
+      setTileFeature(tileFeatures, targetIdentifier, feature);
+      source.addFeature(feature);
+      const center = helper.tree.asCenter(targetIdentifier);
+      feature.setGeometry(new Point(center));
+    }
+
+    const visible = !!mass;
+    feature.setProperties({ visible, mass }, true);
   }
 }

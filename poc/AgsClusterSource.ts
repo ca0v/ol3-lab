@@ -62,6 +62,7 @@ export class AgsClusterSource<
     this.featureLoader = new AgsFeatureLoader({
       tree: this.tree,
       url,
+      maxDepth: 3,
       minRecordCount,
       maxRecordCount,
     });

@@ -2,13 +2,13 @@ import { describe, it } from "mocha";
 import { getCenter } from "@ol/extent";
 import Map from "@ol/Map";
 import View from "@ol/View";
-import { AgsClusterLayer } from "../AgsClusterLayer";
+import { AgsClusterLayer } from "poc/AgsClusterLayer";
 import { debounce } from "poc/fun/debounce";
-import { TileTreeTersifier } from "../TileTreeTersifier";
-import { treeTileState } from "./data/treetilestate";
+import { TileTreeTersifier } from "poc/TileTreeTersifier";
+import { treeTileState } from "../data/treetilestate";
 
 describe("UI Labs", () => {
-  it("renders on a map", () => {
+  it("renders cluster layer on a map and continually cycles through the zoom levels", () => {
     const view = new View({
       center: getCenter([-11114555, 4696291, -10958012, 4852834]),
       minZoom: 3,
@@ -62,7 +62,7 @@ describe("UI Labs", () => {
     closer();
   });
 
-  it("sets map state into local storage", () => {
+  it("sets map state into pre-loaded data from data/treetilestate", () => {
     const view = new View({
       center: getCenter([-11114555, 4696291, -10958012, 4852834]),
       minZoom: 3,
