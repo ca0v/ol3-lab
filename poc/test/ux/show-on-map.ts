@@ -29,7 +29,6 @@ describe("showOnMap tests", () => {
     const featureCount = await loader.loader(tileIdentifier, projection);
 
     assert.equal(5354, featureCount, "features");
-    debugger;
     showOnMap({ helper: ext });
   });
 });

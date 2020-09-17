@@ -4,6 +4,8 @@
   "description": "OpenLayers Lab",
   "main": "index.js",
   "scripts": {
+    "delete:302": "npm run proxy -- --delete '\"statusCode\": 302'",
+    "delete:504": "npm run proxy -- --delete '\"statusCode\": 504'",
     "update:all": "npm install ol3-fun ol3-grid ol3-input ol3-layerswitcher ol3-panzoom ol3-popup ol3-symbolizer ol3-draw ol3-search -D",
     "cp:ol": "cp -r ./node_modules/ol/ol.css ./static/ol.css",
     "cp:mocha": "cp -r ./node_modules/mocha/mocha.* ./static/",
@@ -15,10 +17,9 @@
     "live": "live-server --port=5000 --wait=200 --watch=./built/index.js --open=./index.html",
     "build:index": "tsc -p tsconfig.json --outFile ./built/index.js",
     "watch:index": "npm run build:index -- -w",
-    "server": "cd ../reverse-proxy-cache && npm run server",
+    "proxy": "reverse-proxy-cache",
     "postinstall": "npm-run-all cp build:index live",
-    "go": "npm-run-all -p server live watch:index",
-    "504": "npm run server -- --delete '\"statusCode\": 504'"
+    "go": "npm-run-all -p proxy live watch:index"
   },
   "dependencies": {},
   "devDependencies": {
@@ -31,7 +32,29 @@
     "ol": "^6.4.3",
     "parcel-bundler": "^1.12.4",
     "requirejs": "^2.3.6",
+    "reverse-proxy-cache": "https://github.com/ca0v/reverse-proxy-cache/tarball/v1.0.4",
     "rollup": "^2.26.5",
     "typescript": "^4.0.2"
+  },
+  "reverse-proxy-cache": {
+    "port": 3002,
+    "verbose": false,
+    "reverse-proxy-db": "reverse-proxy.sqlite",
+    "proxy-pass": [
+      {
+        "about": "agol/ArcGIS/rest/services/World_Street_Map/MapServer",
+        "baseUri": "/proxy/agol/ArcGIS/rest/services/World_Street_Map/MapServer",
+        "proxyUri": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer"
+      },
+      {
+        "about": "arcgis",
+        "baseUri": "/proxy/arcgis",
+        "proxyUri": "https://www.arcgis.com"
+      },
+      {
+        "baseUri":"/mock/sampleserver3/arcgis/rest/services",
+        "proxyUri":"https://sampleserver3.arcgisonline.com/ArcGIS/rest/services"
+      }
+    ]
   }
 }
