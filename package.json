@@ -18,7 +18,7 @@
     "build:index": "tsc -p tsconfig.json --outFile ./built/index.js",
     "watch:index": "npm run build:index -- -w",
     "proxy": "reverse-proxy-cache",
-    "postinstall": "npm-run-all cp build:index live",
+    "postinstall": "npm-run-all cp go",
     "go": "npm-run-all -p proxy live watch:index"
   },
   "dependencies": {},
@@ -52,8 +52,8 @@
         "proxyUri": "https://www.arcgis.com"
       },
       {
-        "baseUri":"/mock/sampleserver3/arcgis/rest/services",
-        "proxyUri":"https://sampleserver3.arcgisonline.com/ArcGIS/rest/services"
+        "baseUri": "/mock/sampleserver3/arcgis/rest/services",
+        "proxyUri": "https://sampleserver3.arcgisonline.com/ArcGIS/rest/services"
       }
     ]
   }

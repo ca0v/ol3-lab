@@ -30,18 +30,17 @@ function bbox(extent: Extent) {
 
 export class AgsFeatureLoader {
   private helper: TileTreeExt;
+  private maxRecordCount: number;
   public constructor(
     private options: {
       tree: TileTreeExt;
       url: string;
       maxDepth: Z;
-      maxRecordCount?: number;
       minRecordCount: number;
     }
   ) {
     this.helper = options.tree;
-    if (!this.options.maxRecordCount)
-      this.options.maxRecordCount = this.options.minRecordCount;
+    this.maxRecordCount = this.options.minRecordCount;
   }
 
   public async loader(tileIdentifier: XYZ, projection: Projection) {
@@ -56,8 +55,7 @@ export class AgsFeatureLoader {
     if (depth < 0) throw "cannot load tile with negative depth";
     const { tree, minRecordCount, url } = this.options;
 
-    const maxRecordCount =
-      this.options.maxRecordCount || this.options.minRecordCount;
+    const maxRecordCount = this.maxRecordCount || this.options.minRecordCount;
 
     const proxy = new FeatureServiceProxy({
       service: url,

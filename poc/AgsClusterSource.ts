@@ -35,11 +35,10 @@ export class AgsClusterSource<
   constructor(options: {
     tileSize: number;
     url: string;
-    maxRecordCount: number;
     minRecordCount: number;
     treeTileState?: TileTreeState<T>;
   }) {
-    const { url, maxRecordCount, minRecordCount, tileSize } = options;
+    const { url, minRecordCount, tileSize } = options;
     const tileGrid = createXYZ({ tileSize });
     const strategy = tileStrategy(tileGrid);
 
@@ -57,14 +56,13 @@ export class AgsClusterSource<
     this.priorResolution = 0;
 
     this.minRecordCount = minRecordCount;
-    this.maxRecordCount = maxRecordCount;
+    this.maxRecordCount = minRecordCount;
 
     this.featureLoader = new AgsFeatureLoader({
       tree: this.tree,
       url,
       maxDepth: 3,
       minRecordCount,
-      maxRecordCount,
     });
   }
 

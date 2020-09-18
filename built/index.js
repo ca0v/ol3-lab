@@ -14419,8 +14419,7 @@ define("poc/AgsFeatureLoader", ["require", "exports", "poc/FeatureServiceProxy",
         constructor(options) {
             this.options = options;
             this.helper = options.tree;
-            if (!this.options.maxRecordCount)
-                this.options.maxRecordCount = this.options.minRecordCount;
+            this.maxRecordCount = this.options.minRecordCount;
         }
         loader(tileIdentifier, projection) {
             return __awaiter(this, void 0, void 0, function* () {
@@ -14432,7 +14431,7 @@ define("poc/AgsFeatureLoader", ["require", "exports", "poc/FeatureServiceProxy",
                 if (depth < 0)
                     throw "cannot load tile with negative depth";
                 const { tree, minRecordCount, url } = this.options;
-                const maxRecordCount = this.options.maxRecordCount || this.options.minRecordCount;
+                const maxRecordCount = this.maxRecordCount || this.options.minRecordCount;
                 const proxy = new FeatureServiceProxy_1.FeatureServiceProxy({
                     service: url,
                 });
@@ -14486,8 +14485,6 @@ define("poc/test/ags-feature-loader-test", ["require", "exports", "mocha", "chai
     mocha_2.describe("AgsFeatureLoader tests", () => {
         mocha_2.it("loads feature counts for specific tiles up to 3 levels deep", () => __awaiter(void 0, void 0, void 0, function* () {
             const url = "http://localhost:3002/mock/sampleserver3/arcgis/rest/services/Petroleum/KSFields/FeatureServer/0/query";
-            const minRecordCount = -1;
-            const maxRecordCount = 1000;
             const projection = proj_1.get("EPSG:3857");
             const tree = new TileTree_1.TileTree({
                 extent: projection.getExtent(),
@@ -14496,8 +14493,7 @@ define("poc/test/ags-feature-loader-test", ["require", "exports", "mocha", "chai
             const loader = new AgsFeatureLoader_1.AgsFeatureLoader({
                 url,
                 maxDepth: 3,
-                minRecordCount,
-                maxRecordCount,
+                minRecordCount: 10,
                 tree: ext,
             });
             const q0mass = yield loader.loader({ X: 29 * 2, Y: 78 * 2, Z: 8 }, projection);
@@ -15850,7 +15846,7 @@ define("poc/AgsClusterSource", ["require", "exports", "poc/TileTree", "poc/TileT
     }
     class AgsClusterSource extends Vector_1.default {
         constructor(options) {
-            const { url, maxRecordCount, minRecordCount, tileSize } = options;
+            const { url, minRecordCount, tileSize } = options;
             const tileGrid = tilegrid_1.createXYZ({ tileSize });
             const strategy = loadingstrategy_1.tile(tileGrid);
             const tree = new TileTree_2.TileTree({
@@ -15864,13 +15860,12 @@ define("poc/AgsClusterSource", ["require", "exports", "poc/TileTree", "poc/TileT
             this.isFirstDraw = true;
             this.priorResolution = 0;
             this.minRecordCount = minRecordCount;
-            this.maxRecordCount = maxRecordCount;
+            this.maxRecordCount = minRecordCount;
             this.featureLoader = new AgsFeatureLoader_2.AgsFeatureLoader({
                 tree: this.tree,
                 url,
                 maxDepth: 3,
                 minRecordCount,
-                maxRecordCount,
             });
         }
         loadFeatures(extent, resolution, projection) {
@@ -16174,7 +16169,6 @@ define("poc/test/treetile-test", ["require", "exports", "mocha", "chai", "poc/Ti
             const source = new AgsClusterSource_1.AgsClusterSource({
                 tileSize,
                 url,
-                maxRecordCount: 1000,
                 minRecordCount: 100,
             });
             source.loadTile({ X: 0, Y: 0, Z: 0 }, projection);
@@ -24388,12 +24382,11 @@ define("poc/AgsClusterLayer", ["require", "exports", "node_modules/ol/src/layer/
     class AgsClusterLayer extends Vector_2.default {
         constructor(options) {
             super();
-            const { url, tileSize, minRecordCount, maxRecordCount, treeTileState, } = options;
+            const { url, tileSize, minRecordCount, treeTileState } = options;
             const source = new AgsClusterSource_2.AgsClusterSource({
                 tileSize,
                 url,
                 minRecordCount,
-                maxRecordCount,
                 treeTileState,
             });
             this.setStyle(createStyleFactory_1.createStyleFactory());
@@ -24708,7 +24701,6 @@ define("poc/test/ux/map-test", ["require", "exports", "mocha", "node_modules/ol/
             const vectorLayer = new AgsClusterLayer_1.AgsClusterLayer({
                 url,
                 tileSize: 256,
-                maxRecordCount: 1024,
                 minRecordCount: 100,
             });
             const layers = [vectorLayer];
@@ -24755,7 +24747,6 @@ define("poc/test/ux/map-test", ["require", "exports", "mocha", "node_modules/ol/
             const vectorLayer = new AgsClusterLayer_1.AgsClusterLayer({
                 url,
                 tileSize: 256,
-                maxRecordCount: 1024,
                 minRecordCount: 100,
                 treeTileState: decoder.unstringify(JSON.stringify(treetilestate_1.treeTileState)),
             });
@@ -24787,7 +24778,7 @@ define("poc/test/fun/showOnMap", ["require", "exports", "node_modules/ol/src/Fea
             case "feature":
                 return MIN_ZOOM_OFFSET <= zoffset && zoffset <= MAX_ZOOM_OFFSET;
             case "cluster":
-                return true;
+                return CLUSTER_ZOOM_OFFSET <= zoffset && zoffset <= CLUSTER_ZOOM_OFFSET;
         }
         return true;
     }
@@ -24796,11 +24787,15 @@ define("poc/test/fun/showOnMap", ["require", "exports", "node_modules/ol/src/Fea
         const tiles = helper.tree
             .descendants()
             .filter((id) => null !== helper.getMass(id));
+        const extent = helper.tree.asExtent(tiles[0]);
+        const boundingExtent = extent.slice();
+        extent_6.scaleFromCenter(boundingExtent, extent_6.getWidth(extent) / 4);
         const view = new View_2.default({
-            center: extent_6.getCenter(helper.tree.asExtent(tiles[0])),
-            zoom: helper.minZoom + 1,
+            center: extent_6.getCenter(extent),
+            zoom: helper.minZoom,
             minZoom: helper.minZoom,
             maxZoom: helper.maxZoom,
+            extent: boundingExtent,
         });
         const targetContainer = document.createElement("div");
         targetContainer.className = "testmapcontainer";
@@ -24913,28 +24908,22 @@ define("poc/test/fun/showOnMap", ["require", "exports", "node_modules/ol/src/Fea
             });
         }
         function updateCluster(tileIdentifier, Z) {
-            let targetIdentifier = tileIdentifier;
-            if (targetIdentifier.Z - Z < CLUSTER_ZOOM_OFFSET)
-                return;
-            while (targetIdentifier.Z - Z > CLUSTER_ZOOM_OFFSET) {
-                targetIdentifier = helper.tree.parent(targetIdentifier);
-            }
-            const mass = helper.centerOfMass(targetIdentifier).mass;
-            let feature = getTileFeature(tileFeatures, targetIdentifier);
+            const mass = helper.centerOfMass(tileIdentifier).mass;
+            let feature = getTileFeature(tileFeatures, tileIdentifier);
             if (!feature) {
                 feature = new Feature_3.default();
                 feature.setProperties({
                     type: "cluster",
-                    tileIdentifier: targetIdentifier,
-                    Z: targetIdentifier.Z,
+                    tileIdentifier: tileIdentifier,
+                    Z: tileIdentifier.Z,
+                    visible: false,
                 });
-                setTileFeature(tileFeatures, targetIdentifier, feature);
+                setTileFeature(tileFeatures, tileIdentifier, feature);
                 source.addFeature(feature);
-                const center = helper.tree.asCenter(targetIdentifier);
+                const center = helper.tree.asCenter(tileIdentifier);
                 feature.setGeometry(new Point_3.default(center));
             }
-            const visible = !!mass;
-            feature.setProperties({ visible, mass }, true);
+            feature.setProperties({ mass }, true);
         }
     }
     exports.showOnMap = showOnMap;
@@ -24943,7 +24932,25 @@ define("poc/test/ux/show-on-map", ["require", "exports", "mocha", "chai", "poc/A
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     mocha_7.describe("showOnMap tests", () => {
-        mocha_7.it("renders a fully loaded tree with clusters via showOnMap", () => __awaiter(void 0, void 0, void 0, function* () {
+        mocha_7.it("renders a fully loaded tree with clusters via showOnMap (petroleum)", () => __awaiter(void 0, void 0, void 0, function* () {
+            const url = "http://localhost:3002/mock/sampleserver3/arcgis/rest/services/Petroleum/KSFields/FeatureServer/0/query";
+            const projection = proj_4.get("EPSG:3857");
+            const tree = new TileTree_6.TileTree({
+                extent: projection.getExtent(),
+            });
+            const ext = new TileTreeExt_4.TileTreeExt(tree, { minZoom: 6, maxZoom: 18 });
+            const loader = new AgsFeatureLoader_3.AgsFeatureLoader({
+                url,
+                maxDepth: 4,
+                minRecordCount: 100,
+                tree: ext,
+            });
+            const tileIdentifier = tree.parent({ X: 29 * 2, Y: 78 * 2, Z: 8 });
+            const featureCount = yield loader.loader(tileIdentifier, projection);
+            chai_7.assert.equal(1617, featureCount, "features");
+            showOnMap_1.showOnMap({ helper: ext });
+        }));
+        mocha_7.it("renders a fully loaded tree with clusters via showOnMap (watershed)", () => __awaiter(void 0, void 0, void 0, function* () {
             const url = "http://localhost:3002/mock/sampleserver3/arcgis/rest/services/Hydrography/Watershed173811/FeatureServer/1/query";
             const projection = proj_4.get("EPSG:3857");
             const tree = new TileTree_6.TileTree({
@@ -24952,15 +24959,31 @@ define("poc/test/ux/show-on-map", ["require", "exports", "mocha", "chai", "poc/A
             const ext = new TileTreeExt_4.TileTreeExt(tree, { minZoom: 6, maxZoom: 18 });
             const loader = new AgsFeatureLoader_3.AgsFeatureLoader({
                 url,
-                maxDepth: 0,
+                maxDepth: 4,
                 minRecordCount: 100,
-                maxRecordCount: 100,
                 tree: ext,
             });
             const tileIdentifier = tree.parent({ X: 29 * 2, Y: 78 * 2, Z: 8 });
             const featureCount = yield loader.loader(tileIdentifier, projection);
             chai_7.assert.equal(5354, featureCount, "features");
-            debugger;
+            showOnMap_1.showOnMap({ helper: ext });
+        }));
+        mocha_7.it("renders a fully loaded tree with clusters via showOnMap (earthquakes)", () => __awaiter(void 0, void 0, void 0, function* () {
+            const url = "http://localhost:3002/mock/sampleserver3/arcgis/rest/services/Earthquakes/EarthquakesFromLastSevenDays/FeatureServer/0/query";
+            const projection = proj_4.get("EPSG:3857");
+            const tree = new TileTree_6.TileTree({
+                extent: projection.getExtent(),
+            });
+            const ext = new TileTreeExt_4.TileTreeExt(tree, { minZoom: 6, maxZoom: 18 });
+            const loader = new AgsFeatureLoader_3.AgsFeatureLoader({
+                url,
+                maxDepth: 4,
+                minRecordCount: 100,
+                tree: ext,
+            });
+            const tileIdentifier = { X: 0, Y: 0, Z: 0 };
+            const featureCount = yield loader.loader(tileIdentifier, projection);
+            chai_7.assert.equal(72, featureCount, "features");
             showOnMap_1.showOnMap({ helper: ext });
         }));
     });

@@ -3,7 +3,7 @@ import { get as getProjection } from "@ol/proj";
 import Feature from "@ol/Feature";
 import { TileTreeExt } from "poc/TileTreeExt";
 import Geometry from "@ol/geom/Geometry";
-import { getCenter, extend } from "@ol/extent";
+import { getCenter, extend, scaleFromCenter, getWidth } from "@ol/extent";
 import View from "@ol/View";
 import OlMap from "@ol/Map";
 import VectorLayer from "@ol/layer/Vector";
@@ -45,7 +45,7 @@ function isFeatureVisible(f: Feature<Geometry>, Z: Z) {
     case "feature":
       return MIN_ZOOM_OFFSET <= zoffset && zoffset <= MAX_ZOOM_OFFSET;
     case "cluster":
-      return true; //CLUSTER_ZOOM_OFFSET <= zoffset && zoffset <= CLUSTER_ZOOM_OFFSET;
+      return CLUSTER_ZOOM_OFFSET <= zoffset && zoffset <= CLUSTER_ZOOM_OFFSET;
   }
   return true;
 }
@@ -56,11 +56,16 @@ export function showOnMap(options: { helper: TileTreeExt }) {
     .descendants()
     .filter((id) => null !== helper.getMass(id));
 
+  const extent = helper.tree.asExtent(tiles[0]);
+  const boundingExtent = extent.slice();
+  scaleFromCenter(boundingExtent, getWidth(extent) / 4);
+
   const view = new View({
-    center: getCenter(helper.tree.asExtent(tiles[0])),
-    zoom: helper.minZoom + 1,
+    center: getCenter(extent),
+    zoom: helper.minZoom,
     minZoom: helper.minZoom,
     maxZoom: helper.maxZoom,
+    extent: boundingExtent,
   });
 
   const targetContainer = document.createElement("div");
@@ -198,28 +203,22 @@ export function showOnMap(options: { helper: TileTreeExt }) {
   }
 
   function updateCluster(tileIdentifier: XYZ, Z: Z) {
-    let targetIdentifier = tileIdentifier;
-    if (targetIdentifier.Z - Z < CLUSTER_ZOOM_OFFSET) return;
-    while (targetIdentifier.Z - Z > CLUSTER_ZOOM_OFFSET) {
-      targetIdentifier = helper.tree.parent(targetIdentifier);
-    }
-
-    const mass = helper.centerOfMass(targetIdentifier).mass;
-    let feature = getTileFeature(tileFeatures, targetIdentifier);
+    const mass = helper.centerOfMass(tileIdentifier).mass;
+    let feature = getTileFeature(tileFeatures, tileIdentifier);
     if (!feature) {
       feature = new Feature<Geometry>();
       feature.setProperties({
         type: "cluster",
-        tileIdentifier: targetIdentifier,
-        Z: targetIdentifier.Z,
+        tileIdentifier: tileIdentifier,
+        Z: tileIdentifier.Z,
+        visible: false,
       });
-      setTileFeature(tileFeatures, targetIdentifier, feature);
+      setTileFeature(tileFeatures, tileIdentifier, feature);
       source.addFeature(feature);
-      const center = helper.tree.asCenter(targetIdentifier);
+      const center = helper.tree.asCenter(tileIdentifier);
       feature.setGeometry(new Point(center));
     }
 
-    const visible = !!mass;
-    feature.setProperties({ visible, mass }, true);
+    feature.setProperties({ mass }, true);
   }
 }

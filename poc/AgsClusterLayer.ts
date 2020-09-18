@@ -11,23 +11,15 @@ export class AgsClusterLayer<
     url: string;
     tileSize: number;
     minRecordCount: number;
-    maxRecordCount: number;
     treeTileState?: TileTreeState<T>;
   }) {
     super();
-    const {
-      url,
-      tileSize,
-      minRecordCount,
-      maxRecordCount,
-      treeTileState,
-    } = options;
+    const { url, tileSize, minRecordCount, treeTileState } = options;
 
     const source = new AgsClusterSource({
       tileSize,
       url,
       minRecordCount,
-      maxRecordCount,
       treeTileState,
     });
 

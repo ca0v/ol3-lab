@@ -153,7 +153,6 @@ describe("TileTree Tests", () => {
     const source = new AgsClusterSource({
       tileSize,
       url,
-      maxRecordCount: 1000,
       minRecordCount: 100,
     });
 

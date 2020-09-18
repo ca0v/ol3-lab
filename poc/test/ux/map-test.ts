@@ -28,7 +28,6 @@ describe("UI Labs", () => {
     const vectorLayer = new AgsClusterLayer({
       url,
       tileSize: 256,
-      maxRecordCount: 1024,
       minRecordCount: 100,
     });
     const layers = [vectorLayer];
@@ -85,7 +84,6 @@ describe("UI Labs", () => {
     const vectorLayer = new AgsClusterLayer({
       url,
       tileSize: 256,
-      maxRecordCount: 1024,
       minRecordCount: 100,
       treeTileState: decoder.unstringify(JSON.stringify(treeTileState)),
     });

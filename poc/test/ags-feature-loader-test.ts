@@ -12,8 +12,6 @@ describe("AgsFeatureLoader tests", () => {
   it("loads feature counts for specific tiles up to 3 levels deep", async () => {
     const url =
       "http://localhost:3002/mock/sampleserver3/arcgis/rest/services/Petroleum/KSFields/FeatureServer/0/query";
-    const minRecordCount = -1;
-    const maxRecordCount = 1000;
     const projection = getProjection("EPSG:3857");
     const tree = new TileTree<{ count: number; center: XY }>({
       extent: projection.getExtent(),
@@ -24,8 +22,7 @@ describe("AgsFeatureLoader tests", () => {
     const loader = new AgsFeatureLoader({
       url,
       maxDepth: 3,
-      minRecordCount,
-      maxRecordCount,
+      minRecordCount: 10,
       tree: ext,
     });
 
