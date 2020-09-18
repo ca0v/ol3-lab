@@ -52,7 +52,6 @@ export function showOnMap(options: { helper: TileTreeExt }) {
     const features = helper.getFeatures(id);
     if (!features) return;
     source.addFeatures(features);
-    console.log(features.map((f) => f.getProperties().Z).join("."));
   });
 
   const tileView = new TileView({ source, helper });
@@ -64,7 +63,6 @@ export function showOnMap(options: { helper: TileTreeExt }) {
       mass: number;
     };
     const currentZoom = Math.round(view.getZoomForResolution(resolution) || 0);
-    if (!tileView.isFeatureVisible(feature, currentZoom)) return null;
     const zoffset = featureZoom - currentZoom;
     return styles.styleMaker({ type, zoffset, mass });
   }));

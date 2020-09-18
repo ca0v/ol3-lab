@@ -10,11 +10,21 @@ import {
   MAX_ZOOM_OFFSET,
   CLUSTER_ZOOM_OFFSET,
 } from "./showOnMap";
+import { TileHash } from "./TileHash";
+
+function isFeatureVisible(f: Feature<Geometry>) {
+  return true === f.getProperties().visible;
+}
+
+function setFeatureVisible(f: Feature<Geometry>, visible: boolean) {
+  f.setProperties({ visible });
+}
 
 export class TileView {
   private source: VectorSource<Geometry>;
   private helper: TileTreeExt;
   private tileFeatures = new Map<string, Feature<Geometry>>();
+  private tileHash = new TileHash();
 
   constructor(options: {
     source: VectorSource<Geometry>;
@@ -24,19 +34,29 @@ export class TileView {
     this.helper = options.helper;
   }
 
-  computeTileVisibility(currentZoom: Z): any {
-    // hide features
+  computeTileVisibility(currentZoom: Z) {
+    this.tileHash.clear();
+    // recompute visibility of all features
     this.source.getFeatures().forEach((f) => {
       const { tileIdentifier } = f.getProperties() as {
         tileIdentifier: XYZ;
       };
 
-      f.setProperties({ visible: this.isFeatureVisible(f, currentZoom) });
-      this.updateCluster(tileIdentifier, currentZoom);
+      const wasVisible = isFeatureVisible(f);
+      const isVisible = this.isFeatureVisible(f, currentZoom);
+
+      if (wasVisible !== isVisible) {
+        setFeatureVisible(f, isVisible);
+        this.tileHash.add(tileIdentifier);
+      }
     });
+
+    const staleTiles = this.tileHash.items();
+    console.log(staleTiles);
+    staleTiles.forEach((id) => this.updateCluster(id, currentZoom));
   }
 
-  updateCluster(tileIdentifier: XYZ, Z: Z) {
+  private updateCluster(tileIdentifier: XYZ, Z: Z) {
     const mass = this.helper.centerOfMass(tileIdentifier).mass;
     let feature = this.getTileFeature(tileIdentifier);
     if (!feature) {
@@ -56,18 +76,18 @@ export class TileView {
     feature.setProperties({ mass }, true);
   }
 
-  setTileFeature({ X, Y, Z }: XYZ, feature: Feature<Geometry>) {
+  private setTileFeature({ X, Y, Z }: XYZ, feature: Feature<Geometry>) {
     const key = `${X}.${Y}.${Z}`;
     this.tileFeatures.set(key, feature);
   }
 
-  getTileFeature({ X, Y, Z }: XYZ) {
+  private getTileFeature({ X, Y, Z }: XYZ) {
     const key = `${X}.${Y}.${Z}`;
     return this.tileFeatures.get(key);
   }
 
   // hide all features outside of current zoom
-  isFeatureVisible(f: Feature<Geometry>, Z: Z) {
+  private isFeatureVisible(f: Feature<Geometry>, Z: Z) {
     const featureZoom = f.getProperties().Z as Z;
     const type = f.getProperties().type as string;
     const zoffset = featureZoom - Z;
