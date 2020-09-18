@@ -1,45 +1,52 @@
 <!DOCTYPE html>
 <html>
-
-<head>
-    <meta charset="UTF-8">
+  <head>
+    <meta charset="UTF-8" />
     <style>
-        @import url('./static/ol.css');
-        @import url('./static/mocha.css');
+      @import url("./static/ol.css");
+      @import url("./static/mocha.css");
     </style>
-    <link rel="stylesheet" type="text/css" href="./ol3-lab/app.css">
+    <link rel="stylesheet" type="text/css" href="./ol3-lab/app.css" />
     <script src="./static/mocha.js"></script>
     <script src="./static/chai.js"></script>
     <script src="./static/require.js"></script>
-    <script src="./built/index.js"></script>
-</head>
+  </head>
 
-<body class="lite">
+  <body class="lite">
     <div id="mocha"></div>
     <script>
-        (function () {
-            mocha.setup({ ui: "bdd", bail: true, timeout: 5000 });
-            define("mocha", { describe, it });
-            define("chai", chai);
-            requirejs.config({
-                paths: {
-                    "@ol": "node_modules/ol/src"
-                }
-            });
+      (function () {
+        mocha.setup({ ui: "bdd", bail: true, timeout: 5000 });
+        define("mocha", { describe, it });
+        define("chai", chai);
+        requirejs.config({
+          deps: [
+            -1 < window.location.search.indexOf("local")
+              ? "./built/index.js"
+              : "./built/index.min.js",
+          ],
+          paths: {
+            "@ol": "node_modules/ol/src",
+          },
+          callback: () => {
             require(["index"], function (v) {
-                mocha.run();
+              mocha.run();
             });
-        })();
-        (function () {
-            const a = document.createElement("button");
-            a.addEventListener("click", () => {
-                document.body.classList.toggle("dark");
-                a.innerText = document.body.classList.contains("dark") ? "light" : "dark";
-            });
-            a.click();
-            document.body.insertBefore(a, document.getElementById("mocha"));
-        })();
-    </script>
-</body>
+          },
+        });
+      })();
 
+      (function () {
+        const a = document.createElement("button");
+        a.addEventListener("click", () => {
+          document.body.classList.toggle("dark");
+          a.innerText = document.body.classList.contains("dark")
+            ? "light"
+            : "dark";
+        });
+        a.click();
+        document.body.insertBefore(a, document.getElementById("mocha"));
+      })();
+    </script>
+  </body>
 </html>

@@ -14,11 +14,12 @@
     "cp:js": "npm-run-all -p cp:ol cp:mocha cp:chai cp:requirejs",
     "cp": "npm-run-all -p cp:js",
     "clean": "rm built/** -rf",
-    "live": "live-server --port=5000 --wait=200 --watch=./built/index.js --open=./index.html",
+    "live": "live-server --port=5000 --wait=200 --watch=./built/index.js --open=./index.html?local",
     "build:index": "tsc -p tsconfig.json --outFile ./built/index.js",
     "watch:index": "npm run build:index -- -w",
     "proxy": "reverse-proxy-cache",
     "postinstall": "npm-run-all cp go",
+    "deploy": "terser ./built/index.js --compress --mangle --ecma 2015 -o ./built/index.min.js",
     "go": "npm-run-all -p proxy live watch:index"
   },
   "dependencies": {},
@@ -34,6 +35,7 @@
     "requirejs": "^2.3.6",
     "reverse-proxy-cache": "https://github.com/ca0v/reverse-proxy-cache/tarball/v1.0.4",
     "rollup": "^2.26.5",
+    "terser": "^5.3.2",
     "typescript": "^4.0.2"
   },
   "reverse-proxy-cache": {
@@ -54,6 +56,10 @@
       {
         "baseUri": "/mock/sampleserver3/arcgis/rest/services",
         "proxyUri": "https://sampleserver3.arcgisonline.com/ArcGIS/rest/services"
+      },
+      {
+        "baseUri": "/mock/gis1/arcgis/rest/services",
+        "proxyUri": "https://usalvwdgis1.infor.com:6443/arcgis/rest/services"
       }
     ]
   }

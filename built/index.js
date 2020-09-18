@@ -14393,7 +14393,44 @@ define("node_modules/ol/src/format/EsriJSON", ["require", "exports", "node_modul
     }
     exports.default = EsriJSON;
 });
-define("poc/AgsFeatureLoader", ["require", "exports", "poc/FeatureServiceProxy", "poc/fun/removeAuthority", "node_modules/ol/src/format/EsriJSON"], function (require, exports, FeatureServiceProxy_1, removeAuthority_1, EsriJSON_1) {
+define("poc/fun/slowloop", ["require", "exports"], function (require, exports) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.slowloop = void 0;
+    function slowloop(functions, interval = 1000, cycles = 1, progress) {
+        return __awaiter(this, void 0, void 0, function* () {
+            let index = 0;
+            let cycle = 0;
+            const results = [];
+            return new Promise((good, bad) => {
+                if (!functions || 0 >= cycles) {
+                    good();
+                }
+                const h = setInterval(() => {
+                    if (index === functions.length) {
+                        index = 0;
+                        if (++cycle === cycles) {
+                            good(results);
+                            clearInterval(h);
+                            return;
+                        }
+                    }
+                    try {
+                        progress && progress({ index, cycle });
+                        results[index] = functions[index]();
+                        index++;
+                    }
+                    catch (ex) {
+                        clearInterval(h);
+                        bad(ex);
+                    }
+                }, interval);
+            });
+        });
+    }
+    exports.slowloop = slowloop;
+});
+define("poc/AgsFeatureLoader", ["require", "exports", "poc/FeatureServiceProxy", "poc/fun/removeAuthority", "node_modules/ol/src/format/EsriJSON", "poc/fun/slowloop"], function (require, exports, FeatureServiceProxy_1, removeAuthority_1, EsriJSON_1, slowloop_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.AgsFeatureLoader = void 0;
@@ -14415,42 +14452,63 @@ define("poc/AgsFeatureLoader", ["require", "exports", "poc/FeatureServiceProxy",
         const [xmin, ymin, xmax, ymax] = extent;
         return JSON.stringify({ xmin, ymin, xmax, ymax });
     }
+    const DEFAULT_OPTIONS = {
+        maxDepth: 0,
+        minRecordCount: 256,
+        networkThrottle: 100,
+    };
     class AgsFeatureLoader {
         constructor(options) {
             this.options = options;
             this.helper = options.tree;
-            this.maxRecordCount = this.options.minRecordCount;
         }
         loader(tileIdentifier, projection) {
             return __awaiter(this, void 0, void 0, function* () {
-                return this.loadTile(tileIdentifier, projection, this.options.maxDepth);
+                return this.loadTile(tileIdentifier, projection, this.options.maxDepth || 0);
             });
         }
         loadTile(tileIdentifier, projection, depth) {
             return __awaiter(this, void 0, void 0, function* () {
                 if (depth < 0)
                     throw "cannot load tile with negative depth";
-                const { tree, minRecordCount, url } = this.options;
-                const maxRecordCount = this.maxRecordCount || this.options.minRecordCount;
+                const { tree, url } = this.options;
+                const featureLoadThreshold = this.options.minRecordCount || DEFAULT_OPTIONS.minRecordCount;
+                const throttle = this.options.networkThrottle || DEFAULT_OPTIONS.networkThrottle;
                 const proxy = new FeatureServiceProxy_1.FeatureServiceProxy({
                     service: url,
                 });
-                const request = asRequest(projection);
-                request.geometry = bbox(tree.tree.asExtent(tileIdentifier));
-                request.returnCountOnly = true;
-                const response = yield proxy.fetch(request);
-                const count = response.count;
+                const count = yield (() => __awaiter(this, void 0, void 0, function* () {
+                    const request = asRequest(projection);
+                    request.geometry = bbox(tree.tree.asExtent(tileIdentifier));
+                    request.returnCountOnly = true;
+                    try {
+                        const response = yield proxy.fetch(request);
+                        return response.count;
+                    }
+                    catch (ex) {
+                        console.error(ex);
+                        return 0;
+                    }
+                }))();
                 this.helper.setMass(tileIdentifier, count);
                 if (0 >= depth || 0 == count)
                     return count;
-                if (count < minRecordCount) {
-                    const features = yield this.loadFeatures(request, proxy, projection);
-                    features.forEach((f) => this.helper.addFeature(f));
+                if (count <= featureLoadThreshold) {
+                    const request = asRequest(projection);
+                    request.geometry = bbox(tree.tree.asExtent(tileIdentifier));
+                    try {
+                        const features = yield this.loadFeatures(request, proxy, projection);
+                        console.assert(features.length === count, `feature count may not match count response when the data is changes: ${count} != ${features.length}`);
+                        features.forEach((f) => this.helper.addFeature(f));
+                    }
+                    catch (ex) {
+                        console.error(ex);
+                    }
                 }
-                else if (count > maxRecordCount) {
-                    yield Promise.all(tree.tree
+                else if (count > featureLoadThreshold) {
+                    yield Promise.all(yield slowloop_1.slowloop(tree.tree
                         .quads(tileIdentifier)
-                        .map((id) => this.loadTile(id, projection, depth - 1)));
+                        .map((id) => () => this.loadTile(id, projection, depth - 1)), throttle));
                 }
                 return count;
             });
@@ -14458,7 +14516,6 @@ define("poc/AgsFeatureLoader", ["require", "exports", "poc/FeatureServiceProxy",
         loadFeatures(request, proxy, projection) {
             return __awaiter(this, void 0, void 0, function* () {
                 const esrijsonFormat = new EsriJSON_1.default();
-                request.returnCountOnly = false;
                 const response = yield proxy.fetch(request);
                 const features = esrijsonFormat.readFeatures(response, {
                     featureProjection: projection,
@@ -14483,7 +14540,7 @@ define("poc/test/ags-feature-loader-test", ["require", "exports", "mocha", "chai
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     mocha_2.describe("AgsFeatureLoader tests", () => {
-        mocha_2.it("loads feature counts for specific tiles up to 3 levels deep", () => __awaiter(void 0, void 0, void 0, function* () {
+        mocha_2.it("loads feature counts for specific tiles up to 0 levels deep", () => __awaiter(void 0, void 0, void 0, function* () {
             const url = "http://localhost:3002/mock/sampleserver3/arcgis/rest/services/Petroleum/KSFields/FeatureServer/0/query";
             const projection = proj_1.get("EPSG:3857");
             const tree = new TileTree_1.TileTree({
@@ -14492,9 +14549,9 @@ define("poc/test/ags-feature-loader-test", ["require", "exports", "mocha", "chai
             const ext = new TileTreeExt_1.TileTreeExt(tree, { minZoom: 6, maxZoom: 20 });
             const loader = new AgsFeatureLoader_1.AgsFeatureLoader({
                 url,
-                maxDepth: 3,
                 minRecordCount: 10,
                 tree: ext,
+                networkThrottle: 500,
             });
             const q0mass = yield loader.loader({ X: 29 * 2, Y: 78 * 2, Z: 8 }, projection);
             chai_3.assert.equal(481, q0mass, "q0");
@@ -14506,13 +14563,43 @@ define("poc/test/ags-feature-loader-test", ["require", "exports", "mocha", "chai
             chai_3.assert.equal(260, q3mass, "q3");
             const mass = yield loader.loader({ X: 29, Y: 78, Z: 7 }, projection);
             chai_3.assert.equal(q0mass + q1mass + q2mass + q3mass + 47, mass);
+        }));
+        mocha_2.it("loads starting from {0,0,0} 11 levels deep", () => __awaiter(void 0, void 0, void 0, function* () {
+            const url = "http://localhost:3002/mock/sampleserver3/arcgis/rest/services/Petroleum/KSFields/FeatureServer/0/query";
+            const projection = proj_1.get("EPSG:3857");
+            const tree = new TileTree_1.TileTree({
+                extent: projection.getExtent(),
+            });
+            const ext = new TileTreeExt_1.TileTreeExt(tree, { minZoom: 6, maxZoom: 20 });
+            const loader = new AgsFeatureLoader_1.AgsFeatureLoader({
+                url,
+                maxDepth: 11,
+                minRecordCount: 1000,
+                tree: ext,
+            });
             const totalMass = yield loader.loader({ X: 0, Y: 0, Z: 0 }, projection);
             chai_3.assert.equal(6918, totalMass);
             chai_3.assert.equal(ext.getMass({ X: 0, Y: 0, Z: 0 }), totalMass, "loader is modifying the tree data on level-0 tiles");
             chai_3.assert.equal(ext.getMass({ X: 0, Y: 1, Z: 1 }), totalMass, "loader is modifying the tree data on level-1 tiles");
             chai_3.assert.equal(ext.getMass({ X: 0, Y: 2, Z: 2 }), totalMass, "loader is modifying the tree data on level-2 tiles");
-            chai_3.assert.equal(ext.getMass({ X: 0, Y: 4, Z: 3 }), null, "loader is NOT modifying the tree data on level-3 tiles");
-        }));
+            console.log(ext.tree.descendants().filter((id) => !!ext.getMass(id)));
+            chai_3.assert.equal(ext.getMass({ X: 1, Y: 4, Z: 3 }), totalMass, "loader is modifying the tree data on level-3 tiles");
+            chai_3.assert.equal(ext.getMass({ X: 3, Y: 9, Z: 4 }), totalMass, "loader is modifying the tree data on level-4 tiles");
+            chai_3.assert.equal(ext.getMass({ X: 7, Y: 19, Z: 5 }), 6651, "loader is modifying the tree data on level-5 tiles");
+            chai_3.assert.equal(ext.getMass({ X: 14, Y: 39, Z: 6 }), 6345, "loader is modifying the tree data on level-6 tiles");
+            chai_3.assert.equal(ext.getMass({ X: 28, Y: 78, Z: 7 }), 3052, "loader is modifying the tree data on level-7 tiles");
+            chai_3.assert.equal(ext.getMass({ X: 57, Y: 158, Z: 8 }), 938, "loader is modifying the tree data on level-8 tiles");
+            chai_3.assert.equal(ext.getMass({ X: 114, Y: 314, Z: 9 }), 160, "loader is modifying the tree data on level-9 tiles");
+            chai_3.assert.equal(ext.centerOfMass({ X: 114, Y: 314, Z: 9 }).mass, 160, "level-9 tiles contain mass: 114,314");
+            chai_3.assert.equal(ext.centerOfMass({ X: 115, Y: 316, Z: 9 }).mass, 163, "level-9 tiles contain mass: 115,316");
+            chai_3.assert.deepEqual(ext.centerOfMass(ext.tree.parent({ X: 115, Y: 316, Z: 9 })).mass, 938, "parent has mass 938");
+            chai_3.assert.deepEqual(ext.getFeatures(ext.tree.parent({ X: 115, Y: 316, Z: 9 })).length, 23, "some of that mass is made up of 23 features");
+            chai_3.assert.deepEqual(ext.tree
+                .children(ext.tree.parent({ X: 115, Y: 316, Z: 9 }))
+                .map((id) => ext.centerOfMass(id).mass), [544, 206, 2, 163], "the children must have 938-23 units of mass");
+            chai_3.assert.equal(ext.getFeatures({ X: 115, Y: 316, Z: 9 }).length, 7, "level-9 tiles contain features: 115,316");
+            yield loader.loader({ X: 115, Y: 316, Z: 9 }, projection);
+        })).timeout(60 * 1000);
         mocha_2.it("drills into a tile until all features are loaded up to 10 levels deep but never more than 128 features at a time", () => __awaiter(void 0, void 0, void 0, function* () {
             const url = "http://localhost:3002/mock/sampleserver3/arcgis/rest/services/Petroleum/KSFields/FeatureServer/0/query";
             const projection = proj_1.get("EPSG:3857");
@@ -14606,7 +14693,53 @@ define("poc/test/ags-feature-loader-test", ["require", "exports", "mocha", "chai
                 6609,
                 6556,
             ]);
-        }));
+        })).timeout(60 * 1000);
+        mocha_2.it("hits internal GIS system PART 1", () => __awaiter(void 0, void 0, void 0, function* () {
+            const url = "http://localhost:3002/mock/gis1/arcgis/rest/services/IPS112/QA112UK/FeatureServer/1/query";
+            const projection = proj_1.get("EPSG:3857");
+            const tree = new TileTree_1.TileTree({
+                extent: projection.getExtent(),
+            });
+            const ext = new TileTreeExt_1.TileTreeExt(tree, { minZoom: 6, maxZoom: 20 });
+            const loader = new AgsFeatureLoader_1.AgsFeatureLoader({
+                url,
+                maxDepth: 5,
+                minRecordCount: 128,
+                networkThrottle: 100,
+                tree: ext,
+            });
+            const totalMass = yield loader.loader({ X: 0, Y: 0, Z: 0 }, projection);
+            chai_3.assert.equal(totalMass, 9076, "sanity check");
+            console.log(totalMass, ext.tree.save());
+            chai_3.assert.deepEqual(ext.centerOfMass({ X: 0, Y: 1, Z: 1 }).mass, 9076, "level 1");
+            chai_3.assert.deepEqual(ext.centerOfMass({ X: 1, Y: 2, Z: 2 }).mass, 9076, "level 2");
+            chai_3.assert.deepEqual(ext.centerOfMass({ X: 3, Y: 5, Z: 3 }).mass, 9076, "level 3");
+            chai_3.assert.deepEqual(ext.centerOfMass({ X: 7, Y: 10, Z: 4 }).mass, 9076, "level 4");
+            chai_3.assert.deepEqual(ext.centerOfMass({ X: 15, Y: 21, Z: 5 }).mass, 9076, "level 5");
+        })).timeout(10 * 1000);
+        mocha_2.it("hits internal GIS system PART 2", () => __awaiter(void 0, void 0, void 0, function* () {
+            const url = "http://localhost:3002/mock/gis1/arcgis/rest/services/IPS112/QA112UK/FeatureServer/1/query";
+            const projection = proj_1.get("EPSG:3857");
+            const tree = new TileTree_1.TileTree({
+                extent: projection.getExtent(),
+            });
+            const ext = new TileTreeExt_1.TileTreeExt(tree, { minZoom: 6, maxZoom: 20 });
+            const loader = new AgsFeatureLoader_1.AgsFeatureLoader({
+                tree: ext,
+                url,
+                maxDepth: 5,
+                minRecordCount: 128,
+                networkThrottle: 10,
+            });
+            const totalMass = yield loader.loader({ X: 15, Y: 21, Z: 5 }, projection);
+            chai_3.assert.equal(totalMass, 9076, "sanity check");
+            console.log(totalMass, ext.tree.save().data.filter((d) => 0 < d[3].mass));
+            chai_3.assert.deepEqual(ext.getMass({ X: 31, Y: 42, Z: 6 }), 804, "level 6");
+            chai_3.assert.deepEqual(ext.getMass({ X: 63, Y: 85, Z: 7 }), 804, "level 7");
+            chai_3.assert.deepEqual(ext.getMass({ X: 126, Y: 171, Z: 8 }), 714, "level 8");
+            chai_3.assert.deepEqual(ext.getMass({ X: 252, Y: 343, Z: 9 }), 47, "level 9");
+            chai_3.assert.deepEqual(ext.getMass({ X: 504, Y: 688, Z: 10 }), 204, "level 10");
+        })).timeout(10 * 1000);
     });
 });
 define("poc/test/xyz-test", ["require", "exports", "mocha", "chai", "node_modules/ol/src/proj", "poc/fun/asExtent", "poc/fun/asXYZ"], function (require, exports, mocha_3, chai_4, proj_2, asExtent_2, asXYZ_2) {
