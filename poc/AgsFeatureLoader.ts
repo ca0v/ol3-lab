@@ -7,6 +7,7 @@ import { FeatureServiceRequest } from "./FeatureServiceRequest";
 import EsriJSON from "@ol/format/EsriJSON";
 import type { XYZ } from "poc/types/XYZ";
 import type { Z } from "./types/XY";
+import { slowloop } from "./fun/slowloop";
 
 function asRequest(projection: Projection) {
   const request: FeatureServiceRequest = {
@@ -28,23 +29,35 @@ function bbox(extent: Extent) {
   return JSON.stringify({ xmin, ymin, xmax, ymax });
 }
 
+interface AgsFeatureLoaderOptions {
+  maxDepth: number;
+  minRecordCount: number;
+  networkThrottle: number;
+}
+
+const DEFAULT_OPTIONS: AgsFeatureLoaderOptions = {
+  maxDepth: 0, // zoom levels
+  minRecordCount: 256, // features
+  networkThrottle: 100, // ms
+};
+
 export class AgsFeatureLoader {
   private helper: TileTreeExt;
-  private maxRecordCount: number;
   public constructor(
     private options: {
       tree: TileTreeExt;
       url: string;
-      maxDepth: Z;
-      minRecordCount: number;
-    }
+    } & Partial<AgsFeatureLoaderOptions>
   ) {
     this.helper = options.tree;
-    this.maxRecordCount = this.options.minRecordCount;
   }
 
   public async loader(tileIdentifier: XYZ, projection: Projection) {
-    return this.loadTile(tileIdentifier, projection, this.options.maxDepth);
+    return this.loadTile(
+      tileIdentifier,
+      projection,
+      this.options.maxDepth || 0
+    );
   }
 
   private async loadTile(
@@ -53,36 +66,65 @@ export class AgsFeatureLoader {
     depth: number
   ) {
     if (depth < 0) throw "cannot load tile with negative depth";
-    const { tree, minRecordCount, url } = this.options;
+    const { tree, url } = this.options;
 
-    const maxRecordCount = this.maxRecordCount || this.options.minRecordCount;
+    const featureLoadThreshold =
+      this.options.minRecordCount || DEFAULT_OPTIONS.minRecordCount;
+
+    const throttle =
+      this.options.networkThrottle || DEFAULT_OPTIONS.networkThrottle;
 
     const proxy = new FeatureServiceProxy({
       service: url,
     });
 
-    const request = asRequest(projection);
-    request.geometry = bbox(tree.tree.asExtent(tileIdentifier));
-    request.returnCountOnly = true;
-    const response = await proxy.fetch<{ count: number }>(request);
-    const count = response.count;
+    const count = await (async () => {
+      const request = asRequest(projection);
+      request.geometry = bbox(tree.tree.asExtent(tileIdentifier));
+      request.returnCountOnly = true;
+      try {
+        const response = await proxy.fetch<{ count: number }>(request);
+        return response.count;
+      } catch (ex) {
+        console.error(ex);
+        return 0;
+      }
+    })();
+
     this.helper.setMass(tileIdentifier, count);
 
     if (0 >= depth || 0 == count) return count;
 
     // count is low enough to load features
-    if (count < minRecordCount) {
+    if (count <= featureLoadThreshold) {
       // load the actual features into the bounding tiles
-      const features = await this.loadFeatures(request, proxy, projection);
-      features.forEach((f) => this.helper.addFeature(f));
+      const request = asRequest(projection);
+      request.geometry = bbox(tree.tree.asExtent(tileIdentifier));
+
+      try {
+        const features = await this.loadFeatures(request, proxy, projection);
+
+        // it is often the case that the count does not match the actual feature count
+        // will test with a stable service
+        console.assert(
+          features.length === count,
+          `feature count may not match count response when the data is changes: ${count} != ${features.length}`
+        );
+        features.forEach((f) => this.helper.addFeature(f));
+      } catch (ex) {
+        console.error(ex);
+      }
     }
 
     // count is too high, load sub-tiles
-    else if (count > maxRecordCount) {
+    else if (count > featureLoadThreshold) {
       await Promise.all(
-        tree.tree
-          .quads(tileIdentifier)
-          .map((id) => this.loadTile(id, projection, depth - 1))
+        await slowloop(
+          tree.tree
+            .quads(tileIdentifier)
+            .map((id) => () => this.loadTile(id, projection, depth - 1)),
+          throttle
+        )
       );
     }
 
@@ -95,7 +137,6 @@ export class AgsFeatureLoader {
     projection: Projection
   ) {
     const esrijsonFormat = new EsriJSON();
-    request.returnCountOnly = false;
     const response = await proxy.fetch<{
       objectIdFieldName: string;
       features: { attributes: any; geometry: any }[];

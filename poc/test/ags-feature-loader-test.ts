@@ -9,21 +9,20 @@ import { TileTreeExt } from "poc/TileTreeExt";
 import { flatten } from "poc/fun/flatten";
 
 describe("AgsFeatureLoader tests", () => {
-  it("loads feature counts for specific tiles up to 3 levels deep", async () => {
+  it("loads feature counts for specific tiles up to 0 levels deep", async () => {
     const url =
       "http://localhost:3002/mock/sampleserver3/arcgis/rest/services/Petroleum/KSFields/FeatureServer/0/query";
     const projection = getProjection("EPSG:3857");
-    const tree = new TileTree<{ count: number; center: XY }>({
+    const tree = new TileTree<{ count: number; center: XY; mass: number }>({
       extent: projection.getExtent(),
     });
 
     const ext = new TileTreeExt(tree, { minZoom: 6, maxZoom: 20 });
-
     const loader = new AgsFeatureLoader({
       url,
-      maxDepth: 3,
       minRecordCount: 10,
       tree: ext,
+      networkThrottle: 500,
     });
 
     const q0mass = await loader.loader(
@@ -54,6 +53,24 @@ describe("AgsFeatureLoader tests", () => {
 
     // 47 features are in more than one quadrant
     assert.equal(q0mass + q1mass + q2mass + q3mass + 47, mass);
+  });
+
+  it("loads starting from {0,0,0} 11 levels deep", async () => {
+    const url =
+      "http://localhost:3002/mock/sampleserver3/arcgis/rest/services/Petroleum/KSFields/FeatureServer/0/query";
+    const projection = getProjection("EPSG:3857");
+    const tree = new TileTree<{ count: number; mass: number; center: XY }>({
+      extent: projection.getExtent(),
+    });
+
+    const ext = new TileTreeExt(tree, { minZoom: 6, maxZoom: 20 });
+    // 11 deep at 16 requests per second implies 250
+    const loader = new AgsFeatureLoader({
+      url,
+      maxDepth: 11,
+      minRecordCount: 1000,
+      tree: ext,
+    });
 
     const totalMass = await loader.loader({ X: 0, Y: 0, Z: 0 }, projection);
     assert.equal(6918, totalMass);
@@ -77,18 +94,98 @@ describe("AgsFeatureLoader tests", () => {
       "loader is modifying the tree data on level-2 tiles"
     );
 
+    console.log(ext.tree.descendants().filter((id) => !!ext.getMass(id)));
+
     assert.equal(
-      ext.getMass({ X: 0, Y: 4, Z: 3 }),
-      null,
-      "loader is NOT modifying the tree data on level-3 tiles"
+      ext.getMass({ X: 1, Y: 4, Z: 3 }),
+      totalMass,
+      "loader is modifying the tree data on level-3 tiles"
     );
-  });
+
+    assert.equal(
+      ext.getMass({ X: 3, Y: 9, Z: 4 }),
+      totalMass,
+      "loader is modifying the tree data on level-4 tiles"
+    );
+
+    assert.equal(
+      ext.getMass({ X: 7, Y: 19, Z: 5 }),
+      6651,
+      "loader is modifying the tree data on level-5 tiles"
+    );
+
+    assert.equal(
+      ext.getMass({ X: 14, Y: 39, Z: 6 }),
+      6345,
+      "loader is modifying the tree data on level-6 tiles"
+    );
+
+    assert.equal(
+      ext.getMass({ X: 28, Y: 78, Z: 7 }),
+      3052,
+      "loader is modifying the tree data on level-7 tiles"
+    );
+
+    assert.equal(
+      ext.getMass({ X: 57, Y: 158, Z: 8 }),
+      938,
+      "loader is modifying the tree data on level-8 tiles"
+    );
+
+    assert.equal(
+      ext.getMass({ X: 114, Y: 314, Z: 9 }),
+      160,
+      "loader is modifying the tree data on level-9 tiles"
+    );
+
+    assert.equal(
+      ext.centerOfMass({ X: 114, Y: 314, Z: 9 }).mass,
+      160,
+      "level-9 tiles contain mass: 114,314"
+    );
+
+    assert.equal(
+      ext.centerOfMass({ X: 115, Y: 316, Z: 9 }).mass,
+      163, // reporting 163...why?
+      "level-9 tiles contain mass: 115,316"
+    );
+
+    // discover why the mass is 163 and not 164
+    assert.deepEqual(
+      ext.centerOfMass(ext.tree.parent({ X: 115, Y: 316, Z: 9 })).mass,
+      938,
+      "parent has mass 938"
+    );
+
+    assert.deepEqual(
+      ext.getFeatures(ext.tree.parent({ X: 115, Y: 316, Z: 9 })).length,
+      23,
+      "some of that mass is made up of 23 features"
+    );
+
+    assert.deepEqual(
+      ext.tree
+        .children(ext.tree.parent({ X: 115, Y: 316, Z: 9 }))
+        .map((id) => ext.centerOfMass(id).mass),
+      [544, 206, 2, 163], // 915
+      "the children must have 938-23 units of mass"
+    );
+
+    // but that last child should have 164 mass...
+    assert.equal(
+      ext.getFeatures({ X: 115, Y: 316, Z: 9 }).length,
+      7, // center of mass is 163, why?
+      "level-9 tiles contain features: 115,316"
+    );
+
+    await loader.loader({ X: 115, Y: 316, Z: 9 }, projection);
+  }).timeout(60 * 1000);
 
   it("drills into a tile until all features are loaded up to 10 levels deep but never more than 128 features at a time", async () => {
     const url =
       "http://localhost:3002/mock/sampleserver3/arcgis/rest/services/Petroleum/KSFields/FeatureServer/0/query";
     const projection = getProjection("EPSG:3857");
-    const tree = new TileTree<{ count: number; center: XY }>({
+    const tree = new TileTree<{ count: number; mass: number; center: XY }>({
       extent: projection.getExtent(),
     });
 
@@ -229,5 +326,94 @@ describe("AgsFeatureLoader tests", () => {
       6609,
       6556,
     ]);
-  });
+  }).timeout(60 * 1000);
+
+  it("hits internal GIS system PART 1", async () => {
+    const url =
+      "http://localhost:3002/mock/gis1/arcgis/rest/services/IPS112/QA112UK/FeatureServer/1/query";
+    const projection = getProjection("EPSG:3857");
+    const tree = new TileTree<{ count: number; mass: number; center: XY }>({
+      extent: projection.getExtent(),
+    });
+
+    const ext = new TileTreeExt(tree, { minZoom: 6, maxZoom: 20 });
+
+    const loader = new AgsFeatureLoader({
+      url,
+      maxDepth: 5,
+      minRecordCount: 128,
+      networkThrottle: 100,
+      tree: ext,
+    });
+
+    const totalMass = await loader.loader({ X: 0, Y: 0, Z: 0 }, projection);
+    assert.equal(totalMass, 9076, "sanity check");
+    console.log(totalMass, ext.tree.save());
+
+    assert.deepEqual(
+      ext.centerOfMass({ X: 0, Y: 1, Z: 1 }).mass,
+      9076,
+      "level 1"
+    );
+
+    assert.deepEqual(
+      ext.centerOfMass({ X: 1, Y: 2, Z: 2 }).mass,
+      9076,
+      "level 2"
+    );
+
+    assert.deepEqual(
+      ext.centerOfMass({ X: 3, Y: 5, Z: 3 }).mass,
+      9076,
+      "level 3"
+    );
+
+    assert.deepEqual(
+      ext.centerOfMass({ X: 7, Y: 10, Z: 4 }).mass,
+      9076,
+      "level 4"
+    );
+
+    assert.deepEqual(
+      ext.centerOfMass({ X: 15, Y: 21, Z: 5 }).mass,
+      9076,
+      "level 5"
+    );
+  }).timeout(10 * 1000);
+
+  it("hits internal GIS system PART 2", async () => {
+    const url =
+      "http://localhost:3002/mock/gis1/arcgis/rest/services/IPS112/QA112UK/FeatureServer/1/query";
+    const projection = getProjection("EPSG:3857");
+    const tree = new TileTree<{ count: number; mass: number; center: XY }>({
+      extent: projection.getExtent(),
+    });
+
+    const ext = new TileTreeExt(tree, { minZoom: 6, maxZoom: 20 });
+
+    const loader = new AgsFeatureLoader({
+      tree: ext,
+      url,
+      maxDepth: 5,
+      minRecordCount: 128,
+      networkThrottle: 10,
+    });
+
+    const totalMass = await loader.loader({ X: 15, Y: 21, Z: 5 }, projection);
+    assert.equal(totalMass, 9076, "sanity check");
+    console.log(
+      totalMass,
+      ext.tree.save().data.filter((d: any) => 0 < d[3].mass)
+    );
+
+    assert.deepEqual(ext.getMass({ X: 31, Y: 42, Z: 6 }), 804, "level 6");
+
+    assert.deepEqual(ext.getMass({ X: 63, Y: 85, Z: 7 }), 804, "level 7");
+
+    assert.deepEqual(ext.getMass({ X: 126, Y: 171, Z: 8 }), 714, "level 8");
+
+    assert.deepEqual(ext.getMass({ X: 252, Y: 343, Z: 9 }), 47, "level 9");
+
+    assert.deepEqual(ext.getMass({ X: 504, Y: 688, Z: 10 }), 204, "level 10");
+  }).timeout(10 * 1000);
 });

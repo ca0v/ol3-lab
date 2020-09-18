@@ -12,7 +12,7 @@ describe("showOnMap tests", () => {
     const url =
       "http://localhost:3002/mock/sampleserver3/arcgis/rest/services/Petroleum/KSFields/FeatureServer/0/query";
     const projection = getProjection("EPSG:3857");
-    const tree = new TileTree<{}>({
+    const tree = new TileTree<{ mass: number }>({
       extent: projection.getExtent(),
     });
     const ext = new TileTreeExt(tree, { minZoom: 6, maxZoom: 18 });
@@ -35,7 +35,7 @@ describe("showOnMap tests", () => {
     const url =
       "http://localhost:3002/mock/sampleserver3/arcgis/rest/services/Hydrography/Watershed173811/FeatureServer/1/query";
     const projection = getProjection("EPSG:3857");
-    const tree = new TileTree<{}>({
+    const tree = new TileTree<{ mass: number }>({
       extent: projection.getExtent(),
     });
     const ext = new TileTreeExt(tree, { minZoom: 6, maxZoom: 18 });
@@ -58,7 +58,7 @@ describe("showOnMap tests", () => {
     const url =
       "http://localhost:3002/mock/sampleserver3/arcgis/rest/services/Earthquakes/EarthquakesFromLastSevenDays/FeatureServer/0/query";
     const projection = getProjection("EPSG:3857");
-    const tree = new TileTree<{}>({
+    const tree = new TileTree<{ mass: number }>({
       extent: projection.getExtent(),
     });
     const ext = new TileTreeExt(tree, { minZoom: 6, maxZoom: 18 });

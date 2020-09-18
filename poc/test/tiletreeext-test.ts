@@ -14,7 +14,7 @@ import { isSamePoint } from "./fun/isSamePoint";
 
 function createTree() {
   const extent = [0, 0, 1, 1] as Extent;
-  const tree = new TileTree<{}>({
+  const tree = new TileTree<{ mass: number }>({
     extent,
   });
   return tree;
