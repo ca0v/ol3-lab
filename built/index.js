@@ -13762,9 +13762,9 @@ define("poc/TileTreeExt", ["require", "exports", "node_modules/ol/src/extent", "
                     featureMass: -com.lightMass,
                 };
             }
-            const childern = tree.children(tileIdentifier);
-            const comChildren = childern.map((c) => this.centerOfMass(c));
-            const massOfVisibleChildFeatures = comChildren.reduce((a, b) => a + b.featureMass, 0);
+            const children = tree.children(tileIdentifier);
+            const comChildren = children.map((c) => this.centerOfMass(c));
+            const massOfVisibleChildFeatures = -comChildren.reduce((a, b) => a + b.featureMass, 0);
             const massOfVisibleFeatures = this.getLightMatter(tileIdentifier).reduce((a, b) => a + b.mass, 0);
             const comHiddenFeatures = this.getDarkMatter(tileIdentifier);
             let center = [0, 0];
@@ -16429,7 +16429,7 @@ define("poc/test/treetile-test", ["require", "exports", "mocha", "chai", "poc/Ti
         });
     });
 });
-define("poc/test/tiletreeext-test", ["require", "exports", "mocha", "chai", "poc/TileTree", "poc/TileTreeExt", "poc/fun/tiny", "poc/fun/flatten", "node_modules/ol/src/geom/Point", "node_modules/ol/src/Feature", "poc/test/fun/isSamePoint"], function (require, exports, mocha_5, chai_6, TileTree_5, TileTreeExt_3, tiny_4, flatten_2, Point_2, Feature_2, isSamePoint_2) {
+define("poc/test/tiletreeext-test", ["require", "exports", "mocha", "chai", "poc/TileTree", "poc/TileTreeExt", "poc/fun/tiny", "poc/fun/flatten", "node_modules/ol/src/geom/Point", "node_modules/ol/src/Feature", "poc/test/fun/isSamePoint", "node_modules/ol/src/geom/Polygon"], function (require, exports, mocha_5, chai_6, TileTree_5, TileTreeExt_3, tiny_4, flatten_2, Point_2, Feature_2, isSamePoint_2, Polygon_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     function createTree() {
@@ -16613,7 +16613,7 @@ define("poc/test/tiletreeext-test", ["require", "exports", "mocha", "chai", "poc
             features.forEach((f) => ext.setVisible(f, true));
             {
                 const { mass, center, featureMass } = ext.centerOfMass(tileIdentifier);
-                chai_6.assert.equal(mass, 99, "mass reduced");
+                chai_6.assert.equal(mass, 99, "mass reduced, it was 100");
                 chai_6.assert.equal(featureMass, -1, "because of one visible feature");
                 isSamePoint_2.isSamePoint(center, [1 / 4, 1 / 4], "center shifted");
             }
@@ -16636,6 +16636,44 @@ define("poc/test/tiletreeext-test", ["require", "exports", "mocha", "chai", "poc
                 chai_6.assert.equal(featureMass, -1, "feature mass unaffected by children without features");
                 isSamePoint_2.isSamePoint(center, [0.451953125, 0.001953125], "center shifts when adding a child with mass");
             }
+        });
+        mocha_5.it("infer the mass from a grandchild tile", () => {
+            const extent = [0, 0, 10, 10];
+            const tree = new TileTree_5.TileTree({
+                extent,
+            });
+            const helper = new TileTreeExt_3.TileTreeExt(tree);
+            const tileIdentifier = { X: 0, Y: 0, Z: 0 };
+            const child = tree.quads(tileIdentifier)[0];
+            const grandChild = tree.quads(child)[0];
+            helper.setMass(grandChild, 10);
+            chai_6.assert.equal(helper.centerOfMass(child).mass, 10, "the mass of a parent is infered from its children");
+            chai_6.assert.equal(helper.centerOfMass(tileIdentifier).mass, 10, "the mass of any ancestor is infered from its children");
+        });
+        mocha_5.it("modifying feature visibility on a grandchild tile must effect the center-of-mass of a grandparent tile", () => {
+            const extent = [0, 0, 10, 10];
+            const tree = new TileTree_5.TileTree({
+                extent,
+            });
+            const helper = new TileTreeExt_3.TileTreeExt(tree);
+            const tileIdentifier = { X: 0, Y: 0, Z: 0 };
+            const child = tree.quads(tileIdentifier)[0];
+            const grandChild = tree.quads(child)[0];
+            helper.setMass(child, 10);
+            chai_6.assert.equal(helper.centerOfMass(tileIdentifier).mass, 10);
+            const visibleFeature = createFeatureForTile(tree, grandChild);
+            const hiddenFeature = createFeatureForTile(tree, grandChild);
+            helper.addFeature(visibleFeature, grandChild);
+            helper.setVisible(visibleFeature, false);
+            helper.addFeature(hiddenFeature, grandChild);
+            helper.setVisible(hiddenFeature, false);
+            chai_6.assert.equal(helper.centerOfMass(grandChild).mass, 2, "two hidden features");
+            helper.setVisible(visibleFeature, true);
+            chai_6.assert.equal(helper.centerOfMass(grandChild).mass, 1, "one hidden feature");
+            chai_6.assert.equal(helper.centerOfMass(child).mass, 9, "parent cluster is reduced");
+            chai_6.assert.equal(helper.centerOfMass(tileIdentifier).mass, 9, "grand parent cluster is reduced");
+            helper.setVisible(visibleFeature, false);
+            chai_6.assert.equal(helper.centerOfMass(tileIdentifier).mass, 10, "grand parent cluster is restored to full mass");
         });
         mocha_5.it("progressive center of mass calculations", () => {
             const helper = new TileTreeExt_3.TileTreeExt(createTree());
@@ -16675,6 +16713,20 @@ define("poc/test/tiletreeext-test", ["require", "exports", "mocha", "chai", "poc
             }
         });
     });
+    function createFeatureForTile(tree, grandChild) {
+        const feature = new Feature_2.default({ visible: true });
+        const [xmin, ymin, xmax, ymax] = tree.asExtent(grandChild);
+        feature.setGeometry(new Polygon_1.default([
+            [
+                [xmin, ymin],
+                [xmin, ymax],
+                [xmax, ymax],
+                [xmax, ymin],
+                [xmin, ymin],
+            ],
+        ]));
+        return feature;
+    }
 });
 define("node_modules/ol/src/renderer/Composite", ["require", "exports", "node_modules/ol/src/renderer/Map", "node_modules/ol/src/ObjectEventType", "node_modules/ol/src/render/Event", "node_modules/ol/src/render/EventType", "node_modules/ol/src/source/State", "node_modules/ol/src/css", "node_modules/ol/src/render/canvas", "node_modules/ol/src/layer/Layer", "node_modules/ol/src/events", "node_modules/ol/src/dom"], function (require, exports, Map_js_1, ObjectEventType_js_5, Event_js_8, EventType_js_20, State_js_6, css_js_3, canvas_js_6, Layer_js_2, events_js_12, dom_js_7) {
     "use strict";
@@ -25032,13 +25084,13 @@ define("poc/test/fun/TileView", ["require", "exports", "node_modules/ol/src/Feat
         }
         isFeatureVisible(f, Z) {
             const featureZoom = f.getProperties().Z;
-            const type = f.getProperties().type;
+            const { type, mass } = f.getProperties();
             const zoffset = featureZoom - Z;
             switch (type) {
                 case "feature":
                     return MIN_ZOOM_OFFSET <= zoffset && zoffset <= MAX_ZOOM_OFFSET;
                 case "cluster":
-                    return true;
+                    return !!mass;
                     return (MIN_CLUSTER_ZOOM_OFFSET <= zoffset &&
                         zoffset <= MAX_CLUSTER_ZOOM_OFFSET);
             }
@@ -25128,10 +25180,58 @@ define("poc/test/fun/showOnMap", ["require", "exports", "node_modules/ol/src/lay
     }
     exports.showOnMap = showOnMap;
 });
-define("poc/test/ux/show-on-map", ["require", "exports", "mocha", "chai", "poc/AgsFeatureLoader", "poc/TileTree", "node_modules/ol/src/proj", "poc/test/fun/showOnMap", "poc/TileTreeExt"], function (require, exports, mocha_7, chai_7, AgsFeatureLoader_3, TileTree_6, proj_4, showOnMap_1, TileTreeExt_4) {
+define("poc/test/ux/show-on-map", ["require", "exports", "mocha", "chai", "poc/AgsFeatureLoader", "poc/TileTree", "node_modules/ol/src/proj", "poc/test/fun/showOnMap", "poc/TileTreeExt", "node_modules/ol/src/Feature", "node_modules/ol/src/geom/Polygon", "node_modules/ol/src/extent"], function (require, exports, mocha_7, chai_7, AgsFeatureLoader_3, TileTree_6, proj_4, showOnMap_1, TileTreeExt_4, Feature_4, Polygon_2, extent_7) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
+    function createFeatureForTile(tree, tileIdentifier, scale) {
+        const feature = new Feature_4.default({ visible: true });
+        const extent = tree.asExtent(tileIdentifier);
+        if (scale) {
+            extent_7.scaleFromCenter(extent, scale);
+        }
+        const [xmin, ymin, xmax, ymax] = extent;
+        feature.setGeometry(new Polygon_2.default([
+            [
+                [xmin, ymin],
+                [xmin, ymax],
+                [xmax, ymax],
+                [xmax, ymin],
+                [xmin, ymin],
+            ],
+        ]));
+        return feature;
+    }
     mocha_7.describe("showOnMap tests", () => {
+        mocha_7.it("renders a three level tree with features to prove the cluster counts are correct", () => {
+            const projection = proj_4.get("EPSG:3857");
+            const tree = new TileTree_6.TileTree({
+                extent: projection.getExtent(),
+            });
+            const helper = new TileTreeExt_4.TileTreeExt(tree, { minZoom: 0, maxZoom: 8 });
+            helper.addFeature(createFeatureForTile(tree, { X: 3, Y: 3, Z: 5 }));
+            helper.addFeature(createFeatureForTile(tree, { X: 4, Y: 4, Z: 5 }));
+            helper.addFeature(createFeatureForTile(tree, { X: 5, Y: 5, Z: 5 }));
+            helper.addFeature(createFeatureForTile(tree, { X: 12, Y: 12, Z: 6 }));
+            helper.addFeature(createFeatureForTile(tree, { X: 25, Y: 25, Z: 7 }));
+            helper.addFeature(createFeatureForTile(tree, { X: 25, Y: 26, Z: 7 }));
+            helper.addFeature(createFeatureForTile(tree, { X: 25, Y: 27, Z: 7 }));
+            showOnMap_1.showOnMap({ helper });
+        });
+        mocha_7.it("renders a three level tree with features on boundaries to expose defect", () => {
+            const projection = proj_4.get("EPSG:3857");
+            const tree = new TileTree_6.TileTree({
+                extent: projection.getExtent(),
+            });
+            const helper = new TileTreeExt_4.TileTreeExt(tree, { minZoom: 0, maxZoom: 8 });
+            helper.addFeature(createFeatureForTile(tree, { X: 3, Y: 3, Z: 5 }));
+            helper.addFeature(createFeatureForTile(tree, { X: 4, Y: 4, Z: 5 }));
+            helper.addFeature(createFeatureForTile(tree, { X: 5, Y: 5, Z: 5 }));
+            helper.addFeature(createFeatureForTile(tree, { X: 12, Y: 12, Z: 6 }));
+            helper.addFeature(createFeatureForTile(tree, { X: 25, Y: 25, Z: 7 }));
+            helper.addFeature(createFeatureForTile(tree, { X: 25, Y: 26, Z: 7 }));
+            helper.addFeature(createFeatureForTile(tree, { X: 25, Y: 27, Z: 7 }, 5));
+            showOnMap_1.showOnMap({ helper });
+        });
         mocha_7.it("renders a fully loaded tree with clusters via showOnMap (petroleum)", () => __awaiter(void 0, void 0, void 0, function* () {
             const url = "http://localhost:3002/mock/sampleserver3/arcgis/rest/services/Petroleum/KSFields/FeatureServer/0/query";
             const projection = proj_4.get("EPSG:3857");

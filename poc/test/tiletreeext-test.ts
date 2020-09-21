@@ -1,7 +1,7 @@
 import { describe, it } from "mocha";
 import { assert } from "chai";
 
-import { Extent } from "@ol/extent";
+import type { Extent } from "@ol/extent";
 import { TileTree } from "../TileTree";
 import { TileTreeExt } from "../TileTreeExt";
 import { isEq } from "poc/fun/tiny";
@@ -11,6 +11,7 @@ import Geometry from "@ol/geom/Geometry";
 import Point from "@ol/geom/Point";
 import Feature from "@ol/Feature";
 import { isSamePoint } from "./fun/isSamePoint";
+import Polygon from "@ol/geom/Polygon";
 
 function createTree() {
   const extent = [0, 0, 1, 1] as Extent;
@@ -310,7 +311,7 @@ describe("TileTreeExt Tests", () => {
     features.forEach((f) => ext.setVisible(f, true));
     {
       const { mass, center, featureMass } = ext.centerOfMass(tileIdentifier);
-      assert.equal(mass, 99, "mass reduced");
+      assert.equal(mass, 99, "mass reduced, it was 100");
       assert.equal(featureMass, -1, "because of one visible feature");
       isSamePoint(center, [1 / 4, 1 / 4], "center shifted");
     }
@@ -345,6 +346,87 @@ describe("TileTreeExt Tests", () => {
         "center shifts when adding a child with mass"
       );
     }
+  });
+
+  it("infer the mass from a grandchild tile", () => {
+    // define a tree with a single grandchild which has a mass and some features
+    const extent = [0, 0, 10, 10] as Extent;
+    const tree = new TileTree<{ count: number; center: XY }>({
+      extent,
+    });
+    const helper = new TileTreeExt(tree);
+    const tileIdentifier = { X: 0, Y: 0, Z: 0 };
+    const child = tree.quads(tileIdentifier)[0];
+    const grandChild = tree.quads(child)[0];
+    helper.setMass(grandChild, 10);
+
+    assert.equal(
+      helper.centerOfMass(child).mass,
+      10,
+      "the mass of a parent is infered from its children"
+    );
+
+    assert.equal(
+      helper.centerOfMass(tileIdentifier).mass,
+      10,
+      "the mass of any ancestor is infered from its children"
+    );
+  });
+
+  it("modifying feature visibility on a grandchild tile must effect the center-of-mass of a grandparent tile", () => {
+    // define a tree with a single grandchild which has a mass and some features
+    const extent = [0, 0, 10, 10] as Extent;
+    const tree = new TileTree<{ count: number; center: XY }>({
+      extent,
+    });
+    const helper = new TileTreeExt(tree);
+    const tileIdentifier = { X: 0, Y: 0, Z: 0 };
+    const child = tree.quads(tileIdentifier)[0];
+    const grandChild = tree.quads(child)[0];
+
+    helper.setMass(child, 10);
+    assert.equal(helper.centerOfMass(tileIdentifier).mass, 10);
+
+    // add a feature to the grand child and make it visible to decrease its effective mass
+    const visibleFeature = createFeatureForTile(tree, grandChild);
+    const hiddenFeature = createFeatureForTile(tree, grandChild);
+
+    // adding a feature to the grand-child with no explicit mass happens when features are pushed down
+    helper.addFeature(visibleFeature, grandChild);
+    helper.setVisible(visibleFeature, false);
+    helper.addFeature(hiddenFeature, grandChild);
+    helper.setVisible(hiddenFeature, false);
+
+    // when those features are not visible they increase that tiles mass
+    assert.equal(
+      helper.centerOfMass(grandChild).mass,
+      2,
+      "two hidden features"
+    );
+    helper.setVisible(visibleFeature, true);
+    assert.equal(helper.centerOfMass(grandChild).mass, 1, "one hidden feature");
+
+    // but they reduce the mass of all ancestors when visible
+    assert.equal(
+      helper.centerOfMass(child).mass,
+      9,
+      "parent cluster is reduced"
+    );
+
+    assert.equal(
+      helper.centerOfMass(tileIdentifier).mass,
+      9,
+      "grand parent cluster is reduced"
+    );
+
+    // and increase the mass of ancestors when hidden
+    helper.setVisible(visibleFeature, false);
+
+    assert.equal(
+      helper.centerOfMass(tileIdentifier).mass,
+      10,
+      "grand parent cluster is restored to full mass"
+    );
   });
 
   it("progressive center of mass calculations", () => {
@@ -430,3 +512,23 @@ describe("TileTreeExt Tests", () => {
     }
   });
 });
+
+function createFeatureForTile(
+  tree: TileTree<{ count: number; center: XY }>,
+  grandChild: { X: number; Y: number; Z: number }
+) {
+  const feature = new Feature({ visible: true });
+  const [xmin, ymin, xmax, ymax] = tree.asExtent(grandChild);
+  feature.setGeometry(
+    new Polygon([
+      [
+        [xmin, ymin],
+        [xmin, ymax],
+        [xmax, ymax],
+        [xmax, ymin],
+        [xmin, ymin],
+      ],
+    ])
+  );
+  return feature;
+}

@@ -149,13 +149,13 @@ export class TileTreeExt {
       };
     }
 
-    const childern = tree.children(tileIdentifier);
+    const children = tree.children(tileIdentifier);
 
     // get center-of-mass of all children
-    const comChildren = childern.map((c) => this.centerOfMass(c));
+    const comChildren = children.map((c) => this.centerOfMass(c));
 
-    // get mass of child features
-    const massOfVisibleChildFeatures = comChildren.reduce(
+    // get mass of visible child features, reported as negative mass since it takes away from the tile mass
+    const massOfVisibleChildFeatures = -comChildren.reduce(
       (a, b) => a + b.featureMass,
       0
     );

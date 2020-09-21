@@ -96,13 +96,13 @@ export class TileView {
   // hide all features outside of current zoom
   private isFeatureVisible(f: Feature<Geometry>, Z: Z) {
     const featureZoom = f.getProperties().Z as Z;
-    const type = f.getProperties().type as string;
+    const { type, mass } = f.getProperties() as { type: string; mass: number };
     const zoffset = featureZoom - Z;
     switch (type) {
       case "feature":
         return MIN_ZOOM_OFFSET <= zoffset && zoffset <= MAX_ZOOM_OFFSET;
       case "cluster":
-        return true;
+        return !!mass;
         return (
           MIN_CLUSTER_ZOOM_OFFSET <= zoffset &&
           zoffset <= MAX_CLUSTER_ZOOM_OFFSET
