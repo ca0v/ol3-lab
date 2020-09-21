@@ -68,7 +68,18 @@ describe("showOnMap tests", () => {
     helper.addFeature(createFeatureForTile(tree, { X: 12, Y: 12, Z: 6 }));
     helper.addFeature(createFeatureForTile(tree, { X: 25, Y: 25, Z: 7 }));
     helper.addFeature(createFeatureForTile(tree, { X: 25, Y: 26, Z: 7 }));
-    helper.addFeature(createFeatureForTile(tree, { X: 25, Y: 27, Z: 7 }, 5));
+
+    // this feature is visible too soon, should appear with level 5 tiles
+    const problematicFeature = createFeatureForTile(
+      tree,
+      { X: 25, Y: 27, Z: 7 },
+      4
+    );
+    const problematicTile = helper.addFeature(problematicFeature);
+    assert.equal(problematicTile, { X: 1, Y: 1, Z: 3 });
+    assert.equal(problematicFeature.getProperties().Z, 5);
+
+    console.log(tree.save());
     showOnMap({ helper });
   });
 

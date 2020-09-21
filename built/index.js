@@ -25229,7 +25229,11 @@ define("poc/test/ux/show-on-map", ["require", "exports", "mocha", "chai", "poc/A
             helper.addFeature(createFeatureForTile(tree, { X: 12, Y: 12, Z: 6 }));
             helper.addFeature(createFeatureForTile(tree, { X: 25, Y: 25, Z: 7 }));
             helper.addFeature(createFeatureForTile(tree, { X: 25, Y: 26, Z: 7 }));
-            helper.addFeature(createFeatureForTile(tree, { X: 25, Y: 27, Z: 7 }, 5));
+            const problematicFeature = createFeatureForTile(tree, { X: 25, Y: 27, Z: 7 }, 4);
+            const problematicTile = helper.addFeature(problematicFeature);
+            chai_7.assert.equal(problematicTile, { X: 1, Y: 1, Z: 3 });
+            chai_7.assert.equal(problematicFeature.getProperties().Z, 5);
+            console.log(tree.save());
             showOnMap_1.showOnMap({ helper });
         });
         mocha_7.it("renders a fully loaded tree with clusters via showOnMap (petroleum)", () => __awaiter(void 0, void 0, void 0, function* () {
