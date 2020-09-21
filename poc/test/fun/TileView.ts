@@ -5,12 +5,11 @@ import VectorSource from "@ol/source/Vector";
 import { Z } from "poc/types/XY";
 import { XYZ } from "poc/types/XYZ";
 import Point from "@ol/geom/Point";
-import {
-  MIN_ZOOM_OFFSET,
-  MAX_ZOOM_OFFSET,
-  CLUSTER_ZOOM_OFFSET,
-} from "./showOnMap";
-import { TileHash } from "./TileHash";
+
+const MIN_ZOOM_OFFSET = -3;
+const MAX_ZOOM_OFFSET = 4;
+const MIN_CLUSTER_ZOOM_OFFSET = 2;
+const MAX_CLUSTER_ZOOM_OFFSET = 2;
 
 function isFeatureVisible(f: Feature<Geometry>) {
   return true === f.getProperties().visible;
@@ -24,7 +23,6 @@ export class TileView {
   private source: VectorSource<Geometry>;
   private helper: TileTreeExt;
   private tileFeatures = new Map<string, Feature<Geometry>>();
-  private tileHash = new TileHash();
 
   constructor(options: {
     source: VectorSource<Geometry>;
@@ -32,10 +30,14 @@ export class TileView {
   }) {
     this.source = options.source;
     this.helper = options.helper;
+    // create a feature for each cluster tile
+    const tilesWithMass = this.helper.tree
+      .descendants()
+      .filter((id) => !!this.helper.getMass(id));
+    tilesWithMass.forEach((id) => this.updateCluster(id));
   }
 
   computeTileVisibility(currentZoom: Z) {
-    this.tileHash.clear();
     // recompute visibility of all features
     this.source.getFeatures().forEach((f) => {
       const { tileIdentifier } = f.getProperties() as {
@@ -47,17 +49,21 @@ export class TileView {
 
       if (wasVisible !== isVisible) {
         setFeatureVisible(f, isVisible);
-        this.tileHash.add(tileIdentifier);
+        this.helper.setStale(tileIdentifier, true);
       }
     });
 
-    const staleTiles = this.tileHash.items();
-    console.log(staleTiles);
-    staleTiles.forEach((id) => this.updateCluster(id, currentZoom));
+    // feature visibility effects these tiles and any parent tiles
+    const staleTiles = this.helper.tree
+      .descendants()
+      .filter((id) => this.helper.isStale(id));
+    staleTiles.forEach((id) => {
+      if (!this.helper.isStale(id)) return;
+      this.updateCluster(id);
+    });
   }
 
-  private updateCluster(tileIdentifier: XYZ, Z: Z) {
-    const mass = this.helper.centerOfMass(tileIdentifier).mass;
+  private updateCluster(tileIdentifier: XYZ) {
     let feature = this.getTileFeature(tileIdentifier);
     if (!feature) {
       feature = new Feature<Geometry>();
@@ -65,15 +71,16 @@ export class TileView {
         type: "cluster",
         tileIdentifier: tileIdentifier,
         Z: tileIdentifier.Z,
-        visible: false,
+        visible: true,
       });
       this.setTileFeature(tileIdentifier, feature);
       this.source.addFeature(feature);
       const center = this.helper.tree.asCenter(tileIdentifier);
-      feature.setGeometry(new Point(center));
     }
 
+    const { mass, center } = this.helper.centerOfMass(tileIdentifier);
     feature.setProperties({ mass }, true);
+    feature.setGeometry(new Point(center));
   }
 
   private setTileFeature({ X, Y, Z }: XYZ, feature: Feature<Geometry>) {
@@ -95,7 +102,11 @@ export class TileView {
       case "feature":
         return MIN_ZOOM_OFFSET <= zoffset && zoffset <= MAX_ZOOM_OFFSET;
       case "cluster":
-        return CLUSTER_ZOOM_OFFSET <= zoffset && zoffset <= CLUSTER_ZOOM_OFFSET;
+        return true;
+        return (
+          MIN_CLUSTER_ZOOM_OFFSET <= zoffset &&
+          zoffset <= MAX_CLUSTER_ZOOM_OFFSET
+        );
     }
     return true;
   }

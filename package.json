@@ -20,7 +20,7 @@
     "proxy": "reverse-proxy-cache",
     "postinstall": "npm-run-all cp go",
     "deploy": "terser ./built/index.js --compress --mangle --ecma 2015 -o ./built/index.min.js",
-    "go": "npm-run-all -p proxy live watch:index"
+    "dev": "npm-run-all -p proxy live watch:index"
   },
   "dependencies": {},
   "devDependencies": {

@@ -19,8 +19,8 @@ describe("showOnMap tests", () => {
 
     const loader = new AgsFeatureLoader({
       url,
-      maxDepth: 4,
-      minRecordCount: 100,
+      maxDepth: 8,
+      minRecordCount: 8,
       tree: ext,
     });
 
@@ -29,7 +29,7 @@ describe("showOnMap tests", () => {
 
     assert.equal(1617, featureCount, "features");
     showOnMap({ helper: ext });
-  });
+  }).timeout(10 * 1000);
 
   it("renders a fully loaded tree with clusters via showOnMap (watershed)", async () => {
     const url =

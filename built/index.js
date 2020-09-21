@@ -7,6 +7,12 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __classPrivateFieldGet = (this && this.__classPrivateFieldGet) || function (receiver, privateMap) {
+    if (!privateMap.has(receiver)) {
+        throw new TypeError("attempted to get private field on non-instance");
+    }
+    return privateMap.get(receiver);
+};
 define("poc/fun/tiny", ["require", "exports"], function (require, exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
@@ -24888,71 +24894,19 @@ define("poc/test/ux/map-test", ["require", "exports", "mocha", "node_modules/ol/
         });
     });
 });
-define("poc/test/fun/showOnMap", ["require", "exports", "node_modules/ol/src/Feature", "node_modules/ol/src/extent", "node_modules/ol/src/View", "node_modules/ol/src/Map", "node_modules/ol/src/layer/Vector", "node_modules/ol/src/source/Vector", "node_modules/ol/src/style", "node_modules/ol/src/geom/Point", "node_modules/ol/src/style/Circle", "node_modules/ol/src/style/Text", "node_modules/ol/src/control"], function (require, exports, Feature_3, extent_6, View_2, Map_2, Vector_3, Vector_4, style_2, Point_3, Circle_2, Text_1, control_1) {
+define("poc/test/fun/StyleCache", ["require", "exports", "node_modules/ol/src/style", "node_modules/ol/src/style/Circle", "node_modules/ol/src/style/Text"], function (require, exports, style_2, Circle_2, Text_1) {
     "use strict";
+    var _styleCache;
     Object.defineProperty(exports, "__esModule", { value: true });
-    exports.showOnMap = void 0;
-    const MIN_ZOOM_OFFSET = -3;
-    const MAX_ZOOM_OFFSET = 4;
-    const CLUSTER_ZOOM_OFFSET = 2;
-    function setTileFeature(tileFeatures, { X, Y, Z }, feature) {
-        const key = `${X}.${Y}.${Z}`;
-        tileFeatures.set(key, feature);
-    }
-    function getTileFeature(tileFeatures, { X, Y, Z }) {
-        const key = `${X}.${Y}.${Z}`;
-        return tileFeatures.get(key);
-    }
-    function isFeatureVisible(f, Z) {
-        const featureZoom = f.getProperties().Z;
-        const type = f.getProperties().type;
-        const zoffset = featureZoom - Z;
-        switch (type) {
-            case "feature":
-                return MIN_ZOOM_OFFSET <= zoffset && zoffset <= MAX_ZOOM_OFFSET;
-            case "cluster":
-                return CLUSTER_ZOOM_OFFSET <= zoffset && zoffset <= CLUSTER_ZOOM_OFFSET;
+    exports.StyleCache = void 0;
+    class StyleCache {
+        constructor() {
+            _styleCache.set(this, {});
         }
-        return true;
-    }
-    function showOnMap(options) {
-        const { helper } = options;
-        const tiles = helper.tree
-            .descendants()
-            .filter((id) => null !== helper.getMass(id));
-        const extent = helper.tree.asExtent(tiles[0]);
-        const boundingExtent = extent.slice();
-        extent_6.scaleFromCenter(boundingExtent, extent_6.getWidth(extent) / 4);
-        const view = new View_2.default({
-            center: extent_6.getCenter(extent),
-            zoom: helper.minZoom,
-            minZoom: helper.minZoom,
-            maxZoom: helper.maxZoom,
-            extent: boundingExtent,
-        });
-        const targetContainer = document.createElement("div");
-        targetContainer.className = "testmapcontainer";
-        const target = document.createElement("div");
-        target.className = "map";
-        document.body.appendChild(targetContainer);
-        targetContainer.appendChild(target);
-        const layer = new Vector_3.default();
-        const source = new Vector_4.default();
-        layer.setSource(source);
-        helper.tree.visit((a, b) => {
-            const features = helper.getFeatures(b);
-            if (!features)
-                return a;
-            source.addFeatures(features);
-            console.log(features.map((f) => f.getProperties().Z).join("."));
-            return features.length + a;
-        }, 0);
-        const styleCache = {};
-        const tileFeatures = new Map();
-        const styleMaker = ({ type, zoffset, mass, }) => {
+        styleMaker({ type, zoffset, mass, }) {
             const massLevel = Math.floor(Math.pow(2, Math.floor(Math.log2(mass))));
             const styleKey = `${type}.${zoffset}.${massLevel}`;
-            let style = styleCache[styleKey];
+            let style = __classPrivateFieldGet(this, _styleCache)[styleKey];
             if (!style) {
                 switch (type) {
                     case "cluster": {
@@ -24991,7 +24945,7 @@ define("poc/test/fun/showOnMap", ["require", "exports", "node_modules/ol/src/Fea
                         break;
                     }
                 }
-                styleCache[styleKey] = style;
+                __classPrivateFieldGet(this, _styleCache)[styleKey] = style;
             }
             switch (type) {
                 case "cluster": {
@@ -25002,16 +24956,162 @@ define("poc/test/fun/showOnMap", ["require", "exports", "node_modules/ol/src/Fea
                 }
             }
             return style;
-        };
+        }
+    }
+    exports.StyleCache = StyleCache;
+    _styleCache = new WeakMap();
+});
+define("poc/test/fun/TileView", ["require", "exports", "node_modules/ol/src/Feature", "node_modules/ol/src/geom/Point"], function (require, exports, Feature_3, Point_3) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.TileView = void 0;
+    const MIN_ZOOM_OFFSET = -3;
+    const MAX_ZOOM_OFFSET = 4;
+    const MIN_CLUSTER_ZOOM_OFFSET = 2;
+    const MAX_CLUSTER_ZOOM_OFFSET = 2;
+    function isFeatureVisible(f) {
+        return true === f.getProperties().visible;
+    }
+    function setFeatureVisible(f, visible) {
+        f.setProperties({ visible });
+    }
+    class TileView {
+        constructor(options) {
+            this.tileFeatures = new Map();
+            this.source = options.source;
+            this.helper = options.helper;
+            const tilesWithMass = this.helper.tree
+                .descendants()
+                .filter((id) => !!this.helper.getMass(id));
+            tilesWithMass.forEach((id) => this.updateCluster(id));
+        }
+        computeTileVisibility(currentZoom) {
+            this.source.getFeatures().forEach((f) => {
+                const { tileIdentifier } = f.getProperties();
+                const wasVisible = isFeatureVisible(f);
+                const isVisible = this.isFeatureVisible(f, currentZoom);
+                if (wasVisible !== isVisible) {
+                    setFeatureVisible(f, isVisible);
+                    this.helper.setStale(tileIdentifier, true);
+                }
+            });
+            const staleTiles = this.helper.tree
+                .descendants()
+                .filter((id) => this.helper.isStale(id));
+            staleTiles.forEach((id) => {
+                if (!this.helper.isStale(id))
+                    return;
+                this.updateCluster(id);
+            });
+        }
+        updateCluster(tileIdentifier) {
+            let feature = this.getTileFeature(tileIdentifier);
+            if (!feature) {
+                feature = new Feature_3.default();
+                feature.setProperties({
+                    type: "cluster",
+                    tileIdentifier: tileIdentifier,
+                    Z: tileIdentifier.Z,
+                    visible: true,
+                });
+                this.setTileFeature(tileIdentifier, feature);
+                this.source.addFeature(feature);
+                const center = this.helper.tree.asCenter(tileIdentifier);
+            }
+            const { mass, center } = this.helper.centerOfMass(tileIdentifier);
+            feature.setProperties({ mass }, true);
+            feature.setGeometry(new Point_3.default(center));
+        }
+        setTileFeature({ X, Y, Z }, feature) {
+            const key = `${X}.${Y}.${Z}`;
+            this.tileFeatures.set(key, feature);
+        }
+        getTileFeature({ X, Y, Z }) {
+            const key = `${X}.${Y}.${Z}`;
+            return this.tileFeatures.get(key);
+        }
+        isFeatureVisible(f, Z) {
+            const featureZoom = f.getProperties().Z;
+            const type = f.getProperties().type;
+            const zoffset = featureZoom - Z;
+            switch (type) {
+                case "feature":
+                    return MIN_ZOOM_OFFSET <= zoffset && zoffset <= MAX_ZOOM_OFFSET;
+                case "cluster":
+                    return true;
+                    return (MIN_CLUSTER_ZOOM_OFFSET <= zoffset &&
+                        zoffset <= MAX_CLUSTER_ZOOM_OFFSET);
+            }
+            return true;
+        }
+    }
+    exports.TileView = TileView;
+});
+define("poc/test/fun/createMap", ["require", "exports", "node_modules/ol/src/extent", "node_modules/ol/src/View", "node_modules/ol/src/Map", "node_modules/ol/src/control"], function (require, exports, extent_6, View_2, Map_2, control_1) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.createMap = void 0;
+    function createMap(extent, minZoom, maxZoom) {
+        const boundingExtent = extent.slice();
+        extent_6.scaleFromCenter(boundingExtent, extent_6.getWidth(extent) / 4);
+        const view = new View_2.default({
+            center: extent_6.getCenter(extent),
+            zoom: minZoom,
+            minZoom: minZoom,
+            maxZoom: maxZoom,
+            extent: boundingExtent,
+        });
+        const targetContainer = document.createElement("div");
+        targetContainer.className = "testmapcontainer";
+        const target = document.createElement("div");
+        target.className = "map";
+        document.body.appendChild(targetContainer);
+        targetContainer.appendChild(target);
+        const map = new Map_2.default({
+            view,
+            target,
+            layers: [],
+            controls: control_1.defaults().extend([new control_1.FullScreen()]),
+        });
+        return map;
+    }
+    exports.createMap = createMap;
+});
+define("poc/test/fun/showOnMap", ["require", "exports", "node_modules/ol/src/layer/Vector", "node_modules/ol/src/source/Vector", "poc/test/fun/StyleCache", "poc/test/fun/TileView", "poc/test/fun/createMap"], function (require, exports, Vector_3, Vector_4, StyleCache_1, TileView_1, createMap_1) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.showOnMap = void 0;
+    function isFeatureVisible(f) {
+        return true === f.getProperties().visible;
+    }
+    function showOnMap(options) {
+        const { helper } = options;
+        const { tree } = helper;
+        const styles = new StyleCache_1.StyleCache();
+        const tiles = tree.descendants().filter((id) => null !== helper.getMass(id));
+        const extent = tree.asExtent(tiles[0]);
+        const map = createMap_1.createMap(extent, helper.minZoom, helper.maxZoom);
+        const view = map.getView();
+        const layer = new Vector_3.default();
+        const source = new Vector_4.default();
+        layer.setSource(source);
+        tree.descendants().forEach((id) => {
+            const features = helper.getFeatures(id);
+            if (!features)
+                return;
+            source.addFeatures(features);
+        });
+        const tileView = new TileView_1.TileView({ source, helper });
         layer.setStyle(((feature, resolution) => {
+            if (!isFeatureVisible(feature))
+                return null;
             const { Z: featureZoom, type, mass } = feature.getProperties();
             const currentZoom = Math.round(view.getZoomForResolution(resolution) || 0);
-            if (!isFeatureVisible(feature, currentZoom))
-                return null;
             const zoffset = featureZoom - currentZoom;
-            const style = styleMaker({ type, zoffset, mass });
-            return style;
+            return styles.styleMaker({ type, zoffset, mass });
         }));
+        map.addLayer(layer);
+        tileView.computeTileVisibility(view.getZoom() || 0);
         {
             let touched = true;
             view.on("change:resolution", () => {
@@ -25021,43 +25121,10 @@ define("poc/test/fun/showOnMap", ["require", "exports", "node_modules/ol/src/Fea
                 if (!touched)
                     return;
                 touched = false;
-                postRender();
+                tileView.computeTileVisibility(view.getZoom() || 0);
             });
         }
-        const map = new Map_2.default({
-            view,
-            target,
-            layers: [layer],
-            controls: control_1.defaults().extend([new control_1.FullScreen()]),
-        });
-        postRender();
         return map;
-        function postRender() {
-            const currentZoom = view.getZoom() || 0;
-            source.getFeatures().forEach((f) => {
-                const { tileIdentifier } = f.getProperties();
-                f.setProperties({ visible: isFeatureVisible(f, currentZoom) });
-                updateCluster(tileIdentifier, currentZoom);
-            });
-        }
-        function updateCluster(tileIdentifier, Z) {
-            const mass = helper.centerOfMass(tileIdentifier).mass;
-            let feature = getTileFeature(tileFeatures, tileIdentifier);
-            if (!feature) {
-                feature = new Feature_3.default();
-                feature.setProperties({
-                    type: "cluster",
-                    tileIdentifier: tileIdentifier,
-                    Z: tileIdentifier.Z,
-                    visible: false,
-                });
-                setTileFeature(tileFeatures, tileIdentifier, feature);
-                source.addFeature(feature);
-                const center = helper.tree.asCenter(tileIdentifier);
-                feature.setGeometry(new Point_3.default(center));
-            }
-            feature.setProperties({ mass }, true);
-        }
     }
     exports.showOnMap = showOnMap;
 });
@@ -25074,15 +25141,15 @@ define("poc/test/ux/show-on-map", ["require", "exports", "mocha", "chai", "poc/A
             const ext = new TileTreeExt_4.TileTreeExt(tree, { minZoom: 6, maxZoom: 18 });
             const loader = new AgsFeatureLoader_3.AgsFeatureLoader({
                 url,
-                maxDepth: 4,
-                minRecordCount: 100,
+                maxDepth: 8,
+                minRecordCount: 8,
                 tree: ext,
             });
             const tileIdentifier = tree.parent({ X: 29 * 2, Y: 78 * 2, Z: 8 });
             const featureCount = yield loader.loader(tileIdentifier, projection);
             chai_7.assert.equal(1617, featureCount, "features");
             showOnMap_1.showOnMap({ helper: ext });
-        }));
+        })).timeout(10 * 1000);
         mocha_7.it("renders a fully loaded tree with clusters via showOnMap (watershed)", () => __awaiter(void 0, void 0, void 0, function* () {
             const url = "http://localhost:3002/mock/sampleserver3/arcgis/rest/services/Hydrography/Watershed173811/FeatureServer/1/query";
             const projection = proj_4.get("EPSG:3857");

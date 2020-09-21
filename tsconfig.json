@@ -1,35 +1,46 @@
 {
-  "compilerOptions": {
-    "target": "ES2015",
-    "module": "AMD",
-    "allowJs": true,
-    "checkJs": false,
-    "alwaysStrict": true,
-    "assumeChangesOnlyAffectDirectDependencies": true,
-    "disableSolutionSearching": true,
-    "forceConsistentCasingInFileNames": true,
-    "newLine": "lf",
-    "preserveWatchOutput": false,
-    "noEmitOnError": true,
-    "strict": true,
-    "declaration": false,
-    "incremental": true,
-    "skipDefaultLibCheck": true,
-    "removeComments": true,
-    "noImplicitAny": true,
-    "sourceMap": true,
-    "inlineSourceMap": false,
-    "inlineSources": false,
-    "rootDir": "./",
-    "outFile": "./built/index.js",
-    "lib": ["ES2015", "dom"],
-    "baseUrl": "./",
-    "paths": {
-      "@ol/*": ["./node_modules/ol/src/*"],
-      "rbush/rbush.js": ["./node_modules/rbush/index.js"],
-      "quickselect": ["./node_modules/quickselect/index.js"]
+    "compilerOptions": {
+        "target": "ES2015",
+        "module": "AMD",
+        "allowJs": true,
+        "checkJs": false,
+        "alwaysStrict": true,
+        "assumeChangesOnlyAffectDirectDependencies": true,
+        "disableSolutionSearching": true,
+        "forceConsistentCasingInFileNames": true,
+        "newLine": "lf",
+        "preserveWatchOutput": false,
+        "noEmitOnError": true,
+        "strict": true,
+        "declaration": false,
+        "incremental": true,
+        "skipDefaultLibCheck": true,
+        "removeComments": true,
+        "noImplicitAny": true,
+        "sourceMap": true,
+        "inlineSourceMap": false,
+        "inlineSources": false,
+        "rootDir": "./",
+        "outFile": "./built/index.js",
+        "lib": [
+            "ES2015",
+            "dom"
+        ],
+        "baseUrl": "./",
+        "paths": {
+            "@ol/*": [
+                "./node_modules/ol/src/*"
+            ],
+            "rbush/rbush.js": [
+                "./node_modules/rbush/index.js"
+            ],
+            "quickselect": [
+                "./node_modules/quickselect/index.js"
+            ]
+        },
+        "moduleResolution": "classic"
     },
-    "moduleResolution": "classic"
-  },
-  "files": ["./index.ts"]
+    "files": [
+        "./index.ts"
+    ]
 }
