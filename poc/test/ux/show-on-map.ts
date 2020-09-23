@@ -75,9 +75,18 @@ describe("showOnMap tests", () => {
       { X: 25, Y: 27, Z: 7 },
       4
     );
+
     const problematicTile = helper.addFeature(problematicFeature);
-    assert.equal(problematicTile, { X: 1, Y: 1, Z: 3 });
-    assert.equal(problematicFeature.getProperties().Z, 5);
+    assert.deepEqual(
+      problematicTile,
+      { X: 1, Y: 1, Z: 3 },
+      "tile is 4x width but covers two Z=4 tiles so bubbled into parent"
+    );
+    assert.equal(
+      problematicFeature.getProperties().Z,
+      5,
+      "4x level 7 is level 5"
+    );
 
     console.log(tree.save());
     showOnMap({ helper });

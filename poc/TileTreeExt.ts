@@ -5,6 +5,7 @@ import type { XY, Z } from "./types/XY";
 import { explode } from "./fun/explode";
 import Feature from "@ol/Feature";
 import Geometry from "@ol/geom/Geometry";
+import { TINY } from "./fun/tiny";
 
 export class TileTreeExt {
   public readonly minZoom: Z;
@@ -60,8 +61,8 @@ export class TileTreeExt {
   findZByExtent(extent: Extent): Z {
     const find = explode(extent);
     const root = explode(this.tree.asExtent());
-    const Zw = Math.floor(Math.log2(root.w / find.w));
-    const Zh = Math.floor(Math.log2(root.h / find.h));
+    const Zw = Math.floor(Math.log2(root.w / find.w) + TINY);
+    const Zh = Math.floor(Math.log2(root.h / find.h) + TINY);
     return Math.max(this.minZoom, Math.min(this.maxZoom, Math.min(Zw, Zh)));
   }
 

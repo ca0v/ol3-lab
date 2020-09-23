@@ -1,4 +1,4 @@
-const TINY = Math.pow(2, -24);
+export const TINY = Math.pow(2, -24);
 
 export function isInt(value: number) {
   return TINY > Math.abs(value - Math.round(value));
