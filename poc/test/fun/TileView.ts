@@ -5,7 +5,6 @@ import VectorSource from "@ol/source/Vector";
 import { Z } from "poc/types/XY";
 import { XYZ } from "poc/types/XYZ";
 import Point from "@ol/geom/Point";
-import { zoomByDelta } from "@ol/interaction/Interaction";
 
 const MIN_ZOOM_OFFSET = -4;
 const MAX_ZOOM_OFFSET = 3;
@@ -88,8 +87,8 @@ export class TileView {
 
     feature.setProperties(
       {
-        mass: mass - childMass,
-        text: `${mass - childMass}Z${tileIdentifier.Z}`,
+        mass: mass,
+        text: `${mass}Z${tileIdentifier.Z}`,
       },
       true
     );
@@ -125,7 +124,7 @@ export class TileView {
         return MIN_ZOOM_OFFSET <= zoffset && zoffset <= MAX_ZOOM_OFFSET;
       case "cluster":
         if (!mass) return false;
-        return true;
+        return zoffset >= 0;
     }
     return true;
   }

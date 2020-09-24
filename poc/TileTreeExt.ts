@@ -19,6 +19,14 @@ export class TileTreeExt {
     this.maxZoom = options?.maxZoom || 10;
   }
 
+  public setLoaded(tileIdentifier: XYZ, loaded: boolean) {
+    this.tree.decorate(tileIdentifier, { loaded });
+  }
+
+  public isLoaded(tileIdentifier: XYZ) {
+    return this.tree.decorate<{ loaded: boolean }>(tileIdentifier).loaded;
+  }
+
   setVisible(feature: Feature<Geometry>, visible = true) {
     const { tileIdentifier, visible: wasVisible } = <
       { tileIdentifier: XYZ; visible: boolean }

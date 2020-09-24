@@ -3,10 +3,11 @@ import { assert } from "chai";
 
 import { AgsFeatureLoader } from "poc/AgsFeatureLoader";
 import { TileTree } from "poc/TileTree";
-import { get as getProjection } from "@ol/proj";
+import { get as getProjection, transform } from "@ol/proj";
 import type { XY } from "poc/types/XY";
 import { TileTreeExt } from "poc/TileTreeExt";
 import { flatten } from "poc/fun/flatten";
+import { containsExtent } from "@ol/extent";
 
 describe("AgsFeatureLoader tests", () => {
   it("loads feature counts for specific tiles up to 0 levels deep", async () => {
@@ -416,4 +417,145 @@ describe("AgsFeatureLoader tests", () => {
 
     assert.deepEqual(ext.getMass({ X: 504, Y: 688, Z: 10 }), 204, "level 10");
   }).timeout(10 * 1000);
+
+  it("when a feature is on a boundary it is not inside any child", async () => {
+    const url =
+      "http://localhost:3002/mock/gis1/arcgis/rest/services/IPS112/QA112UK/FeatureServer/1/query";
+    const projection = getProjection("EPSG:3857");
+    const tree = new TileTree<{ count: number; mass: number; center: XY }>({
+      extent: projection.getExtent(),
+    });
+
+    const ext = new TileTreeExt(tree, { minZoom: 6, maxZoom: 20 });
+
+    const loader = new AgsFeatureLoader({
+      tree: ext,
+      url,
+      maxDepth: 0,
+      minRecordCount: 20,
+      networkThrottle: 10,
+    });
+
+    const totalMass = await loader.loader({ X: 252, Y: 343, Z: 9 }, projection);
+    assert.equal(totalMass, 47, "sanity check");
+    assert.deepEqual(ext.getMass({ X: 252, Y: 343, Z: 9 }), 47, "level 9");
+
+    let children = tree.quads({ X: 252, Y: 343, Z: 9 });
+    await Promise.all(children.map((c) => loader.loader(c, projection)));
+
+    assert.deepEqual(
+      children.map((id) => ext.getMass(id)),
+      [null, 7, 40, null]
+    );
+
+    const child40 = children[2];
+    children = tree.quads(child40);
+    await Promise.all(children.map((c) => loader.loader(c, projection)));
+
+    assert.deepEqual(
+      children.map((id) => ext.getMass(id)),
+      [null, 4, 31, 5]
+    );
+
+    const child40_31 = children[2];
+    assert.deepEqual(child40_31, { X: 1011, Y: 1375, Z: 11 }, "child31");
+
+    children = tree.quads(child40_31);
+    await Promise.all(children.map((c) => loader.loader(c, projection)));
+
+    assert.deepEqual(
+      children.map((id) => ext.getMass(id)),
+      [1, 20, 7, null],
+      "28 is 3 less than 31 so there are 3 features that are within at least two child tiles"
+    );
+
+    const child31_1 = children[0];
+    assert.deepEqual(
+      child31_1,
+      { X: 2022, Y: 2750, Z: 12 },
+      "1 feature loaded a Z12"
+    );
+
+    const features = tree
+      .descendants(child31_1)
+      .map((id) => ext.getFeatures(id))
+      .filter((v) => !!v);
+
+    assert.equal(features.length, 1, "one quad loaded");
+    assert.equal(features[0].length, 1, "one feature loaded into one quad");
+    assert.deepEqual(
+      features[0][0].getProperties().tileIdentifier,
+      {
+        X: 64719,
+        Y: 88013,
+        Z: 17,
+      },
+      "one feature loaded into one quad of Z12 but 5 levels deeper into Z17"
+    );
+
+    // all children of child40_31 have no mass or are have loaded their features
+    tree
+      .children(child40_31)
+      .forEach((id) =>
+        assert.isTrue(!ext.getMass(id) || ext.isLoaded(id), `${id} loaded`)
+      );
+    // but child40_31 is not loaded
+    assert.isTrue(!ext.isLoaded(child40_31), "child40_31 not loaded");
+
+    const fids = [] as Array<number>;
+    tree.descendants(child40_31).forEach((c) => {
+      const features = ext.getFeatures(c);
+      if (!features) return;
+      features.forEach((f) => fids.push(f.getProperties().OBJECTID));
+    });
+
+    assert.equal(fids.length, 28, "28 fids for 1+20+7 features");
+
+    assert.deepEqual(fids, [
+      10720,
+      5989,
+      10661,
+      10670,
+      10715,
+      10716,
+      4498,
+      4503,
+      10721,
+      10727,
+      10667,
+      10719,
+      4499,
+      4500,
+      10748,
+      10662,
+      10666,
+      10717,
+      4513,
+      10738,
+      10726,
+      10747,
+      10668,
+      2186,
+      6964,
+      10718,
+      10663,
+      4501,
+    ]);
+
+    // need to get the 3 features that did no load into the children
+    const hereiam = await loader.loadCrosshairs(child40_31, projection);
+    console.log(hereiam);
+    assert.equal(hereiam.length, 3, "3 features found (could have been more)");
+    const extent = tree.asExtent(child40_31);
+    const featuresWithinTile = hereiam.filter((f) =>
+      containsExtent(extent, f.getGeometry().getExtent())
+    );
+    assert.equal(
+      featuresWithinTile.length,
+      3,
+      "3 features found that are within extent"
+    );
+    featuresWithinTile.forEach((f) => ext.addFeature(f));
+    ext.setLoaded(child31_1, true);
+  });
 });

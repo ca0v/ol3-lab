@@ -6,8 +6,8 @@ import { removeAuthority } from "./fun/removeAuthority";
 import { FeatureServiceRequest } from "./FeatureServiceRequest";
 import EsriJSON from "@ol/format/EsriJSON";
 import type { XYZ } from "poc/types/XYZ";
-import type { Z } from "./types/XY";
 import { slowloop } from "./fun/slowloop";
+import { explode } from "./fun/explode";
 
 function asRequest(projection: Projection) {
   const request: FeatureServiceRequest = {
@@ -29,6 +29,18 @@ function bbox(extent: Extent) {
   return JSON.stringify({ xmin, ymin, xmax, ymax });
 }
 
+function crosshair(extent: Extent) {
+  const { xmin, xmid, xmax, ymin, ymid, ymax, h, w } = explode(extent);
+  const coordinates = [
+    [xmid, ymin],
+    [xmid, ymax],
+    [xmid, ymid],
+    [xmin, ymid],
+    [xmax, ymid],
+  ];
+  return coordinates;
+}
+
 interface AgsFeatureLoaderOptions {
   maxDepth: number;
   minRecordCount: number;
@@ -43,6 +55,7 @@ const DEFAULT_OPTIONS: AgsFeatureLoaderOptions = {
 
 export class AgsFeatureLoader {
   private helper: TileTreeExt;
+
   public constructor(
     private options: {
       tree: TileTreeExt;
@@ -93,7 +106,7 @@ export class AgsFeatureLoader {
 
     this.helper.setMass(tileIdentifier, count);
 
-    if (0 >= depth || 0 == count) return count;
+    if (0 == count) return count;
 
     // count is low enough to load features
     if (count <= featureLoadThreshold) {
@@ -106,18 +119,23 @@ export class AgsFeatureLoader {
 
         // it is often the case that the count does not match the actual feature count
         // will test with a stable service
-        console.assert(
-          features.length === count,
-          `feature count may not match count response when the data is changes: ${count} != ${features.length}`
-        );
+        if (features.length !== count) {
+          console.log(
+            `feature count may not match count response when the data is changes: ${count} != ${features.length}`
+          );
+
+          this.helper.setMass(tileIdentifier, features.length);
+        }
+
         features.forEach((f) => this.helper.addFeature(f));
+        this.helper.setLoaded(tileIdentifier, true);
       } catch (ex) {
         console.error(ex);
       }
     }
 
     // count is too high, load sub-tiles
-    else if (count > featureLoadThreshold) {
+    else if (depth > 0 && count > featureLoadThreshold) {
       await Promise.all(
         await slowloop(
           tree.tree
@@ -141,6 +159,45 @@ export class AgsFeatureLoader {
       objectIdFieldName: string;
       features: { attributes: any; geometry: any }[];
     }>(request);
+    const features = esrijsonFormat.readFeatures(response, {
+      featureProjection: projection,
+    });
+    return features;
+  }
+
+  public async loadCrosshairs(tileIdentifier: XYZ, projection: Projection) {
+    // load any features that intersect the crosshairs of this tile
+    // because these would be the features that are not contained within
+    // must also exclude features that are not entirely within this tile
+    // esriSpatialRelTouches the cross-hairs of a tile excluding features
+    // not fully within the tile
+
+    const esrijsonFormat = new EsriJSON();
+
+    const { tree, url } = this.options;
+
+    const proxy = new FeatureServiceProxy({
+      service: url,
+    });
+
+    const request = asRequest(projection);
+    request.spatialRel = "esriSpatialRelIntersects";
+    request.geometryType = "esriGeometryPolyline";
+    request.geometry = JSON.stringify({
+      paths: [crosshair(tree.tree.asExtent(tileIdentifier))],
+    });
+
+    const response = await proxy.fetch<
+      {
+        objectIdFieldName: string;
+        features: { attributes: any; geometry: any }[];
+      } & { error: { code: number; message: string; details: Array<string> } }
+    >(request);
+
+    if (response.error) {
+      throw `${response.error.message}: ${response.error.details?.join(" ")}`;
+    }
+
     const features = esrijsonFormat.readFeatures(response, {
       featureProjection: projection,
     });

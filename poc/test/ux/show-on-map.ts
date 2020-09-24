@@ -38,20 +38,25 @@ function createFeatureForTile(
 }
 
 describe("showOnMap tests", () => {
-  it("renders a three level tree with features to prove the cluster counts are correct", async () => {
+  it("renders 7 feature tree to prove the cluster counts are correct", async () => {
     const projection = getProjection("EPSG:3857");
     const tree = new TileTree<{ mass: number }>({
       extent: projection.getExtent(),
     });
 
     const helper = new TileTreeExt(tree, { minZoom: 0, maxZoom: 8 });
-    helper.addFeature(createFeatureForTile(tree, { X: 3, Y: 3, Z: 5 }));
-    helper.addFeature(createFeatureForTile(tree, { X: 4, Y: 4, Z: 5 }));
-    helper.addFeature(createFeatureForTile(tree, { X: 5, Y: 5, Z: 5 }));
-    helper.addFeature(createFeatureForTile(tree, { X: 12, Y: 12, Z: 6 }));
-    helper.addFeature(createFeatureForTile(tree, { X: 25, Y: 25, Z: 7 }));
-    helper.addFeature(createFeatureForTile(tree, { X: 25, Y: 26, Z: 7 }));
-    helper.addFeature(createFeatureForTile(tree, { X: 25, Y: 27, Z: 7 }));
+    helper.addFeature(createFeatureForTile(tree, { X: 3, Y: 3, Z: 5 }, 0.9));
+    helper.addFeature(createFeatureForTile(tree, { X: 4, Y: 4, Z: 5 }, 0.9));
+    helper.addFeature(createFeatureForTile(tree, { X: 5, Y: 5, Z: 5 }, 0.9));
+    helper.addFeature(createFeatureForTile(tree, { X: 12, Y: 12, Z: 6 }, 0.9));
+    helper.addFeature(createFeatureForTile(tree, { X: 25, Y: 25, Z: 7 }, 0.9));
+    helper.addFeature(createFeatureForTile(tree, { X: 25, Y: 26, Z: 7 }, 0.9));
+    {
+      const tid7 = { X: 25, Y: 27, Z: 7 };
+      let feature = createFeatureForTile(tree, tid7, 0.9);
+      helper.addFeature(feature);
+      assert.equal(helper.getFeatures(tid7).length, 1, "level 7 has a feature");
+    }
     const view = showOnMap({ helper }).getView();
 
     view.setCenter(getCenter(tree.asExtent({ X: 3, Y: 3, Z: 5 })));
@@ -73,6 +78,9 @@ describe("showOnMap tests", () => {
     com = helper.centerOfMass({ X: 0, Y: 0, Z: 0 });
     assert.equal(com.mass, 3);
     assert.equal(com.featureMass, -4, "four features are visible");
+    com = helper.centerOfMass({ X: 3, Y: 3, Z: 5 });
+    assert.equal(com.mass, 0);
+    assert.equal(com.featureMass, -1, "all features are visible");
 
     view.setZoom(3);
     await slowloop([], 500);
@@ -80,22 +88,58 @@ describe("showOnMap tests", () => {
     assert.equal(com.mass, 0);
     assert.equal(com.featureMass, -7, "all features are visible");
 
-    // labels on map are not the same as they are here...that is the issue!
-    // force tiles to refresh
     view.setZoom(2);
     await slowloop([], 500);
-    // I am seeing "D1L0Z5" inside { X: 3, Y: 3, Z: 5 }, which means it thinks
-    // there is one hidden feature and no visible features inside this tile
-    // but that is not the case...I am looking at the tile!
-    com = helper.centerOfMass({ X: 3, Y: 3, Z: 5 });
-    assert.equal(com.mass, 0);
-    assert.equal(com.featureMass, -1, "all features are visible");
+    com = helper.centerOfMass({ X: 0, Y: 0, Z: 0 });
+    assert.equal(com.mass, 3, "3 level 7 features are hidden");
+    assert.equal(com.featureMass, -4, "4 level 5 and 6 features are visible");
 
-    // I am now testing my test code but not sure what else to do...cannot see where I am going wrong
-    view.dispatchEvent("hack:refresh-all-labels");
+    {
+      /**
+       * This explains why I am seeing two cluster markers so close together reporting 2 and 1
+       * instead of a parent cluster reporting 3
+       */
+      let node = { X: 25, Y: 27, Z: 7 };
+      com = helper.centerOfMass(node);
+      assert.equal(com.mass, 1, "level 7 tile has one hidden feature");
+      assert.equal(com.featureMass, 0, "level 7 tile has no visible features");
+
+      node = tree.parent(node);
+      com = helper.centerOfMass(node);
+      assert.equal(
+        com.mass,
+        2,
+        "parent tile contains 2 hidden features (not 3)"
+      );
+      assert.equal(com.featureMass, 0, "feature is hidden");
+
+      node = { X: 25, Y: 25, Z: 7 };
+      com = helper.centerOfMass(node);
+      assert.equal(com.mass, 1, "level 7 tile has one hidden feature");
+      assert.equal(com.featureMass, 0, "level 7 tile has no visible features");
+
+      node = tree.parent(node);
+      com = helper.centerOfMass(node);
+      assert.equal(
+        com.mass,
+        1,
+        "parent tile contains 1 hidden features (not 3)"
+      );
+      assert.equal(com.featureMass, -1, "level 6@12,12 is still visible");
+
+      // this is Z=5 tile that contains the 2 and 1 and is the visually prefered
+      // cluster to render...how to I ensure it is visible and its children are not?
+      node = tree.parent(node);
+      com = helper.centerOfMass(node);
+      assert.equal(com.mass, 3, "parent tile contains 3 hidden features");
+      assert.equal(com.featureMass, -1, "level 6@12,12 is still visible");
+
+      view.set("hack", node.Z);
+      view.dispatchEvent("hack:run-some-test");
+    }
   });
 
-  it("renders a three level tree with features on boundaries to expose defect", () => {
+  it("renders 7 feature tree with features on boundaries to expose defect", () => {
     const projection = getProjection("EPSG:3857");
     const tree = new TileTree<{ mass: number }>({
       extent: projection.getExtent(),
@@ -143,7 +187,7 @@ describe("showOnMap tests", () => {
     const loader = new AgsFeatureLoader({
       url,
       maxDepth: 8,
-      minRecordCount: 8,
+      minRecordCount: 100,
       tree: ext,
     });
 

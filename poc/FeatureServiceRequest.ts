@@ -3,11 +3,12 @@ export type FeatureServiceRequest = {
   returnGeometry: boolean;
   returnCountOnly: boolean;
   spatialRel:
+    | "esriSpatialRelTouches"
     | "esriSpatialRelIntersects"
     | "esriSpatialRelContains"
     | "esriSpatialRelEnvelopeIntersects";
   geometry: string;
-  geometryType: "esriGeometryEnvelope";
+  geometryType: "esriGeometryEnvelope" | "esriGeometryPolyline";
   inSR: number;
   outFields: string;
   outSR: number;
