@@ -5,12 +5,10 @@ import VectorSource from "@ol/source/Vector";
 import { Z } from "poc/types/XY";
 import { XYZ } from "poc/types/XYZ";
 import Point from "@ol/geom/Point";
-import { TINY } from "poc/fun/tiny";
+import { zoomByDelta } from "@ol/interaction/Interaction";
 
 const MIN_ZOOM_OFFSET = -4;
 const MAX_ZOOM_OFFSET = 3;
-const MIN_CLUSTER_ZOOM_OFFSET = 1 + TINY;
-const MAX_CLUSTER_ZOOM_OFFSET = 2;
 
 function isFeatureVisible(f: Feature<Geometry>) {
   return true === f.getProperties().visible;
@@ -38,6 +36,7 @@ export class TileView {
     tilesWithMass.forEach((id) => this.updateCluster(id));
   }
 
+  // creates cluster features, updates symbology info for the cluster
   computeTileVisibility(currentZoom: Z) {
     // recompute visibility of all features
     this.source.getFeatures().forEach((f) => {
@@ -60,7 +59,6 @@ export class TileView {
       .filter((id) => this.helper.isStale(id));
 
     staleTiles.forEach((id) => {
-      if (!this.helper.isStale(id)) return;
       this.updateCluster(id);
     });
   }
@@ -82,7 +80,19 @@ export class TileView {
     const { mass, center, featureMass } = this.helper.centerOfMass(
       tileIdentifier
     );
-    feature.setProperties({ mass: mass, text: `${featureMass},${mass}` }, true);
+
+    const childMass = this.helper.tree
+      .children(tileIdentifier)
+      .map((id) => this.helper.centerOfMass(id))
+      .reduce((a, b) => a + b.mass, 0);
+
+    feature.setProperties(
+      {
+        mass: mass - childMass,
+        text: `${mass - childMass}Z${tileIdentifier.Z}`,
+      },
+      true
+    );
     feature.setGeometry(new Point(center));
   }
 
@@ -98,22 +108,24 @@ export class TileView {
 
   // hide all features outside of current zoom
   private isFeatureVisible(f: Feature<Geometry>, Z: Z) {
-    const featureZoom = f.getProperties().Z as Z;
-    const { type, mass } = f.getProperties() as {
+    const {
+      Z: featureZoom,
+      type,
+      mass,
+      tileIdentifier,
+    } = f.getProperties() as {
       type: string;
       mass: number;
+      tileIdentifier: XYZ;
+      Z: Z;
     };
     const zoffset = Z - featureZoom; // larger means the feature is larger on the screen
     switch (type) {
       case "feature":
         return MIN_ZOOM_OFFSET <= zoffset && zoffset <= MAX_ZOOM_OFFSET;
       case "cluster":
-        return true;
         if (!mass) return false;
-        return (
-          MIN_CLUSTER_ZOOM_OFFSET <= zoffset &&
-          zoffset <= MAX_CLUSTER_ZOOM_OFFSET
-        );
+        return true;
     }
     return true;
   }

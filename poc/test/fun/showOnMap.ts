@@ -68,5 +68,11 @@ export function showOnMap(options: { helper: TileTreeExt }) {
     });
   }
 
+  view.on("hack:refresh-all-labels", () => {
+    // tiles are not reflecting the backing data...trying to understand why..computeTileVisibility was only updating root tile
+    tree.descendants().forEach((id) => helper.setStale(id, true));
+    tileView.computeTileVisibility(view.getZoom() || 0);
+  });
+
   return map;
 }

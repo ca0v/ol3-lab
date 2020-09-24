@@ -2,6 +2,10 @@ import { Style, Fill, Stroke } from "@ol/style";
 import Circle from "@ol/style/Circle";
 import Text from "@ol/style/Text";
 
+const rules = {
+  TEXT_SCALE: 1,
+};
+
 export class StyleCache {
   readonly #styleCache = {} as any;
 
@@ -36,7 +40,7 @@ export class StyleCache {
             }),
             text: new Text({
               text: (text || mass || "") + "",
-              scale: 0.5,
+              scale: rules.TEXT_SCALE,
               fill: new Fill({ color: `rgba(255,255,255,${0.8})` }),
               stroke: new Stroke({
                 color: `rgba(0,0,0,${0.8})`,

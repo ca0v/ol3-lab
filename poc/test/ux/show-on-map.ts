@@ -84,8 +84,15 @@ describe("showOnMap tests", () => {
     // force tiles to refresh
     view.setZoom(2);
     await slowloop([], 500);
-    tree.descendants().forEach((id) => helper.setStale(id, true));
-    view.dispatchEvent("change:resolution");
+    // I am seeing "D1L0Z5" inside { X: 3, Y: 3, Z: 5 }, which means it thinks
+    // there is one hidden feature and no visible features inside this tile
+    // but that is not the case...I am looking at the tile!
+    com = helper.centerOfMass({ X: 3, Y: 3, Z: 5 });
+    assert.equal(com.mass, 0);
+    assert.equal(com.featureMass, -1, "all features are visible");
+
+    // I am now testing my test code but not sure what else to do...cannot see where I am going wrong
+    view.dispatchEvent("hack:refresh-all-labels");
   });
 
   it("renders a three level tree with features on boundaries to expose defect", () => {
