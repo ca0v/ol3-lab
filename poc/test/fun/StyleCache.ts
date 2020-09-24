@@ -9,10 +9,12 @@ export class StyleCache {
     type,
     zoffset,
     mass,
+    text,
   }: {
     type: string;
     zoffset: number;
     mass: number;
+    text: string;
   }) {
     const massLevel = Math.floor(Math.pow(2, Math.floor(Math.log2(mass))));
     const styleKey = `${type}.${zoffset}.${massLevel}`;
@@ -33,7 +35,7 @@ export class StyleCache {
               }),
             }),
             text: new Text({
-              text: (mass ? mass : "") + "",
+              text: (text || mass || "") + "",
               scale: 0.5,
               fill: new Fill({ color: `rgba(255,255,255,${0.8})` }),
               stroke: new Stroke({
@@ -61,7 +63,7 @@ export class StyleCache {
     switch (type) {
       case "cluster": {
         if (style.getText()) {
-          style.getText().setText(mass + "");
+          style.getText().setText(text || mass + "");
         }
         break;
       }

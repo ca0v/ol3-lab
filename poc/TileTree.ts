@@ -124,8 +124,11 @@ export class TileTree<T> {
     );
   }
 
-  public descendants(input = this.root) {
+  public descendants(root?: XYZ) {
     const result = [] as XYZ[];
+    const input = root || this.root;
+    if (!root) result.push(this.root);
+
     const Zs = Object.keys(this.tileCache)
       .map((n) => parseInt(n))
       .filter((z) => z > input.Z);

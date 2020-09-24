@@ -8,8 +8,8 @@ import { showOnMap } from "../fun/showOnMap";
 import { TileTreeExt } from "poc/TileTreeExt";
 import Feature from "@ol/Feature";
 import Polygon from "@ol/geom/Polygon";
-import type { XY } from "poc/types/XY";
-import { scaleFromCenter } from "@ol/extent";
+import { getCenter, scaleFromCenter } from "@ol/extent";
+import { slowloop } from "poc/fun/slowloop";
 
 function createFeatureForTile(
   tree: TileTree<any>,
@@ -38,7 +38,7 @@ function createFeatureForTile(
 }
 
 describe("showOnMap tests", () => {
-  it("renders a three level tree with features to prove the cluster counts are correct", () => {
+  it("renders a three level tree with features to prove the cluster counts are correct", async () => {
     const projection = getProjection("EPSG:3857");
     const tree = new TileTree<{ mass: number }>({
       extent: projection.getExtent(),
@@ -52,7 +52,40 @@ describe("showOnMap tests", () => {
     helper.addFeature(createFeatureForTile(tree, { X: 25, Y: 25, Z: 7 }));
     helper.addFeature(createFeatureForTile(tree, { X: 25, Y: 26, Z: 7 }));
     helper.addFeature(createFeatureForTile(tree, { X: 25, Y: 27, Z: 7 }));
-    showOnMap({ helper });
+    const view = showOnMap({ helper }).getView();
+
+    view.setCenter(getCenter(tree.asExtent({ X: 3, Y: 3, Z: 5 })));
+
+    view.setZoom(0);
+    await slowloop([], 500);
+    let com = helper.centerOfMass({ X: 0, Y: 0, Z: 0 });
+    assert.equal(com.mass, 7);
+    assert.equal(com.featureMass, 0);
+
+    view.setZoom(1);
+    await slowloop([], 500);
+    com = helper.centerOfMass({ X: 0, Y: 0, Z: 0 });
+    assert.equal(com.mass, 4);
+    assert.equal(com.featureMass, -3, "three features are visible");
+
+    view.setZoom(2);
+    await slowloop([], 500);
+    com = helper.centerOfMass({ X: 0, Y: 0, Z: 0 });
+    assert.equal(com.mass, 3);
+    assert.equal(com.featureMass, -4, "four features are visible");
+
+    view.setZoom(3);
+    await slowloop([], 500);
+    com = helper.centerOfMass({ X: 0, Y: 0, Z: 0 });
+    assert.equal(com.mass, 0);
+    assert.equal(com.featureMass, -7, "all features are visible");
+
+    // labels on map are not the same as they are here...that is the issue!
+    // force tiles to refresh
+    view.setZoom(2);
+    await slowloop([], 500);
+    tree.descendants().forEach((id) => helper.setStale(id, true));
+    view.dispatchEvent("change:resolution");
   });
 
   it("renders a three level tree with features on boundaries to expose defect", () => {
@@ -88,7 +121,6 @@ describe("showOnMap tests", () => {
       "4x level 7 is level 5"
     );
 
-    console.log(tree.save());
     showOnMap({ helper });
   });
 

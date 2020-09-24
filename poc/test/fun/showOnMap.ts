@@ -40,14 +40,16 @@ export function showOnMap(options: { helper: TileTreeExt }) {
 
   layer.setStyle(<any>((feature: Feature<Geometry>, resolution: number) => {
     if (!isFeatureVisible(feature)) return null;
-    const { Z: featureZoom, type, mass } = feature.getProperties() as {
+    const { Z: featureZoom, type, mass, text } = feature.getProperties() as {
       Z: Z;
       type: string;
       mass: number;
+      text: string;
     };
     const currentZoom = Math.round(view.getZoomForResolution(resolution) || 0);
     const zoffset = featureZoom - currentZoom;
-    return styles.styleMaker({ type, zoffset, mass });
+    const style = styles.styleMaker({ type, zoffset, mass, text });
+    return style;
   }));
 
   map.addLayer(layer);

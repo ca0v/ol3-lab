@@ -5,10 +5,11 @@ import VectorSource from "@ol/source/Vector";
 import { Z } from "poc/types/XY";
 import { XYZ } from "poc/types/XYZ";
 import Point from "@ol/geom/Point";
+import { TINY } from "poc/fun/tiny";
 
-const MIN_ZOOM_OFFSET = -3;
-const MAX_ZOOM_OFFSET = 4;
-const MIN_CLUSTER_ZOOM_OFFSET = 2;
+const MIN_ZOOM_OFFSET = -4;
+const MAX_ZOOM_OFFSET = 3;
+const MIN_CLUSTER_ZOOM_OFFSET = 1 + TINY;
 const MAX_CLUSTER_ZOOM_OFFSET = 2;
 
 function isFeatureVisible(f: Feature<Geometry>) {
@@ -33,7 +34,7 @@ export class TileView {
     // create a feature for each cluster tile
     const tilesWithMass = this.helper.tree
       .descendants()
-      .filter((id) => !!this.helper.getMass(id));
+      .filter((id) => !!this.helper.centerOfMass(id).mass);
     tilesWithMass.forEach((id) => this.updateCluster(id));
   }
 
@@ -57,6 +58,7 @@ export class TileView {
     const staleTiles = this.helper.tree
       .descendants()
       .filter((id) => this.helper.isStale(id));
+
     staleTiles.forEach((id) => {
       if (!this.helper.isStale(id)) return;
       this.updateCluster(id);
@@ -75,11 +77,12 @@ export class TileView {
       });
       this.setTileFeature(tileIdentifier, feature);
       this.source.addFeature(feature);
-      const center = this.helper.tree.asCenter(tileIdentifier);
     }
 
-    const { mass, center } = this.helper.centerOfMass(tileIdentifier);
-    feature.setProperties({ mass }, true);
+    const { mass, center, featureMass } = this.helper.centerOfMass(
+      tileIdentifier
+    );
+    feature.setProperties({ mass: mass, text: `${featureMass},${mass}` }, true);
     feature.setGeometry(new Point(center));
   }
 
@@ -96,13 +99,17 @@ export class TileView {
   // hide all features outside of current zoom
   private isFeatureVisible(f: Feature<Geometry>, Z: Z) {
     const featureZoom = f.getProperties().Z as Z;
-    const { type, mass } = f.getProperties() as { type: string; mass: number };
-    const zoffset = featureZoom - Z;
+    const { type, mass } = f.getProperties() as {
+      type: string;
+      mass: number;
+    };
+    const zoffset = Z - featureZoom; // larger means the feature is larger on the screen
     switch (type) {
       case "feature":
         return MIN_ZOOM_OFFSET <= zoffset && zoffset <= MAX_ZOOM_OFFSET;
       case "cluster":
-        return !!mass;
+        return true;
+        if (!mass) return false;
         return (
           MIN_CLUSTER_ZOOM_OFFSET <= zoffset &&
           zoffset <= MAX_CLUSTER_ZOOM_OFFSET
