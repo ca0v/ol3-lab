@@ -30,13 +30,12 @@ export class TileTreeExt {
   }
 
   setVisible(feature: Feature<Geometry>, visible = true) {
-    const { tileIdentifier, visible: wasVisible } = <
-      { tileIdentifier: XYZ; visible: boolean }
-    >feature.getProperties();
+    const tileIdentifier = feature.get("tileIdentifier") as XYZ;
     if (!tileIdentifier)
       throw "feature has no tile identifier, register using addFeature";
+    const wasVisible = feature.get("visible") as boolean;
     if (wasVisible === visible) return;
-    feature.setProperties({ visible }, true);
+    feature.set("visible", visible, true);
     this.setStale(tileIdentifier, true);
   }
 
@@ -233,9 +232,7 @@ export class TileTreeExt {
     if (!features) return [];
 
     // only want mass of hidden features
-    const hiddenFeatures = features.filter(
-      (f) => visible === f.getProperties().visible
-    );
+    const hiddenFeatures = features.filter((f) => visible === f.get("visible"));
 
     return hiddenFeatures.map((f) => {
       const center = getCenter(f.getGeometry()!.getExtent()) as XY;

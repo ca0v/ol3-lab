@@ -5,14 +5,7 @@ import VectorSource from "@ol/source/Vector";
 import { Z } from "poc/types/XY";
 import { XYZ } from "poc/types/XYZ";
 import Point from "@ol/geom/Point";
-
-function isFeatureVisible(f: Feature<Geometry>) {
-  return true === f.getProperties().visible;
-}
-
-function setFeatureVisible(f: Feature<Geometry>, visible: boolean) {
-  f.setProperties({ visible });
-}
+import { isSamePoint } from "./isSamePoint";
 
 interface TileViewOptions {
   source: VectorSource<Geometry>;
@@ -33,10 +26,12 @@ export class TileView {
 
   private options: TileViewOptions;
 
-  constructor(options: Partial<TileViewOptions>) {
-    if (!options.source) throw "source required";
-    if (!options.helper) throw "helper required";
-
+  constructor(
+    options: Partial<TileViewOptions> & {
+      source: VectorSource<Geometry>;
+      helper: TileTreeExt;
+    }
+  ) {
     this.options = { ...DEFAULT_OPTIONS, ...options } as TileViewOptions;
 
     this.source = options.source;
@@ -52,15 +47,13 @@ export class TileView {
   computeTileVisibility(currentZoom: Z) {
     // recompute visibility of all features
     this.source.getFeatures().forEach((f) => {
-      const { tileIdentifier } = f.getProperties() as {
-        tileIdentifier: XYZ;
-      };
+      const tileIdentifier = f.get("tileIdentifier") as XYZ;
+      const isVisible = f.get("visible") as boolean;
 
-      const wasVisible = isFeatureVisible(f);
-      const isVisible = this.isFeatureVisible(f, currentZoom);
+      const willBecomeVisible = this.isFeatureVisible(f, currentZoom);
 
-      if (wasVisible !== isVisible) {
-        setFeatureVisible(f, isVisible);
+      if (isVisible !== willBecomeVisible) {
+        f.set("visible", willBecomeVisible);
         this.helper.setStale(tileIdentifier, true);
       }
     });
@@ -89,14 +82,7 @@ export class TileView {
       this.source.addFeature(feature);
     }
 
-    const { mass, center, featureMass } = this.helper.centerOfMass(
-      tileIdentifier
-    );
-
-    const childMass = this.helper.tree
-      .children(tileIdentifier)
-      .map((id) => this.helper.centerOfMass(id))
-      .reduce((a, b) => a + b.mass, 0);
+    const { mass, center } = this.helper.centerOfMass(tileIdentifier);
 
     feature.setProperties(
       {
@@ -105,7 +91,16 @@ export class TileView {
       },
       true
     );
-    feature.setGeometry(new Point(center));
+
+    let geom = feature.getGeometry() as Point;
+    if (geom) {
+      const oldCoordinates = geom.getCoordinates();
+      if (!center.every((v, i) => v === oldCoordinates[i])) {
+        geom.setCoordinates(center);
+      }
+    } else {
+      feature.setGeometry(new Point(center));
+    }
   }
 
   private setTileFeature({ X, Y, Z }: XYZ, feature: Feature<Geometry>) {
@@ -120,17 +115,10 @@ export class TileView {
 
   // hide all features outside of current zoom
   private isFeatureVisible(f: Feature<Geometry>, Z: Z) {
-    const {
-      Z: featureZoom,
-      type,
-      mass,
-      tileIdentifier,
-    } = f.getProperties() as {
-      type: string;
-      mass: number;
-      tileIdentifier: XYZ;
-      Z: Z;
-    };
+    const featureZoom = f.get("Z") as Z;
+    const type = f.get("type") as string;
+    const mass = f.get("mass") as string;
+
     const zoffset = Z - featureZoom; // larger means the feature is larger on the screen
     switch (type) {
       case "feature":

@@ -244,11 +244,11 @@ describe("showOnMap tests", () => {
     const tree = new TileTree<{ mass: number }>({
       extent: projection.getExtent(),
     });
-    const ext = new TileTreeExt(tree, { minZoom: 0, maxZoom: 18 });
+    const ext = new TileTreeExt(tree, { minZoom: 0, maxZoom: 21 });
 
     const loader = new AgsFeatureLoader({
       url,
-      maxDepth: 18 + 8,
+      maxDepth: 99,
       minRecordCount: 1000,
       tree: ext,
     });
@@ -257,6 +257,6 @@ describe("showOnMap tests", () => {
     const featureCount = await loader.loader(tileIdentifier, projection);
 
     assert.equal(11655, featureCount, "features");
-    showOnMap({ helper: ext, zoffset: 8 });
+    showOnMap({ helper: ext, zoffset: [-4, 10] });
   }).timeout(60 * 1000);
 });

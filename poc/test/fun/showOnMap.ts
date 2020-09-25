@@ -9,16 +9,16 @@ import { TileView } from "./TileView";
 import { createMap } from "./createMap";
 
 function isFeatureVisible(f: Feature<Geometry>) {
-  return true === f.getProperties().visible;
+  return true === f.get("visible");
 }
 
 interface ShowOnMapOptions {
   helper: TileTreeExt;
-  zoffset: number;
+  zoffset: [number, number];
 }
 
 const DEFAULT_OPTIONS: Partial<ShowOnMapOptions> = {
-  zoffset: 0,
+  zoffset: [-3, 4],
 };
 
 export function showOnMap(
@@ -51,18 +51,16 @@ export function showOnMap(
   const tileView = new TileView({
     source,
     helper,
-    MAX_ZOOM_OFFSET: options.zoffset,
-    MIN_ZOOM_OFFSET: -options.zoffset,
+    MIN_ZOOM_OFFSET: options.zoffset[0],
+    MAX_ZOOM_OFFSET: options.zoffset[1],
   });
 
   layer.setStyle(<any>((feature: Feature<Geometry>, resolution: number) => {
     if (!isFeatureVisible(feature)) return null;
-    const { Z: featureZoom, type, mass, text } = feature.getProperties() as {
-      Z: Z;
-      type: string;
-      mass: number;
-      text: string;
-    };
+    const featureZoom = feature.get("Z") as Z;
+    const type = feature.get("type") as string;
+    const mass = feature.get("mass") as number;
+    const text = feature.get("text") as string;
     const currentZoom = Math.round(view.getZoomForResolution(resolution) || 0);
     const zoffset = featureZoom - currentZoom;
     const style = styles.styleMaker({ type, zoffset, mass, text });
