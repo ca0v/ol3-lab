@@ -6,36 +6,9 @@ import { TileTree } from "poc/TileTree";
 import { get as getProjection } from "@ol/proj";
 import { showOnMap } from "../fun/showOnMap";
 import { TileTreeExt } from "poc/TileTreeExt";
-import Feature from "@ol/Feature";
-import Polygon from "@ol/geom/Polygon";
-import { getCenter, scaleFromCenter } from "@ol/extent";
+import { getCenter } from "@ol/extent";
 import { slowloop } from "poc/fun/slowloop";
-
-function createFeatureForTile(
-  tree: TileTree<any>,
-  tileIdentifier: { X: number; Y: number; Z: number },
-  scale?: number
-) {
-  const feature = new Feature({ visible: true });
-  const extent = tree.asExtent(tileIdentifier);
-  if (scale) {
-    scaleFromCenter(extent, scale);
-  }
-  const [xmin, ymin, xmax, ymax] = extent;
-
-  feature.setGeometry(
-    new Polygon([
-      [
-        [xmin, ymin],
-        [xmin, ymax],
-        [xmax, ymax],
-        [xmax, ymin],
-        [xmin, ymin],
-      ],
-    ])
-  );
-  return feature;
-}
+import { createFeatureForTile } from "../fun/createFeatureForTile";
 
 describe("showOnMap tests", () => {
   it("renders 7 feature tree to prove the cluster counts are correct", async () => {
@@ -45,16 +18,35 @@ describe("showOnMap tests", () => {
     });
 
     const helper = new TileTreeExt(tree, { minZoom: 0, maxZoom: 8 });
-    helper.addFeature(createFeatureForTile(tree, { X: 3, Y: 3, Z: 5 }, 0.9));
-    helper.addFeature(createFeatureForTile(tree, { X: 4, Y: 4, Z: 5 }, 0.9));
-    helper.addFeature(createFeatureForTile(tree, { X: 5, Y: 5, Z: 5 }, 0.9));
-    helper.addFeature(createFeatureForTile(tree, { X: 12, Y: 12, Z: 6 }, 0.9));
-    helper.addFeature(createFeatureForTile(tree, { X: 25, Y: 25, Z: 7 }, 0.9));
-    helper.addFeature(createFeatureForTile(tree, { X: 25, Y: 26, Z: 7 }, 0.9));
+    const fid = "fid";
+    helper.addFeature(
+      createFeatureForTile(tree, { X: 3, Y: 3, Z: 5 }, 0.9),
+      fid
+    );
+    helper.addFeature(
+      createFeatureForTile(tree, { X: 4, Y: 4, Z: 5 }, 0.9),
+      fid
+    );
+    helper.addFeature(
+      createFeatureForTile(tree, { X: 5, Y: 5, Z: 5 }, 0.9),
+      fid
+    );
+    helper.addFeature(
+      createFeatureForTile(tree, { X: 12, Y: 12, Z: 6 }, 0.9),
+      fid
+    );
+    helper.addFeature(
+      createFeatureForTile(tree, { X: 25, Y: 25, Z: 7 }, 0.9),
+      fid
+    );
+    helper.addFeature(
+      createFeatureForTile(tree, { X: 25, Y: 26, Z: 7 }, 0.9),
+      fid
+    );
     {
       const tid7 = { X: 25, Y: 27, Z: 7 };
       let feature = createFeatureForTile(tree, tid7, 0.9);
-      helper.addFeature(feature);
+      helper.addFeature(feature, fid);
       assert.equal(helper.getFeatures(tid7).length, 1, "level 7 has a feature");
     }
     const view = showOnMap({ helper }).getView();
@@ -146,12 +138,13 @@ describe("showOnMap tests", () => {
     });
 
     const helper = new TileTreeExt(tree, { minZoom: 0, maxZoom: 8 });
-    helper.addFeature(createFeatureForTile(tree, { X: 3, Y: 3, Z: 5 }));
-    helper.addFeature(createFeatureForTile(tree, { X: 4, Y: 4, Z: 5 }));
-    helper.addFeature(createFeatureForTile(tree, { X: 5, Y: 5, Z: 5 }));
-    helper.addFeature(createFeatureForTile(tree, { X: 12, Y: 12, Z: 6 }));
-    helper.addFeature(createFeatureForTile(tree, { X: 25, Y: 25, Z: 7 }));
-    helper.addFeature(createFeatureForTile(tree, { X: 25, Y: 26, Z: 7 }));
+    const fid = "id";
+    helper.addFeature(createFeatureForTile(tree, { X: 3, Y: 3, Z: 5 }), fid);
+    helper.addFeature(createFeatureForTile(tree, { X: 4, Y: 4, Z: 5 }), fid);
+    helper.addFeature(createFeatureForTile(tree, { X: 5, Y: 5, Z: 5 }), fid);
+    helper.addFeature(createFeatureForTile(tree, { X: 12, Y: 12, Z: 6 }), fid);
+    helper.addFeature(createFeatureForTile(tree, { X: 25, Y: 25, Z: 7 }), fid);
+    helper.addFeature(createFeatureForTile(tree, { X: 25, Y: 26, Z: 7 }), fid);
 
     // this feature is visible too soon, should appear with level 5 tiles
     const problematicFeature = createFeatureForTile(
@@ -160,7 +153,7 @@ describe("showOnMap tests", () => {
       4
     );
 
-    const problematicTile = helper.addFeature(problematicFeature);
+    const problematicTile = helper.addFeature(problematicFeature, fid);
     assert.deepEqual(
       problematicTile,
       { X: 1, Y: 1, Z: 3 },
@@ -194,7 +187,7 @@ describe("showOnMap tests", () => {
     const tileIdentifier = tree.parent({ X: 29 * 2, Y: 78 * 2, Z: 8 });
     const featureCount = await loader.loader(tileIdentifier, projection);
 
-    assert.equal(1617, featureCount, "features");
+    assert.equal(1652, featureCount, "features");
     showOnMap({ helper: ext });
   }).timeout(10 * 1000);
 

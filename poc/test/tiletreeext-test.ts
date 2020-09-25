@@ -12,6 +12,7 @@ import Point from "@ol/geom/Point";
 import Feature from "@ol/Feature";
 import { isSamePoint } from "./fun/isSamePoint";
 import Polygon from "@ol/geom/Polygon";
+import { createFeatureForTile } from "./fun/createFeatureForTile";
 
 function createTree() {
   const extent = [0, 0, 1, 1] as Extent;
@@ -318,13 +319,24 @@ describe("TileTreeExt Tests", () => {
 
     // tile features affect center-of-mass
     {
-      const feature = new Feature<Point>(new Point([0.9, 0]));
-      ext.addFeature(feature, tileIdentifier);
+      const feature = new Feature<Point>(new Point([0.1, 0.1]));
+      // points are buried deep in the tile tree
+      let targetTileIdentifier = ext.addFeature(feature);
+      assert.deepEqual(targetTileIdentifier, { X: 52428, Y: 52428, Z: 19 });
       ext.setVisible(feature, false);
+
+      assert.isTrue(
+        ext.isStale(targetTileIdentifier),
+        "target and all ancestors should be stale"
+      );
+      assert.isTrue(
+        ext.isStale(tileIdentifier),
+        "is tileIdentifier an ancestor?"
+      );
       const { center, mass, featureMass } = ext.centerOfMass(tileIdentifier);
       assert.equal(mass, 99, "mass unaffected by hidden features");
       assert.equal(featureMass, -1, "feature mass also uneffected");
-      isSamePoint(center, [0.9, 0], "hidden features affect center");
+      isSamePoint(center, [0.1, 0.1], "hidden features affect center");
     }
 
     // featureless child tile affect center-of-mass
@@ -342,7 +354,7 @@ describe("TileTreeExt Tests", () => {
       );
       isSamePoint(
         center,
-        [0.451953125, 0.001953125],
+        [0.051953125, 0.051953125],
         "center shifts when adding a child with mass"
       );
     }
@@ -388,16 +400,17 @@ describe("TileTreeExt Tests", () => {
     assert.equal(helper.centerOfMass(tileIdentifier).mass, 10);
 
     // add a feature to the grand child and make it visible to decrease its effective mass
-    const visibleFeature = createFeatureForTile(tree, grandChild);
-    const hiddenFeature = createFeatureForTile(tree, grandChild);
+    const visibleFeature = createFeatureForTile(tree, grandChild, 0.9);
+    const hiddenFeature = createFeatureForTile(tree, grandChild, 0.9);
 
     // adding a feature to the grand-child with no explicit mass happens when features are pushed down
-    helper.addFeature(visibleFeature, grandChild);
+    helper.addFeature(visibleFeature);
     helper.setVisible(visibleFeature, false);
-    helper.addFeature(hiddenFeature, grandChild);
+    helper.addFeature(hiddenFeature);
     helper.setVisible(hiddenFeature, false);
 
     // when those features are not visible they increase that tiles mass
+
     assert.equal(
       helper.centerOfMass(grandChild).mass,
       2,
@@ -512,23 +525,3 @@ describe("TileTreeExt Tests", () => {
     }
   });
 });
-
-function createFeatureForTile(
-  tree: TileTree<{ count: number; center: XY }>,
-  grandChild: { X: number; Y: number; Z: number }
-) {
-  const feature = new Feature({ visible: true });
-  const [xmin, ymin, xmax, ymax] = tree.asExtent(grandChild);
-  feature.setGeometry(
-    new Polygon([
-      [
-        [xmin, ymin],
-        [xmin, ymax],
-        [xmax, ymax],
-        [xmax, ymin],
-        [xmin, ymin],
-      ],
-    ])
-  );
-  return feature;
-}

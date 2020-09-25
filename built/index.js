@@ -41,7 +41,7 @@ define("poc/test/fun/isSamePoint", ["require", "exports", "chai", "poc/fun/tiny"
     exports.isSamePoint = void 0;
     function isSamePoint(a, b, message) {
         console.log(a);
-        a.forEach((v, i) => chai_1.assert.isTrue(tiny_1.isEq(v, b[i]), `${i}:${message}`));
+        a.forEach((v, i) => chai_1.assert.isTrue(tiny_1.isEq(v, b[i]), `[${i}]=${v}:${message}`));
     }
     exports.isSamePoint = isSamePoint;
 });
@@ -13666,7 +13666,7 @@ define("poc/TileTreeExt", ["require", "exports", "node_modules/ol/src/extent", "
             this.tree.decorate(tileIdentifier, { loaded });
         }
         isLoaded(tileIdentifier) {
-            return this.tree.decorate(tileIdentifier).loaded;
+            return (this.tree.decorate(tileIdentifier).loaded || false);
         }
         setVisible(feature, visible = true) {
             const { tileIdentifier, visible: wasVisible } = feature.getProperties();
@@ -13677,30 +13677,36 @@ define("poc/TileTreeExt", ["require", "exports", "node_modules/ol/src/extent", "
             feature.setProperties({ visible }, true);
             this.setStale(tileIdentifier, true);
         }
-        addFeature(feature, tileIdentifier) {
+        addFeature(feature, id) {
             var _a;
             const extent = (_a = feature.getGeometry()) === null || _a === void 0 ? void 0 : _a.getExtent();
             if (!extent)
                 throw "unable to compute extent of feature";
-            tileIdentifier = tileIdentifier || this.findByExtent(extent);
+            const tileIdentifier = this.findByExtent(extent);
             let { features } = this.tree.decorate(tileIdentifier);
             if (!features) {
                 features = [];
                 this.tree.decorate(tileIdentifier, { features });
             }
+            const fid = id ? feature.getProperties()[id] : features.length;
+            if (features[fid]) {
+                console.warn(`feature already added: ${fid}`);
+            }
+            features[fid] = feature;
             feature.setProperties({
                 tileIdentifier,
                 Z: this.findZByExtent(extent),
                 type: "feature",
                 visible: false,
             });
-            features.push(feature);
             this.setStale(tileIdentifier, true);
             return tileIdentifier;
         }
         getFeatures(tileIdentifier) {
-            return this.tree.decorate(tileIdentifier)
-                .features;
+            const { features } = this.tree.decorate(tileIdentifier);
+            if (!features)
+                return [];
+            return Object.keys(features).map((id) => features[id]);
         }
         findZByExtent(extent) {
             const find = explode_4.explode(extent);
@@ -14445,7 +14451,7 @@ define("poc/fun/slowloop", ["require", "exports"], function (require, exports) {
     }
     exports.slowloop = slowloop;
 });
-define("poc/AgsFeatureLoader", ["require", "exports", "poc/FeatureServiceProxy", "poc/fun/removeAuthority", "node_modules/ol/src/format/EsriJSON", "poc/fun/slowloop", "poc/fun/explode"], function (require, exports, FeatureServiceProxy_1, removeAuthority_1, EsriJSON_1, slowloop_1, explode_5) {
+define("poc/AgsFeatureLoader", ["require", "exports", "poc/FeatureServiceProxy", "poc/fun/removeAuthority", "node_modules/ol/src/format/EsriJSON", "poc/fun/explode"], function (require, exports, FeatureServiceProxy_1, removeAuthority_1, EsriJSON_1, explode_5) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.AgsFeatureLoader = void 0;
@@ -14459,7 +14465,7 @@ define("poc/AgsFeatureLoader", ["require", "exports", "poc/FeatureServiceProxy",
             outSR: removeAuthority_1.removeAuthority(projection.getCode()),
             returnGeometry: true,
             returnCountOnly: false,
-            spatialRel: "esriSpatialRelContains",
+            spatialRel: "esriSpatialRelEnvelopeIntersects",
         };
         return request;
     }
@@ -14504,11 +14510,15 @@ define("poc/AgsFeatureLoader", ["require", "exports", "poc/FeatureServiceProxy",
                     service: url,
                 });
                 const count = yield (() => __awaiter(this, void 0, void 0, function* () {
+                    var _a;
                     const request = asRequest(projection);
                     request.geometry = bbox(tree.tree.asExtent(tileIdentifier));
                     request.returnCountOnly = true;
                     try {
                         const response = yield proxy.fetch(request);
+                        if (response.error) {
+                            throw `${response.error.message}: ${(_a = response.error.details) === null || _a === void 0 ? void 0 : _a.join(" ")}`;
+                        }
                         return response.count;
                     }
                     catch (ex) {
@@ -14523,12 +14533,11 @@ define("poc/AgsFeatureLoader", ["require", "exports", "poc/FeatureServiceProxy",
                     const request = asRequest(projection);
                     request.geometry = bbox(tree.tree.asExtent(tileIdentifier));
                     try {
-                        const features = yield this.loadFeatures(request, proxy, projection);
+                        const { id, features } = yield this.loadFeatures(request, proxy, projection);
                         if (features.length !== count) {
                             console.log(`feature count may not match count response when the data is changes: ${count} != ${features.length}`);
-                            this.helper.setMass(tileIdentifier, features.length);
                         }
-                        features.forEach((f) => this.helper.addFeature(f));
+                        features.forEach((f) => this.helper.addFeature(f, id));
                         this.helper.setLoaded(tileIdentifier, true);
                     }
                     catch (ex) {
@@ -14536,37 +14545,19 @@ define("poc/AgsFeatureLoader", ["require", "exports", "poc/FeatureServiceProxy",
                     }
                 }
                 else if (depth > 0 && count > featureLoadThreshold) {
-                    yield Promise.all(yield slowloop_1.slowloop(tree.tree
-                        .quads(tileIdentifier)
-                        .map((id) => () => this.loadTile(id, projection, depth - 1)), throttle));
+                    const c = tree.tree.quads(tileIdentifier);
+                    yield this.loadTile(c[0], projection, depth - 1);
+                    yield this.loadTile(c[1], projection, depth - 1);
+                    yield this.loadTile(c[2], projection, depth - 1);
+                    yield this.loadTile(c[3], projection, depth - 1);
                 }
                 return count;
             });
         }
         loadFeatures(request, proxy, projection) {
-            return __awaiter(this, void 0, void 0, function* () {
-                const esrijsonFormat = new EsriJSON_1.default();
-                const response = yield proxy.fetch(request);
-                const features = esrijsonFormat.readFeatures(response, {
-                    featureProjection: projection,
-                });
-                return features;
-            });
-        }
-        loadCrosshairs(tileIdentifier, projection) {
             var _a;
             return __awaiter(this, void 0, void 0, function* () {
                 const esrijsonFormat = new EsriJSON_1.default();
-                const { tree, url } = this.options;
-                const proxy = new FeatureServiceProxy_1.FeatureServiceProxy({
-                    service: url,
-                });
-                const request = asRequest(projection);
-                request.spatialRel = "esriSpatialRelIntersects";
-                request.geometryType = "esriGeometryPolyline";
-                request.geometry = JSON.stringify({
-                    paths: [crosshair(tree.tree.asExtent(tileIdentifier))],
-                });
                 const response = yield proxy.fetch(request);
                 if (response.error) {
                     throw `${response.error.message}: ${(_a = response.error.details) === null || _a === void 0 ? void 0 : _a.join(" ")}`;
@@ -14574,7 +14565,34 @@ define("poc/AgsFeatureLoader", ["require", "exports", "poc/FeatureServiceProxy",
                 const features = esrijsonFormat.readFeatures(response, {
                     featureProjection: projection,
                 });
-                return features;
+                return { id: response.objectIdFieldName, features };
+            });
+        }
+        loadCrosshairs(tileIdentifier, proxy, projection) {
+            var _a;
+            return __awaiter(this, void 0, void 0, function* () {
+                const esrijsonFormat = new EsriJSON_1.default();
+                const { tree } = this.options;
+                const request = asRequest(projection);
+                request.spatialRel = "esriSpatialRelIntersects";
+                request.geometryType = "esriGeometryPolyline";
+                request.geometry = JSON.stringify({
+                    paths: [crosshair(tree.tree.asExtent(tileIdentifier))],
+                });
+                try {
+                    const response = yield proxy.fetch(request);
+                    if (response.error) {
+                        throw `${response.error.message}: ${(_a = response.error.details) === null || _a === void 0 ? void 0 : _a.join(" ")}`;
+                    }
+                    const features = esrijsonFormat.readFeatures(response, {
+                        featureProjection: projection,
+                    });
+                    return features;
+                }
+                catch (ex) {
+                    console.error(ex);
+                    return [];
+                }
             });
         }
     }
@@ -14590,7 +14608,7 @@ define("poc/fun/flatten", ["require", "exports"], function (require, exports) {
     }
     exports.flatten = flatten;
 });
-define("poc/test/ags-feature-loader-test", ["require", "exports", "mocha", "chai", "poc/AgsFeatureLoader", "poc/TileTree", "node_modules/ol/src/proj", "poc/TileTreeExt", "poc/fun/flatten", "node_modules/ol/src/extent"], function (require, exports, mocha_2, chai_3, AgsFeatureLoader_1, TileTree_1, proj_1, TileTreeExt_1, flatten_1, extent_4) {
+define("poc/test/ags-feature-loader-test", ["require", "exports", "mocha", "chai", "poc/AgsFeatureLoader", "poc/TileTree", "node_modules/ol/src/proj", "poc/TileTreeExt", "poc/fun/flatten"], function (require, exports, mocha_2, chai_3, AgsFeatureLoader_1, TileTree_1, proj_1, TileTreeExt_1, flatten_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     mocha_2.describe("AgsFeatureLoader tests", () => {
@@ -14607,16 +14625,18 @@ define("poc/test/ags-feature-loader-test", ["require", "exports", "mocha", "chai
                 tree: ext,
                 networkThrottle: 500,
             });
-            const q0mass = yield loader.loader({ X: 29 * 2, Y: 78 * 2, Z: 8 }, projection);
-            chai_3.assert.equal(481, q0mass, "q0");
-            const q1mass = yield loader.loader({ X: 29 * 2, Y: 78 * 2 + 1, Z: 8 }, projection);
-            chai_3.assert.equal(433, q1mass, "q1");
-            const q2mass = yield loader.loader({ X: 29 * 2 + 1, Y: 78 * 2, Z: 8 }, projection);
-            chai_3.assert.equal(396, q2mass, "q2");
-            const q3mass = yield loader.loader({ X: 29 * 2 + 1, Y: 78 * 2 + 1, Z: 8 }, projection);
-            chai_3.assert.equal(260, q3mass, "q3");
-            const mass = yield loader.loader({ X: 29, Y: 78, Z: 7 }, projection);
-            chai_3.assert.equal(q0mass + q1mass + q2mass + q3mass + 47, mass);
+            let tileIdentifier = { X: 29, Y: 78, Z: 7 };
+            const children = tree.quads(tileIdentifier);
+            const q0mass = yield loader.loader(children[0], projection);
+            chai_3.assert.equal(515, q0mass, "q0");
+            const q1mass = yield loader.loader(children[1], projection);
+            chai_3.assert.equal(472, q1mass, "q1");
+            const q2mass = yield loader.loader(children[2], projection);
+            chai_3.assert.equal(292, q2mass, "q2");
+            const q3mass = yield loader.loader(children[3], projection);
+            chai_3.assert.equal(423, q3mass, "q3");
+            const mass = yield loader.loader(tileIdentifier, projection);
+            chai_3.assert.equal(q0mass + q1mass + q2mass + q3mass - 50, mass);
         }));
         mocha_2.it("loads starting from {0,0,0} 11 levels deep", () => __awaiter(void 0, void 0, void 0, function* () {
             const url = "http://localhost:3002/mock/sampleserver3/arcgis/rest/services/Petroleum/KSFields/FeatureServer/0/query";
@@ -14639,18 +14659,18 @@ define("poc/test/ags-feature-loader-test", ["require", "exports", "mocha", "chai
             console.log(ext.tree.descendants().filter((id) => !!ext.getMass(id)));
             chai_3.assert.equal(ext.getMass({ X: 1, Y: 4, Z: 3 }), totalMass, "loader is modifying the tree data on level-3 tiles");
             chai_3.assert.equal(ext.getMass({ X: 3, Y: 9, Z: 4 }), totalMass, "loader is modifying the tree data on level-4 tiles");
-            chai_3.assert.equal(ext.getMass({ X: 7, Y: 19, Z: 5 }), 6651, "loader is modifying the tree data on level-5 tiles");
-            chai_3.assert.equal(ext.getMass({ X: 14, Y: 39, Z: 6 }), 6345, "loader is modifying the tree data on level-6 tiles");
-            chai_3.assert.equal(ext.getMass({ X: 28, Y: 78, Z: 7 }), 3052, "loader is modifying the tree data on level-7 tiles");
-            chai_3.assert.equal(ext.getMass({ X: 57, Y: 158, Z: 8 }), 938, "loader is modifying the tree data on level-8 tiles");
-            chai_3.assert.equal(ext.getMass({ X: 114, Y: 314, Z: 9 }), 160, "loader is modifying the tree data on level-9 tiles");
-            chai_3.assert.equal(ext.centerOfMass({ X: 114, Y: 314, Z: 9 }).mass, 160, "level-9 tiles contain mass: 114,314");
+            chai_3.assert.equal(ext.getMass({ X: 7, Y: 19, Z: 5 }), 6658, "loader is modifying the tree data on level-5 tiles");
+            chai_3.assert.equal(ext.getMass({ X: 14, Y: 39, Z: 6 }), 6364, "loader is modifying the tree data on level-6 tiles");
+            chai_3.assert.equal(ext.getMass({ X: 28, Y: 78, Z: 7 }), 3114, "loader is modifying the tree data on level-7 tiles");
+            chai_3.assert.equal(ext.getMass({ X: 57, Y: 158, Z: 8 }), 982, "loader is modifying the tree data on level-8 tiles");
+            chai_3.assert.equal(ext.getMass({ X: 114, Y: 314, Z: 9 }), 185, "loader is modifying the tree data on level-9 tiles");
+            chai_3.assert.equal(ext.centerOfMass({ X: 114, Y: 314, Z: 9 }).mass, 185, "level-9 tiles contain mass: 114,314");
             chai_3.assert.equal(ext.centerOfMass({ X: 115, Y: 316, Z: 9 }).mass, 163, "level-9 tiles contain mass: 115,316");
-            chai_3.assert.deepEqual(ext.centerOfMass(ext.tree.parent({ X: 115, Y: 316, Z: 9 })).mass, 938, "parent has mass 938");
-            chai_3.assert.deepEqual(ext.getFeatures(ext.tree.parent({ X: 115, Y: 316, Z: 9 })).length, 23, "some of that mass is made up of 23 features");
-            chai_3.assert.deepEqual(ext.tree
-                .children(ext.tree.parent({ X: 115, Y: 316, Z: 9 }))
-                .map((id) => ext.centerOfMass(id).mass), [544, 206, 2, 163], "the children must have 938-23 units of mass");
+            let tileIdentifier = ext.tree.parent({ X: 115, Y: 316, Z: 9 });
+            let com = ext.centerOfMass(tileIdentifier);
+            chai_3.assert.deepEqual(com.mass, 982, "parent mass");
+            chai_3.assert.equal(ext.getFeatures(tileIdentifier).length, 23, "some of that mass is made up of features");
+            chai_3.assert.deepEqual(ext.tree.children(tileIdentifier).map((id) => ext.centerOfMass(id).mass), [544, 206, 2, 163], "the children must have 938-23 units of mass");
             chai_3.assert.equal(ext.getFeatures({ X: 115, Y: 316, Z: 9 }).length, 7, "level-9 tiles contain features: 115,316");
             yield loader.loader({ X: 115, Y: 316, Z: 9 }, projection);
         })).timeout(60 * 1000);
@@ -14667,11 +14687,12 @@ define("poc/test/ags-feature-loader-test", ["require", "exports", "mocha", "chai
                 minRecordCount: 128,
                 tree: ext,
             });
-            const totalMass = yield loader.loader({ X: 59, Y: 157, Z: 8 }, projection);
-            chai_3.assert.equal(260, totalMass, "q3");
-            chai_3.assert.equal(ext.getMass({ X: 59, Y: 157, Z: 8 }), totalMass, "loader is modifying the tree data on level-8 tiles");
-            const tile9 = { X: 59 * 2, Y: 157 * 2, Z: 9 };
-            chai_3.assert.equal(ext.getMass(tile9), 75, "loader is modifying the tree data on level-9 tiles");
+            let tileIdentifier = { X: 59, Y: 157, Z: 8 };
+            const totalMass = yield loader.loader(tileIdentifier, projection);
+            chai_3.assert.equal(292, totalMass, "q3");
+            chai_3.assert.equal(ext.getMass(tileIdentifier), totalMass, "loader is modifying the tree data on level-8 tiles");
+            const tile9 = tree.quads(tileIdentifier)[0];
+            chai_3.assert.equal(ext.getMass(tile9), 103, "loader is modifying the tree data on level-9 tiles");
             const masses = ext.tree.children(tile9).map((id) => ext.getMass(id));
             chai_3.assert.deepEqual(masses, [null, null, null, null]);
             const features = ext.tree
@@ -14679,7 +14700,7 @@ define("poc/test/ags-feature-loader-test", ["require", "exports", "mocha", "chai
                 .map((id) => ext.getFeatures(id).length);
             chai_3.assert.deepEqual(features, [2, 1, 1, 3]);
             chai_3.assert.deepEqual(ext.getFeatures(tile9).length, 6);
-            chai_3.assert.equal(ext.centerOfMass(tile9).mass, 75, "tile9 moment mass is the same as its count");
+            chai_3.assert.equal(ext.centerOfMass(tile9).mass, 103, "tile9 moment mass is the same as its count");
             const moments = ext.tree
                 .children(tile9)
                 .map((id) => ext.centerOfMass(id).mass);
@@ -14689,7 +14710,7 @@ define("poc/test/ags-feature-loader-test", ["require", "exports", "mocha", "chai
                 X: 236,
                 Y: 628,
                 Z: 10,
-            });
+            }, "tile10");
             const tilesWithFeatures = ext.tree
                 .descendants(tile10)
                 .map((id) => { var _a; return (Object.assign(Object.assign({}, id), { count: (_a = ext.getFeatures(id)) === null || _a === void 0 ? void 0 : _a.length })); })
@@ -14716,37 +14737,37 @@ define("poc/test/ags-feature-loader-test", ["require", "exports", "mocha", "chai
                 { X: 3781, Y: 10062, Z: 14, count: 2 },
                 { X: 3790, Y: 10048, Z: 14, count: 1 },
                 { X: 3790, Y: 10049, Z: 14, count: 1 },
-            ]);
+            ], "tilesWithFeatures");
             chai_3.assert.equal(tilesWithFeatures.reduce((a, b) => a + b.count, 0), 24, "tile contains 26 features but all but 2 are in sub-tile");
             const fids = flatten_1.flatten(tilesWithFeatures.map((id) => ext.getFeatures(id).map((f) => f.getProperties().objectid)));
             chai_3.assert.equal(fids.length, 24, "These are the feature ids associated with the sub-tiles");
             console.log(fids);
-            chai_3.assert.deepEqual(fids, [
-                1840,
-                2122,
-                2556,
-                4974,
-                4671,
-                5127,
-                3571,
-                1907,
+            chai_3.assert.deepEqual(fids.sort((a, b) => a - b), [
                 229,
-                2844,
                 1715,
-                6820,
-                2545,
-                3231,
-                4869,
-                5895,
-                4117,
-                2602,
-                2601,
+                1840,
+                1907,
                 1913,
+                2122,
+                2545,
+                2556,
+                2601,
+                2602,
+                2844,
+                3231,
                 3489,
+                3571,
                 3574,
-                6609,
+                4117,
+                4671,
+                4869,
+                4974,
+                5127,
+                5895,
                 6556,
-            ]);
+                6609,
+                6820,
+            ], "fids");
         })).timeout(60 * 1000);
         mocha_2.it("hits internal GIS system PART 1", () => __awaiter(void 0, void 0, void 0, function* () {
             const url = "http://localhost:3002/mock/gis1/arcgis/rest/services/IPS112/QA112UK/FeatureServer/1/query";
@@ -14785,16 +14806,21 @@ define("poc/test/ags-feature-loader-test", ["require", "exports", "mocha", "chai
                 minRecordCount: 128,
                 networkThrottle: 10,
             });
-            const totalMass = yield loader.loader({ X: 15, Y: 21, Z: 5 }, projection);
+            let tileIdentifier = { X: 15, Y: 21, Z: 5 };
+            const totalMass = yield loader.loader(tileIdentifier, projection);
             chai_3.assert.equal(totalMass, 9076, "sanity check");
             console.log(totalMass, ext.tree.save().data.filter((d) => 0 < d[3].mass));
-            chai_3.assert.deepEqual(ext.getMass({ X: 31, Y: 42, Z: 6 }), 804, "level 6");
-            chai_3.assert.deepEqual(ext.getMass({ X: 63, Y: 85, Z: 7 }), 804, "level 7");
-            chai_3.assert.deepEqual(ext.getMass({ X: 126, Y: 171, Z: 8 }), 714, "level 8");
-            chai_3.assert.deepEqual(ext.getMass({ X: 252, Y: 343, Z: 9 }), 47, "level 9");
-            chai_3.assert.deepEqual(ext.getMass({ X: 504, Y: 688, Z: 10 }), 204, "level 10");
+            tileIdentifier = tree.quads(tileIdentifier)[3];
+            chai_3.assert.deepEqual(ext.getMass(tileIdentifier), 817, "level 6");
+            tileIdentifier = tree.quads(tileIdentifier)[2];
+            chai_3.assert.deepEqual(ext.getMass(tileIdentifier), 817, "level 7");
+            tileIdentifier = tree.quads(tileIdentifier)[1];
+            chai_3.assert.deepEqual(ext.getMass(tileIdentifier), 727, "level 8");
+            tileIdentifier = tree.quads(tileIdentifier)[1];
+            chai_3.assert.deepEqual(ext.getMass(tileIdentifier), 51, "level 9");
+            chai_3.assert.deepEqual(tree.quads(tileIdentifier).map((v) => ext.getMass(v)), [null, null, null, null], "level 10");
         })).timeout(10 * 1000);
-        mocha_2.it("when a feature is on a boundary it is not inside any child", () => __awaiter(void 0, void 0, void 0, function* () {
+        mocha_2.it("hits internal GIS system PART 3", () => __awaiter(void 0, void 0, void 0, function* () {
             const url = "http://localhost:3002/mock/gis1/arcgis/rest/services/IPS112/QA112UK/FeatureServer/1/query";
             const projection = proj_1.get("EPSG:3857");
             const tree = new TileTree_1.TileTree({
@@ -14808,84 +14834,85 @@ define("poc/test/ags-feature-loader-test", ["require", "exports", "mocha", "chai
                 minRecordCount: 20,
                 networkThrottle: 10,
             });
-            const totalMass = yield loader.loader({ X: 252, Y: 343, Z: 9 }, projection);
-            chai_3.assert.equal(totalMass, 47, "sanity check");
-            chai_3.assert.deepEqual(ext.getMass({ X: 252, Y: 343, Z: 9 }), 47, "level 9");
-            let children = tree.quads({ X: 252, Y: 343, Z: 9 });
+            let tileIdentifier = { X: 252, Y: 343, Z: 9 };
+            const totalMass = yield loader.loader(tileIdentifier, projection);
+            chai_3.assert.equal(totalMass, 51, "sanity check");
+            chai_3.assert.deepEqual(ext.getMass(tileIdentifier), 51, "level 9");
+            let children = tree.quads(tileIdentifier);
             yield Promise.all(children.map((c) => loader.loader(c, projection)));
-            chai_3.assert.deepEqual(children.map((id) => ext.getMass(id)), [null, 7, 40, null]);
+            chai_3.assert.deepEqual(children.map((id) => ext.getMass(id)), [null, 7, 44, null]);
             const child40 = children[2];
             children = tree.quads(child40);
             yield Promise.all(children.map((c) => loader.loader(c, projection)));
-            chai_3.assert.deepEqual(children.map((id) => ext.getMass(id)), [null, 4, 31, 5]);
+            chai_3.assert.deepEqual(children.map((id) => ext.getMass(id)), [null, 4, 35, 5]);
             const child40_31 = children[2];
             chai_3.assert.deepEqual(child40_31, { X: 1011, Y: 1375, Z: 11 }, "child31");
             children = tree.quads(child40_31);
             yield Promise.all(children.map((c) => loader.loader(c, projection)));
-            chai_3.assert.deepEqual(children.map((id) => ext.getMass(id)), [1, 20, 7, null], "28 is 3 less than 31 so there are 3 features that are within at least two child tiles");
+            chai_3.assert.deepEqual(children.map((id) => ext.getMass(id)), [2, 25, 11, null], "features exist within at least two child tiles");
             const child31_1 = children[0];
             chai_3.assert.deepEqual(child31_1, { X: 2022, Y: 2750, Z: 12 }, "1 feature loaded a Z12");
             const features = tree
                 .descendants(child31_1)
                 .map((id) => ext.getFeatures(id))
-                .filter((v) => !!v);
-            chai_3.assert.equal(features.length, 1, "one quad loaded");
+                .filter((v) => !!v && !!v.length);
+            chai_3.assert.equal(features.length, 1, "1 descendend of child31_1 loaded");
             chai_3.assert.equal(features[0].length, 1, "one feature loaded into one quad");
             chai_3.assert.deepEqual(features[0][0].getProperties().tileIdentifier, {
                 X: 64719,
                 Y: 88013,
                 Z: 17,
             }, "one feature loaded into one quad of Z12 but 5 levels deeper into Z17");
-            tree
+            const data = tree
                 .children(child40_31)
-                .forEach((id) => chai_3.assert.isTrue(!ext.getMass(id) || ext.isLoaded(id), `${id} loaded`));
-            chai_3.assert.isTrue(!ext.isLoaded(child40_31), "child40_31 not loaded");
-            const fids = [];
-            tree.descendants(child40_31).forEach((c) => {
-                const features = ext.getFeatures(c);
-                if (!features)
-                    return;
-                features.forEach((f) => fids.push(f.getProperties().OBJECTID));
-            });
-            chai_3.assert.equal(fids.length, 28, "28 fids for 1+20+7 features");
-            chai_3.assert.deepEqual(fids, [
-                10720,
-                5989,
-                10661,
-                10670,
-                10715,
-                10716,
-                4498,
-                4503,
-                10721,
-                10727,
-                10667,
-                10719,
-                4499,
-                4500,
-                10748,
-                10662,
-                10666,
-                10717,
-                4513,
-                10738,
-                10726,
-                10747,
-                10668,
-                2186,
-                6964,
-                10718,
-                10663,
-                4501,
+                .map((id) => ({ id, mass: ext.getMass(id), loaded: ext.isLoaded(id) }));
+            console.log(data);
+            chai_3.assert.deepEqual(data, [
+                { id: { X: 2022, Y: 2750, Z: 12 }, mass: 2, loaded: true },
+                { id: { X: 2022, Y: 2751, Z: 12 }, mass: 25, loaded: false },
+                { id: { X: 2023, Y: 2751, Z: 12 }, mass: 11, loaded: true },
+                { id: { X: 2023, Y: 2750, Z: 12 }, mass: null, loaded: false },
             ]);
-            const hereiam = yield loader.loadCrosshairs(child40_31, projection);
-            console.log(hereiam);
-            chai_3.assert.equal(hereiam.length, 3, "3 features found (could have been more)");
-            const extent = tree.asExtent(child40_31);
-            const featuresWithinTile = hereiam.filter((f) => extent_4.containsExtent(extent, f.getGeometry().getExtent()));
-            chai_3.assert.equal(featuresWithinTile.length, 3, "3 features found that are within extent");
-            featuresWithinTile.forEach((f) => ext.addFeature(f));
-            ext.setLoaded(child31_1, true);
+            chai_3.assert.isTrue(!ext.isLoaded(child40_31), "child40_31 not loaded");
+            const fids = tree.descendants(child40_31).map((c) => {
+                const mass = ext.getMass(c);
+                const features = ext
+                    .getFeatures(c)
+                    .map((f) => f.getProperties().OBJECTID)
+                    .sort((a, b) => a - b);
+                return { c, mass, features };
+            });
+            console.log(JSON.stringify(fids));
+            chai_3.assert.equal(fids.length, 19, "the descendants of child40_31 *should* contain 2+25+11 features but only seeing 8 below...");
+            chai_3.assert.deepEqual(fids, [
+                { c: { X: 2022, Y: 2750, Z: 12 }, mass: 2, features: [] },
+                { c: { X: 2022, Y: 2751, Z: 12 }, mass: 25, features: [] },
+                { c: { X: 2023, Y: 2750, Z: 12 }, mass: null, features: [] },
+                { c: { X: 2023, Y: 2751, Z: 12 }, mass: 11, features: [] },
+                { c: { X: 4044, Y: 5500, Z: 13 }, mass: null, features: [] },
+                {
+                    c: { X: 4047, Y: 5503, Z: 13 },
+                    mass: null,
+                    features: [4498, 4503],
+                },
+                { c: { X: 8089, Y: 11001, Z: 14 }, mass: null, features: [] },
+                { c: { X: 8094, Y: 11006, Z: 14 }, mass: null, features: [] },
+                { c: { X: 8094, Y: 11007, Z: 14 }, mass: null, features: [] },
+                {
+                    c: { X: 8095, Y: 11007, Z: 14 },
+                    mass: null,
+                    features: [4499, 4500],
+                },
+                { c: { X: 16179, Y: 22003, Z: 15 }, mass: null, features: [] },
+                { c: { X: 16188, Y: 22012, Z: 15 }, mass: null, features: [] },
+                { c: { X: 16189, Y: 22014, Z: 15 }, mass: null, features: [4513] },
+                { c: { X: 16189, Y: 22015, Z: 15 }, mass: null, features: [] },
+                { c: { X: 32359, Y: 44006, Z: 16 }, mass: null, features: [] },
+                { c: { X: 32376, Y: 44024, Z: 16 }, mass: null, features: [2186] },
+                { c: { X: 32379, Y: 44030, Z: 16 }, mass: null, features: [] },
+                { c: { X: 64719, Y: 88013, Z: 17 }, mass: null, features: [6964] },
+                { c: { X: 64758, Y: 88061, Z: 17 }, mass: null, features: [4501] },
+            ], "should be 2+11 here unless 5 features spilled outside the boundary and into lower Z tiles");
         }));
     });
 });
@@ -16303,7 +16330,7 @@ define("poc/types/TileTreeEncoder", ["require", "exports"], function (require, e
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
 });
-define("poc/TileTreeTersifier", ["require", "exports", "poc/TileTree", "node_modules/ol/src/extent"], function (require, exports, TileTree_3, extent_5) {
+define("poc/TileTreeTersifier", ["require", "exports", "poc/TileTree", "node_modules/ol/src/extent"], function (require, exports, TileTree_3, extent_4) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.TileTreeTersifier = void 0;
@@ -16314,7 +16341,7 @@ define("poc/TileTreeTersifier", ["require", "exports", "poc/TileTree", "node_mod
             const outputData = data.map((d) => {
                 const [X, Y, Z, count, dx, dy] = d;
                 const extent = tree.asExtent({ X, Y, Z });
-                const [cx, cy] = extent_5.getCenter(extent);
+                const [cx, cy] = extent_4.getCenter(extent);
                 return [X, Y, Z, { count, center: [cx + dx / 10, cy + dy / 10] }];
             });
             return { extent, data: outputData };
@@ -16323,7 +16350,7 @@ define("poc/TileTreeTersifier", ["require", "exports", "poc/TileTree", "node_mod
             const { extent, data } = treestate;
             const tree = new TileTree_3.TileTree({ extent });
             const outData = data.map(([X, Y, Z, d]) => {
-                const center = extent_5.getCenter(tree.asExtent({ X, Y, Z }));
+                const center = extent_4.getCenter(tree.asExtent({ X, Y, Z }));
                 return [
                     X,
                     Y,
@@ -16570,7 +16597,32 @@ define("poc/test/treetile-test", ["require", "exports", "mocha", "chai", "poc/Ti
         });
     });
 });
-define("poc/test/tiletreeext-test", ["require", "exports", "mocha", "chai", "poc/TileTree", "poc/TileTreeExt", "poc/fun/tiny", "poc/fun/flatten", "node_modules/ol/src/geom/Point", "node_modules/ol/src/Feature", "poc/test/fun/isSamePoint", "node_modules/ol/src/geom/Polygon"], function (require, exports, mocha_5, chai_6, TileTree_5, TileTreeExt_3, tiny_5, flatten_2, Point_2, Feature_2, isSamePoint_2, Polygon_1) {
+define("poc/test/fun/createFeatureForTile", ["require", "exports", "node_modules/ol/src/Feature", "node_modules/ol/src/geom/Polygon", "node_modules/ol/src/extent"], function (require, exports, Feature_2, Polygon_1, extent_5) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.createFeatureForTile = void 0;
+    let FID = 1;
+    function createFeatureForTile(tree, tileIdentifier, scale) {
+        const feature = new Feature_2.default({ visible: true, fid: ++FID });
+        const extent = tree.asExtent(tileIdentifier);
+        if (scale) {
+            extent_5.scaleFromCenter(extent, scale);
+        }
+        const [xmin, ymin, xmax, ymax] = extent;
+        feature.setGeometry(new Polygon_1.default([
+            [
+                [xmin, ymin],
+                [xmin, ymax],
+                [xmax, ymax],
+                [xmax, ymin],
+                [xmin, ymin],
+            ],
+        ]));
+        return feature;
+    }
+    exports.createFeatureForTile = createFeatureForTile;
+});
+define("poc/test/tiletreeext-test", ["require", "exports", "mocha", "chai", "poc/TileTree", "poc/TileTreeExt", "poc/fun/tiny", "poc/fun/flatten", "node_modules/ol/src/geom/Point", "node_modules/ol/src/Feature", "poc/test/fun/isSamePoint", "poc/test/fun/createFeatureForTile"], function (require, exports, mocha_5, chai_6, TileTree_5, TileTreeExt_3, tiny_5, flatten_2, Point_2, Feature_3, isSamePoint_2, createFeatureForTile_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     function createTree() {
@@ -16581,7 +16633,7 @@ define("poc/test/tiletreeext-test", ["require", "exports", "mocha", "chai", "poc
         return tree;
     }
     function createPoint(point) {
-        const feature = new Feature_2.default();
+        const feature = new Feature_3.default();
         feature.setGeometry(new Point_2.default(point));
         return feature;
     }
@@ -16738,7 +16790,7 @@ define("poc/test/tiletreeext-test", ["require", "exports", "mocha", "chai", "poc
             const features = [];
             {
                 const [x, y] = [3, 3];
-                const feature = new Feature_2.default(new Point_2.default([1 / x, 1 / y]));
+                const feature = new Feature_3.default(new Point_2.default([1 / x, 1 / y]));
                 features.push(feature);
                 const targetIdentifier = ext.addFeature(feature);
                 chai_6.assert.deepEqual(targetIdentifier, { X: 174762, Y: 174762, Z: 19 });
@@ -16759,13 +16811,16 @@ define("poc/test/tiletreeext-test", ["require", "exports", "mocha", "chai", "poc
                 isSamePoint_2.isSamePoint(center, [1 / 4, 1 / 4], "center shifted");
             }
             {
-                const feature = new Feature_2.default(new Point_2.default([0.9, 0]));
-                ext.addFeature(feature, tileIdentifier);
+                const feature = new Feature_3.default(new Point_2.default([0.1, 0.1]));
+                let targetTileIdentifier = ext.addFeature(feature);
+                chai_6.assert.deepEqual(targetTileIdentifier, { X: 52428, Y: 52428, Z: 19 });
                 ext.setVisible(feature, false);
+                chai_6.assert.isTrue(ext.isStale(targetTileIdentifier), "target and all ancestors should be stale");
+                chai_6.assert.isTrue(ext.isStale(tileIdentifier), "is tileIdentifier an ancestor?");
                 const { center, mass, featureMass } = ext.centerOfMass(tileIdentifier);
                 chai_6.assert.equal(mass, 99, "mass unaffected by hidden features");
                 chai_6.assert.equal(featureMass, -1, "feature mass also uneffected");
-                isSamePoint_2.isSamePoint(center, [0.9, 0], "hidden features affect center");
+                isSamePoint_2.isSamePoint(center, [0.1, 0.1], "hidden features affect center");
             }
             {
                 const newChildId = { X: 0, Y: 0, Z: 7 };
@@ -16775,7 +16830,7 @@ define("poc/test/tiletreeext-test", ["require", "exports", "mocha", "chai", "poc
                 const { center, mass, featureMass } = ext.centerOfMass(tileIdentifier);
                 chai_6.assert.equal(mass, 99, "mass unaffected by children without features");
                 chai_6.assert.equal(featureMass, -1, "feature mass unaffected by children without features");
-                isSamePoint_2.isSamePoint(center, [0.451953125, 0.001953125], "center shifts when adding a child with mass");
+                isSamePoint_2.isSamePoint(center, [0.051953125, 0.051953125], "center shifts when adding a child with mass");
             }
         });
         mocha_5.it("infer the mass from a grandchild tile", () => {
@@ -16802,11 +16857,11 @@ define("poc/test/tiletreeext-test", ["require", "exports", "mocha", "chai", "poc
             const grandChild = tree.quads(child)[0];
             helper.setMass(child, 10);
             chai_6.assert.equal(helper.centerOfMass(tileIdentifier).mass, 10);
-            const visibleFeature = createFeatureForTile(tree, grandChild);
-            const hiddenFeature = createFeatureForTile(tree, grandChild);
-            helper.addFeature(visibleFeature, grandChild);
+            const visibleFeature = createFeatureForTile_1.createFeatureForTile(tree, grandChild, 0.9);
+            const hiddenFeature = createFeatureForTile_1.createFeatureForTile(tree, grandChild, 0.9);
+            helper.addFeature(visibleFeature);
             helper.setVisible(visibleFeature, false);
-            helper.addFeature(hiddenFeature, grandChild);
+            helper.addFeature(hiddenFeature);
             helper.setVisible(hiddenFeature, false);
             chai_6.assert.equal(helper.centerOfMass(grandChild).mass, 2, "two hidden features");
             helper.setVisible(visibleFeature, true);
@@ -16854,20 +16909,6 @@ define("poc/test/tiletreeext-test", ["require", "exports", "mocha", "chai", "poc
             }
         });
     });
-    function createFeatureForTile(tree, grandChild) {
-        const feature = new Feature_2.default({ visible: true });
-        const [xmin, ymin, xmax, ymax] = tree.asExtent(grandChild);
-        feature.setGeometry(new Polygon_1.default([
-            [
-                [xmin, ymin],
-                [xmin, ymax],
-                [xmax, ymax],
-                [xmax, ymin],
-                [xmin, ymin],
-            ],
-        ]));
-        return feature;
-    }
 });
 define("node_modules/ol/src/renderer/Composite", ["require", "exports", "node_modules/ol/src/renderer/Map", "node_modules/ol/src/ObjectEventType", "node_modules/ol/src/render/Event", "node_modules/ol/src/render/EventType", "node_modules/ol/src/source/State", "node_modules/ol/src/css", "node_modules/ol/src/render/canvas", "node_modules/ol/src/layer/Layer", "node_modules/ol/src/events", "node_modules/ol/src/dom"], function (require, exports, Map_js_1, ObjectEventType_js_5, Event_js_8, EventType_js_20, State_js_6, css_js_3, canvas_js_6, Layer_js_2, events_js_12, dom_js_7) {
     "use strict";
@@ -25157,7 +25198,7 @@ define("poc/test/fun/StyleCache", ["require", "exports", "node_modules/ol/src/st
     exports.StyleCache = StyleCache;
     _styleCache = new WeakMap();
 });
-define("poc/test/fun/TileView", ["require", "exports", "node_modules/ol/src/Feature", "node_modules/ol/src/geom/Point"], function (require, exports, Feature_3, Point_3) {
+define("poc/test/fun/TileView", ["require", "exports", "node_modules/ol/src/Feature", "node_modules/ol/src/geom/Point"], function (require, exports, Feature_4, Point_3) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.TileView = void 0;
@@ -25199,7 +25240,7 @@ define("poc/test/fun/TileView", ["require", "exports", "node_modules/ol/src/Feat
         updateCluster(tileIdentifier) {
             let feature = this.getTileFeature(tileIdentifier);
             if (!feature) {
-                feature = new Feature_3.default();
+                feature = new Feature_4.default();
                 feature.setProperties({
                     type: "cluster",
                     tileIdentifier: tileIdentifier,
@@ -25331,27 +25372,9 @@ define("poc/test/fun/showOnMap", ["require", "exports", "node_modules/ol/src/lay
     }
     exports.showOnMap = showOnMap;
 });
-define("poc/test/ux/show-on-map", ["require", "exports", "mocha", "chai", "poc/AgsFeatureLoader", "poc/TileTree", "node_modules/ol/src/proj", "poc/test/fun/showOnMap", "poc/TileTreeExt", "node_modules/ol/src/Feature", "node_modules/ol/src/geom/Polygon", "node_modules/ol/src/extent", "poc/fun/slowloop"], function (require, exports, mocha_7, chai_7, AgsFeatureLoader_3, TileTree_6, proj_4, showOnMap_1, TileTreeExt_4, Feature_4, Polygon_2, extent_8, slowloop_2) {
+define("poc/test/ux/show-on-map", ["require", "exports", "mocha", "chai", "poc/AgsFeatureLoader", "poc/TileTree", "node_modules/ol/src/proj", "poc/test/fun/showOnMap", "poc/TileTreeExt", "node_modules/ol/src/extent", "poc/fun/slowloop", "poc/test/fun/createFeatureForTile"], function (require, exports, mocha_7, chai_7, AgsFeatureLoader_3, TileTree_6, proj_4, showOnMap_1, TileTreeExt_4, extent_8, slowloop_1, createFeatureForTile_2) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    function createFeatureForTile(tree, tileIdentifier, scale) {
-        const feature = new Feature_4.default({ visible: true });
-        const extent = tree.asExtent(tileIdentifier);
-        if (scale) {
-            extent_8.scaleFromCenter(extent, scale);
-        }
-        const [xmin, ymin, xmax, ymax] = extent;
-        feature.setGeometry(new Polygon_2.default([
-            [
-                [xmin, ymin],
-                [xmin, ymax],
-                [xmax, ymax],
-                [xmax, ymin],
-                [xmin, ymin],
-            ],
-        ]));
-        return feature;
-    }
     mocha_7.describe("showOnMap tests", () => {
         mocha_7.it("renders 7 feature tree to prove the cluster counts are correct", () => __awaiter(void 0, void 0, void 0, function* () {
             const projection = proj_4.get("EPSG:3857");
@@ -25359,32 +25382,33 @@ define("poc/test/ux/show-on-map", ["require", "exports", "mocha", "chai", "poc/A
                 extent: projection.getExtent(),
             });
             const helper = new TileTreeExt_4.TileTreeExt(tree, { minZoom: 0, maxZoom: 8 });
-            helper.addFeature(createFeatureForTile(tree, { X: 3, Y: 3, Z: 5 }, 0.9));
-            helper.addFeature(createFeatureForTile(tree, { X: 4, Y: 4, Z: 5 }, 0.9));
-            helper.addFeature(createFeatureForTile(tree, { X: 5, Y: 5, Z: 5 }, 0.9));
-            helper.addFeature(createFeatureForTile(tree, { X: 12, Y: 12, Z: 6 }, 0.9));
-            helper.addFeature(createFeatureForTile(tree, { X: 25, Y: 25, Z: 7 }, 0.9));
-            helper.addFeature(createFeatureForTile(tree, { X: 25, Y: 26, Z: 7 }, 0.9));
+            const fid = "fid";
+            helper.addFeature(createFeatureForTile_2.createFeatureForTile(tree, { X: 3, Y: 3, Z: 5 }, 0.9), fid);
+            helper.addFeature(createFeatureForTile_2.createFeatureForTile(tree, { X: 4, Y: 4, Z: 5 }, 0.9), fid);
+            helper.addFeature(createFeatureForTile_2.createFeatureForTile(tree, { X: 5, Y: 5, Z: 5 }, 0.9), fid);
+            helper.addFeature(createFeatureForTile_2.createFeatureForTile(tree, { X: 12, Y: 12, Z: 6 }, 0.9), fid);
+            helper.addFeature(createFeatureForTile_2.createFeatureForTile(tree, { X: 25, Y: 25, Z: 7 }, 0.9), fid);
+            helper.addFeature(createFeatureForTile_2.createFeatureForTile(tree, { X: 25, Y: 26, Z: 7 }, 0.9), fid);
             {
                 const tid7 = { X: 25, Y: 27, Z: 7 };
-                let feature = createFeatureForTile(tree, tid7, 0.9);
-                helper.addFeature(feature);
+                let feature = createFeatureForTile_2.createFeatureForTile(tree, tid7, 0.9);
+                helper.addFeature(feature, fid);
                 chai_7.assert.equal(helper.getFeatures(tid7).length, 1, "level 7 has a feature");
             }
             const view = showOnMap_1.showOnMap({ helper }).getView();
             view.setCenter(extent_8.getCenter(tree.asExtent({ X: 3, Y: 3, Z: 5 })));
             view.setZoom(0);
-            yield slowloop_2.slowloop([], 500);
+            yield slowloop_1.slowloop([], 500);
             let com = helper.centerOfMass({ X: 0, Y: 0, Z: 0 });
             chai_7.assert.equal(com.mass, 7);
             chai_7.assert.equal(com.featureMass, 0);
             view.setZoom(1);
-            yield slowloop_2.slowloop([], 500);
+            yield slowloop_1.slowloop([], 500);
             com = helper.centerOfMass({ X: 0, Y: 0, Z: 0 });
             chai_7.assert.equal(com.mass, 4);
             chai_7.assert.equal(com.featureMass, -3, "three features are visible");
             view.setZoom(2);
-            yield slowloop_2.slowloop([], 500);
+            yield slowloop_1.slowloop([], 500);
             com = helper.centerOfMass({ X: 0, Y: 0, Z: 0 });
             chai_7.assert.equal(com.mass, 3);
             chai_7.assert.equal(com.featureMass, -4, "four features are visible");
@@ -25392,12 +25416,12 @@ define("poc/test/ux/show-on-map", ["require", "exports", "mocha", "chai", "poc/A
             chai_7.assert.equal(com.mass, 0);
             chai_7.assert.equal(com.featureMass, -1, "all features are visible");
             view.setZoom(3);
-            yield slowloop_2.slowloop([], 500);
+            yield slowloop_1.slowloop([], 500);
             com = helper.centerOfMass({ X: 0, Y: 0, Z: 0 });
             chai_7.assert.equal(com.mass, 0);
             chai_7.assert.equal(com.featureMass, -7, "all features are visible");
             view.setZoom(2);
-            yield slowloop_2.slowloop([], 500);
+            yield slowloop_1.slowloop([], 500);
             com = helper.centerOfMass({ X: 0, Y: 0, Z: 0 });
             chai_7.assert.equal(com.mass, 3, "3 level 7 features are hidden");
             chai_7.assert.equal(com.featureMass, -4, "4 level 5 and 6 features are visible");
@@ -25432,14 +25456,15 @@ define("poc/test/ux/show-on-map", ["require", "exports", "mocha", "chai", "poc/A
                 extent: projection.getExtent(),
             });
             const helper = new TileTreeExt_4.TileTreeExt(tree, { minZoom: 0, maxZoom: 8 });
-            helper.addFeature(createFeatureForTile(tree, { X: 3, Y: 3, Z: 5 }));
-            helper.addFeature(createFeatureForTile(tree, { X: 4, Y: 4, Z: 5 }));
-            helper.addFeature(createFeatureForTile(tree, { X: 5, Y: 5, Z: 5 }));
-            helper.addFeature(createFeatureForTile(tree, { X: 12, Y: 12, Z: 6 }));
-            helper.addFeature(createFeatureForTile(tree, { X: 25, Y: 25, Z: 7 }));
-            helper.addFeature(createFeatureForTile(tree, { X: 25, Y: 26, Z: 7 }));
-            const problematicFeature = createFeatureForTile(tree, { X: 25, Y: 27, Z: 7 }, 4);
-            const problematicTile = helper.addFeature(problematicFeature);
+            const fid = "id";
+            helper.addFeature(createFeatureForTile_2.createFeatureForTile(tree, { X: 3, Y: 3, Z: 5 }), fid);
+            helper.addFeature(createFeatureForTile_2.createFeatureForTile(tree, { X: 4, Y: 4, Z: 5 }), fid);
+            helper.addFeature(createFeatureForTile_2.createFeatureForTile(tree, { X: 5, Y: 5, Z: 5 }), fid);
+            helper.addFeature(createFeatureForTile_2.createFeatureForTile(tree, { X: 12, Y: 12, Z: 6 }), fid);
+            helper.addFeature(createFeatureForTile_2.createFeatureForTile(tree, { X: 25, Y: 25, Z: 7 }), fid);
+            helper.addFeature(createFeatureForTile_2.createFeatureForTile(tree, { X: 25, Y: 26, Z: 7 }), fid);
+            const problematicFeature = createFeatureForTile_2.createFeatureForTile(tree, { X: 25, Y: 27, Z: 7 }, 4);
+            const problematicTile = helper.addFeature(problematicFeature, fid);
             chai_7.assert.deepEqual(problematicTile, { X: 1, Y: 1, Z: 3 }, "tile is 4x width but covers two Z=4 tiles so bubbled into parent");
             chai_7.assert.equal(problematicFeature.getProperties().Z, 5, "4x level 7 is level 5");
             showOnMap_1.showOnMap({ helper });
@@ -25459,7 +25484,7 @@ define("poc/test/ux/show-on-map", ["require", "exports", "mocha", "chai", "poc/A
             });
             const tileIdentifier = tree.parent({ X: 29 * 2, Y: 78 * 2, Z: 8 });
             const featureCount = yield loader.loader(tileIdentifier, projection);
-            chai_7.assert.equal(1617, featureCount, "features");
+            chai_7.assert.equal(1652, featureCount, "features");
             showOnMap_1.showOnMap({ helper: ext });
         })).timeout(10 * 1000);
         mocha_7.it("renders a fully loaded tree with clusters via showOnMap (watershed)", () => __awaiter(void 0, void 0, void 0, function* () {

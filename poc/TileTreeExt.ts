@@ -24,7 +24,9 @@ export class TileTreeExt {
   }
 
   public isLoaded(tileIdentifier: XYZ) {
-    return this.tree.decorate<{ loaded: boolean }>(tileIdentifier).loaded;
+    return (
+      this.tree.decorate<{ loaded: boolean }>(tileIdentifier).loaded || false
+    );
   }
 
   setVisible(feature: Feature<Geometry>, visible = true) {
@@ -38,11 +40,11 @@ export class TileTreeExt {
     this.setStale(tileIdentifier, true);
   }
 
-  addFeature(feature: Feature<Geometry>, tileIdentifier?: XYZ) {
+  addFeature(feature: Feature<Geometry>, id?: string) {
     const extent = feature.getGeometry()?.getExtent();
     if (!extent) throw "unable to compute extent of feature";
 
-    tileIdentifier = tileIdentifier || this.findByExtent(extent);
+    const tileIdentifier = this.findByExtent(extent);
     let { features } = this.tree.decorate<{ features: Feature<Geometry>[] }>(
       tileIdentifier
     );
@@ -50,20 +52,32 @@ export class TileTreeExt {
       features = [];
       this.tree.decorate(tileIdentifier, { features });
     }
+
+    // ignore if already known...a hash would be much better here
+    const fid = id ? feature.getProperties()[id] : features.length;
+    if (features[fid]) {
+      console.warn(`feature already added: ${fid}`);
+    }
+    features[fid] = feature;
+
     feature.setProperties({
       tileIdentifier,
       Z: this.findZByExtent(extent),
       type: "feature",
       visible: false,
     });
-    features.push(feature);
+
     this.setStale(tileIdentifier, true);
     return tileIdentifier;
   }
 
   getFeatures(tileIdentifier: XYZ) {
-    return this.tree.decorate<{ features: Feature<Geometry>[] }>(tileIdentifier)
-      .features;
+    // feature "array" is actually a hash
+    const { features } = this.tree.decorate<{ features: Feature<Geometry>[] }>(
+      tileIdentifier
+    );
+    if (!features) return [];
+    return Object.keys(features).map((id: any) => features[id]);
   }
 
   findZByExtent(extent: Extent): Z {
