@@ -6,9 +6,6 @@ import { Z } from "poc/types/XY";
 import { XYZ } from "poc/types/XYZ";
 import Point from "@ol/geom/Point";
 
-const MIN_ZOOM_OFFSET = -4;
-const MAX_ZOOM_OFFSET = 3;
-
 function isFeatureVisible(f: Feature<Geometry>) {
   return true === f.getProperties().visible;
 }
@@ -17,15 +14,31 @@ function setFeatureVisible(f: Feature<Geometry>, visible: boolean) {
   f.setProperties({ visible });
 }
 
+interface TileViewOptions {
+  source: VectorSource<Geometry>;
+  helper: TileTreeExt;
+  MIN_ZOOM_OFFSET: number;
+  MAX_ZOOM_OFFSET: number;
+}
+
+const DEFAULT_OPTIONS: Partial<TileViewOptions> = {
+  MIN_ZOOM_OFFSET: -4,
+  MAX_ZOOM_OFFSET: 3,
+};
+
 export class TileView {
   private source: VectorSource<Geometry>;
   private helper: TileTreeExt;
   private tileFeatures = new Map<string, Feature<Geometry>>();
 
-  constructor(options: {
-    source: VectorSource<Geometry>;
-    helper: TileTreeExt;
-  }) {
+  private options: TileViewOptions;
+
+  constructor(options: Partial<TileViewOptions>) {
+    if (!options.source) throw "source required";
+    if (!options.helper) throw "helper required";
+
+    this.options = { ...DEFAULT_OPTIONS, ...options } as TileViewOptions;
+
     this.source = options.source;
     this.helper = options.helper;
     // create a feature for each cluster tile
@@ -121,7 +134,10 @@ export class TileView {
     const zoffset = Z - featureZoom; // larger means the feature is larger on the screen
     switch (type) {
       case "feature":
-        return MIN_ZOOM_OFFSET <= zoffset && zoffset <= MAX_ZOOM_OFFSET;
+        return (
+          this.options.MIN_ZOOM_OFFSET <= zoffset &&
+          zoffset <= this.options.MAX_ZOOM_OFFSET
+        );
       case "cluster":
         if (!mass) return false;
         return zoffset >= 0;

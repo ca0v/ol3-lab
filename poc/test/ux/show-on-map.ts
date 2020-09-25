@@ -236,4 +236,27 @@ describe("showOnMap tests", () => {
     assert.equal(72, featureCount, "features");
     showOnMap({ helper: ext });
   });
+
+  it("renders a fully loaded tree with clusters via showOnMap (parcels)", async () => {
+    const url =
+      "http://localhost:3002/mock/gis1/arcgis/rest/services/IPS112/SQL2v112/FeatureServer/22/query";
+    const projection = getProjection("EPSG:3857");
+    const tree = new TileTree<{ mass: number }>({
+      extent: projection.getExtent(),
+    });
+    const ext = new TileTreeExt(tree, { minZoom: 0, maxZoom: 18 });
+
+    const loader = new AgsFeatureLoader({
+      url,
+      maxDepth: 18 + 8,
+      minRecordCount: 1000,
+      tree: ext,
+    });
+
+    const tileIdentifier = { X: 0, Y: 0, Z: 0 };
+    const featureCount = await loader.loader(tileIdentifier, projection);
+
+    assert.equal(11655, featureCount, "features");
+    showOnMap({ helper: ext, zoffset: 8 });
+  }).timeout(60 * 1000);
 });

@@ -12,7 +12,19 @@ function isFeatureVisible(f: Feature<Geometry>) {
   return true === f.getProperties().visible;
 }
 
-export function showOnMap(options: { helper: TileTreeExt }) {
+interface ShowOnMapOptions {
+  helper: TileTreeExt;
+  zoffset: number;
+}
+
+const DEFAULT_OPTIONS: Partial<ShowOnMapOptions> = {
+  zoffset: 0,
+};
+
+export function showOnMap(
+  inOptions: Partial<ShowOnMapOptions> & { helper: TileTreeExt }
+) {
+  let options = { ...DEFAULT_OPTIONS, ...inOptions } as ShowOnMapOptions;
   const { helper } = options;
   const { tree } = helper;
 
@@ -36,7 +48,12 @@ export function showOnMap(options: { helper: TileTreeExt }) {
     source.addFeatures(features);
   });
 
-  const tileView = new TileView({ source, helper });
+  const tileView = new TileView({
+    source,
+    helper,
+    MAX_ZOOM_OFFSET: options.zoffset,
+    MIN_ZOOM_OFFSET: -options.zoffset,
+  });
 
   layer.setStyle(<any>((feature: Feature<Geometry>, resolution: number) => {
     if (!isFeatureVisible(feature)) return null;

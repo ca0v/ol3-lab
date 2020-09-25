@@ -25202,17 +25202,24 @@ define("poc/test/fun/TileView", ["require", "exports", "node_modules/ol/src/Feat
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.TileView = void 0;
-    const MIN_ZOOM_OFFSET = -4;
-    const MAX_ZOOM_OFFSET = 3;
     function isFeatureVisible(f) {
         return true === f.getProperties().visible;
     }
     function setFeatureVisible(f, visible) {
         f.setProperties({ visible });
     }
+    const DEFAULT_OPTIONS = {
+        MIN_ZOOM_OFFSET: -4,
+        MAX_ZOOM_OFFSET: 3,
+    };
     class TileView {
         constructor(options) {
             this.tileFeatures = new Map();
+            if (!options.source)
+                throw "source required";
+            if (!options.helper)
+                throw "helper required";
+            this.options = Object.assign(Object.assign({}, DEFAULT_OPTIONS), options);
             this.source = options.source;
             this.helper = options.helper;
             const tilesWithMass = this.helper.tree
@@ -25274,7 +25281,8 @@ define("poc/test/fun/TileView", ["require", "exports", "node_modules/ol/src/Feat
             const zoffset = Z - featureZoom;
             switch (type) {
                 case "feature":
-                    return MIN_ZOOM_OFFSET <= zoffset && zoffset <= MAX_ZOOM_OFFSET;
+                    return (this.options.MIN_ZOOM_OFFSET <= zoffset &&
+                        zoffset <= this.options.MAX_ZOOM_OFFSET);
                 case "cluster":
                     if (!mass)
                         return false;
@@ -25322,7 +25330,11 @@ define("poc/test/fun/showOnMap", ["require", "exports", "node_modules/ol/src/lay
     function isFeatureVisible(f) {
         return true === f.getProperties().visible;
     }
-    function showOnMap(options) {
+    const DEFAULT_OPTIONS = {
+        zoffset: 0,
+    };
+    function showOnMap(inOptions) {
+        let options = Object.assign(Object.assign({}, DEFAULT_OPTIONS), inOptions);
         const { helper } = options;
         const { tree } = helper;
         const styles = new StyleCache_1.StyleCache();
@@ -25339,7 +25351,12 @@ define("poc/test/fun/showOnMap", ["require", "exports", "node_modules/ol/src/lay
                 return;
             source.addFeatures(features);
         });
-        const tileView = new TileView_1.TileView({ source, helper });
+        const tileView = new TileView_1.TileView({
+            source,
+            helper,
+            MAX_ZOOM_OFFSET: options.zoffset,
+            MIN_ZOOM_OFFSET: -options.zoffset,
+        });
         layer.setStyle(((feature, resolution) => {
             if (!isFeatureVisible(feature))
                 return null;
@@ -25523,6 +25540,24 @@ define("poc/test/ux/show-on-map", ["require", "exports", "mocha", "chai", "poc/A
             chai_7.assert.equal(72, featureCount, "features");
             showOnMap_1.showOnMap({ helper: ext });
         }));
+        mocha_7.it("renders a fully loaded tree with clusters via showOnMap (parcels)", () => __awaiter(void 0, void 0, void 0, function* () {
+            const url = "http://localhost:3002/mock/gis1/arcgis/rest/services/IPS112/SQL2v112/FeatureServer/22/query";
+            const projection = proj_4.get("EPSG:3857");
+            const tree = new TileTree_6.TileTree({
+                extent: projection.getExtent(),
+            });
+            const ext = new TileTreeExt_4.TileTreeExt(tree, { minZoom: 0, maxZoom: 18 });
+            const loader = new AgsFeatureLoader_3.AgsFeatureLoader({
+                url,
+                maxDepth: 18 + 8,
+                minRecordCount: 1000,
+                tree: ext,
+            });
+            const tileIdentifier = { X: 0, Y: 0, Z: 0 };
+            const featureCount = yield loader.loader(tileIdentifier, projection);
+            chai_7.assert.equal(11655, featureCount, "features");
+            showOnMap_1.showOnMap({ helper: ext, zoffset: 8 });
+        })).timeout(60 * 1000);
     });
 });
 define("poc/test/index", ["require", "exports", "poc/test/moment-test", "poc/test/ags-feature-loader-test", "poc/test/xyz-test", "poc/test/treetile-test", "poc/test/tiletreeext-test", "poc/test/ux/map-test", "poc/test/ux/show-on-map"], function (require, exports) {
