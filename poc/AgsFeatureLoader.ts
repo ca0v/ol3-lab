@@ -1,4 +1,4 @@
-import { Extent } from "@ol/extent";
+import { containsExtent, Extent } from "@ol/extent";
 import { Projection } from "@ol/proj";
 import { TileTreeExt } from "./TileTreeExt";
 import { FeatureServiceProxy } from "./FeatureServiceProxy";
@@ -96,7 +96,16 @@ export class AgsFeatureLoader {
       request.geometry = bbox(tree.tree.asExtent(tileIdentifier));
       request.returnCountOnly = true;
       try {
-        const response = await proxy.fetch<{ count: number }>(request);
+        const response = await proxy.fetch<
+          { count: number } & {
+            error: { code: number; message: string; details: Array<string> };
+          }
+        >(request);
+        if (response.error) {
+          throw `${response.error.message}: ${response.error.details?.join(
+            " "
+          )}`;
+        }
         return response.count;
       } catch (ex) {
         console.error(ex);
@@ -123,8 +132,6 @@ export class AgsFeatureLoader {
           console.log(
             `feature count may not match count response when the data is changes: ${count} != ${features.length}`
           );
-
-          this.helper.setMass(tileIdentifier, features.length);
         }
 
         features.forEach((f) => this.helper.addFeature(f));
@@ -144,6 +151,28 @@ export class AgsFeatureLoader {
           throttle
         )
       );
+
+      const childMass = tree.tree
+        .children(tileIdentifier)
+        .map((id) => tree.getMass(id) || 0)
+        .reduce((a, b) => a + b, 0);
+      if (childMass < count) {
+        // there is only one opportunity to load crosshair features...no other tiles will share the crosshairs of this tile so...gotta do it now
+        // if count is too large we need to do paging.
+        const crosshairFeatures = await this.loadCrosshairs(
+          tileIdentifier,
+          proxy,
+          projection
+        );
+        const extent = tree.tree.asExtent(tileIdentifier);
+        const featuresWithinTile = crosshairFeatures.filter((f) =>
+          containsExtent(extent, f.getGeometry().getExtent())
+        );
+        featuresWithinTile.forEach((f) => this.helper.addFeature(f));
+        this.helper.setLoaded(tileIdentifier, true);
+      } else {
+        this.helper.setLoaded(tileIdentifier, true);
+      }
     }
 
     return count;
@@ -155,38 +184,6 @@ export class AgsFeatureLoader {
     projection: Projection
   ) {
     const esrijsonFormat = new EsriJSON();
-    const response = await proxy.fetch<{
-      objectIdFieldName: string;
-      features: { attributes: any; geometry: any }[];
-    }>(request);
-    const features = esrijsonFormat.readFeatures(response, {
-      featureProjection: projection,
-    });
-    return features;
-  }
-
-  public async loadCrosshairs(tileIdentifier: XYZ, projection: Projection) {
-    // load any features that intersect the crosshairs of this tile
-    // because these would be the features that are not contained within
-    // must also exclude features that are not entirely within this tile
-    // esriSpatialRelTouches the cross-hairs of a tile excluding features
-    // not fully within the tile
-
-    const esrijsonFormat = new EsriJSON();
-
-    const { tree, url } = this.options;
-
-    const proxy = new FeatureServiceProxy({
-      service: url,
-    });
-
-    const request = asRequest(projection);
-    request.spatialRel = "esriSpatialRelIntersects";
-    request.geometryType = "esriGeometryPolyline";
-    request.geometry = JSON.stringify({
-      paths: [crosshair(tree.tree.asExtent(tileIdentifier))],
-    });
-
     const response = await proxy.fetch<
       {
         objectIdFieldName: string;
@@ -202,5 +199,49 @@ export class AgsFeatureLoader {
       featureProjection: projection,
     });
     return features;
+  }
+
+  private async loadCrosshairs(
+    tileIdentifier: XYZ,
+    proxy: FeatureServiceProxy,
+    projection: Projection
+  ) {
+    // load any features that intersect the crosshairs of this tile
+    // because these would be the features that are not contained within
+    // must also exclude features that are not entirely within this tile
+    // esriSpatialRelTouches the cross-hairs of a tile excluding features
+    // not fully within the tile
+
+    const esrijsonFormat = new EsriJSON();
+
+    const { tree } = this.options;
+
+    const request = asRequest(projection);
+    request.spatialRel = "esriSpatialRelIntersects";
+    request.geometryType = "esriGeometryPolyline";
+    request.geometry = JSON.stringify({
+      paths: [crosshair(tree.tree.asExtent(tileIdentifier))],
+    });
+
+    try {
+      const response = await proxy.fetch<
+        {
+          objectIdFieldName: string;
+          features: { attributes: any; geometry: any }[];
+        } & { error: { code: number; message: string; details: Array<string> } }
+      >(request);
+
+      if (response.error) {
+        throw `${response.error.message}: ${response.error.details?.join(" ")}`;
+      }
+
+      const features = esrijsonFormat.readFeatures(response, {
+        featureProjection: projection,
+      });
+      return features;
+    } catch (ex) {
+      console.error(ex);
+      return [];
+    }
   }
 }

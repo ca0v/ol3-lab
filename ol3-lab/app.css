@@ -9,6 +9,11 @@ body,
   margin: 0;
   padding: 0;
 }
+
+.dark button {
+    background: rgba(56, 55, 55, 128);
+    color: silver;
+}
 .dark .testmapcontainer {
   background-color: rgba(56, 55, 55, 128);
   border: 1px solid rgba(56, 55, 55, 255);

@@ -541,21 +541,5 @@ describe("AgsFeatureLoader tests", () => {
       10663,
       4501,
     ]);
-
-    // need to get the 3 features that did no load into the children
-    const hereiam = await loader.loadCrosshairs(child40_31, projection);
-    console.log(hereiam);
-    assert.equal(hereiam.length, 3, "3 features found (could have been more)");
-    const extent = tree.asExtent(child40_31);
-    const featuresWithinTile = hereiam.filter((f) =>
-      containsExtent(extent, f.getGeometry().getExtent())
-    );
-    assert.equal(
-      featuresWithinTile.length,
-      3,
-      "3 features found that are within extent"
-    );
-    featuresWithinTile.forEach((f) => ext.addFeature(f));
-    ext.setLoaded(child31_1, true);
   });
 });
