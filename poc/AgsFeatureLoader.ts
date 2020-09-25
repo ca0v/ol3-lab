@@ -156,6 +156,7 @@ export class AgsFeatureLoader {
         .children(tileIdentifier)
         .map((id) => tree.getMass(id) || 0)
         .reduce((a, b) => a + b, 0);
+
       if (childMass < count) {
         // there is only one opportunity to load crosshair features...no other tiles will share the crosshairs of this tile so...gotta do it now
         // if count is too large we need to do paging.

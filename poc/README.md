@@ -3,7 +3,7 @@
 * Missing animation 
 * Missing proper styling
 * Center-of-mass calculations are wrong
-
+* Perhaps I should have alternated horizontal and vertical splits instead of creating quadrants; this would simplify the "crosshairs" query and be less pessimistic in finding low counts.
 
 ![Rough Draft](./assets/draft.gif)
 
