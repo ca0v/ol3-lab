@@ -5,27 +5,35 @@ import VectorSource from "@ol/source/Vector";
 import { Z } from "poc/types/XY";
 import { XYZ } from "poc/types/XYZ";
 import Point from "@ol/geom/Point";
+import { isSamePoint } from "./isSamePoint";
 
-const MIN_ZOOM_OFFSET = -4;
-const MAX_ZOOM_OFFSET = 3;
-
-function isFeatureVisible(f: Feature<Geometry>) {
-  return true === f.getProperties().visible;
+interface TileViewOptions {
+  source: VectorSource<Geometry>;
+  helper: TileTreeExt;
+  MIN_ZOOM_OFFSET: number;
+  MAX_ZOOM_OFFSET: number;
 }
 
-function setFeatureVisible(f: Feature<Geometry>, visible: boolean) {
-  f.setProperties({ visible });
-}
+const DEFAULT_OPTIONS: Partial<TileViewOptions> = {
+  MIN_ZOOM_OFFSET: -4,
+  MAX_ZOOM_OFFSET: 3,
+};
 
 export class TileView {
   private source: VectorSource<Geometry>;
   private helper: TileTreeExt;
   private tileFeatures = new Map<string, Feature<Geometry>>();
 
-  constructor(options: {
-    source: VectorSource<Geometry>;
-    helper: TileTreeExt;
-  }) {
+  private options: TileViewOptions;
+
+  constructor(
+    options: Partial<TileViewOptions> & {
+      source: VectorSource<Geometry>;
+      helper: TileTreeExt;
+    }
+  ) {
+    this.options = { ...DEFAULT_OPTIONS, ...options } as TileViewOptions;
+
     this.source = options.source;
     this.helper = options.helper;
     // create a feature for each cluster tile
@@ -39,15 +47,13 @@ export class TileView {
   computeTileVisibility(currentZoom: Z) {
     // recompute visibility of all features
     this.source.getFeatures().forEach((f) => {
-      const { tileIdentifier } = f.getProperties() as {
-        tileIdentifier: XYZ;
-      };
+      const tileIdentifier = f.get("tileIdentifier") as XYZ;
+      const isVisible = f.get("visible") as boolean;
 
-      const wasVisible = isFeatureVisible(f);
-      const isVisible = this.isFeatureVisible(f, currentZoom);
+      const willBecomeVisible = this.isFeatureVisible(f, currentZoom);
 
-      if (wasVisible !== isVisible) {
-        setFeatureVisible(f, isVisible);
+      if (isVisible !== willBecomeVisible) {
+        f.set("visible", willBecomeVisible);
         this.helper.setStale(tileIdentifier, true);
       }
     });
@@ -76,14 +82,7 @@ export class TileView {
       this.source.addFeature(feature);
     }
 
-    const { mass, center, featureMass } = this.helper.centerOfMass(
-      tileIdentifier
-    );
-
-    const childMass = this.helper.tree
-      .children(tileIdentifier)
-      .map((id) => this.helper.centerOfMass(id))
-      .reduce((a, b) => a + b.mass, 0);
+    const { mass, center } = this.helper.centerOfMass(tileIdentifier);
 
     feature.setProperties(
       {
@@ -92,7 +91,16 @@ export class TileView {
       },
       true
     );
-    feature.setGeometry(new Point(center));
+
+    let geom = feature.getGeometry() as Point;
+    if (geom) {
+      const oldCoordinates = geom.getCoordinates();
+      if (!center.every((v, i) => v === oldCoordinates[i])) {
+        geom.setCoordinates(center);
+      }
+    } else {
+      feature.setGeometry(new Point(center));
+    }
   }
 
   private setTileFeature({ X, Y, Z }: XYZ, feature: Feature<Geometry>) {
@@ -107,21 +115,17 @@ export class TileView {
 
   // hide all features outside of current zoom
   private isFeatureVisible(f: Feature<Geometry>, Z: Z) {
-    const {
-      Z: featureZoom,
-      type,
-      mass,
-      tileIdentifier,
-    } = f.getProperties() as {
-      type: string;
-      mass: number;
-      tileIdentifier: XYZ;
-      Z: Z;
-    };
+    const featureZoom = f.get("Z") as Z;
+    const type = f.get("type") as string;
+    const mass = f.get("mass") as string;
+
     const zoffset = Z - featureZoom; // larger means the feature is larger on the screen
     switch (type) {
       case "feature":
-        return MIN_ZOOM_OFFSET <= zoffset && zoffset <= MAX_ZOOM_OFFSET;
+        return (
+          this.options.MIN_ZOOM_OFFSET <= zoffset &&
+          zoffset <= this.options.MAX_ZOOM_OFFSET
+        );
       case "cluster":
         if (!mass) return false;
         return zoffset >= 0;

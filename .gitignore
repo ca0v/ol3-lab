@@ -7,5 +7,6 @@ typings
 *.log
 *.js
 *.js.map
+*.sqlite
 built/**
 static/**

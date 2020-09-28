@@ -23,11 +23,13 @@ export function createMap(extent: number[], minZoom: number, maxZoom: number) {
   document.body.appendChild(targetContainer);
   targetContainer.appendChild(target);
 
+  // zoomDuration needs to be reduced
   const map = new OlMap({
     view,
     target,
     layers: [],
     controls: defaultControls().extend([new FullScreen()]),
   });
+
   return map;
 }

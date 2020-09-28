@@ -19,7 +19,7 @@ function asRequest(projection: Projection) {
     outSR: removeAuthority(projection.getCode()),
     returnGeometry: true,
     returnCountOnly: false,
-    spatialRel: "esriSpatialRelContains", // will find duplicates
+    spatialRel: "esriSpatialRelEnvelopeIntersects", // will find duplicates
   };
   return request;
 }
@@ -124,7 +124,11 @@ export class AgsFeatureLoader {
       request.geometry = bbox(tree.tree.asExtent(tileIdentifier));
 
       try {
-        const features = await this.loadFeatures(request, proxy, projection);
+        const { id, features } = await this.loadFeatures(
+          request,
+          proxy,
+          projection
+        );
 
         // it is often the case that the count does not match the actual feature count
         // will test with a stable service
@@ -134,7 +138,7 @@ export class AgsFeatureLoader {
           );
         }
 
-        features.forEach((f) => this.helper.addFeature(f));
+        features.forEach((f) => this.helper.addFeature(f, id));
         this.helper.setLoaded(tileIdentifier, true);
       } catch (ex) {
         console.error(ex);
@@ -143,37 +147,12 @@ export class AgsFeatureLoader {
 
     // count is too high, load sub-tiles
     else if (depth > 0 && count > featureLoadThreshold) {
-      await Promise.all(
-        await slowloop(
-          tree.tree
-            .quads(tileIdentifier)
-            .map((id) => () => this.loadTile(id, projection, depth - 1)),
-          throttle
-        )
-      );
-
-      const childMass = tree.tree
-        .children(tileIdentifier)
-        .map((id) => tree.getMass(id) || 0)
-        .reduce((a, b) => a + b, 0);
-
-      if (childMass < count) {
-        // there is only one opportunity to load crosshair features...no other tiles will share the crosshairs of this tile so...gotta do it now
-        // if count is too large we need to do paging.
-        const crosshairFeatures = await this.loadCrosshairs(
-          tileIdentifier,
-          proxy,
-          projection
-        );
-        const extent = tree.tree.asExtent(tileIdentifier);
-        const featuresWithinTile = crosshairFeatures.filter((f) =>
-          containsExtent(extent, f.getGeometry().getExtent())
-        );
-        featuresWithinTile.forEach((f) => this.helper.addFeature(f));
-        this.helper.setLoaded(tileIdentifier, true);
-      } else {
-        this.helper.setLoaded(tileIdentifier, true);
-      }
+      const c = tree.tree.quads(tileIdentifier);
+      // depth 1st is not prefered...how to change to breath 1st?
+      await this.loadTile(c[0], projection, depth - 1);
+      await this.loadTile(c[1], projection, depth - 1);
+      await this.loadTile(c[2], projection, depth - 1);
+      await this.loadTile(c[3], projection, depth - 1);
     }
 
     return count;
@@ -199,7 +178,7 @@ export class AgsFeatureLoader {
     const features = esrijsonFormat.readFeatures(response, {
       featureProjection: projection,
     });
-    return features;
+    return { id: response.objectIdFieldName, features };
   }
 
   private async loadCrosshairs(
