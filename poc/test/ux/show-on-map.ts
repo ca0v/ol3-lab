@@ -49,20 +49,20 @@ describe("showOnMap tests", () => {
       helper.addFeature(feature, fid);
       assert.equal(helper.getFeatures(tid7).length, 1, "level 7 has a feature");
     }
-    const view = showOnMap({ helper }).getView();
+    const view = showOnMap({ helper, zoffset: [-4, 4] }).getView();
 
     view.setCenter(getCenter(tree.asExtent({ X: 3, Y: 3, Z: 5 })));
 
     view.setZoom(0);
     await slowloop([], 500);
     let com = helper.centerOfMass({ X: 0, Y: 0, Z: 0 });
-    assert.equal(com.mass, 7);
+    assert.equal(com.mass, 7, "at Z0 7 features are hidden");
     assert.equal(com.featureMass, 0);
 
     view.setZoom(1);
     await slowloop([], 500);
     com = helper.centerOfMass({ X: 0, Y: 0, Z: 0 });
-    assert.equal(com.mass, 4);
+    assert.equal(com.mass, 4, "at Z1 3 features are visible");
     assert.equal(com.featureMass, -3, "three features are visible");
 
     view.setZoom(2);

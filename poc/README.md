@@ -2,22 +2,6 @@
 ## PRELIMINARY RESULTS
 * Missing animation 
 * Missing proper styling
-* Center-of-mass calculations are wrong
-
-
-A "卐" pattern seems to resolve a "crosshairs" issue I am having fetching features that are in more than one quadrant:
-
-Notice if we assign each quadrant a given line segement to query:
-
-|_ |‾ _| ‾| that when they are put together we get full coverage of all the edges with no duplicate coverage.  
-卐卐  
-卐卐
-
-Therefore each quad will have a custom segment to query as well as the extent which defines the polygon. 
-
-The advantage here is we can defer running the query until the tile itself has few enough features instead of relying on a tile centerline which is unique to each tile and therefore forced to run on all tiles that were by definition too large for a feature query.
-
-The alternative is to use a different query and download all edge features twice.
 
 ![Rough Draft](./assets/draft.gif)
 
