@@ -5,7 +5,6 @@ import VectorSource from "@ol/source/Vector";
 import { Z } from "poc/types/XY";
 import { XYZ } from "poc/types/XYZ";
 import Point from "@ol/geom/Point";
-import { isSamePoint } from "./isSamePoint";
 
 interface TileViewOptions {
   source: VectorSource<Geometry>;
@@ -19,6 +18,12 @@ const DEFAULT_OPTIONS: Partial<TileViewOptions> = {
   MAX_ZOOM_OFFSET: 3,
 };
 
+/**
+ * This class was intended as a POC for rendering pre-fetched data to work out the rendering
+ * logic and default configuration values but I have been having so must trouble getting the
+ * POC working that I am having to write tests even for these throw-away classes.
+ * I feel like it is time to start over?
+ */
 export class TileView {
   private source: VectorSource<Geometry>;
   private helper: TileTreeExt;
@@ -36,6 +41,7 @@ export class TileView {
 
     this.source = options.source;
     this.helper = options.helper;
+
     // create a feature for each cluster tile
     const tilesWithMass = this.helper.tree
       .descendants()
@@ -44,10 +50,11 @@ export class TileView {
   }
 
   // creates cluster features, updates symbology info for the cluster
-  computeTileVisibility(currentZoom: Z) {
+  public computeTileVisibility(currentZoom: Z) {
     // recompute visibility of all features
     this.source.getFeatures().forEach((f) => {
       const tileIdentifier = f.get("tileIdentifier") as XYZ;
+      if (!tileIdentifier) throw "tileIdentifier expected";
       const isVisible = f.get("visible") as boolean;
 
       const willBecomeVisible = this.isFeatureVisible(f, currentZoom);
@@ -69,17 +76,7 @@ export class TileView {
   }
 
   private updateCluster(tileIdentifier: XYZ) {
-    let feature = this.getTileFeature(tileIdentifier);
-    if (!feature) {
-      feature = new Feature<Geometry>();
-      feature.setProperties({
-        type: "cluster",
-        tileIdentifier: tileIdentifier,
-        Z: tileIdentifier.Z,
-      });
-      this.setTileFeature(tileIdentifier, feature);
-      this.source.addFeature(feature);
-    }
+    let feature = this.forceClusterFeature(tileIdentifier);
 
     const { mass, center, childMass } = this.helper.centerOfMass(
       tileIdentifier
@@ -95,6 +92,21 @@ export class TileView {
     } else {
       feature.setGeometry(new Point(center));
     }
+  }
+
+  private forceClusterFeature(tileIdentifier: XYZ) {
+    let feature = this.getTileFeature(tileIdentifier);
+    if (!feature) {
+      feature = new Feature<Geometry>();
+      feature.setProperties({
+        type: "cluster",
+        tileIdentifier: tileIdentifier,
+        Z: tileIdentifier.Z,
+      });
+      this.setTileFeature(tileIdentifier, feature);
+      this.source.addFeature(feature);
+    }
+    return feature;
   }
 
   private setTileFeature({ X, Y, Z }: XYZ, feature: Feature<Geometry>) {

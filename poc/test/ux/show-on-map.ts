@@ -12,10 +12,7 @@ import { createFeatureForTile } from "../fun/createFeatureForTile";
 import VectorSource from "@ol/source/Vector";
 import Geometry from "@ol/geom/Geometry";
 import { XYZ } from "poc/types/XYZ";
-
-function range(n: number) {
-  return new Array(n).fill(0).map((v, i) => i);
-}
+import { range } from "../fun/range";
 
 async function tick(n: number) {
   return new Promise((good, bad) => {
