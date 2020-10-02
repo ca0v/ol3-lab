@@ -81,7 +81,7 @@ export class TileView {
     const { mass, center, childMass } = this.helper.centerOfMass(
       tileIdentifier
     );
-    feature.set("mass", mass - childMass);
+    feature.set("mass", Math.max(0, mass - childMass));
 
     let geom = feature.getGeometry() as Point;
     if (geom) {
@@ -134,7 +134,7 @@ export class TileView {
         );
       case "cluster":
         if (!mass) return false;
-        return zoffset <= this.options.MAX_ZOOM_OFFSET;
+        return zoffset <= this.options.MAX_ZOOM_OFFSET - 2;
     }
     return true;
   }

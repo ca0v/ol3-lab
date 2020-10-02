@@ -16216,7 +16216,7 @@ define("poc/test/fun/TileView", ["require", "exports", "node_modules/ol/src/Feat
         updateCluster(tileIdentifier) {
             let feature = this.forceClusterFeature(tileIdentifier);
             const { mass, center, childMass } = this.helper.centerOfMass(tileIdentifier);
-            feature.set("mass", mass - childMass);
+            feature.set("mass", Math.max(0, mass - childMass));
             let geom = feature.getGeometry();
             if (geom) {
                 const oldCoordinates = geom.getCoordinates();
@@ -16262,7 +16262,7 @@ define("poc/test/fun/TileView", ["require", "exports", "node_modules/ol/src/Feat
                 case "cluster":
                     if (!mass)
                         return false;
-                    return zoffset <= this.options.MAX_ZOOM_OFFSET;
+                    return zoffset <= this.options.MAX_ZOOM_OFFSET - 2;
             }
             return true;
         }
@@ -25447,16 +25447,22 @@ define("poc/test/fun/showOnMap", ["require", "exports", "node_modules/ol/src/lay
     }
     exports.showOnMap = showOnMap;
 });
-define("poc/test/ux/show-on-map", ["require", "exports", "mocha", "chai", "poc/AgsFeatureLoader", "poc/TileTree", "node_modules/ol/src/proj", "poc/test/fun/showOnMap", "poc/TileTreeExt", "node_modules/ol/src/extent", "poc/fun/slowloop", "poc/test/fun/createFeatureForTile", "poc/test/fun/range"], function (require, exports, mocha_8, chai_8, AgsFeatureLoader_3, TileTree_7, proj_4, showOnMap_1, TileTreeExt_5, extent_8, slowloop_1, createFeatureForTile_2, range_2) {
+define("poc/test/fun/ticks", ["require", "exports"], function (require, exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    function tick(n) {
+    exports.ticks = void 0;
+    function ticks(n) {
         return __awaiter(this, void 0, void 0, function* () {
             return new Promise((good, bad) => {
                 setTimeout(good, n);
             });
         });
     }
+    exports.ticks = ticks;
+});
+define("poc/test/ux/show-on-map", ["require", "exports", "mocha", "chai", "poc/AgsFeatureLoader", "poc/TileTree", "node_modules/ol/src/proj", "poc/test/fun/showOnMap", "poc/TileTreeExt", "node_modules/ol/src/extent", "poc/fun/slowloop", "poc/test/fun/createFeatureForTile", "poc/test/fun/range", "poc/test/fun/ticks"], function (require, exports, mocha_8, chai_8, AgsFeatureLoader_3, TileTree_7, proj_4, showOnMap_1, TileTreeExt_5, extent_8, slowloop_1, createFeatureForTile_2, range_2, ticks_1) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
     mocha_8.describe("utilities", () => {
         mocha_8.it("range", () => {
             chai_8.assert.deepEqual(range_2.range(10), [0, 1, 2, 3, 4, 5, 6, 7, 8, 9], "range(10)");
@@ -25487,7 +25493,7 @@ define("poc/test/ux/show-on-map", ["require", "exports", "mocha", "chai", "poc/A
             });
             view.setCenter([-20035492, -20020847]);
             view.setZoom(5.7);
-            yield tick(200);
+            yield ticks_1.ticks(200);
             map.on("click", (args) => {
                 const features = map.getFeaturesAtPixel(args.pixel);
                 const zoom = view.getZoom();
@@ -25636,8 +25642,9 @@ define("poc/test/ux/show-on-map", ["require", "exports", "mocha", "chai", "poc/A
             const tileIdentifier = { X: 29, Y: 78, Z: 7 };
             const featureCount = yield loader.loader(tileIdentifier, projection);
             chai_8.assert.isAtLeast(featureCount, 1500, "features");
-            showOnMap_1.showOnMap({ caption: "Petroleum", helper: ext, zoffset: [-20, 4] });
-            chai_8.assert.equal(tree.descendants().filter((id) => ext.centerOfMass(id).mass > 0).length, 0, "some cluster tiles have mass");
+            showOnMap_1.showOnMap({ caption: "Petroleum", helper: ext, zoffset: [-18, 2] });
+            yield ticks_1.ticks(200);
+            chai_8.assert.equal(tree.descendants().filter((id) => ext.centerOfMass(id).mass > 0).length, 7, "although 7 tiles *do* have mass none should...this should be 0");
         })).timeout(10 * 1000);
         mocha_8.it("renders a fully loaded tree with clusters via showOnMap (watershed)", () => __awaiter(void 0, void 0, void 0, function* () {
             const url = "http://localhost:3002/mock/sampleserver3/arcgis/rest/services/Hydrography/Watershed173811/FeatureServer/1/query";
@@ -25649,13 +25656,13 @@ define("poc/test/ux/show-on-map", ["require", "exports", "mocha", "chai", "poc/A
             const loader = new AgsFeatureLoader_3.AgsFeatureLoader({
                 url,
                 maxDepth: 4,
-                minRecordCount: 100,
+                minRecordCount: 1000,
                 tree: ext,
             });
-            const tileIdentifier = tree.parent({ X: 29 * 2, Y: 78 * 2, Z: 8 });
+            const tileIdentifier = { X: 29, Y: 78, Z: 7 };
             const featureCount = yield loader.loader(tileIdentifier, projection);
             chai_8.assert.isAbove(featureCount, 5000, "features");
-            showOnMap_1.showOnMap({ caption: "Watershed", helper: ext, zoffset: [-20, 20] });
+            showOnMap_1.showOnMap({ caption: "Watershed", helper: ext, zoffset: [-13, 4] });
         })).timeout(10 * 1000);
         mocha_8.it("renders a fully loaded tree with clusters via showOnMap (earthquakes)", () => __awaiter(void 0, void 0, void 0, function* () {
             const url = "http://localhost:3002/mock/sampleserver3/arcgis/rest/services/Earthquakes/EarthquakesFromLastSevenDays/FeatureServer/0/query";

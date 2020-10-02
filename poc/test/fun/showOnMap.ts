@@ -15,7 +15,7 @@ function isFeatureVisible(f: Feature<Geometry>) {
 interface ShowOnMapOptions {
   caption: string;
   helper: TileTreeExt;
-  zoffset: [number, number];
+  zoffset: [number, number]; // how small should the features get before hiding them?  how large should they get before hiding them?
 }
 
 const DEFAULT_OPTIONS: Partial<ShowOnMapOptions> = {
