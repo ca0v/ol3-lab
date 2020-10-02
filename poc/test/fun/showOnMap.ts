@@ -13,11 +13,13 @@ function isFeatureVisible(f: Feature<Geometry>) {
 }
 
 interface ShowOnMapOptions {
+  caption: string;
   helper: TileTreeExt;
   zoffset: [number, number];
 }
 
 const DEFAULT_OPTIONS: Partial<ShowOnMapOptions> = {
+  caption: "Untitled",
   zoffset: [-3, 4],
 };
 
@@ -34,12 +36,34 @@ export function showOnMap(
 
   const extent = tree.asExtent(tiles[0]);
 
-  const map = createMap(extent, helper.minZoom, helper.maxZoom);
+  const figure = document.createElement("figure");
+  const caption = document.createElement("figcaption");
+  caption.innerText = options.caption;
+  figure.appendChild(caption);
+  const targetContainer = document.createElement("div");
+  targetContainer.className = "testmapcontainer";
+  figure.appendChild(targetContainer);
+  document.body.appendChild(figure);
+
+  const map = createMap({
+    targetContainer,
+    extent,
+    minZoom: helper.minZoom,
+    maxZoom: helper.maxZoom,
+  });
+
+  map.on("change:caption", () => {
+    caption.innerText = map.get("caption");
+  });
+
   const view = map.getView();
 
   const layer = new VectorLayer();
   const source = new VectorSource<Geometry>();
   layer.setSource(source);
+
+  // so unit tests can explore the tile features
+  map.set("tile-source", source);
 
   // load all features on the tree into the source
   tree.descendants().forEach((id) => {
@@ -64,6 +88,11 @@ export function showOnMap(
     const currentZoom = Math.round(view.getZoomForResolution(resolution) || 0);
     const zoffset = featureZoom - currentZoom;
     const style = styles.styleMaker({ type, zoffset, mass, text });
+    if (type === "cluster") {
+      if (style.getText()) {
+        style.getText().setText(JSON.stringify(feature.get("tileIdentifier")));
+      }
+    }
     return style;
   }));
 

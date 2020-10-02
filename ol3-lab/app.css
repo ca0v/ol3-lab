@@ -28,6 +28,10 @@ body,
   display: inline-block;
 }
 
+.dark figcaption {
+    color:white;
+}
+
 .dark #mocha-stats em {
   color: white;
 }

@@ -248,6 +248,7 @@ describe("TileTreeExt Tests", () => {
         mass: 10,
         center: [5, 5],
         featureMass: 0,
+        childMass: 0,
       },
       "root tile com"
     );
@@ -453,11 +454,13 @@ describe("TileTreeExt Tests", () => {
     helper.setVisible(p1, false);
 
     {
-      const { center, mass, featureMass } = helper.centerOfMass(targetId);
+      const { center, mass, featureMass, childMass } = helper.centerOfMass(
+        targetId
+      );
       const com = helper.centerOfMass(targetId);
       assert.deepEqual(
         com,
-        { center, mass, featureMass },
+        { center, mass, featureMass, childMass },
         "centerOfMass is repeatable"
       );
 
@@ -488,11 +491,13 @@ describe("TileTreeExt Tests", () => {
     // a visible feature deducts mass from all container tiles
     helper.setVisible(p1, true);
     {
-      const { center, mass, featureMass } = helper.centerOfMass(targetId);
+      const { center, mass, featureMass, childMass } = helper.centerOfMass(
+        targetId
+      );
       const com = helper.centerOfMass(targetId);
       assert.deepEqual(
         com,
-        { center, mass, featureMass },
+        { center, mass, featureMass, childMass },
         "centerOfMass is repeatable"
       );
 

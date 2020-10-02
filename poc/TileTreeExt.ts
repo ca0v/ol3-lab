@@ -148,79 +148,69 @@ export class TileTreeExt {
 
   centerOfMass(
     tileIdentifier: XYZ
-  ): { center: XY; mass: number; featureMass: number } {
+  ): { center: XY; mass: number; featureMass: number; childMass: number } {
     const tree = this.tree;
 
-    const rootNode = tree.findByXYZ(tileIdentifier, { force: true });
-    if (!rootNode) {
-      // this tile does not exist, return nothing
-      const center = getCenter(tree.asExtent(tileIdentifier)) as [
-        number,
-        number
-      ];
-      return { center, mass: 0, featureMass: 0 };
-    }
-
-    if (rootNode && !this.isStale(tileIdentifier)) {
-      // this tile is up-to-date
-      const com = this.getCenterOfMass(tileIdentifier);
-      return {
-        center: com.center,
-        mass: com.darkMass,
-        featureMass: -com.lightMass,
-      };
-    }
+    // force tile to exist
+    tree.findByXYZ(tileIdentifier, { force: true });
 
     const children = tree.children(tileIdentifier);
 
     // get center-of-mass of all children
     const comChildren = children.map((c) => this.centerOfMass(c));
 
-    // get mass of visible child features, reported as negative mass since it takes away from the tile mass
-    const massOfVisibleChildFeatures = -comChildren.reduce(
-      (a, b) => a + b.featureMass,
-      0
-    );
+    const childMass = comChildren.reduce((a, b) => a + b.mass, 0);
 
-    // get mass of visible features
-    const massOfVisibleFeatures = this.getLightMatter(tileIdentifier).reduce(
-      (a, b) => a + b.mass,
-      0
-    );
+    if (this.isStale(tileIdentifier)) {
+      // get mass of visible child features, reported as negative mass since it takes away from the tile mass
+      const massOfVisibleChildFeatures = -comChildren.reduce(
+        (a, b) => a + b.featureMass,
+        0
+      );
 
-    // get center-of-mass of non-visible features
-    const comHiddenFeatures = this.getDarkMatter(tileIdentifier);
+      // get mass of visible features
+      const massOfVisibleFeatures = this.getLightMatter(tileIdentifier).reduce(
+        (a, b) => a + b.mass,
+        0
+      );
 
-    // compute effective center-of-mass
-    let center = [0, 0] as XY;
-    let mass = 0;
-    [...comHiddenFeatures, ...comChildren].forEach((com) => {
-      center.forEach((v, i) => (center[i] = v + com.center[i] * com.mass));
-      mass += com.mass;
-    });
+      // get center-of-mass of non-visible features
+      const comHiddenFeatures = this.getDarkMatter(tileIdentifier);
 
-    if (mass === 0) {
-      // no sub-matter so use tile center
-      center = tree.asCenter(tileIdentifier);
-    } else {
-      // sub-matter found, use it to define the center-of-mass
-      center.forEach((v, i) => (center[i] = v / mass));
+      // compute effective center-of-mass
+      let center = [0, 0] as XY;
+      let mass = 0;
+      [...comHiddenFeatures, ...comChildren].forEach((com) => {
+        center.forEach((v, i) => (center[i] = v + com.center[i] * com.mass));
+        mass += com.mass;
+      });
+
+      if (mass === 0) {
+        // no sub-matter so use tile center
+        center = tree.asCenter(tileIdentifier);
+      } else {
+        // sub-matter found, use it to define the center-of-mass
+        center.forEach((v, i) => (center[i] = v / mass));
+      }
+
+      const lightMass = massOfVisibleFeatures + massOfVisibleChildFeatures;
+      const hardMass = this.getMass(tileIdentifier);
+      const darkMass = null === hardMass ? mass : hardMass - lightMass;
+      this.setCenterOfMass(tileIdentifier, {
+        darkMass,
+        lightMass,
+        center: center,
+      });
+      this.setStale(tileIdentifier, false);
     }
 
-    const lightMass = massOfVisibleFeatures + massOfVisibleChildFeatures;
-    const hardMass = this.getMass(tileIdentifier);
-    const darkMass = null === hardMass ? mass : hardMass - lightMass;
-    this.setCenterOfMass(tileIdentifier, {
-      darkMass,
-      lightMass,
-      center: center,
-    });
-    this.setStale(tileIdentifier, false);
+    // this tile is up-to-date
     const com = this.getCenterOfMass(tileIdentifier);
     return {
+      center: com.center,
       mass: com.darkMass,
       featureMass: -com.lightMass,
-      center: com.center,
+      childMass,
     };
   }
 

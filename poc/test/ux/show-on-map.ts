@@ -9,8 +9,88 @@ import { TileTreeExt } from "poc/TileTreeExt";
 import { getCenter } from "@ol/extent";
 import { slowloop } from "poc/fun/slowloop";
 import { createFeatureForTile } from "../fun/createFeatureForTile";
+import VectorSource from "@ol/source/Vector";
+import Geometry from "@ol/geom/Geometry";
+import { XYZ } from "poc/types/XYZ";
+
+function range(n: number) {
+  return new Array(n).fill(0).map((v, i) => i);
+}
+
+async function tick(n: number) {
+  return new Promise((good, bad) => {
+    setTimeout(good, n);
+  });
+}
+
+describe("utilities", () => {
+  it("range", () => {
+    assert.deepEqual(range(10), [0, 1, 2, 3, 4, 5, 6, 7, 8, 9], "range(10)");
+  });
+});
 
 describe("showOnMap tests", () => {
+  it("renders 4 features for each zoom level (0 through 20)", async () => {
+    const projection = getProjection("EPSG:3857");
+    const tree = new TileTree<{ mass: number }>({
+      extent: projection.getExtent(),
+    });
+
+    const helper = new TileTreeExt(tree, { minZoom: 0, maxZoom: 20 });
+    const fid = "fid";
+
+    range(helper.maxZoom).forEach((z) => {
+      const children = helper.tree.quads({ X: 0, Y: 0, Z: z });
+      children.forEach((id) => {
+        helper.addFeature(createFeatureForTile(tree, id, 0.7), fid);
+      });
+    });
+
+    const map = showOnMap({
+      caption: `features from ${helper.minZoom} to ${helper.maxZoom}`,
+      helper,
+      zoffset: [-3, 4],
+    });
+
+    const view = map.getView();
+
+    view.on("change:center", () => {
+      console.log({ center: view.getCenter(), zoom: view.getZoom() });
+    });
+
+    view.setCenter([-20035492, -20020847]);
+    view.setZoom(5.33);
+
+    map.on("click", (args: { pixel: [number, number] }) => {
+      const features = map.getFeaturesAtPixel(args.pixel);
+      console.log(features);
+      map.set("caption", features.length + " features found");
+    });
+
+    const tileOfInterest = { X: 0, Y: 0, Z: 1 };
+    const { mass: tile1Mass, childMass } = helper.centerOfMass(tileOfInterest);
+    const tile1ChildMass = tree
+      .quads(tileOfInterest)
+      .map((id) => helper.centerOfMass(id).mass)
+      .reduce((a, b) => a + b, 0);
+    assert.equal(tile1Mass, tile1ChildMass, "tile mass equal child mass");
+    assert.equal(childMass, tile1ChildMass, "tile childMass equal child mass");
+
+    // because the child mass is equal to the parent tile mass the parent tile should not be visible
+    const tileFeatureSource = map.get("tile-source") as VectorSource<Geometry>;
+    const tileFeatures = tileFeatureSource.getFeatures().filter((f) => {
+      const tid = f.get("tileIdentifier") as XYZ;
+      return (
+        tid.X === tileOfInterest.X &&
+        tid.Y === tileOfInterest.Y &&
+        tid.Z === tileOfInterest.Z
+      );
+    });
+
+    assert.equal(tileFeatures.length, 1, "there should be 1 tileOfInterest");
+    assert.fail("and the tileOfInterest should not be visible");
+  });
+
   it("renders 7 feature tree to prove the cluster counts are correct", async () => {
     const projection = getProjection("EPSG:3857");
     const tree = new TileTree<{ mass: number }>({
@@ -49,7 +129,11 @@ describe("showOnMap tests", () => {
       helper.addFeature(feature, fid);
       assert.equal(helper.getFeatures(tid7).length, 1, "level 7 has a feature");
     }
-    const view = showOnMap({ helper, zoffset: [-4, 4] }).getView();
+    const view = showOnMap({
+      caption: "7 Features",
+      helper,
+      zoffset: [-4, 4],
+    }).getView();
 
     view.setCenter(getCenter(tree.asExtent({ X: 3, Y: 3, Z: 5 })));
 
@@ -165,7 +249,10 @@ describe("showOnMap tests", () => {
       "4x level 7 is level 5"
     );
 
-    showOnMap({ helper });
+    showOnMap({
+      caption: "7 Features with one that crosses multiple siblings",
+      helper,
+    });
   });
 
   it("renders a fully loaded tree with clusters via showOnMap (petroleum)", async () => {
@@ -180,15 +267,22 @@ describe("showOnMap tests", () => {
     const loader = new AgsFeatureLoader({
       url,
       maxDepth: 8,
-      minRecordCount: 100,
+      minRecordCount: 1000,
       tree: ext,
     });
 
-    const tileIdentifier = tree.parent({ X: 29 * 2, Y: 78 * 2, Z: 8 });
+    const tileIdentifier = { X: 29, Y: 78, Z: 7 };
     const featureCount = await loader.loader(tileIdentifier, projection);
 
-    assert.equal(1652, featureCount, "features");
-    showOnMap({ helper: ext });
+    assert.isAtLeast(featureCount, 1500, "features");
+    showOnMap({ caption: "Petroleum", helper: ext, zoffset: [-20, 4] });
+
+    // there should be no visible tiles and yet I see three
+    assert.equal(
+      tree.descendants().filter((id) => ext.centerOfMass(id).mass > 0).length,
+      0,
+      "some cluster tiles have mass"
+    );
   }).timeout(10 * 1000);
 
   it("renders a fully loaded tree with clusters via showOnMap (watershed)", async () => {
@@ -210,9 +304,9 @@ describe("showOnMap tests", () => {
     const tileIdentifier = tree.parent({ X: 29 * 2, Y: 78 * 2, Z: 8 });
     const featureCount = await loader.loader(tileIdentifier, projection);
 
-    assert.equal(5354, featureCount, "features");
-    showOnMap({ helper: ext });
-  });
+    assert.isAbove(featureCount, 5000, "features");
+    showOnMap({ caption: "Watershed", helper: ext, zoffset: [-20, 20] });
+  }).timeout(10 * 1000);
 
   it("renders a fully loaded tree with clusters via showOnMap (earthquakes)", async () => {
     const url =
@@ -234,8 +328,8 @@ describe("showOnMap tests", () => {
     const featureCount = await loader.loader(tileIdentifier, projection);
 
     assert.equal(72, featureCount, "features");
-    showOnMap({ helper: ext });
-  });
+    showOnMap({ caption: "Earthquakes", helper: ext });
+  }).timeout(10 * 1000);
 
   it("renders a fully loaded tree with clusters via showOnMap (parcels)", async () => {
     const url =
@@ -257,6 +351,6 @@ describe("showOnMap tests", () => {
     const featureCount = await loader.loader(tileIdentifier, projection);
 
     assert.equal(11655, featureCount, "features");
-    showOnMap({ helper: ext, zoffset: [-4, 10] });
+    showOnMap({ helper: ext, zoffset: [-4, 10], caption: "Parcels" });
   }).timeout(60 * 1000);
 });

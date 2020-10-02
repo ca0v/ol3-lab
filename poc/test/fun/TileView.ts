@@ -76,21 +76,15 @@ export class TileView {
         type: "cluster",
         tileIdentifier: tileIdentifier,
         Z: tileIdentifier.Z,
-        visible: true,
       });
       this.setTileFeature(tileIdentifier, feature);
       this.source.addFeature(feature);
     }
 
-    const { mass, center } = this.helper.centerOfMass(tileIdentifier);
-
-    feature.setProperties(
-      {
-        mass: mass,
-        text: `${mass}Z${tileIdentifier.Z}`,
-      },
-      true
+    const { mass, center, childMass } = this.helper.centerOfMass(
+      tileIdentifier
     );
+    feature.set("mass", mass - childMass);
 
     let geom = feature.getGeometry() as Point;
     if (geom) {
@@ -128,7 +122,7 @@ export class TileView {
         );
       case "cluster":
         if (!mass) return false;
-        return zoffset >= 0;
+        return true; //zoffset >= 0;
     }
     return true;
   }
