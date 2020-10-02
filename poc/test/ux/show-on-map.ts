@@ -402,6 +402,6 @@ describe("showOnMap tests", () => {
     const featureCount = await loader.loader(tileIdentifier, projection);
 
     assert.equal(11655, featureCount, "features");
-    showOnMap({ helper: ext, zoffset: [-4, 10], caption: "Parcels" });
+    showOnMap({ helper: ext, zoffset: [-8, 2], caption: "Parcels" });
   }).timeout(60 * 1000);
 });

@@ -7,6 +7,7 @@ import type { Z } from "poc/types/XY";
 import { StyleCache } from "./StyleCache";
 import { TileView } from "./TileView";
 import { createMap } from "./createMap";
+import { debounce } from "poc/fun/debounce";
 
 function isFeatureVisible(f: Feature<Geometry>) {
   return true === f.get("visible");
@@ -95,9 +96,12 @@ export function showOnMap(
 
   // update tile visibility now and each time the resolution changes
   tileView.computeTileVisibility(view.getZoom() || 0);
-  layer.on("postrender", () => {
-    tileView.computeTileVisibility(view.getZoom() || 0);
-  });
+  layer.on(
+    "postrender",
+    debounce(() => {
+      tileView.computeTileVisibility(view.getZoom() || 0);
+    }, 100)
+  );
 
   return map;
 }

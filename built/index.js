@@ -25374,7 +25374,7 @@ define("poc/test/fun/createMap", ["require", "exports", "node_modules/ol/src/ext
     }
     exports.createMap = createMap;
 });
-define("poc/test/fun/showOnMap", ["require", "exports", "node_modules/ol/src/layer/Vector", "node_modules/ol/src/source/Vector", "poc/test/fun/StyleCache", "poc/test/fun/TileView", "poc/test/fun/createMap"], function (require, exports, Vector_4, Vector_5, StyleCache_1, TileView_2, createMap_1) {
+define("poc/test/fun/showOnMap", ["require", "exports", "node_modules/ol/src/layer/Vector", "node_modules/ol/src/source/Vector", "poc/test/fun/StyleCache", "poc/test/fun/TileView", "poc/test/fun/createMap", "poc/fun/debounce"], function (require, exports, Vector_4, Vector_5, StyleCache_1, TileView_2, createMap_1, debounce_2) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.showOnMap = void 0;
@@ -25440,9 +25440,9 @@ define("poc/test/fun/showOnMap", ["require", "exports", "node_modules/ol/src/lay
         }));
         map.addLayer(layer);
         tileView.computeTileVisibility(view.getZoom() || 0);
-        layer.on("postrender", () => {
+        layer.on("postrender", debounce_2.debounce(() => {
             tileView.computeTileVisibility(view.getZoom() || 0);
-        });
+        }, 100));
         return map;
     }
     exports.showOnMap = showOnMap;
@@ -25698,7 +25698,7 @@ define("poc/test/ux/show-on-map", ["require", "exports", "mocha", "chai", "poc/A
             const tileIdentifier = { X: 0, Y: 0, Z: 0 };
             const featureCount = yield loader.loader(tileIdentifier, projection);
             chai_8.assert.equal(11655, featureCount, "features");
-            showOnMap_1.showOnMap({ helper: ext, zoffset: [-4, 10], caption: "Parcels" });
+            showOnMap_1.showOnMap({ helper: ext, zoffset: [-8, 2], caption: "Parcels" });
         })).timeout(60 * 1000);
     });
 });
