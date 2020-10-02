@@ -88,11 +88,6 @@ export function showOnMap(
     const currentZoom = Math.round(view.getZoomForResolution(resolution) || 0);
     const zoffset = featureZoom - currentZoom;
     const style = styles.styleMaker({ type, zoffset, mass, text });
-    if (type === "cluster") {
-      if (style.getText()) {
-        style.getText().setText(JSON.stringify(feature.get("tileIdentifier")));
-      }
-    }
     return style;
   }));
 
@@ -100,25 +95,8 @@ export function showOnMap(
 
   // update tile visibility now and each time the resolution changes
   tileView.computeTileVisibility(view.getZoom() || 0);
-  {
-    let touched = true;
-    view.on("change:resolution", () => {
-      touched = true;
-    });
-    layer.on("postrender", () => {
-      console.log("postrender", touched);
-      if (!touched) return;
-      //touched = false;
-      tileView.computeTileVisibility(view.getZoom() || 0);
-    });
-  }
-
-  view.on("hack:run-some-test", () => {
-    // show all cluster tiles for this Z level
-    const Z = view.get("hack") as Z;
-    // tiles are not reflecting the backing data...trying to understand why..computeTileVisibility was only updating root tile
-    tree.descendants().forEach((id) => helper.setStale(id, true));
-    tileView.computeTileVisibility(Z);
+  layer.on("postrender", () => {
+    tileView.computeTileVisibility(view.getZoom() || 0);
   });
 
   return map;

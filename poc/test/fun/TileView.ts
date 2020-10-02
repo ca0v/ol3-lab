@@ -134,7 +134,7 @@ export class TileView {
         );
       case "cluster":
         if (!mass) return false;
-        return true; //zoffset >= 0;
+        return zoffset <= this.options.MAX_ZOOM_OFFSET;
     }
     return true;
   }

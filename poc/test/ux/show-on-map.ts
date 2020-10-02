@@ -56,7 +56,10 @@ describe("showOnMap tests", () => {
     });
 
     view.setCenter([-20035492, -20020847]);
-    view.setZoom(5.3);
+    view.setZoom(5.7);
+
+    // allow ux to settle down so I am testing what I am seeing!
+    await tick(200);
 
     map.on("click", (args: { pixel: [number, number] }) => {
       const features = map.getFeaturesAtPixel(args.pixel);
@@ -67,15 +70,48 @@ describe("showOnMap tests", () => {
 
     const tileOfInterest = { X: 0, Y: 0, Z: 1 };
     const { mass: tile1Mass, childMass } = helper.centerOfMass(tileOfInterest);
+
     const tile1ChildMass = tree
       .quads(tileOfInterest)
       .map((id) => helper.centerOfMass(id).mass)
       .reduce((a, b) => a + b, 0);
-    assert.equal(tile1Mass, tile1ChildMass, "tile mass equal-to child mass");
+
+    // assertion fails because child mass is 48 and tile mass is 49...
+    // this is causing a giant "1" to overlay the map because there is an unacccounted for Z=0 feature
+    const darkMatter = helper.getDarkMatter(tileOfInterest);
+    assert.equal(darkMatter.length, 1, "it does have dark matter...but why?");
+    const featuresOfInterest = helper
+      .getFeatures(tileOfInterest)
+      .filter((f) => f.get("visible") === false);
+
+    assert.equal(
+      featuresOfInterest.length,
+      1,
+      "it does have a hidden feture...but why?"
+    );
+
+    const properTileForFeatureOfInterest = helper.findByExtent(
+      featuresOfInterest[0].getGeometry()!.getExtent()
+    );
+
+    assert.deepEqual(
+      properTileForFeatureOfInterest,
+      tileOfInterest,
+      "feature is assigned to correct tile"
+    );
+
+    // figure it out...the large feature is not visible because I have zoomed in so far!
+    // not sure why this was not super obvious but I missed it.
+    // logic needs to change so large tiles do not render even if they have mass
+    assert.isTrue(
+      tile1Mass > tile1ChildMass,
+      "tile1Mass equal-to tile1ChildMass"
+    );
+
     assert.equal(
       childMass,
       tile1ChildMass,
-      "tile childMass equal-to child mass"
+      "childMass equal-to tile1ChildMass"
     );
 
     // because the child mass is equal to the parent tile mass the parent tile should not be visible
@@ -101,11 +137,15 @@ describe("showOnMap tests", () => {
 
     assert.equal(
       clusterFeatures[0].get("mass"),
-      0,
-      "the cluster feature should not have any mass"
+      1,
+      "the cluster feature should have any mass because the figure is hidden but the tile should not render because map is zoomed in too far"
     );
 
-    assert.fail("I am seeing the cluster on the map...");
+    assert.equal(
+      clusterFeatures[0].get("visible"),
+      false,
+      "the cluster feature should have any mass because the figure is hidden but the tile should not render because map is zoomed in too far"
+    );
   });
 
   it("renders 7 feature tree to prove the cluster counts are correct", async () => {
@@ -226,9 +266,6 @@ describe("showOnMap tests", () => {
       com = helper.centerOfMass(node);
       assert.equal(com.mass, 3, "parent tile contains 3 hidden features");
       assert.equal(com.featureMass, -1, "level 6@12,12 is still visible");
-
-      view.set("hack", node.Z);
-      view.dispatchEvent("hack:run-some-test");
     }
   });
 

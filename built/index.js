@@ -16262,7 +16262,7 @@ define("poc/test/fun/TileView", ["require", "exports", "node_modules/ol/src/Feat
                 case "cluster":
                     if (!mass)
                         return false;
-                    return true;
+                    return zoffset <= this.options.MAX_ZOOM_OFFSET;
             }
             return true;
         }
@@ -25436,31 +25436,12 @@ define("poc/test/fun/showOnMap", ["require", "exports", "node_modules/ol/src/lay
             const currentZoom = Math.round(view.getZoomForResolution(resolution) || 0);
             const zoffset = featureZoom - currentZoom;
             const style = styles.styleMaker({ type, zoffset, mass, text });
-            if (type === "cluster") {
-                if (style.getText()) {
-                    style.getText().setText(JSON.stringify(feature.get("tileIdentifier")));
-                }
-            }
             return style;
         }));
         map.addLayer(layer);
         tileView.computeTileVisibility(view.getZoom() || 0);
-        {
-            let touched = true;
-            view.on("change:resolution", () => {
-                touched = true;
-            });
-            layer.on("postrender", () => {
-                console.log("postrender", touched);
-                if (!touched)
-                    return;
-                tileView.computeTileVisibility(view.getZoom() || 0);
-            });
-        }
-        view.on("hack:run-some-test", () => {
-            const Z = view.get("hack");
-            tree.descendants().forEach((id) => helper.setStale(id, true));
-            tileView.computeTileVisibility(Z);
+        layer.on("postrender", () => {
+            tileView.computeTileVisibility(view.getZoom() || 0);
         });
         return map;
     }
@@ -25505,7 +25486,8 @@ define("poc/test/ux/show-on-map", ["require", "exports", "mocha", "chai", "poc/A
                 console.log({ center: view.getCenter(), zoom: view.getZoom() });
             });
             view.setCenter([-20035492, -20020847]);
-            view.setZoom(5.3);
+            view.setZoom(5.7);
+            yield tick(200);
             map.on("click", (args) => {
                 const features = map.getFeaturesAtPixel(args.pixel);
                 const zoom = view.getZoom();
@@ -25518,8 +25500,16 @@ define("poc/test/ux/show-on-map", ["require", "exports", "mocha", "chai", "poc/A
                 .quads(tileOfInterest)
                 .map((id) => helper.centerOfMass(id).mass)
                 .reduce((a, b) => a + b, 0);
-            chai_8.assert.equal(tile1Mass, tile1ChildMass, "tile mass equal-to child mass");
-            chai_8.assert.equal(childMass, tile1ChildMass, "tile childMass equal-to child mass");
+            const darkMatter = helper.getDarkMatter(tileOfInterest);
+            chai_8.assert.equal(darkMatter.length, 1, "it does have dark matter...but why?");
+            const featuresOfInterest = helper
+                .getFeatures(tileOfInterest)
+                .filter((f) => f.get("visible") === false);
+            chai_8.assert.equal(featuresOfInterest.length, 1, "it does have a hidden feture...but why?");
+            const properTileForFeatureOfInterest = helper.findByExtent(featuresOfInterest[0].getGeometry().getExtent());
+            chai_8.assert.deepEqual(properTileForFeatureOfInterest, tileOfInterest, "feature is assigned to correct tile");
+            chai_8.assert.isTrue(tile1Mass > tile1ChildMass, "tile1Mass equal-to tile1ChildMass");
+            chai_8.assert.equal(childMass, tile1ChildMass, "childMass equal-to tile1ChildMass");
             const tileFeatureSource = map.get("tile-source");
             const tiledFeatures = tileFeatureSource.getFeatures().filter((f) => {
                 const tid = f.get("tileIdentifier");
@@ -25529,8 +25519,8 @@ define("poc/test/ux/show-on-map", ["require", "exports", "mocha", "chai", "poc/A
             });
             const clusterFeatures = tiledFeatures.filter((f) => f.get("type") === "cluster");
             chai_8.assert.equal(clusterFeatures.length, 1, "there should be 1 cluster tileOfInterest");
-            chai_8.assert.equal(clusterFeatures[0].get("mass"), 0, "the cluster feature should not have any mass");
-            chai_8.assert.fail("I am seeing the cluster on the map...");
+            chai_8.assert.equal(clusterFeatures[0].get("mass"), 1, "the cluster feature should have any mass because the figure is hidden but the tile should not render because map is zoomed in too far");
+            chai_8.assert.equal(clusterFeatures[0].get("visible"), false, "the cluster feature should have any mass because the figure is hidden but the tile should not render because map is zoomed in too far");
         }));
         mocha_8.it("renders 7 feature tree to prove the cluster counts are correct", () => __awaiter(void 0, void 0, void 0, function* () {
             const projection = proj_4.get("EPSG:3857");
@@ -25606,8 +25596,6 @@ define("poc/test/ux/show-on-map", ["require", "exports", "mocha", "chai", "poc/A
                 com = helper.centerOfMass(node);
                 chai_8.assert.equal(com.mass, 3, "parent tile contains 3 hidden features");
                 chai_8.assert.equal(com.featureMass, -1, "level 6@12,12 is still visible");
-                view.set("hack", node.Z);
-                view.dispatchEvent("hack:run-some-test");
             }
         }));
         mocha_8.it("renders 7 feature tree with features on boundaries to expose defect", () => {
