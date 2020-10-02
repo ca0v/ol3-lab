@@ -106,8 +106,9 @@ export function showOnMap(
       touched = true;
     });
     layer.on("postrender", () => {
+      console.log("postrender", touched);
       if (!touched) return;
-      touched = false;
+      //touched = false;
       tileView.computeTileVisibility(view.getZoom() || 0);
     });
   }

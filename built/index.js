@@ -25451,9 +25451,9 @@ define("poc/test/fun/showOnMap", ["require", "exports", "node_modules/ol/src/lay
                 touched = true;
             });
             layer.on("postrender", () => {
+                console.log("postrender", touched);
                 if (!touched)
                     return;
-                touched = false;
                 tileView.computeTileVisibility(view.getZoom() || 0);
             });
         }
@@ -25505,11 +25505,12 @@ define("poc/test/ux/show-on-map", ["require", "exports", "mocha", "chai", "poc/A
                 console.log({ center: view.getCenter(), zoom: view.getZoom() });
             });
             view.setCenter([-20035492, -20020847]);
-            view.setZoom(5.33);
+            view.setZoom(5.3);
             map.on("click", (args) => {
                 const features = map.getFeaturesAtPixel(args.pixel);
-                console.log(features);
-                map.set("caption", features.length + " features found");
+                const zoom = view.getZoom();
+                console.log(features, { center: view.getCenter(), zoom });
+                map.set("caption", `${features.length} features found, ${zoom}`);
             });
             const tileOfInterest = { X: 0, Y: 0, Z: 1 };
             const { mass: tile1Mass, childMass } = helper.centerOfMass(tileOfInterest);
@@ -25517,17 +25518,19 @@ define("poc/test/ux/show-on-map", ["require", "exports", "mocha", "chai", "poc/A
                 .quads(tileOfInterest)
                 .map((id) => helper.centerOfMass(id).mass)
                 .reduce((a, b) => a + b, 0);
-            chai_8.assert.equal(tile1Mass, tile1ChildMass, "tile mass equal child mass");
-            chai_8.assert.equal(childMass, tile1ChildMass, "tile childMass equal child mass");
+            chai_8.assert.equal(tile1Mass, tile1ChildMass, "tile mass equal-to child mass");
+            chai_8.assert.equal(childMass, tile1ChildMass, "tile childMass equal-to child mass");
             const tileFeatureSource = map.get("tile-source");
-            const tileFeatures = tileFeatureSource.getFeatures().filter((f) => {
+            const tiledFeatures = tileFeatureSource.getFeatures().filter((f) => {
                 const tid = f.get("tileIdentifier");
                 return (tid.X === tileOfInterest.X &&
                     tid.Y === tileOfInterest.Y &&
                     tid.Z === tileOfInterest.Z);
             });
-            chai_8.assert.equal(tileFeatures.length, 1, "there should be 1 tileOfInterest");
-            chai_8.assert.fail("and the tileOfInterest should not be visible");
+            const clusterFeatures = tiledFeatures.filter((f) => f.get("type") === "cluster");
+            chai_8.assert.equal(clusterFeatures.length, 1, "there should be 1 cluster tileOfInterest");
+            chai_8.assert.equal(clusterFeatures[0].get("mass"), 0, "the cluster feature should not have any mass");
+            chai_8.assert.fail("I am seeing the cluster on the map...");
         }));
         mocha_8.it("renders 7 feature tree to prove the cluster counts are correct", () => __awaiter(void 0, void 0, void 0, function* () {
             const projection = proj_4.get("EPSG:3857");

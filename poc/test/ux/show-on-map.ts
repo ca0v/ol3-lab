@@ -56,12 +56,13 @@ describe("showOnMap tests", () => {
     });
 
     view.setCenter([-20035492, -20020847]);
-    view.setZoom(5.33);
+    view.setZoom(5.3);
 
     map.on("click", (args: { pixel: [number, number] }) => {
       const features = map.getFeaturesAtPixel(args.pixel);
-      console.log(features);
-      map.set("caption", features.length + " features found");
+      const zoom = view.getZoom();
+      console.log(features, { center: view.getCenter(), zoom });
+      map.set("caption", `${features.length} features found, ${zoom}`);
     });
 
     const tileOfInterest = { X: 0, Y: 0, Z: 1 };
@@ -70,12 +71,16 @@ describe("showOnMap tests", () => {
       .quads(tileOfInterest)
       .map((id) => helper.centerOfMass(id).mass)
       .reduce((a, b) => a + b, 0);
-    assert.equal(tile1Mass, tile1ChildMass, "tile mass equal child mass");
-    assert.equal(childMass, tile1ChildMass, "tile childMass equal child mass");
+    assert.equal(tile1Mass, tile1ChildMass, "tile mass equal-to child mass");
+    assert.equal(
+      childMass,
+      tile1ChildMass,
+      "tile childMass equal-to child mass"
+    );
 
     // because the child mass is equal to the parent tile mass the parent tile should not be visible
     const tileFeatureSource = map.get("tile-source") as VectorSource<Geometry>;
-    const tileFeatures = tileFeatureSource.getFeatures().filter((f) => {
+    const tiledFeatures = tileFeatureSource.getFeatures().filter((f) => {
       const tid = f.get("tileIdentifier") as XYZ;
       return (
         tid.X === tileOfInterest.X &&
@@ -84,8 +89,23 @@ describe("showOnMap tests", () => {
       );
     });
 
-    assert.equal(tileFeatures.length, 1, "there should be 1 tileOfInterest");
-    assert.fail("and the tileOfInterest should not be visible");
+    const clusterFeatures = tiledFeatures.filter(
+      (f) => f.get("type") === "cluster"
+    );
+
+    assert.equal(
+      clusterFeatures.length,
+      1,
+      "there should be 1 cluster tileOfInterest"
+    );
+
+    assert.equal(
+      clusterFeatures[0].get("mass"),
+      0,
+      "the cluster feature should not have any mass"
+    );
+
+    assert.fail("I am seeing the cluster on the map...");
   });
 
   it("renders 7 feature tree to prove the cluster counts are correct", async () => {
