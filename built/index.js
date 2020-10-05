@@ -16203,7 +16203,7 @@ define("poc/test/fun/TileView", ["require", "exports", "node_modules/ol/src/Feat
                 const isVisible = f.get("visible");
                 const willBecomeVisible = this.isFeatureVisible(f, currentZoom);
                 if (isVisible !== willBecomeVisible) {
-                    f.set("visible", willBecomeVisible);
+                    f.setProperties({ visible: willBecomeVisible }, true);
                     this.helper.setStale(tileIdentifier, true);
                 }
             });
@@ -16217,7 +16217,7 @@ define("poc/test/fun/TileView", ["require", "exports", "node_modules/ol/src/Feat
         updateCluster(tileIdentifier) {
             let feature = this.forceClusterFeature(tileIdentifier);
             const { mass, center, childMass } = this.helper.centerOfMass(tileIdentifier);
-            feature.set("mass", Math.max(0, mass));
+            feature.setProperties({ mass: Math.max(0, mass) }, true);
             let geom = feature.getGeometry();
             if (geom) {
                 const oldCoordinates = geom.getCoordinates();
@@ -16232,12 +16232,14 @@ define("poc/test/fun/TileView", ["require", "exports", "node_modules/ol/src/Feat
         forceClusterFeature(tileIdentifier) {
             let feature = this.getTileFeature(tileIdentifier);
             if (!feature) {
+                const fid = `${tileIdentifier.X}.${tileIdentifier.Y}.${tileIdentifier.Z}`;
                 feature = new Feature_2.default();
                 feature.setProperties({
                     type: "cluster",
                     tileIdentifier: tileIdentifier,
                     Z: tileIdentifier.Z,
-                });
+                }, true);
+                feature.setId(fid);
                 this.setTileFeature(tileIdentifier, feature);
                 this.source.addFeature(feature);
             }

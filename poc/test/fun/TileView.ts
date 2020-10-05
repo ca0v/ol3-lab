@@ -57,12 +57,12 @@ export class TileView {
     this.source.getFeatures().forEach((f) => {
       const tileIdentifier = f.get("tileIdentifier") as XYZ;
       if (!tileIdentifier) throw "tileIdentifier expected";
-      const isVisible = f.get("visible") as boolean;
 
+      const isVisible = f.get("visible") as boolean;
       const willBecomeVisible = this.isFeatureVisible(f, currentZoom);
 
       if (isVisible !== willBecomeVisible) {
-        f.set("visible", willBecomeVisible);
+        f.setProperties({ visible: willBecomeVisible }, true);
         this.helper.setStale(tileIdentifier, true);
       }
     });
@@ -83,7 +83,7 @@ export class TileView {
     const { mass, center, childMass } = this.helper.centerOfMass(
       tileIdentifier
     );
-    feature.set("mass", Math.max(0, mass));
+    feature.setProperties({ mass: Math.max(0, mass) }, true);
 
     let geom = feature.getGeometry() as Point;
     if (geom) {
@@ -99,12 +99,17 @@ export class TileView {
   private forceClusterFeature(tileIdentifier: XYZ) {
     let feature = this.getTileFeature(tileIdentifier);
     if (!feature) {
+      const fid = `${tileIdentifier.X}.${tileIdentifier.Y}.${tileIdentifier.Z}`;
       feature = new Feature<Geometry>();
-      feature.setProperties({
-        type: "cluster",
-        tileIdentifier: tileIdentifier,
-        Z: tileIdentifier.Z,
-      });
+      feature.setProperties(
+        {
+          type: "cluster",
+          tileIdentifier: tileIdentifier,
+          Z: tileIdentifier.Z,
+        },
+        true
+      );
+      feature.setId(fid);
       this.setTileFeature(tileIdentifier, feature);
       this.source.addFeature(feature);
     }
