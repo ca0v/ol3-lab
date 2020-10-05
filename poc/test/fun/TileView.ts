@@ -11,6 +11,11 @@ interface TileViewOptions {
   helper: TileTreeExt;
   MIN_ZOOM_OFFSET: number;
   MAX_ZOOM_OFFSET: number;
+  /**
+   * render cluster tiles from this zoom level (relative to the level where features become too small to display)
+   * +1 implies cluster features are from layer +1 above where features become too small to be visible.
+   * The larger the value the less granular the cluster results
+   */
   clusterOffset: number;
 }
 

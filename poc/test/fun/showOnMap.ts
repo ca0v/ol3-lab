@@ -18,6 +18,11 @@ interface ShowOnMapOptions {
   helper: TileTreeExt;
   zoffset: [number, number]; // how small should the features get before hiding them?  how large should they get before hiding them?
   autofade: boolean; // when true features fade into background so you can zoom through them
+  /**
+   * render cluster tiles from this zoom level (relative to the level where features become too small to display)
+   * +1 implies cluster features are from layer +1 above where features become too small to be visible.
+   * The larger the value the less granular the cluster results
+   */
   clusterOffset: number;
 }
 
@@ -25,7 +30,7 @@ const DEFAULT_OPTIONS: Partial<ShowOnMapOptions> = {
   caption: "Untitled",
   zoffset: [-3, 4],
   autofade: true, // should be true for polygons only?
-  clusterOffset: -1,
+  clusterOffset: 1,
 };
 
 export function showOnMap(

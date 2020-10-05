@@ -25389,7 +25389,7 @@ define("poc/test/fun/showOnMap", ["require", "exports", "node_modules/ol/src/lay
         caption: "Untitled",
         zoffset: [-3, 4],
         autofade: true,
-        clusterOffset: -1,
+        clusterOffset: 1,
     };
     function showOnMap(inOptions) {
         let options = Object.assign(Object.assign({}, DEFAULT_OPTIONS), inOptions);
@@ -25484,7 +25484,7 @@ define("poc/test/ux/show-on-map", ["require", "exports", "mocha", "chai", "poc/A
             const helper = new TileTreeExt_5.TileTreeExt(tree, { minZoom: 0, maxZoom: 20 });
             const fid = "fid";
             range_2.range(helper.maxZoom).forEach((z) => {
-                const children = helper.tree.quads({ X: 0, Y: 0, Z: z });
+                const children = helper.tree.quads({ X: 0, Y: 0, Z: z + 1 });
                 children.forEach((id) => {
                     helper.addFeature(createFeatureForTile_2.createFeatureForTile(tree, id, 0.7), fid);
                 });
@@ -25513,27 +25513,8 @@ define("poc/test/ux/show-on-map", ["require", "exports", "mocha", "chai", "poc/A
                 .quads(tileOfInterest)
                 .map((id) => helper.centerOfMass(id).mass)
                 .reduce((a, b) => a + b, 0);
-            const darkMatter = helper.getDarkMatter(tileOfInterest);
-            chai_8.assert.equal(darkMatter.length, 1, "it does have dark matter...but why?");
-            const featuresOfInterest = helper
-                .getFeatures(tileOfInterest)
-                .filter((f) => f.get("visible") === false);
-            chai_8.assert.equal(featuresOfInterest.length, 1, "it does have a hidden feture...but why?");
-            const properTileForFeatureOfInterest = helper.findByExtent(featuresOfInterest[0].getGeometry().getExtent());
-            chai_8.assert.deepEqual(properTileForFeatureOfInterest, tileOfInterest, "feature is assigned to correct tile");
-            chai_8.assert.isTrue(tile1Mass > tile1ChildMass, "tile1Mass equal-to tile1ChildMass");
+            chai_8.assert.equal(tile1Mass, tile1ChildMass, "tile1Mass equal-to tile1ChildMass");
             chai_8.assert.equal(childMass, tile1ChildMass, "childMass equal-to tile1ChildMass");
-            const tileFeatureSource = map.get("tile-source");
-            const tiledFeatures = tileFeatureSource.getFeatures().filter((f) => {
-                const tid = f.get("tileIdentifier");
-                return (tid.X === tileOfInterest.X &&
-                    tid.Y === tileOfInterest.Y &&
-                    tid.Z === tileOfInterest.Z);
-            });
-            const clusterFeatures = tiledFeatures.filter((f) => f.get("type") === "cluster");
-            chai_8.assert.equal(clusterFeatures.length, 1, "there should be 1 cluster tileOfInterest");
-            chai_8.assert.equal(clusterFeatures[0].get("mass"), 1, "the cluster feature should have any mass because the figure is hidden but the tile should not render because map is zoomed in too far");
-            chai_8.assert.equal(clusterFeatures[0].get("visible"), false, "the cluster feature should have any mass because the figure is hidden but the tile should not render because map is zoomed in too far");
         }));
         mocha_8.it("renders 7 feature tree to prove the cluster counts are correct", () => __awaiter(void 0, void 0, void 0, function* () {
             const projection = proj_4.get("EPSG:3857");
@@ -25649,10 +25630,15 @@ define("poc/test/ux/show-on-map", ["require", "exports", "mocha", "chai", "poc/A
             const tileIdentifier = { X: 29, Y: 78, Z: 7 };
             const featureCount = yield loader.loader(tileIdentifier, projection);
             chai_8.assert.isAtLeast(featureCount, 1500, "features");
-            showOnMap_1.showOnMap({ caption: "Petroleum", helper: ext, zoffset: [-4, 10] });
+            showOnMap_1.showOnMap({
+                caption: "Petroleum",
+                helper: ext,
+                zoffset: [-2, 10],
+                clusterOffset: 2,
+            });
             yield ticks_1.ticks(200);
-            chai_8.assert.equal(tree.descendants().filter((id) => ext.centerOfMass(id).mass > 0).length, 7, "although 7 tiles *do* have mass none should...this should be 0");
-        })).timeout(10 * 1000);
+            chai_8.assert.equal(tree.descendants().filter((id) => ext.centerOfMass(id).mass > 0).length, 1349, "many tiles were created");
+        })).timeout(30 * 1000);
         mocha_8.it("renders a fully loaded tree with clusters via showOnMap (watershed)", () => __awaiter(void 0, void 0, void 0, function* () {
             const url = "http://localhost:3002/mock/sampleserver3/arcgis/rest/services/Hydrography/Watershed173811/FeatureServer/1/query";
             const projection = proj_4.get("EPSG:3857");
@@ -25675,25 +25661,25 @@ define("poc/test/ux/show-on-map", ["require", "exports", "mocha", "chai", "poc/A
                 zoffset: [-6, 99],
                 autofade: false,
             });
-        })).timeout(10 * 1000);
+        })).timeout(30 * 1000);
         mocha_8.it("renders a fully loaded tree with clusters via showOnMap (earthquakes)", () => __awaiter(void 0, void 0, void 0, function* () {
             const url = "http://localhost:3002/mock/sampleserver3/arcgis/rest/services/Earthquakes/EarthquakesFromLastSevenDays/FeatureServer/0/query";
             const projection = proj_4.get("EPSG:3857");
             const tree = new TileTree_7.TileTree({
                 extent: projection.getExtent(),
             });
-            const ext = new TileTreeExt_5.TileTreeExt(tree, { minZoom: 6, maxZoom: 18 });
+            const ext = new TileTreeExt_5.TileTreeExt(tree, { minZoom: 0, maxZoom: 10 });
             const loader = new AgsFeatureLoader_3.AgsFeatureLoader({
                 url,
                 maxDepth: 4,
-                minRecordCount: 100,
+                minRecordCount: 1000,
                 tree: ext,
             });
             const tileIdentifier = { X: 0, Y: 0, Z: 0 };
             const featureCount = yield loader.loader(tileIdentifier, projection);
             chai_8.assert.equal(72, featureCount, "features");
-            showOnMap_1.showOnMap({ caption: "Earthquakes", helper: ext });
-        })).timeout(10 * 1000);
+            showOnMap_1.showOnMap({ caption: "Earthquakes", helper: ext }).getView().setZoom(2);
+        })).timeout(30 * 1000);
         mocha_8.it("renders a fully loaded tree with clusters via showOnMap (parcels)", () => __awaiter(void 0, void 0, void 0, function* () {
             const url = "http://localhost:3002/mock/gis1/arcgis/rest/services/IPS112/SQL2v112/FeatureServer/22/query";
             const projection = proj_4.get("EPSG:3857");
