@@ -324,7 +324,7 @@ describe("showOnMap tests", () => {
     const featureCount = await loader.loader(tileIdentifier, projection);
 
     assert.isAtLeast(featureCount, 1500, "features");
-    showOnMap({ caption: "Petroleum", helper: ext, zoffset: [-18, 2] });
+    showOnMap({ caption: "Petroleum", helper: ext, zoffset: [-4, 10] });
 
     await ticks(200);
 
@@ -343,7 +343,7 @@ describe("showOnMap tests", () => {
     const tree = new TileTree<{ mass: number }>({
       extent: projection.getExtent(),
     });
-    const ext = new TileTreeExt(tree, { minZoom: 6, maxZoom: 18 });
+    const ext = new TileTreeExt(tree, { minZoom: 6, maxZoom: 22 });
 
     const loader = new AgsFeatureLoader({
       url,
@@ -356,7 +356,12 @@ describe("showOnMap tests", () => {
     const featureCount = await loader.loader(tileIdentifier, projection);
 
     assert.isAbove(featureCount, 5000, "features");
-    showOnMap({ caption: "Watershed", helper: ext, zoffset: [-13, 4] });
+    showOnMap({
+      caption: "Watershed",
+      helper: ext,
+      zoffset: [-6, 99],
+      autofade: false,
+    });
   }).timeout(10 * 1000);
 
   it("renders a fully loaded tree with clusters via showOnMap (earthquakes)", async () => {
@@ -402,6 +407,11 @@ describe("showOnMap tests", () => {
     const featureCount = await loader.loader(tileIdentifier, projection);
 
     assert.equal(11655, featureCount, "features");
-    showOnMap({ helper: ext, zoffset: [-8, 2], caption: "Parcels" });
+    showOnMap({
+      helper: ext,
+      zoffset: [-4, 6],
+      caption: "Parcels",
+      clusterOffset: 2,
+    });
   }).timeout(60 * 1000);
 });

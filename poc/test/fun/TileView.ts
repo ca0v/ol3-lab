@@ -11,11 +11,13 @@ interface TileViewOptions {
   helper: TileTreeExt;
   MIN_ZOOM_OFFSET: number;
   MAX_ZOOM_OFFSET: number;
+  clusterOffset: number;
 }
 
 const DEFAULT_OPTIONS: Partial<TileViewOptions> = {
   MIN_ZOOM_OFFSET: -4,
   MAX_ZOOM_OFFSET: 3,
+  clusterOffset: 1,
 };
 
 /**
@@ -81,7 +83,7 @@ export class TileView {
     const { mass, center, childMass } = this.helper.centerOfMass(
       tileIdentifier
     );
-    feature.set("mass", Math.max(0, mass - childMass));
+    feature.set("mass", Math.max(0, mass));
 
     let geom = feature.getGeometry() as Point;
     if (geom) {
@@ -133,8 +135,11 @@ export class TileView {
           zoffset <= this.options.MAX_ZOOM_OFFSET
         );
       case "cluster":
+        // if no mass do not render this cluster
         if (!mass) return false;
-        return zoffset <= this.options.MAX_ZOOM_OFFSET - 2;
+        // only render clusters for a given zoom level and no others
+        const magic = this.options.MIN_ZOOM_OFFSET + this.options.clusterOffset;
+        return magic <= zoffset && zoffset < magic + 1;
     }
     return true;
   }

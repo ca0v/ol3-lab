@@ -17,18 +17,22 @@ interface ShowOnMapOptions {
   caption: string;
   helper: TileTreeExt;
   zoffset: [number, number]; // how small should the features get before hiding them?  how large should they get before hiding them?
+  autofade: boolean; // when true features fade into background so you can zoom through them
+  clusterOffset: number;
 }
 
 const DEFAULT_OPTIONS: Partial<ShowOnMapOptions> = {
   caption: "Untitled",
   zoffset: [-3, 4],
+  autofade: true, // should be true for polygons only?
+  clusterOffset: -1,
 };
 
 export function showOnMap(
   inOptions: Partial<ShowOnMapOptions> & { helper: TileTreeExt }
 ) {
   let options = { ...DEFAULT_OPTIONS, ...inOptions } as ShowOnMapOptions;
-  const { helper } = options;
+  const { helper, autofade, clusterOffset } = options;
   const { tree } = helper;
 
   const styles = new StyleCache();
@@ -76,6 +80,7 @@ export function showOnMap(
   const tileView = new TileView({
     source,
     helper,
+    clusterOffset,
     MIN_ZOOM_OFFSET: options.zoffset[0],
     MAX_ZOOM_OFFSET: options.zoffset[1],
   });
@@ -88,7 +93,7 @@ export function showOnMap(
     const text = feature.get("text") as string;
     const currentZoom = Math.round(view.getZoomForResolution(resolution) || 0);
     const zoffset = featureZoom - currentZoom;
-    const style = styles.styleMaker({ type, zoffset, mass, text });
+    const style = styles.styleMaker({ type, zoffset, mass, text, autofade });
     return style;
   }));
 
@@ -100,7 +105,7 @@ export function showOnMap(
     "postrender",
     debounce(() => {
       tileView.computeTileVisibility(view.getZoom() || 0);
-    }, 100)
+    }, 10)
   );
 
   return map;

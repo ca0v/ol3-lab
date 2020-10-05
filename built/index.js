@@ -16182,6 +16182,7 @@ define("poc/test/fun/TileView", ["require", "exports", "node_modules/ol/src/Feat
     const DEFAULT_OPTIONS = {
         MIN_ZOOM_OFFSET: -4,
         MAX_ZOOM_OFFSET: 3,
+        clusterOffset: 1,
     };
     class TileView {
         constructor(options) {
@@ -16216,7 +16217,7 @@ define("poc/test/fun/TileView", ["require", "exports", "node_modules/ol/src/Feat
         updateCluster(tileIdentifier) {
             let feature = this.forceClusterFeature(tileIdentifier);
             const { mass, center, childMass } = this.helper.centerOfMass(tileIdentifier);
-            feature.set("mass", Math.max(0, mass - childMass));
+            feature.set("mass", Math.max(0, mass));
             let geom = feature.getGeometry();
             if (geom) {
                 const oldCoordinates = geom.getCoordinates();
@@ -16262,7 +16263,8 @@ define("poc/test/fun/TileView", ["require", "exports", "node_modules/ol/src/Feat
                 case "cluster":
                     if (!mass)
                         return false;
-                    return zoffset <= this.options.MAX_ZOOM_OFFSET - 2;
+                    const magic = this.options.MIN_ZOOM_OFFSET + this.options.clusterOffset;
+                    return magic <= zoffset && zoffset < magic + 1;
             }
             return true;
         }
@@ -25273,7 +25275,7 @@ define("poc/test/fun/StyleCache", ["require", "exports", "node_modules/ol/src/st
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.StyleCache = void 0;
     const rules = {
-        TEXT_SCALE: 4,
+        TEXT_SCALE: 8,
         RADIUS_SCALE: 64,
         CLUSTER_OPACITY: 0.5,
         FEATURE_COLOR: { r: 0, g: 0, b: 255 },
@@ -25283,14 +25285,14 @@ define("poc/test/fun/StyleCache", ["require", "exports", "node_modules/ol/src/st
         constructor() {
             _styleCache.set(this, {});
         }
-        styleMaker({ type, zoffset, mass, text, }) {
+        styleMaker({ type, zoffset, mass, text, autofade, }) {
             const massLevel = Math.floor(Math.pow(2, Math.floor(Math.log2(mass))));
             const styleKey = `${type}.${zoffset}.${massLevel}`;
             let style = __classPrivateFieldGet(this, _styleCache)[styleKey];
             if (!style) {
                 switch (type) {
                     case "cluster": {
-                        const radius = Math.max(1, rules.RADIUS_SCALE * Math.pow(2, -zoffset));
+                        const radius = Math.max(1, rules.RADIUS_SCALE * Math.pow(2, -zoffset) + Math.log2(massLevel));
                         style = new style_2.Style({
                             image: new Circle_2.default({
                                 radius: radius,
@@ -25317,7 +25319,7 @@ define("poc/test/fun/StyleCache", ["require", "exports", "node_modules/ol/src/st
                         break;
                     }
                     default: {
-                        const opacity = 0.8 * Math.pow(Math.SQRT2, -Math.abs(zoffset));
+                        const opacity = 0.8 * (autofade ? Math.pow(Math.SQRT2, -Math.abs(zoffset)) : 1);
                         style = new style_2.Style({
                             fill: new style_2.Fill({
                                 color: `rgba(${rules.FEATURE_COLOR.r},${rules.FEATURE_COLOR.g},${rules.FEATURE_COLOR.b},${opacity})`,
@@ -25384,10 +25386,12 @@ define("poc/test/fun/showOnMap", ["require", "exports", "node_modules/ol/src/lay
     const DEFAULT_OPTIONS = {
         caption: "Untitled",
         zoffset: [-3, 4],
+        autofade: true,
+        clusterOffset: -1,
     };
     function showOnMap(inOptions) {
         let options = Object.assign(Object.assign({}, DEFAULT_OPTIONS), inOptions);
-        const { helper } = options;
+        const { helper, autofade, clusterOffset } = options;
         const { tree } = helper;
         const styles = new StyleCache_1.StyleCache();
         const tiles = tree.descendants().filter((id) => null !== helper.getMass(id));
@@ -25423,6 +25427,7 @@ define("poc/test/fun/showOnMap", ["require", "exports", "node_modules/ol/src/lay
         const tileView = new TileView_2.TileView({
             source,
             helper,
+            clusterOffset,
             MIN_ZOOM_OFFSET: options.zoffset[0],
             MAX_ZOOM_OFFSET: options.zoffset[1],
         });
@@ -25435,14 +25440,14 @@ define("poc/test/fun/showOnMap", ["require", "exports", "node_modules/ol/src/lay
             const text = feature.get("text");
             const currentZoom = Math.round(view.getZoomForResolution(resolution) || 0);
             const zoffset = featureZoom - currentZoom;
-            const style = styles.styleMaker({ type, zoffset, mass, text });
+            const style = styles.styleMaker({ type, zoffset, mass, text, autofade });
             return style;
         }));
         map.addLayer(layer);
         tileView.computeTileVisibility(view.getZoom() || 0);
         layer.on("postrender", debounce_2.debounce(() => {
             tileView.computeTileVisibility(view.getZoom() || 0);
-        }, 100));
+        }, 10));
         return map;
     }
     exports.showOnMap = showOnMap;
@@ -25642,7 +25647,7 @@ define("poc/test/ux/show-on-map", ["require", "exports", "mocha", "chai", "poc/A
             const tileIdentifier = { X: 29, Y: 78, Z: 7 };
             const featureCount = yield loader.loader(tileIdentifier, projection);
             chai_8.assert.isAtLeast(featureCount, 1500, "features");
-            showOnMap_1.showOnMap({ caption: "Petroleum", helper: ext, zoffset: [-18, 2] });
+            showOnMap_1.showOnMap({ caption: "Petroleum", helper: ext, zoffset: [-4, 10] });
             yield ticks_1.ticks(200);
             chai_8.assert.equal(tree.descendants().filter((id) => ext.centerOfMass(id).mass > 0).length, 7, "although 7 tiles *do* have mass none should...this should be 0");
         })).timeout(10 * 1000);
@@ -25652,7 +25657,7 @@ define("poc/test/ux/show-on-map", ["require", "exports", "mocha", "chai", "poc/A
             const tree = new TileTree_7.TileTree({
                 extent: projection.getExtent(),
             });
-            const ext = new TileTreeExt_5.TileTreeExt(tree, { minZoom: 6, maxZoom: 18 });
+            const ext = new TileTreeExt_5.TileTreeExt(tree, { minZoom: 6, maxZoom: 22 });
             const loader = new AgsFeatureLoader_3.AgsFeatureLoader({
                 url,
                 maxDepth: 4,
@@ -25662,7 +25667,12 @@ define("poc/test/ux/show-on-map", ["require", "exports", "mocha", "chai", "poc/A
             const tileIdentifier = { X: 29, Y: 78, Z: 7 };
             const featureCount = yield loader.loader(tileIdentifier, projection);
             chai_8.assert.isAbove(featureCount, 5000, "features");
-            showOnMap_1.showOnMap({ caption: "Watershed", helper: ext, zoffset: [-13, 4] });
+            showOnMap_1.showOnMap({
+                caption: "Watershed",
+                helper: ext,
+                zoffset: [-6, 99],
+                autofade: false,
+            });
         })).timeout(10 * 1000);
         mocha_8.it("renders a fully loaded tree with clusters via showOnMap (earthquakes)", () => __awaiter(void 0, void 0, void 0, function* () {
             const url = "http://localhost:3002/mock/sampleserver3/arcgis/rest/services/Earthquakes/EarthquakesFromLastSevenDays/FeatureServer/0/query";
@@ -25698,7 +25708,12 @@ define("poc/test/ux/show-on-map", ["require", "exports", "mocha", "chai", "poc/A
             const tileIdentifier = { X: 0, Y: 0, Z: 0 };
             const featureCount = yield loader.loader(tileIdentifier, projection);
             chai_8.assert.equal(11655, featureCount, "features");
-            showOnMap_1.showOnMap({ helper: ext, zoffset: [-8, 2], caption: "Parcels" });
+            showOnMap_1.showOnMap({
+                helper: ext,
+                zoffset: [-4, 6],
+                caption: "Parcels",
+                clusterOffset: 2,
+            });
         })).timeout(60 * 1000);
     });
 });

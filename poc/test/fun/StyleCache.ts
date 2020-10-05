@@ -3,7 +3,7 @@ import Circle from "@ol/style/Circle";
 import Text from "@ol/style/Text";
 
 const rules = {
-  TEXT_SCALE: 4,
+  TEXT_SCALE: 8,
   RADIUS_SCALE: 64,
   CLUSTER_OPACITY: 0.5,
   FEATURE_COLOR: { r: 0, g: 0, b: 255 },
@@ -18,11 +18,13 @@ export class StyleCache {
     zoffset,
     mass,
     text,
+    autofade,
   }: {
     type: string;
     zoffset: number;
     mass: number;
     text: string;
+    autofade: boolean;
   }) {
     const massLevel = Math.floor(Math.pow(2, Math.floor(Math.log2(mass))));
     const styleKey = `${type}.${zoffset}.${massLevel}`;
@@ -33,7 +35,7 @@ export class StyleCache {
         case "cluster": {
           const radius = Math.max(
             1,
-            rules.RADIUS_SCALE * Math.pow(2, -zoffset)
+            rules.RADIUS_SCALE * Math.pow(2, -zoffset) + Math.log2(massLevel)
           );
           style = new Style({
             image: new Circle({
@@ -65,7 +67,8 @@ export class StyleCache {
           break;
         }
         default: {
-          const opacity = 0.8 * Math.pow(Math.SQRT2, -Math.abs(zoffset));
+          const opacity =
+            0.8 * (autofade ? Math.pow(Math.SQRT2, -Math.abs(zoffset)) : 1);
           style = new Style({
             fill: new Fill({
               color: `rgba(${rules.FEATURE_COLOR.r},${rules.FEATURE_COLOR.g},${rules.FEATURE_COLOR.b},${opacity})`,
