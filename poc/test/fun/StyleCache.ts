@@ -1,4 +1,4 @@
-import { Style, Fill, Stroke } from "@ol/style";
+import { Style, Fill, Stroke, RegularShape } from "@ol/style";
 import Circle from "@ol/style/Circle";
 import Text from "@ol/style/Text";
 
@@ -78,6 +78,21 @@ export class StyleCache {
               width: 1,
             }),
           });
+          const markerStyle = new Style({
+            image: new RegularShape({
+              points: 3,
+              radius: 20,
+              radius2: 10,
+              fill: new Fill({
+                color: `rgba(${rules.FEATURE_COLOR.r},${rules.FEATURE_COLOR.g},${rules.FEATURE_COLOR.b},${rules.CLUSTER_OPACITY})`,
+              }),
+              stroke: new Stroke({
+                color: `rgba(${rules.STROKE_COLOR.r},${rules.STROKE_COLOR.g},${rules.STROKE_COLOR.b},${rules.CLUSTER_OPACITY})`,
+                width: 1,
+              }),
+            }),
+          });
+          style = <any>[style, markerStyle];
           break;
         }
       }

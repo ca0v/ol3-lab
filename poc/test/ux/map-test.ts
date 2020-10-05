@@ -32,6 +32,9 @@ describe("UI Labs", () => {
     });
     const layers = [vectorLayer];
     const map = new Map({ view, target, layers });
+    const caption = document.createElement("label");
+    caption.innerText = "Autonomous Petroleum";
+    targetContainer.parentElement!.insertBefore(caption, targetContainer);
 
     let automatedScaleDirection = 1;
     const h = setInterval(() => {
@@ -90,5 +93,8 @@ describe("UI Labs", () => {
 
     const layers = [vectorLayer];
     const map = new Map({ view, target, layers });
+    const caption = document.createElement("label");
+    caption.innerText = "Petroleum";
+    targetContainer.parentElement!.insertBefore(caption, targetContainer);
   });
 });

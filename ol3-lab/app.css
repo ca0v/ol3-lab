@@ -10,9 +10,11 @@ body,
   padding: 0;
 }
 
+.dark {
+    color: silver;
+}
 .dark button {
     background: rgba(56, 55, 55, 128);
-    color: silver;
 }
 .dark .testmapcontainer {
   background-color: rgba(56, 55, 55, 128);
@@ -28,29 +30,14 @@ body,
   display: inline-block;
 }
 
-.dark figcaption {
-    color:white;
-}
-
-.dark #mocha-stats em {
-  color: white;
-}
-
 .dark #mocha-stats canvas {
+    color: black;
   background-color: silver;
   border-radius: 2em;
 }
 
-.dark #mocha {
-  color: white;
-}
-
 body.dark {
   background-color: black;
-}
-
-body.dark a {
-  color: white;
 }
 
 .map.landscape {

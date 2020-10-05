@@ -25221,6 +25221,9 @@ define("poc/test/ux/map-test", ["require", "exports", "mocha", "node_modules/ol/
             });
             const layers = [vectorLayer];
             const map = new Map_1.default({ view, target, layers });
+            const caption = document.createElement("label");
+            caption.innerText = "Autonomous Petroleum";
+            targetContainer.parentElement.insertBefore(caption, targetContainer);
             let automatedScaleDirection = 1;
             const h = setInterval(() => {
                 const z = view.getZoom() || 0;
@@ -25268,6 +25271,9 @@ define("poc/test/ux/map-test", ["require", "exports", "mocha", "node_modules/ol/
             });
             const layers = [vectorLayer];
             const map = new Map_1.default({ view, target, layers });
+            const caption = document.createElement("label");
+            caption.innerText = "Petroleum";
+            targetContainer.parentElement.insertBefore(caption, targetContainer);
         });
     });
 });
@@ -25331,6 +25337,21 @@ define("poc/test/fun/StyleCache", ["require", "exports", "node_modules/ol/src/st
                                 width: 1,
                             }),
                         });
+                        const markerStyle = new style_2.Style({
+                            image: new style_2.RegularShape({
+                                points: 3,
+                                radius: 20,
+                                radius2: 10,
+                                fill: new style_2.Fill({
+                                    color: `rgba(${rules.FEATURE_COLOR.r},${rules.FEATURE_COLOR.g},${rules.FEATURE_COLOR.b},${rules.CLUSTER_OPACITY})`,
+                                }),
+                                stroke: new style_2.Stroke({
+                                    color: `rgba(${rules.STROKE_COLOR.r},${rules.STROKE_COLOR.g},${rules.STROKE_COLOR.b},${rules.CLUSTER_OPACITY})`,
+                                    width: 1,
+                                }),
+                            }),
+                        });
+                        style = [style, markerStyle];
                         break;
                     }
                 }
