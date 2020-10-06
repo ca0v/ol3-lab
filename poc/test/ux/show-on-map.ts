@@ -262,9 +262,10 @@ describe("showOnMap tests", () => {
     });
 
     const tileIdentifier = { X: 29, Y: 78, Z: 7 };
-    const featureCount = await loader.loader(tileIdentifier, projection);
+    await loader.loader(tileIdentifier, projection);
+    const featureCount = ext.getMass(tileIdentifier);
 
-    assert.isAtLeast(featureCount, 1500, "features");
+    assert.isAtLeast(featureCount!, 1500, "features");
     showOnMap({
       caption: "Petroleum",
       helper: ext,
@@ -298,7 +299,8 @@ describe("showOnMap tests", () => {
     });
 
     const tileIdentifier = { X: 29, Y: 78, Z: 7 };
-    const featureCount = await loader.loader(tileIdentifier, projection);
+    await loader.loader(tileIdentifier, projection);
+    const featureCount = ext.getMass(tileIdentifier)!;
 
     assert.isAbove(featureCount, 5000, "features");
     showOnMap({
@@ -326,7 +328,8 @@ describe("showOnMap tests", () => {
     });
 
     const tileIdentifier = { X: 0, Y: 0, Z: 0 };
-    const featureCount = await loader.loader(tileIdentifier, projection);
+    await loader.loader(tileIdentifier, projection);
+    const featureCount = ext.getMass(tileIdentifier)!;
 
     assert.equal(72, featureCount, "features");
     showOnMap({ caption: "Earthquakes", helper: ext }).getView().setZoom(2);
@@ -349,7 +352,8 @@ describe("showOnMap tests", () => {
     });
 
     const tileIdentifier = { X: 0, Y: 0, Z: 0 };
-    const featureCount = await loader.loader(tileIdentifier, projection);
+    await loader.loader(tileIdentifier, projection);
+    const featureCount = ext.getMass(tileIdentifier);
 
     assert.equal(11655, featureCount, "features");
     showOnMap({

@@ -3,11 +3,11 @@ import { assert } from "chai";
 
 import { AgsFeatureLoader } from "poc/AgsFeatureLoader";
 import { TileTree } from "poc/TileTree";
-import { get as getProjection, transform } from "@ol/proj";
+import { get as getProjection, Projection } from "@ol/proj";
 import type { XY } from "poc/types/XY";
 import { TileTreeExt } from "poc/TileTreeExt";
 import { flatten } from "poc/fun/flatten";
-import { containsExtent } from "@ol/extent";
+import type { XYZ } from "poc/types/XYZ";
 
 describe("AgsFeatureLoader tests", () => {
   it("loads feature counts for specific tiles up to 0 levels deep", async () => {
@@ -44,7 +44,7 @@ describe("AgsFeatureLoader tests", () => {
     const mass = await loader.loader(tileIdentifier, projection);
 
     // 50 features are on the cross-hairs of the parent tile
-    assert.equal(q0mass + q1mass + q2mass + q3mass - 50, mass);
+    assert.equal(q0mass! + q1mass! + q2mass! + q3mass! - 50, mass);
   });
 
   it("loads starting from {0,0,0} 11 levels deep", async () => {

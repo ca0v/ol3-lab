@@ -1,3 +1,7 @@
+/***
+ * This is a data source that utilizes a "count" loading strategy to prevent
+ * loading too many fetures into the source and onto the map
+ */
 import { Extent } from "@ol/extent";
 import { Projection } from "@ol/proj";
 import { TileTree } from "./TileTree";
@@ -20,6 +24,43 @@ function onlyUnique<T>(value: T, index: number, self: Array<T>) {
   return self.indexOf(value) === index;
 }
 
+interface AgsClusterSourceOptions {
+  /**
+   * the width and height of of the tile to query, in pixels
+   */
+  tileSize: number;
+  /**
+   * A AGS-compatible FeatureServer endpoint identifing a query service
+   * e.g. http://localhost:3002/mock/sampleserver3/arcgis/rest/services/Petroleum/KSFields/FeatureServer/0/query
+   */
+  url: string;
+  /**
+   * How deep are you willing to look ahead?  This grows to the power of 4 so be careful...good for ensuring
+   * all features get loaded but can result in server timeouts without proper throttling
+   */
+  maxDepth: number;
+  /**
+   * By default services have a maxRecordCount of 1000, this is that value but renamed because it represents
+   * the minimum count necessary before invoking a feature query.
+   */
+  minRecordCount: number;
+  /**
+   * This is the minimum zoom level for this source, constraining queries beyond this
+   * 2D features that cover multiple tiles at this level can still be assigned to levels >= 0
+   */
+  minZoom: number;
+  /**
+   * This is the maximum zoom level for this source, constraining queries beyond this
+   * Point features will be assigned to tiles at this level
+   */
+  maxZoom: number;
+}
+
+/**
+ * Vector Source for managing cluster features and actual features
+ * to present the user with a performant layer when large amounts of data
+ * reside in the feature service
+ */
 export class AgsClusterSource<
   T extends { count: number; center: XY }
 > extends VectorSource<Geometry> {
@@ -32,24 +73,34 @@ export class AgsClusterSource<
   private maxRecordCount: number;
   private minRecordCount: number;
 
-  constructor(options: {
-    tileSize: number;
-    url: string;
-    minRecordCount: number;
-    treeTileState?: TileTreeState<T>;
-  }) {
-    const { url, minRecordCount, tileSize } = options;
+  constructor(
+    options: AgsClusterSourceOptions & { treeTileState?: TileTreeState<T> }
+  ) {
+    const {
+      url,
+      minRecordCount,
+      tileSize,
+      maxDepth,
+      minZoom,
+      maxZoom,
+    } = options;
+
+    // this is the built-in strategy for determining which tiles to query
     const tileGrid = createXYZ({ tileSize });
     const strategy = tileStrategy(tileGrid);
 
+    // this is the ol-independent tiling system for managing cluster and feature data
     const tree = new TileTree<T>({
       extent: tileGrid.getExtent(),
     });
 
+    // tree state can be cached to pre-populate light but expensive query results
     options.treeTileState && tree.load(options.treeTileState);
 
     super({ strategy });
-    this.tree = new TileTreeExt(tree, { minZoom: 5, maxZoom: 16 });
+
+    // this is a helper extension to the tree that manages "weight" related computations/data
+    this.tree = new TileTreeExt(tree, { minZoom, maxZoom });
     this.tileSize = tileSize;
     this.loadingStrategy = strategy;
     this.isFirstDraw = true;
@@ -58,14 +109,25 @@ export class AgsClusterSource<
     this.minRecordCount = minRecordCount;
     this.maxRecordCount = minRecordCount;
 
+    // this is the loader that actually queries the feature service and adds features
+    // to tiles that spatially contain them...by "tile" I mean a TileTree data container
+    // and not a visual tile on the map.
     this.featureLoader = new AgsFeatureLoader({
       tree: this.tree,
       url,
-      maxDepth: 3,
+      maxDepth,
       minRecordCount,
     });
   }
 
+  /**
+   * Loads features into this source to be rendered on a map
+   * The resolution and projection are convenient ways of specifying the Z level
+   * but I would rather be providing a Z level.
+   * @param extent load TileTree tiles within this extent
+   * @param resolution for this resolution
+   * @param projection for this spatial referencing system
+   */
   async loadFeatures(
     extent: Extent,
     resolution: number,
@@ -85,7 +147,7 @@ export class AgsClusterSource<
     if (this.isFirstDraw) {
       this.isFirstDraw && console.log("rendering 1st tree");
       this.isFirstDraw = false;
-      this.renderTree(tree, Z, projection);
+      this.renderTree(tree);
     }
 
     if (resolution === this.priorResolution) {
@@ -96,22 +158,14 @@ export class AgsClusterSource<
     extentsToLoad.forEach(async (tileIdentifier) => {
       await this.loadTile(tileIdentifier, projection);
 
-      const nodes = await this.loadDescendantsUntil(
-        tileIdentifier,
-        projection,
-        (nodeId) => {
-          const mass = tree.getMass(nodeId) || 0;
-          const tooVagueTest = mass > this.maxRecordCount;
-          const tooSmallTest = mass < this.minRecordCount;
-          const tooDeepTest = nodeId.Z >= Z + LOOKAHEAD_THRESHOLD;
-          const allowLoad = tooVagueTest || (!tooDeepTest && !tooSmallTest);
-          return !allowLoad;
-        }
-      );
-
-      if (nodes.length) {
-        this.renderTree(this.tree, Z, projection);
-      }
+      await this.loadDescendantsUntil(tileIdentifier, projection, (nodeId) => {
+        const mass = tree.getMass(nodeId) || 0;
+        const tooVagueTest = mass > this.maxRecordCount;
+        const tooSmallTest = mass < this.minRecordCount;
+        const tooDeepTest = nodeId.Z >= Z + LOOKAHEAD_THRESHOLD;
+        const allowLoad = tooVagueTest || (!tooDeepTest && !tooSmallTest);
+        return !allowLoad;
+      });
     });
   }
 
@@ -136,72 +190,24 @@ export class AgsClusterSource<
     return unloadedChildren.concat(...grandChildren);
   }
 
-  private renderTree(tree: TileTreeExt, Z: number, projection: Projection) {
-    const leafNodes = [] as Array<XYZ>;
-    tree.tree.visit((a, tileIdentifier) => {
-      if (0 === tree.tree.children(tileIdentifier).length) {
-        leafNodes.push(tileIdentifier);
-      }
-    }, {} as any);
-
-    this.getFeatures().forEach((f) => f.setProperties({ visible: false }));
-
-    const [keep, remove] = split(leafNodes, (tileIdentifier) => {
-      const node = tree.tree.findByXYZ(tileIdentifier);
-      if (!node.data) return false;
-      const mass = tree.getMass(tileIdentifier) || 0;
-      if (0 >= mass) return false;
-      if (!tree.getCenter(tileIdentifier)) return false;
-      return true;
-    });
-
-    // anything to render needs to be checked for density issues
-    // and pushed into parent as needed
-    this.reduce(keep, Z).forEach((id) => this.render(tree, id, Z));
-    remove.forEach((id) => this.unrender(tree, id));
-    keep
-      .filter((tileIdentifier) => !!tree.getFeatures(tileIdentifier))
-      .forEach((id) => this.render(tree, id, Z));
-
-    // turn on all "feature" features for testing
-    this.getFeatures()
-      .filter((f) => f.getProperties().type === "feature")
-      .forEach((f) => f.setProperties({ visible: true }));
-  }
-
-  private reduce(keep: Array<XYZ>, Z: number) {
-    const { tree } = this;
-
-    keep.forEach((nodeId) => {
-      tree.tree.decorate(nodeId, { yieldToParent: false });
-    });
-
-    keep.forEach((nodeId) => {
-      if (nodeId.Z > Z + LOOKAHEAD_THRESHOLD) {
-        if (
-          !tree.tree.decorate<{ yieldToParent: boolean }>(nodeId).yieldToParent
-        ) {
-          const parentIdentifier = tree.tree.parent(nodeId);
-          tree.tree
-            .children(parentIdentifier)
-            .forEach((id) => tree.tree.decorate(id, { yieldToParent: true }));
-        }
+  /**
+   * TODO...
+   * Not sure what I was thinking...the tiles contain the features and also represent the clusters
+   * but why am I waiting until now to add them to the source?  And where am I creating the cluster
+   * markers?  I thought I already coded this but I guess I was thinking of my test code.
+   * So...who manages actually adding features to the source...the loader puts them in tiles
+   * but what puts them in source?  Why not the loader?  For now I will just populate
+   * the features each time a tile loads...
+   */
+  private renderTree(tree: TileTreeExt) {
+    const tileNodes = tree.tree.descendants();
+    tileNodes.forEach((id) => {
+      const features = tree.getFeatures(id);
+      if (features.length) {
+        features.forEach((f) => f.set("visible", true));
+        this.addFeatures(features);
       }
     });
-
-    let [leaf, parent] = split(keep, (nodeId) => {
-      const { yieldToParent } = tree.tree.decorate<{ yieldToParent: boolean }>(
-        nodeId
-      );
-      return !yieldToParent;
-    });
-
-    parent = parent.filter(onlyUnique).map((id) => tree.tree.parent(id));
-
-    if (parent.length) {
-      parent = this.reduce(parent, Z);
-    }
-    return parent.concat(leaf);
   }
 
   private async loadAllChildren(
@@ -215,60 +221,7 @@ export class AgsClusterSource<
   }
 
   public async loadTile(tileIdentifier: XYZ, projection: Projection) {
-    const count = await this.featureLoader.loader(tileIdentifier, projection);
-    this.tree.setMass(tileIdentifier, count);
-  }
-
-  private tileDensity(currentZoomLevel: number, tileIdentifier: XYZ) {
-    const { Z } = tileIdentifier;
-    return Math.pow(4, currentZoomLevel - Z);
-  }
-
-  private unrender(tree: TileTreeExt, tileIdentifier: XYZ) {
-    const { feature } = tree.tree.decorate<{ feature: Feature<Geometry> }>(
-      tileIdentifier
-    );
-    if (!feature) return;
-    feature.setProperties({ visible: false });
-  }
-
-  private render(tree: TileTreeExt, tileIdentifier: XYZ, Z: number) {
-    let { feature } = tree.tree.decorate<{ feature: Feature<Geometry> }>(
-      tileIdentifier
-    );
-    if (feature) {
-      feature.setProperties({ visible: true });
-      return;
-    }
-    if (!tree.getMass(tileIdentifier)) return;
-
-    const features = tree.getFeatures(tileIdentifier);
-
-    if (features) {
-      features.forEach((f) =>
-        f.setProperties({ visible: true, type: "feature", tileIdentifier })
-      );
-      this.addFeatures(features);
-      return;
-    }
-
-    const point = new Point(tree.getCenter(tileIdentifier));
-    feature = new Feature();
-    const mass = tree.getMass(tileIdentifier);
-
-    feature.setGeometry(point);
-    feature.setProperties({
-      visible: true,
-      tileIdentifier,
-      text:
-        tree.tree.decorate<{ text: string }>(tileIdentifier).text || `${mass}`,
-      type:
-        tree.tree.decorate<{ type: "err" | "cluster" }>(tileIdentifier).type ||
-        "cluster",
-      mass,
-      density: this.tileDensity(Z, tileIdentifier),
-    });
-    this.addFeature(feature);
-    tree.tree.decorate(tileIdentifier, { feature });
+    await this.featureLoader.loader(tileIdentifier, projection);
+    this.renderTree(this.tree);
   }
 }

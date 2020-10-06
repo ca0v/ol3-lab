@@ -11,16 +11,30 @@ export class AgsClusterLayer<
     url: string;
     tileSize: number;
     minRecordCount: number;
+    maxDepth: number;
+    minZoom: number;
+    maxZoom: number;
     treeTileState?: TileTreeState<T>;
   }) {
     super();
-    const { url, tileSize, minRecordCount, treeTileState } = options;
+    const {
+      url,
+      tileSize,
+      minRecordCount,
+      treeTileState,
+      maxDepth,
+      minZoom,
+      maxZoom,
+    } = options;
 
     const source = new AgsClusterSource({
       tileSize,
       url,
       minRecordCount,
       treeTileState,
+      maxDepth,
+      maxZoom,
+      minZoom,
     });
 
     this.setStyle(<any>createStyleFactory());

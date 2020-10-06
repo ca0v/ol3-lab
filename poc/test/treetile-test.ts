@@ -4,6 +4,8 @@ import { Extent } from "@ol/extent";
 import { TileTree } from "../TileTree";
 import type { XY } from "../types/XY";
 
+import { unlistenByKey } from "@ol/events";
+import type { EventsKey } from "@ol/events";
 import { get as getProjection } from "@ol/proj";
 import type { TileNode } from "../types/TileNode";
 import { createXYZ } from "@ol/tilegrid";
@@ -144,7 +146,7 @@ describe("TileTree Tests", () => {
     }
   });
 
-  it("integrates with a feature source", () => {
+  it("integrates with a feature source", (done) => {
     const url =
       "http://localhost:3002/mock/sampleserver3/arcgis/rest/services/Petroleum/KSFields/FeatureServer/0/query";
     const projection = getProjection("EPSG:3857");
@@ -153,18 +155,20 @@ describe("TileTree Tests", () => {
     const source = new AgsClusterSource({
       tileSize,
       url,
-      minRecordCount: 100,
+      minRecordCount: 1000,
+      minZoom: 0,
+      maxZoom: 8,
+      maxDepth: 8,
     });
 
-    source.loadTile({ X: 0, Y: 0, Z: 0 }, projection);
+    const h = source.on(VectorEventType.ADDFEATURE, () => {
+      unlistenByKey(h as EventsKey);
+      done();
+    });
 
-    source.on(
-      VectorEventType.ADDFEATURE,
-      (args: { feature: Feature<Point> }) => {
-        const { count, resolution } = args.feature.getProperties();
-      }
-    );
-  });
+    // adds a feature
+    source.loadTile({ X: 0, Y: 0, Z: 0 }, projection);
+  }).timeout(30 * 1000);
 });
 
 describe("Cluster Rendering Rules", () => {

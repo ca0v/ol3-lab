@@ -1,4 +1,4 @@
-import { containsExtent, Extent } from "@ol/extent";
+import { Extent } from "@ol/extent";
 import { Projection } from "@ol/proj";
 import { TileTreeExt } from "./TileTreeExt";
 import { FeatureServiceProxy } from "./FeatureServiceProxy";
@@ -6,7 +6,6 @@ import { removeAuthority } from "./fun/removeAuthority";
 import { FeatureServiceRequest } from "./FeatureServiceRequest";
 import EsriJSON from "@ol/format/EsriJSON";
 import type { XYZ } from "poc/types/XYZ";
-import { slowloop } from "./fun/slowloop";
 import { explode } from "./fun/explode";
 
 function asRequest(projection: Projection) {
@@ -45,47 +44,51 @@ interface AgsFeatureLoaderOptions {
   maxDepth: number;
   minRecordCount: number;
   networkThrottle: number;
+  tree: TileTreeExt;
+  url: string;
 }
 
-const DEFAULT_OPTIONS: AgsFeatureLoaderOptions = {
+const DEFAULT_OPTIONS: Partial<AgsFeatureLoaderOptions> = {
   maxDepth: 0, // zoom levels
   minRecordCount: 256, // features
   networkThrottle: 100, // ms
 };
 
 export class AgsFeatureLoader {
+  private options: AgsFeatureLoaderOptions;
   private helper: TileTreeExt;
 
   public constructor(
-    private options: {
+    options: {
       tree: TileTreeExt;
       url: string;
     } & Partial<AgsFeatureLoaderOptions>
   ) {
     this.helper = options.tree;
+    this.options = {
+      ...DEFAULT_OPTIONS,
+      ...options,
+    } as AgsFeatureLoaderOptions;
   }
 
   public async loader(tileIdentifier: XYZ, projection: Projection) {
-    return this.loadTile(
-      tileIdentifier,
-      projection,
-      this.options.maxDepth || 0
-    );
+    await this.loadTile(tileIdentifier, projection, this.options.maxDepth || 0);
+    return this.options.tree.getMass(tileIdentifier);
   }
 
   private async loadTile(
     tileIdentifier: XYZ,
     projection: Projection,
     depth: number
-  ) {
+  ): Promise<void> {
     if (depth < 0) throw "cannot load tile with negative depth";
-    const { tree, url } = this.options;
+    const { tree, url, minRecordCount } = this.options;
 
-    const featureLoadThreshold =
-      this.options.minRecordCount || DEFAULT_OPTIONS.minRecordCount;
+    if (tree.isLoaded(tileIdentifier)) return;
 
-    const throttle =
-      this.options.networkThrottle || DEFAULT_OPTIONS.networkThrottle;
+    if (tree.tree.decorate<{ loading: string }>(tileIdentifier).loading) return;
+
+    tree.tree.decorate(tileIdentifier, { loading: true });
 
     const proxy = new FeatureServiceProxy({
       service: url,
@@ -106,19 +109,23 @@ export class AgsFeatureLoader {
             " "
           )}`;
         }
+        tree.tree.decorate(tileIdentifier, { loading: "complete" });
         return response.count;
       } catch (ex) {
         console.error(ex);
+        tree.tree.decorate(tileIdentifier, { loading: "error" });
         return 0;
       }
     })();
 
     this.helper.setMass(tileIdentifier, count);
 
-    if (0 == count) return count;
-
     // count is low enough to load features
-    if (count <= featureLoadThreshold) {
+    if (0 < count && count <= minRecordCount) {
+      if (this.helper.isLoaded(tileIdentifier)) {
+        throw `tile already loaded: ${tileIdentifier}`;
+      }
+
       // load the actual features into the bounding tiles
       const request = asRequest(projection);
       request.geometry = bbox(tree.tree.asExtent(tileIdentifier));
@@ -139,6 +146,7 @@ export class AgsFeatureLoader {
         }
 
         features.forEach((f) => this.helper.addFeature(f, id));
+        // this flag means the features have been loaded, not just the count
         this.helper.setLoaded(tileIdentifier, true);
       } catch (ex) {
         console.error(ex);
@@ -146,7 +154,7 @@ export class AgsFeatureLoader {
     }
 
     // count is too high, load sub-tiles
-    else if (depth > 0 && count > featureLoadThreshold) {
+    else if (0 < depth && minRecordCount < count) {
       const c = tree.tree.quads(tileIdentifier);
       // depth 1st is not prefered...how to change to breath 1st?
       await this.loadTile(c[0], projection, depth - 1);
@@ -154,8 +162,6 @@ export class AgsFeatureLoader {
       await this.loadTile(c[2], projection, depth - 1);
       await this.loadTile(c[3], projection, depth - 1);
     }
-
-    return count;
   }
 
   private async loadFeatures(
@@ -179,49 +185,5 @@ export class AgsFeatureLoader {
       featureProjection: projection,
     });
     return { id: response.objectIdFieldName, features };
-  }
-
-  private async loadCrosshairs(
-    tileIdentifier: XYZ,
-    proxy: FeatureServiceProxy,
-    projection: Projection
-  ) {
-    // load any features that intersect the crosshairs of this tile
-    // because these would be the features that are not contained within
-    // must also exclude features that are not entirely within this tile
-    // esriSpatialRelTouches the cross-hairs of a tile excluding features
-    // not fully within the tile
-
-    const esrijsonFormat = new EsriJSON();
-
-    const { tree } = this.options;
-
-    const request = asRequest(projection);
-    request.spatialRel = "esriSpatialRelIntersects";
-    request.geometryType = "esriGeometryPolyline";
-    request.geometry = JSON.stringify({
-      paths: [crosshair(tree.tree.asExtent(tileIdentifier))],
-    });
-
-    try {
-      const response = await proxy.fetch<
-        {
-          objectIdFieldName: string;
-          features: { attributes: any; geometry: any }[];
-        } & { error: { code: number; message: string; details: Array<string> } }
-      >(request);
-
-      if (response.error) {
-        throw `${response.error.message}: ${response.error.details?.join(" ")}`;
-      }
-
-      const features = esrijsonFormat.readFeatures(response, {
-        featureProjection: projection,
-      });
-      return features;
-    } catch (ex) {
-      console.error(ex);
-      return [];
-    }
   }
 }

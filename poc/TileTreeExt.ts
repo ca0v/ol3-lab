@@ -30,6 +30,7 @@ export class TileTreeExt {
   }
 
   setVisible(feature: Feature<Geometry>, visible = true) {
+    debugger;
     const tileIdentifier = feature.get("tileIdentifier") as XYZ;
     if (!tileIdentifier)
       throw "feature has no tile identifier, register using addFeature";
