@@ -1,7 +1,11 @@
+/***
+ * The "throwaway" StyleCache has probably outgrown this module...neither is ready to SVN
+ */
 import Feature from "@ol/Feature";
 import Geometry from "@ol/geom/Geometry";
 import { Style, Fill, Stroke, Text } from "@ol/style";
 import Circle from "@ol/style/Circle";
+import type View from "@ol/View";
 import { XYZ } from "../types/XYZ";
 
 const noop = (a: any) => a;
@@ -80,7 +84,7 @@ function makeMarkerImage() {
  * see @ol/source/Cluster for an implementation of client-side clustering.
  * I want to use the same technique to cluster cluster markers.
  */
-export function createStyleFactory() {
+export function createStyleFactory(view: View) {
   const cache = new Map<string, Array<Style>>();
 
   const textMaker = (text: string) =>
@@ -97,24 +101,37 @@ export function createStyleFactory() {
   // can control rendering from here by returning null styles
   const style = (feature: Feature<Geometry>, resolution: number) => {
     const visible = feature.get("visible") as boolean;
-    if (!visible) return;
+    if (!visible) {
+      return;
+    }
 
     const tileIdentifier = feature.get("tileIdentifier") as XYZ;
-    if (!tileIdentifier) return;
+    if (!tileIdentifier) {
+      return;
+    }
 
     const type = feature.get("type") as "err" | "cluster" | "feature";
+    const mass = type == "cluster" ? (feature.get("mass") as number) : 0;
+    const massLevel = Math.floor(Math.pow(2, Math.floor(Math.log2(mass))));
 
-    const hash = `${type}:${tileIdentifier.Z}`;
+    const currentZoom = Math.round(view.getZoomForResolution(resolution) || 0);
+    const zoffset = tileIdentifier.Z - currentZoom;
+
+    const hash = `${type}:${zoffset}:${massLevel}`;
     const result = cache.get(hash) || [];
     if (result.length) return result;
 
-    const mass = 999;
-    const text = "todo";
+    const text = mass + "";
 
     switch (type) {
       case "cluster": {
+        const radius = Math.max(
+          1,
+          Math.pow(2, -zoffset) + Math.log2(massLevel)
+        );
+
         const style = new Style({
-          image: makeClusterImage(mass, 1),
+          image: makeClusterImage(radius, 1),
           text: textMaker(text),
         });
         result.push(style);

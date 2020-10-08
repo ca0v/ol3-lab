@@ -6,38 +6,43 @@ import { AgsClusterLayer } from "poc/AgsClusterLayer";
 import { debounce } from "poc/fun/debounce";
 import { TileTreeTersifier } from "poc/TileTreeTersifier";
 import { treeTileState } from "../data/treetilestate";
+import { createMap } from "../fun/createMap";
 
 describe("UI Labs", () => {
   it("renders cluster layer on a map and continually cycles through the zoom levels", () => {
     const view = new View({
       center: getCenter([-11114555, 4696291, -10958012, 4852834]),
       minZoom: 0,
-      maxZoom: 9,
+      maxZoom: 16,
       zoom: 6,
     });
     const targetContainer = document.createElement("div");
     targetContainer.className = "testmapcontainer";
-    const target = document.createElement("div");
-    target.className = "map";
     document.body.appendChild(targetContainer);
-    targetContainer.appendChild(target);
 
     const url =
       "http://localhost:3002/mock/sampleserver3/arcgis/rest/services/Petroleum/KSFields/FeatureServer/0/query";
 
+    const map = createMap({
+      targetContainer,
+      extent: [-11114555, 4696291, -10958012, 4852834],
+      minZoom: 0,
+      maxZoom: 16,
+    });
+
+    view.setZoom(7);
+
     const vectorLayer = new AgsClusterLayer({
+      view,
       url,
       tileSize: 256,
-      maxDepth: 4,
+      maxDepth: 0,
       minRecordCount: 1000,
       minZoom: view.getMinZoom(),
       maxZoom: view.getMinZoom(),
+      networkThrottle: 1000,
     });
-    const layers = [vectorLayer];
-    const map = new Map({ view, target, layers });
-    const caption = document.createElement("label");
-    caption.innerText = "Autonomous Petroleum";
-    targetContainer.parentElement!.insertBefore(caption, targetContainer);
+    map.addLayer(vectorLayer);
 
     let automatedScaleDirection = 1;
     const h = setInterval(() => {
@@ -83,6 +88,7 @@ describe("UI Labs", () => {
     const decoder = new TileTreeTersifier();
 
     const vectorLayer = new AgsClusterLayer({
+      view,
       url,
       tileSize: 256,
       minRecordCount: 100,
@@ -90,6 +96,7 @@ describe("UI Labs", () => {
       treeTileState: decoder.unstringify(JSON.stringify(treeTileState)),
       minZoom: view.getMinZoom(),
       maxZoom: view.getMaxZoom(),
+      networkThrottle: 1000,
     });
 
     const layers = [vectorLayer];

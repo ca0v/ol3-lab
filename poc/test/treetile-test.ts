@@ -9,14 +9,14 @@ import type { EventsKey } from "@ol/events";
 import { get as getProjection } from "@ol/proj";
 import type { TileNode } from "../types/TileNode";
 import { createXYZ } from "@ol/tilegrid";
-import { tile, tile as tileStrategy } from "@ol/loadingstrategy";
-import Point from "@ol/geom/Point";
+import { tile as tileStrategy } from "@ol/loadingstrategy";
 import Feature from "@ol/Feature";
 import VectorEventType from "@ol/source/VectorEventType";
 import { AgsClusterSource } from "../AgsClusterSource";
 import { explode } from "poc/fun/explode";
 import { isEq } from "poc/fun/tiny";
 import { TileTreeTersifier } from "poc/TileTreeTersifier";
+import Geometry from "@ol/geom/Geometry";
 
 describe("TileTree Tests", () => {
   it("decorate test", () => {
@@ -159,14 +159,25 @@ describe("TileTree Tests", () => {
       minZoom: 0,
       maxZoom: 8,
       maxDepth: 8,
+      networkThrottle: 1000,
     });
 
-    const h = source.on(VectorEventType.ADDFEATURE, () => {
-      unlistenByKey(h as EventsKey);
-      done();
+    // loads a "feature" and a "cluster"
+    const checklistTypes = ["feature", "cluster"];
+    const h = source.on(VectorEventType.ADDFEATURE, (f: Feature<Geometry>) => {
+      const type = f.get("type");
+      const i = checklistTypes.indexOf(type);
+      if (-1 < i) {
+        checklistTypes.splice(i, 1);
+        console.log(checklistTypes);
+      }
+      if (!checklistTypes.length) {
+        unlistenByKey(h as EventsKey);
+        done();
+      }
     });
 
-    // adds a feature
+    // loads the entire map
     source.loadTile({ X: 0, Y: 0, Z: 0 }, projection);
   }).timeout(30 * 1000);
 });

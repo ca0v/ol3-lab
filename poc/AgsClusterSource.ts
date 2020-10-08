@@ -54,7 +54,12 @@ interface AgsClusterSourceOptions {
    * Point features will be assigned to tiles at this level
    */
   maxZoom: number;
+  networkThrottle: number;
 }
+
+const DEFAULT_OPTIONS: Partial<AgsClusterSourceOptions> = {
+  networkThrottle: 100,
+};
 
 /**
  * Vector Source for managing cluster features and actual features
@@ -69,7 +74,6 @@ export class AgsClusterSource<
   private loadingStrategy: LoadingStrategy;
   private tree: TileTreeExt;
   private isFirstDraw: boolean;
-  private priorResolution: number;
   private maxRecordCount: number;
   private minRecordCount: number;
 
@@ -83,7 +87,8 @@ export class AgsClusterSource<
       maxDepth,
       minZoom,
       maxZoom,
-    } = options;
+      networkThrottle,
+    } = { ...DEFAULT_OPTIONS, ...options } as AgsClusterSourceOptions;
 
     // this is the built-in strategy for determining which tiles to query
     const tileGrid = createXYZ({ tileSize });
@@ -104,7 +109,6 @@ export class AgsClusterSource<
     this.tileSize = tileSize;
     this.loadingStrategy = strategy;
     this.isFirstDraw = true;
-    this.priorResolution = 0;
 
     this.minRecordCount = minRecordCount;
     this.maxRecordCount = minRecordCount;
@@ -117,6 +121,7 @@ export class AgsClusterSource<
       url,
       maxDepth,
       minRecordCount,
+      networkThrottle,
     });
   }
 
@@ -139,55 +144,15 @@ export class AgsClusterSource<
       resolution
     ).map((extent) => tree.tree.asXyz(extent));
 
-    if (!extentsToLoad.length) {
-      return;
-    }
-    const Z = extentsToLoad[0].Z;
-
     if (this.isFirstDraw) {
       this.isFirstDraw && console.log("rendering 1st tree");
       this.isFirstDraw = false;
       this.renderTree(tree);
     }
 
-    if (resolution === this.priorResolution) {
-      return;
-    }
-    this.priorResolution = resolution;
-
     extentsToLoad.forEach(async (tileIdentifier) => {
       await this.loadTile(tileIdentifier, projection);
-
-      await this.loadDescendantsUntil(tileIdentifier, projection, (nodeId) => {
-        const mass = tree.getMass(nodeId) || 0;
-        const tooVagueTest = mass > this.maxRecordCount;
-        const tooSmallTest = mass < this.minRecordCount;
-        const tooDeepTest = nodeId.Z >= Z + LOOKAHEAD_THRESHOLD;
-        const allowLoad = tooVagueTest || (!tooDeepTest && !tooSmallTest);
-        return !allowLoad;
-      });
     });
-  }
-
-  private async loadDescendantsUntil(
-    tileIdentifier: XYZ,
-    projection: Projection,
-    stop: (tileIdentifier: XYZ) => boolean
-  ): Promise<XYZ[]> {
-    if (stop(tileIdentifier)) return [] as XYZ[];
-
-    const allChildren = this.tree.tree.quads(tileIdentifier);
-
-    const unloadedChildren = allChildren.filter(
-      (c) => typeof this.tree.getMass(c) !== "number"
-    );
-
-    await this.loadAllChildren(this.tree, tileIdentifier, projection);
-
-    const grandChildren = await Promise.all(
-      allChildren.map((c) => this.loadDescendantsUntil(c, projection, stop))
-    );
-    return unloadedChildren.concat(...grandChildren);
   }
 
   /**
@@ -202,22 +167,48 @@ export class AgsClusterSource<
   private renderTree(tree: TileTreeExt) {
     const tileNodes = tree.tree.descendants();
     tileNodes.forEach((id) => {
-      const features = tree.getFeatures(id);
+      const features = tree.getFeatures(id).filter((f) => {
+        const id = f.getId();
+        if (!id) return false;
+        return !this.getFeatureById(id);
+      });
       if (features.length) {
         features.forEach((f) => f.set("visible", true));
         this.addFeatures(features);
       }
+      {
+        const { center, mass } = tree.centerOfMass(id);
+        if (!mass) return;
+
+        this.forceClusterFeature({ tileIdentifier: id, center, mass });
+      }
     });
   }
 
-  private async loadAllChildren(
-    tree: TileTreeExt,
-    tileIdentifier: XYZ,
-    projection: Projection
-  ) {
-    return Promise.all(
-      tree.tree.quads(tileIdentifier).map((id) => this.loadTile(id, projection))
+  private forceClusterFeature(options: {
+    tileIdentifier: XYZ;
+    center: XY;
+    mass: number;
+  }) {
+    const { tileIdentifier, center, mass } = options;
+    const fid = `${tileIdentifier.X}.${tileIdentifier.Y}.${tileIdentifier.Z}`;
+    let feature = this.getFeatureById(fid);
+    if (feature) return feature;
+    feature = new Feature();
+    feature.setProperties(
+      {
+        type: "cluster",
+        mass: mass,
+        visible: true,
+        tileIdentifier,
+        Z: tileIdentifier.Z,
+      },
+      true
     );
+    feature.setGeometry(new Point(center));
+    feature.setId(fid);
+    this.addFeature(feature);
+    return feature;
   }
 
   public async loadTile(tileIdentifier: XYZ, projection: Projection) {

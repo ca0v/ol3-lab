@@ -7,6 +7,7 @@ import { FeatureServiceRequest } from "./FeatureServiceRequest";
 import EsriJSON from "@ol/format/EsriJSON";
 import type { XYZ } from "poc/types/XYZ";
 import { explode } from "./fun/explode";
+import { ticks } from "./test/fun/ticks";
 
 function asRequest(projection: Projection) {
   const request: FeatureServiceRequest = {
@@ -79,9 +80,9 @@ export class AgsFeatureLoader {
   private async loadTile(
     tileIdentifier: XYZ,
     projection: Projection,
-    depth: number
+    maxDepth: number
   ): Promise<void> {
-    if (depth < 0) throw "cannot load tile with negative depth";
+    if (maxDepth < 0) throw "cannot load tile with negative depth";
     const { tree, url, minRecordCount } = this.options;
 
     if (tree.isLoaded(tileIdentifier)) return;
@@ -93,6 +94,8 @@ export class AgsFeatureLoader {
     const proxy = new FeatureServiceProxy({
       service: url,
     });
+
+    await ticks(this.options.networkThrottle);
 
     const count = await (async () => {
       const request = asRequest(projection);
@@ -154,13 +157,15 @@ export class AgsFeatureLoader {
     }
 
     // count is too high, load sub-tiles
-    else if (0 < depth && minRecordCount < count) {
+    else if (0 < maxDepth && minRecordCount < count) {
+      debugger;
       const c = tree.tree.quads(tileIdentifier);
       // depth 1st is not prefered...how to change to breath 1st?
-      await this.loadTile(c[0], projection, depth - 1);
-      await this.loadTile(c[1], projection, depth - 1);
-      await this.loadTile(c[2], projection, depth - 1);
-      await this.loadTile(c[3], projection, depth - 1);
+      // how to await in a loop?
+      await this.loadTile(c[0], projection, maxDepth - 1);
+      await this.loadTile(c[1], projection, maxDepth - 1);
+      await this.loadTile(c[2], projection, maxDepth - 1);
+      await this.loadTile(c[3], projection, maxDepth - 1);
     }
   }
 
