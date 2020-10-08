@@ -24,9 +24,12 @@ export class TileTreeExt {
   }
 
   public isLoaded(tileIdentifier: XYZ) {
-    return (
-      this.tree.decorate<{ loaded: boolean }>(tileIdentifier).loaded || false
-    );
+    if (this.tree.decorate<{ loaded: boolean }>(tileIdentifier).loaded || false)
+      return true;
+    if (0 >= tileIdentifier.Z) return false;
+    const loaded = this.isLoaded(this.tree.parent(tileIdentifier)) as boolean;
+    this.tree.decorate(tileIdentifier, { loaded });
+    return loaded;
   }
 
   setVisible(feature: Feature<Geometry>, visible = true) {

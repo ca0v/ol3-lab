@@ -17,10 +17,10 @@ const STYLE_CONFIG = {
   clusterTextFillColor: "rgba(232, 230, 227, 1)",
   clusterTextStrokeColor: "rgba(0, 0, 0, 1)",
   clusterTextStrokeWidth: 1,
-  clusterTextScale: 0.75,
+  clusterTextScale: 2,
   clusterMinimumRadius: 5,
-  clusterRadiusScale: 1,
-  clusterScaleOp: (v: number) => Math.pow(2, Math.ceil(Math.log10(v))),
+  clusterRadiusScale: 64,
+  clusterScaleOp: (v: number) => v,
   warningRadius: 24,
   warningFillColor: "rgba(255, 0, 0, 0)",
   warningStrokeColor: "rgba(255, 0, 0, 1)",
@@ -38,12 +38,11 @@ const STYLE_CONFIG = {
 };
 
 // rules to be specified in configuration
-function makeClusterImage(count: number, opacity: number) {
+function makeClusterImage(radius: number, opacity: number) {
   return new Circle({
     radius:
       STYLE_CONFIG.clusterMinimumRadius +
-      STYLE_CONFIG.clusterRadiusScale *
-        (STYLE_CONFIG.clusterScaleOp || noop)(count),
+      (STYLE_CONFIG.clusterScaleOp || noop)(radius),
     fill: new Fill({ color: STYLE_CONFIG.clusterFillColor }),
     stroke: new Stroke({
       color: STYLE_CONFIG.clusterStrokeColor,
@@ -116,52 +115,60 @@ export function createStyleFactory(view: View) {
 
     const currentZoom = Math.round(view.getZoomForResolution(resolution) || 0);
     const zoffset = tileIdentifier.Z - currentZoom;
+    const text = mass + ":" + tileIdentifier.Z;
 
     const hash = `${type}:${zoffset}:${massLevel}`;
     const result = cache.get(hash) || [];
-    if (result.length) return result;
 
-    const text = mass + "";
+    if (!result.length) {
+      switch (type) {
+        case "cluster": {
+          const radius = Math.max(
+            1,
+            STYLE_CONFIG.clusterRadiusScale * Math.pow(2, -zoffset) +
+              Math.log2(massLevel)
+          );
+
+          const style = new Style({
+            image: makeClusterImage(radius, 1),
+            text: textMaker(text),
+          });
+          result.push(style);
+          break;
+        }
+        case "err": {
+          const style = new Style({
+            image: makeWarningImage(),
+            text: textMaker(text),
+          });
+          result.push(style);
+          break;
+        }
+
+        case "feature":
+        default: {
+          const style = new Style({
+            fill: new Fill({ color: "white" }),
+            stroke: new Stroke({ color: "black" }),
+          });
+          result.push(
+            new Style({
+              image: makeMarkerImage(),
+            })
+          );
+          result.push(style);
+        }
+      }
+
+      cache.set(hash, result);
+    }
 
     switch (type) {
       case "cluster": {
-        const radius = Math.max(
-          1,
-          Math.pow(2, -zoffset) + Math.log2(massLevel)
-        );
-
-        const style = new Style({
-          image: makeClusterImage(radius, 1),
-          text: textMaker(text),
-        });
-        result.push(style);
-        break;
-      }
-      case "err": {
-        const style = new Style({
-          image: makeWarningImage(),
-          text: textMaker(text),
-        });
-        result.push(style);
-        break;
-      }
-
-      case "feature":
-      default: {
-        const style = new Style({
-          fill: new Fill({ color: "white" }),
-          stroke: new Stroke({ color: "black" }),
-        });
-        result.push(
-          new Style({
-            image: makeMarkerImage(),
-          })
-        );
-        result.push(style);
+        result[0].getText().setText(text);
       }
     }
 
-    cache.set(hash, result);
     return result;
   };
 

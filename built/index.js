@@ -22630,7 +22630,13 @@ define("poc/TileTreeExt", ["require", "exports", "node_modules/ol/src/extent", "
             this.tree.decorate(tileIdentifier, { loaded });
         }
         isLoaded(tileIdentifier) {
-            return (this.tree.decorate(tileIdentifier).loaded || false);
+            if (this.tree.decorate(tileIdentifier).loaded || false)
+                return true;
+            if (0 >= tileIdentifier.Z)
+                return false;
+            const loaded = this.isLoaded(this.tree.parent(tileIdentifier));
+            this.tree.decorate(tileIdentifier, { loaded });
+            return loaded;
         }
         setVisible(feature, visible = true) {
             debugger;
@@ -23391,25 +23397,10 @@ define("poc/AgsFeatureLoader", ["require", "exports", "poc/FeatureServiceProxy",
     }
     exports.AgsFeatureLoader = AgsFeatureLoader;
 });
-define("poc/fun/split", ["require", "exports"], function (require, exports) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    exports.split = void 0;
-    function split(list, splitter) {
-        const yesno = [[], []];
-        list.forEach((item) => yesno[splitter(item) ? 0 : 1].push(item));
-        return yesno;
-    }
-    exports.split = split;
-});
 define("poc/AgsClusterSource", ["require", "exports", "poc/TileTree", "poc/TileTreeExt", "node_modules/ol/src/source/Vector", "poc/AgsFeatureLoader", "node_modules/ol/src/Feature", "node_modules/ol/src/geom/Point", "node_modules/ol/src/tilegrid", "node_modules/ol/src/loadingstrategy"], function (require, exports, TileTree_1, TileTreeExt_1, Vector_1, AgsFeatureLoader_1, Feature_1, Point_1, tilegrid_1, loadingstrategy_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.AgsClusterSource = void 0;
-    const LOOKAHEAD_THRESHOLD = 3;
-    function onlyUnique(value, index, self) {
-        return self.indexOf(value) === index;
-    }
     const DEFAULT_OPTIONS = {
         networkThrottle: 100,
     };
@@ -23424,11 +23415,8 @@ define("poc/AgsClusterSource", ["require", "exports", "poc/TileTree", "poc/TileT
             options.treeTileState && tree.load(options.treeTileState);
             super({ strategy });
             this.tree = new TileTreeExt_1.TileTreeExt(tree, { minZoom, maxZoom });
-            this.tileSize = tileSize;
             this.loadingStrategy = strategy;
             this.isFirstDraw = true;
-            this.minRecordCount = minRecordCount;
-            this.maxRecordCount = minRecordCount;
             this.featureLoader = new AgsFeatureLoader_1.AgsFeatureLoader({
                 tree: this.tree,
                 url,
@@ -23444,31 +23432,34 @@ define("poc/AgsClusterSource", ["require", "exports", "poc/TileTree", "poc/TileT
                 if (this.isFirstDraw) {
                     this.isFirstDraw && console.log("rendering 1st tree");
                     this.isFirstDraw = false;
-                    this.renderTree(tree);
+                    this.renderTree(tree, 0);
                 }
                 extentsToLoad.forEach((tileIdentifier) => __awaiter(this, void 0, void 0, function* () {
                     yield this.loadTile(tileIdentifier, projection);
                 }));
             });
         }
-        renderTree(tree) {
+        renderTree(tree, z) {
             const tileNodes = tree.tree.descendants();
             tileNodes.forEach((id) => {
-                const features = tree.getFeatures(id).filter((f) => {
-                    const id = f.getId();
-                    if (!id)
-                        return false;
-                    return !this.getFeatureById(id);
+                const { center, mass, featureMass } = tree.centerOfMass(id);
+                if (!mass)
+                    return;
+                const cluster = this.forceClusterFeature({
+                    tileIdentifier: id,
+                    center,
+                    mass: mass + featureMass,
                 });
-                if (features.length) {
-                    features.forEach((f) => f.set("visible", true));
-                    this.addFeatures(features);
-                }
-                {
-                    const { center, mass } = tree.centerOfMass(id);
-                    if (!mass)
-                        return;
-                    this.forceClusterFeature({ tileIdentifier: id, center, mass });
+                cluster.set("visible", id.Z == z);
+                if (tree.getFeatures(id).length) {
+                    const features = tree.getFeatures(id).filter((f) => {
+                        const id = f.getId();
+                        return !id || !this.getFeatureById(id);
+                    });
+                    if (features.length) {
+                        features.forEach((f) => f.set("visible", true));
+                        this.addFeatures(features);
+                    }
                 }
             });
         }
@@ -23494,7 +23485,7 @@ define("poc/AgsClusterSource", ["require", "exports", "poc/TileTree", "poc/TileT
         loadTile(tileIdentifier, projection) {
             return __awaiter(this, void 0, void 0, function* () {
                 yield this.featureLoader.loader(tileIdentifier, projection);
-                this.renderTree(this.tree);
+                this.renderTree(this.tree, tileIdentifier.Z);
             });
         }
     }
@@ -23512,10 +23503,10 @@ define("poc/fun/createStyleFactory", ["require", "exports", "node_modules/ol/src
         clusterTextFillColor: "rgba(232, 230, 227, 1)",
         clusterTextStrokeColor: "rgba(0, 0, 0, 1)",
         clusterTextStrokeWidth: 1,
-        clusterTextScale: 0.75,
+        clusterTextScale: 2,
         clusterMinimumRadius: 5,
-        clusterRadiusScale: 1,
-        clusterScaleOp: (v) => Math.pow(2, Math.ceil(Math.log10(v))),
+        clusterRadiusScale: 64,
+        clusterScaleOp: (v) => v,
         warningRadius: 24,
         warningFillColor: "rgba(255, 0, 0, 0)",
         warningStrokeColor: "rgba(255, 0, 0, 1)",
@@ -23531,11 +23522,10 @@ define("poc/fun/createStyleFactory", ["require", "exports", "node_modules/ol/src
         defaultMarkerTextStrokeColor: "rgba(255, 0, 0, 1)",
         defaultMarkerTextStrokeWidth: 1,
     };
-    function makeClusterImage(count, opacity) {
+    function makeClusterImage(radius, opacity) {
         return new Circle_1.default({
             radius: STYLE_CONFIG.clusterMinimumRadius +
-                STYLE_CONFIG.clusterRadiusScale *
-                    (STYLE_CONFIG.clusterScaleOp || noop)(count),
+                (STYLE_CONFIG.clusterScaleOp || noop)(radius),
             fill: new style_1.Fill({ color: STYLE_CONFIG.clusterFillColor }),
             stroke: new style_1.Stroke({
                 color: STYLE_CONFIG.clusterStrokeColor,
@@ -23588,42 +23578,48 @@ define("poc/fun/createStyleFactory", ["require", "exports", "node_modules/ol/src
             const massLevel = Math.floor(Math.pow(2, Math.floor(Math.log2(mass))));
             const currentZoom = Math.round(view.getZoomForResolution(resolution) || 0);
             const zoffset = tileIdentifier.Z - currentZoom;
+            const text = mass + ":" + tileIdentifier.Z;
             const hash = `${type}:${zoffset}:${massLevel}`;
             const result = cache.get(hash) || [];
-            if (result.length)
-                return result;
-            const text = mass + "";
+            if (!result.length) {
+                switch (type) {
+                    case "cluster": {
+                        const radius = Math.max(1, STYLE_CONFIG.clusterRadiusScale * Math.pow(2, -zoffset) +
+                            Math.log2(massLevel));
+                        const style = new style_1.Style({
+                            image: makeClusterImage(radius, 1),
+                            text: textMaker(text),
+                        });
+                        result.push(style);
+                        break;
+                    }
+                    case "err": {
+                        const style = new style_1.Style({
+                            image: makeWarningImage(),
+                            text: textMaker(text),
+                        });
+                        result.push(style);
+                        break;
+                    }
+                    case "feature":
+                    default: {
+                        const style = new style_1.Style({
+                            fill: new style_1.Fill({ color: "white" }),
+                            stroke: new style_1.Stroke({ color: "black" }),
+                        });
+                        result.push(new style_1.Style({
+                            image: makeMarkerImage(),
+                        }));
+                        result.push(style);
+                    }
+                }
+                cache.set(hash, result);
+            }
             switch (type) {
                 case "cluster": {
-                    const radius = Math.max(1, Math.pow(2, -zoffset) + Math.log2(massLevel));
-                    const style = new style_1.Style({
-                        image: makeClusterImage(radius, 1),
-                        text: textMaker(text),
-                    });
-                    result.push(style);
-                    break;
-                }
-                case "err": {
-                    const style = new style_1.Style({
-                        image: makeWarningImage(),
-                        text: textMaker(text),
-                    });
-                    result.push(style);
-                    break;
-                }
-                case "feature":
-                default: {
-                    const style = new style_1.Style({
-                        fill: new style_1.Fill({ color: "white" }),
-                        stroke: new style_1.Stroke({ color: "black" }),
-                    });
-                    result.push(new style_1.Style({
-                        image: makeMarkerImage(),
-                    }));
-                    result.push(style);
+                    result[0].getText().setText(text);
                 }
             }
-            cache.set(hash, result);
             return result;
         };
         return style;
@@ -24029,7 +24025,7 @@ define("poc/test/ux/map-test", ["require", "exports", "mocha", "node_modules/ol/
                 minZoom: 0,
                 maxZoom: 16,
             });
-            view.setZoom(7);
+            map.getView().setZoom(1);
             const vectorLayer = new AgsClusterLayer_1.AgsClusterLayer({
                 view,
                 url,

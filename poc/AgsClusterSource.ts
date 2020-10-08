@@ -15,14 +15,7 @@ import Point from "@ol/geom/Point";
 import { createXYZ } from "@ol/tilegrid";
 import { tile as tileStrategy } from "@ol/loadingstrategy";
 import type { TileTreeState } from "./TileTreeState";
-import { split } from "./fun/split";
 import type { XY } from "./types/XY";
-
-const LOOKAHEAD_THRESHOLD = 3; // a zoom offset for cluster data
-
-function onlyUnique<T>(value: T, index: number, self: Array<T>) {
-  return self.indexOf(value) === index;
-}
 
 interface AgsClusterSourceOptions {
   /**
@@ -69,13 +62,10 @@ const DEFAULT_OPTIONS: Partial<AgsClusterSourceOptions> = {
 export class AgsClusterSource<
   T extends { count: number; center: XY }
 > extends VectorSource<Geometry> {
-  private tileSize: number;
   private featureLoader: AgsFeatureLoader;
   private loadingStrategy: LoadingStrategy;
   private tree: TileTreeExt;
   private isFirstDraw: boolean;
-  private maxRecordCount: number;
-  private minRecordCount: number;
 
   constructor(
     options: AgsClusterSourceOptions & { treeTileState?: TileTreeState<T> }
@@ -106,12 +96,8 @@ export class AgsClusterSource<
 
     // this is a helper extension to the tree that manages "weight" related computations/data
     this.tree = new TileTreeExt(tree, { minZoom, maxZoom });
-    this.tileSize = tileSize;
     this.loadingStrategy = strategy;
     this.isFirstDraw = true;
-
-    this.minRecordCount = minRecordCount;
-    this.maxRecordCount = minRecordCount;
 
     // this is the loader that actually queries the feature service and adds features
     // to tiles that spatially contain them...by "tile" I mean a TileTree data container
@@ -147,7 +133,7 @@ export class AgsClusterSource<
     if (this.isFirstDraw) {
       this.isFirstDraw && console.log("rendering 1st tree");
       this.isFirstDraw = false;
-      this.renderTree(tree);
+      this.renderTree(tree, 0);
     }
 
     extentsToLoad.forEach(async (tileIdentifier) => {
@@ -164,23 +150,29 @@ export class AgsClusterSource<
    * but what puts them in source?  Why not the loader?  For now I will just populate
    * the features each time a tile loads...
    */
-  private renderTree(tree: TileTreeExt) {
+  private renderTree(tree: TileTreeExt, z: number) {
     const tileNodes = tree.tree.descendants();
     tileNodes.forEach((id) => {
-      const features = tree.getFeatures(id).filter((f) => {
-        const id = f.getId();
-        if (!id) return false;
-        return !this.getFeatureById(id);
-      });
-      if (features.length) {
-        features.forEach((f) => f.set("visible", true));
-        this.addFeatures(features);
-      }
-      {
-        const { center, mass } = tree.centerOfMass(id);
-        if (!mass) return;
+      const { center, mass, featureMass } = tree.centerOfMass(id);
+      if (!mass) return;
 
-        this.forceClusterFeature({ tileIdentifier: id, center, mass });
+      const cluster = this.forceClusterFeature({
+        tileIdentifier: id,
+        center,
+        mass: mass + featureMass,
+      });
+
+      cluster.set("visible", id.Z == z);
+
+      if (tree.getFeatures(id).length) {
+        const features = tree.getFeatures(id).filter((f) => {
+          const id = f.getId();
+          return !id || !this.getFeatureById(id);
+        });
+        if (features.length) {
+          features.forEach((f) => f.set("visible", true));
+          this.addFeatures(features);
+        }
       }
     });
   }
@@ -213,6 +205,6 @@ export class AgsClusterSource<
 
   public async loadTile(tileIdentifier: XYZ, projection: Projection) {
     await this.featureLoader.loader(tileIdentifier, projection);
-    this.renderTree(this.tree);
+    this.renderTree(this.tree, tileIdentifier.Z);
   }
 }

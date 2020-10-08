@@ -30,7 +30,7 @@ describe("UI Labs", () => {
       maxZoom: 16,
     });
 
-    view.setZoom(7);
+    map.getView().setZoom(1);
 
     const vectorLayer = new AgsClusterLayer({
       view,
