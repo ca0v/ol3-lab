@@ -162,19 +162,35 @@ export class AgsClusterSource<
         mass: mass + featureMass,
       });
 
-      cluster.set("visible", id.Z == z);
-
-      if (tree.getFeatures(id).length) {
-        const features = tree.getFeatures(id).filter((f) => {
+      const tileFeatures = tree.getFeatures(id);
+      if (tileFeatures.length) {
+        const features = tileFeatures.filter((f) => {
           const id = f.getId();
           return !id || !this.getFeatureById(id);
         });
         if (features.length) {
-          features.forEach((f) => f.set("visible", true));
           this.addFeatures(features);
         }
       }
     });
+
+    {
+      // refresh features
+      this.getFeatures().forEach((f) => {
+        const type = f.get("type") as string;
+        const tileIdentifier = f.get("tileIdentifier") as XYZ;
+        switch (type) {
+          case "feature": {
+            f.set("visible", true);
+            break;
+          }
+          case "cluster": {
+            f.set("visible", tileIdentifier.Z === z);
+            break;
+          }
+        }
+      });
+    }
   }
 
   private forceClusterFeature(options: {
