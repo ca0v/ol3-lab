@@ -81,6 +81,8 @@ function makeMarkerImage() {
  * I want to use the same technique to cluster cluster markers.
  */
 export function createStyleFactory() {
+  const cache = new Map<string, Array<Style>>();
+
   const textMaker = (text: string) =>
     new Text({
       text: text,
@@ -94,26 +96,20 @@ export function createStyleFactory() {
 
   // can control rendering from here by returning null styles
   const style = (feature: Feature<Geometry>, resolution: number) => {
-    const {
-      tileIdentifier,
-      text,
-      mass,
-      density,
-      visible,
-      type,
-    } = feature.getProperties() as {
-      tileIdentifier: XYZ;
-      text: string;
-      density: number;
-      mass: number;
-      visible: boolean;
-      type: "err" | "cluster" | "feature";
-    };
-
-    if (!tileIdentifier) return;
+    const visible = feature.get("visible") as boolean;
     if (!visible) return;
 
-    const result = [] as Style[];
+    const tileIdentifier = feature.get("tileIdentifier") as XYZ;
+    if (!tileIdentifier) return;
+
+    const type = feature.get("type") as "err" | "cluster" | "feature";
+
+    const hash = `${type}:${tileIdentifier.Z}`;
+    const result = cache.get(hash) || [];
+    if (result.length) return result;
+
+    const mass = 999;
+    const text = "todo";
 
     switch (type) {
       case "cluster": {
@@ -147,6 +143,8 @@ export function createStyleFactory() {
         result.push(style);
       }
     }
+
+    cache.set(hash, result);
     return result;
   };
 
